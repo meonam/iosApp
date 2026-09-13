@@ -225,6 +225,28 @@ class FirebaseService: ObservableObject {
         return false
     }
 
+    // --- B2. ĐẶT LẠI MẬT KHẨU (PASSWORD RESET) ---
+    func resetPassword(email: String) async -> Bool {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let endpoint = "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=\(apiKey)"
+        guard let url = URL(string: endpoint) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = [
+            "requestType": "PASSWORD_RESET",
+            "email": cleanEmail
+        ]
+        do {
+            req.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (_, res) = try await URLSession.shared.data(for: req)
+            if let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200 {
+                return true
+            }
+        } catch {}
+        return false
+    }
+
     // --- B. ĐĂNG XUẤT ---
     func signOut() {
         // Gửi nhịp tim báo offline trước khi thoát
@@ -763,173 +785,488 @@ struct ContentView: View {
     }
 }
 
+// MARK: - 4.1. LOGO COMPONENT (Hiển thị Logo App từ Asset Catalog & Vector Fallback)
+struct AppLogoImage: View {
+    var size: CGFloat = 110
+
+    var body: some View {
+        if let uiImage = UIImage(named: "logo_app") {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+        } else {
+            // Fallback Vector Logo Lá chắn chuẩn Saigon Co.op
+            ZStack {
+                RoundedRectangle(cornerRadius: size * 0.2)
+                    .fill(Color.white)
+                    .frame(width: size, height: size)
+                    .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
+
+                Image(systemName: "shield.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size * 0.72, height: size * 0.72)
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+
+                Image(systemName: "desktopcomputer")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size * 0.38, height: size * 0.38)
+                    .foregroundColor(.white)
+            }
+        }
+    }
+}
+
+// MARK: - 4.2. SHEET QUÊN MẬT KHẨU
+struct ForgotPasswordSheet: View {
+    @EnvironmentObject var firebase: FirebaseService
+    @Binding var isPresented: Bool
+    @State private var emailInput: String = ""
+    @State private var isSending: Bool = false
+    @State private var message: String? = nil
+    @State private var isSuccess: Bool = false
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 20) {
+                Text("Nhập email tài khoản để nhận liên kết đặt lại mật khẩu từ hệ thống Saigon Co.op.")
+                    .font(.system(size: 14))
+                    .foregroundColor(Color.appTextSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 16)
+                    .padding(.horizontal, 16)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Email đã đăng ký")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.appTextPrimary)
+
+                    HStack {
+                        Image(systemName: "envelope.fill")
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                            .frame(width: 20)
+                        TextField("admin@sgcoop.com", text: $emailInput)
+                            .keyboardType(.emailAddress)
+                            .autocapitalization(.none)
+                            .disableAutocorrection(true)
+                            .font(.system(size: 14))
+                    }
+                    .padding(12)
+                    .background(Color.appBackground)
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                }
+                .padding(.horizontal, 16)
+
+                if let msg = message {
+                    Text(msg)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(isSuccess ? Color.statusInUse : Color.statusBroken)
+                        .padding(.horizontal, 16)
+                }
+
+                Button(action: {
+                    let clean = emailInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !clean.isEmpty else { return }
+                    isSending = true
+                    Task {
+                        let ok = await firebase.resetPassword(email: clean)
+                        isSending = false
+                        isSuccess = ok
+                        message = ok ? "✅ Đã gửi liên kết đặt lại mật khẩu! Vui lòng kiểm tra hộp thư." : "❌ Không tìm thấy tài khoản hoặc lỗi kết nối."
+                    }
+                }) {
+                    HStack {
+                        if isSending {
+                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        } else {
+                            Text("Gửi liên kết đặt lại mật khẩu")
+                                .font(.system(size: 15, weight: .bold))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(Color.appSecondaryDarkBlue)
+                    .foregroundColor(.white)
+                    .cornerRadius(12)
+                }
+                .disabled(isSending || emailInput.isEmpty)
+                .padding(.horizontal, 16)
+
+                Spacer()
+            }
+            .navigationTitle("Quên mật khẩu")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { isPresented = false }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 4.3. SHEET TRỢ GIÚP & HƯỚNG DẪN
+struct HelpInstructionSheet: View {
+    @Binding var isPresented: Bool
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(spacing: 12) {
+                        AppLogoImage(size: 56)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Quản Lý Thiết Bị")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                            Text("Hệ thống quản lý tài sản & điều phối KTV")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color.appTextSecondary)
+                        }
+                    }
+                    .padding(.bottom, 8)
+
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("1. Hướng dẫn Đăng nhập:")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                        Text("• Sử dụng tài khoản email nội bộ do Saigon Co.op cấp (VD: admin@sgcoop.com).
+• Nếu chưa có tài khoản, vui lòng liên hệ Quản lý phòng ban hoặc HelpDesk CNTT.")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color.appTextSecondary)
+
+                        Text("2. Quản lý Thiết bị:")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                        Text("• Tra cứu thiết bị theo mã vạch, tên máy hoặc số Serial.
+• Cập nhật trạng thái thiết bị trực tuyến (Đang dùng, Đang sửa, Hỏng...).")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color.appTextSecondary)
+
+                        Text("3. Yêu cầu Hỗ trợ Kỹ thuật:")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                        Text("• Bấm nút tròn nổi (FAB) màu xanh để tạo nhanh phiếu cứu hộ sự cố quầy thu ngân.
+• Nhắn tin trao đổi thời gian thực trực tiếp với Kỹ thuật viên qua khung chat.")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color.appTextSecondary)
+                    }
+
+                    Spacer()
+                }
+                .padding(20)
+            }
+            .navigationTitle("Trợ giúp & Hướng dẫn")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { isPresented = false }
+                }
+            }
+        }
+    }
+}
+
 // MARK: - 5. LOGIN VIEW (Màn hình Đăng nhập Co.opmart)
 struct LoginScreenView: View {
     @EnvironmentObject var firebase: FirebaseService
     @State private var emailInput: String = "admin@sgcoop.com"
     @State private var passInput: String = "Admin123"
+    @State private var isPasswordVisible: Bool = false
+    @State private var showForgotSheet: Bool = false
+    @State private var showRegisterAlert: Bool = false
+    @State private var registerAlertTitle: String = ""
+    @State private var registerAlertMessage: String = ""
+    @State private var showHelpSheet: Bool = false
 
     var body: some View {
         ZStack {
-            Color.appSecondaryDarkBlue.ignoresSafeArea()
+            Color.appBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                Spacer()
+            ScrollView {
+                VStack(spacing: 0) {
+                    // Top Bar with Language Selector
+                    HStack {
+                        Spacer()
+                        HStack(spacing: 5) {
+                            Text("🇻🇳")
+                            Text("Tiếng Việt")
+                                .font(.system(size: 12.5, weight: .semibold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.white)
+                        .cornerRadius(20)
+                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.appCardBorder, lineWidth: 1))
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
 
-                // Header Logo
-                VStack(spacing: 12) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 84, height: 84)
-                            .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: 4)
+                    Spacer(minLength: 16)
 
-                        Image(systemName: "wrench.and.screwdriver.fill")
-                            .font(.system(size: 40))
+                    // Main Card matching Android 1:1
+                    VStack(spacing: 0) {
+                        // 1. Logo
+                        AppLogoImage(size: 115)
+                            .padding(.top, 8)
+                            .padding(.bottom, 12)
+
+                        // 2. Title & Subtitle
+                        Text("Quản Lý Thiết Bị")
+                            .font(.system(size: 24, weight: .bold))
                             .foregroundColor(Color.appSecondaryDarkBlue)
-                    }
 
-                    Text("QLTB SGCOOP")
-                        .font(.system(size: 24, weight: .black))
-                        .foregroundColor(.white)
-
-                    Text("HỆ THỐNG QUẢN LÝ THIẾT BỊ & ĐIỀU PHỐI KTV")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Color.white.opacity(0.8))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                }
-                .padding(.bottom, 32)
-
-                // Khung nhập liệu (Card Trắng)
-                VStack(spacing: 18) {
-                    Text("Đăng nhập tài khoản")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(Color.appSecondaryDarkBlue)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    if let err = firebase.authError {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.white)
-                            Text(err)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.white)
-                        }
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.statusBroken)
-                        .cornerRadius(8)
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Email công việc")
-                            .font(.system(size: 12, weight: .semibold))
+                        Text("Quản lý thiết bị & tài sản doanh nghiệp")
+                            .font(.system(size: 13))
                             .foregroundColor(Color.appTextSecondary)
+                            .padding(.top, 4)
 
-                        HStack {
-                            Image(systemName: "envelope.fill")
-                                .foregroundColor(Color.appSecondaryDarkBlue)
-                                .frame(width: 20)
-                            TextField("VD: admin@sgcoop.com", text: $emailInput)
-                                .font(.system(size: 14))
-                                .autocapitalization(.none)
-                                .disableAutocorrection(true)
+                        // 3. Version badge
+                        HStack(spacing: 4) {
+                            Text("Phiên bản v1.0.0 (Build 1)")
+                                .font(.system(size: 11.5, weight: .semibold))
+                                .foregroundColor(Color.appTextSecondary)
                         }
-                        .padding(12)
-                        .background(Color.appBackground)
-                        .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
-                    }
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Mật khẩu")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color.appTextSecondary)
-
-                        HStack {
-                            Image(systemName: "lock.fill")
-                                .foregroundColor(Color.appSecondaryDarkBlue)
-                                .frame(width: 20)
-                            SecureField("Nhập mật khẩu", text: $passInput)
-                                .font(.system(size: 14))
-                        }
-                        .padding(12)
-                        .background(Color.appBackground)
-                        .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
-                    }
-
-                    // Nút Đăng nhập chính
-                    Button(action: {
-                        Task {
-                            _ = await firebase.signIn(email: emailInput, pass: passInput)
-                        }
-                    }) {
-                        HStack {
-                            if firebase.isAuthenticating {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Image(systemName: "arrow.right.circle.fill")
-                                Text("Đăng nhập hệ thống")
-                                    .font(.system(size: 15, weight: .bold))
-                            }
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
-                        .background(Color.appPrimaryPink)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 3)
+                        .background(Color(hex: "#F1F5F9"))
                         .cornerRadius(12)
-                        .shadow(color: Color.appPrimaryPink.opacity(0.4), radius: 6, x: 0, y: 3)
-                    }
-                    .disabled(firebase.isAuthenticating || emailInput.isEmpty || passInput.isEmpty)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        .padding(.top, 8)
+                        .padding(.bottom, 22)
 
-                    // Phím tắt tài khoản mẫu
-                    VStack(spacing: 8) {
-                        Text("HOẶC ĐĂNG NHẬP NHANH BẰNG TÀI KHOẢN MẪU:")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(Color.appTextMuted)
+                        // 4. Input Fields
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Email hoặc Số điện thoại")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
 
-                        HStack(spacing: 10) {
-                            Button("Admin") {
-                                emailInput = "admin@sgcoop.com"
-                                passInput = "Admin123"
+                            HStack {
+                                Image(systemName: emailInput.contains("@") ? "envelope.fill" : "person.crop.circle.fill")
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .frame(width: 22)
+
+                                TextField("admin@sgcoop.com", text: $emailInput)
+                                    .font(.system(size: 14))
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
                             }
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 6)
-                            .background(Color.appSecondaryDarkBlue.opacity(0.1))
-                            .cornerRadius(8)
-
-                            Button("KTV Cần Thơ") {
-                                emailInput = "lethid@sgcoop.com"
-                                passInput = "123456"
-                            }
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 6)
-                            .background(Color.appSecondaryDarkBlue.opacity(0.1))
-                            .cornerRadius(8)
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1.2))
                         }
+                        .padding(.bottom, 14)
+
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Mật khẩu")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+
+                            HStack {
+                                Image(systemName: "lock.fill")
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .frame(width: 22)
+
+                                if isPasswordVisible {
+                                    TextField("Nhập mật khẩu", text: $passInput)
+                                        .font(.system(size: 14))
+                                        .autocapitalization(.none)
+                                        .disableAutocorrection(true)
+                                } else {
+                                    SecureField("Nhập mật khẩu", text: $passInput)
+                                        .font(.system(size: 14))
+                                }
+
+                                Button(action: { isPasswordVisible.toggle() }) {
+                                    Image(systemName: isPasswordVisible ? "eye.fill" : "eye.slash.fill")
+                                        .foregroundColor(Color.appTextMuted)
+                                }
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // Quên mật khẩu link
+                        HStack {
+                            Spacer()
+                            Button("Quên mật khẩu?") {
+                                showForgotSheet = true
+                            }
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                            .padding(.top, 6)
+                        }
+                        .padding(.bottom, 8)
+
+                        // Error message
+                        if let err = firebase.authError {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .foregroundColor(.white)
+                                Text(err)
+                                    .font(.system(size: 12.5, weight: .medium))
+                                    .foregroundColor(.white)
+                            }
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.statusBroken)
+                            .cornerRadius(10)
+                            .padding(.bottom, 10)
+                        }
+
+                        // 5. Nút Đăng nhập
+                        Button(action: {
+                            Task {
+                                _ = await firebase.signIn(email: emailInput, pass: passInput)
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                if firebase.isAuthenticating {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Image(systemName: "arrow.right.circle.fill")
+                                        .font(.system(size: 17, weight: .bold))
+                                    Text("Đăng nhập")
+                                        .font(.system(size: 16, weight: .bold))
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Color.appSecondaryDarkBlue)
+                            .cornerRadius(12)
+                        }
+                        .disabled(firebase.isAuthenticating || emailInput.isEmpty || passInput.isEmpty)
+                        .padding(.top, 6)
+                        .padding(.bottom, 20)
+
+                        // 6. Lựa chọn Đăng ký
+                        VStack(spacing: 10) {
+                            Text("Chưa có tài khoản?")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color.appTextSecondary)
+
+                            HStack(spacing: 8) {
+                                Button(action: {
+                                    registerAlertTitle = "Đăng ký doanh nghiệp"
+                                    registerAlertMessage = "Tính năng dành cho Quản trị viên (Admin) tạo mã công ty mới trên hệ thống. Vui lòng liên hệ HelpDesk SGCOOP để cấp quyền."
+                                    showRegisterAlert = true
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "building.2.fill")
+                                            .font(.system(size: 13))
+                                        Text("Đăng ký công ty\n(Admin)")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .multilineTextAlignment(.center)
+                                    }
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 44)
+                                    .background(Color.white)
+                                    .cornerRadius(10)
+                                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                                }
+
+                                Button(action: {
+                                    registerAlertTitle = "Gia nhập công ty"
+                                    registerAlertMessage = "Tính năng dành cho Nhân viên/KTV mới gia nhập hệ thống Saigon Co.op. Quản lý phòng ban sẽ xét duyệt tài khoản của bạn."
+                                    showRegisterAlert = true
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "person.badge.plus")
+                                            .font(.system(size: 13))
+                                        Text("Gia nhập công ty\n(Nhân viên)")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .multilineTextAlignment(.center)
+                                    }
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 44)
+                                    .background(Color.white)
+                                    .cornerRadius(10)
+                                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                                }
+                            }
+
+                            // Trợ giúp link
+                            Button(action: { showHelpSheet = true }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "questionmark.circle")
+                                        .font(.system(size: 14))
+                                    Text("Trợ giúp & Hướng dẫn sử dụng")
+                                        .font(.system(size: 13, weight: .bold))
+                                }
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .padding(.top, 8)
+                            }
+                        }
+
+                        // Phím tắt đăng nhập nhanh
+                        VStack(spacing: 8) {
+                            Divider().padding(.vertical, 8)
+                            Text("TÀI KHOẢN TRUY CẬP MẪU:")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(Color.appTextMuted)
+
+                            HStack(spacing: 10) {
+                                Button("Admin: admin@sgcoop.com") {
+                                    emailInput = "admin@sgcoop.com"
+                                    passInput = "Admin123"
+                                }
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.appSecondaryDarkBlue.opacity(0.08))
+                                .cornerRadius(8)
+
+                                Button("KTV: lethid@sgcoop.com") {
+                                    emailInput = "lethid@sgcoop.com"
+                                    passInput = "123456"
+                                }
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.appSecondaryDarkBlue.opacity(0.08))
+                                .cornerRadius(8)
+                            }
+                        }
+                        .padding(.top, 6)
                     }
-                    .padding(.top, 6)
+                    .padding(24)
+                    .background(Color.white)
+                    .cornerRadius(24)
+                    .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 16)
+                    .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 4)
+
+                    Spacer(minLength: 20)
                 }
-                .padding(24)
-                .background(Color.white)
-                .cornerRadius(24)
-                .padding(.horizontal, 20)
-                .shadow(color: Color.black.opacity(0.2), radius: 16, x: 0, y: 8)
-
-                Spacer()
-
-                Text("Saigon Co.op • Enterprise Device Management")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color.white.opacity(0.6))
-                    .padding(.bottom, 20)
             }
+        }
+        .sheet(isPresented: $showForgotSheet) {
+            ForgotPasswordSheet(isPresented: $showForgotSheet)
+                .environmentObject(firebase)
+        }
+        .sheet(isPresented: $showHelpSheet) {
+            HelpInstructionSheet(isPresented: $showHelpSheet)
+        }
+        .alert(registerAlertTitle, isPresented: $showRegisterAlert) {
+            Button("Đồng ý", role: .cancel) {}
+        } message: {
+            Text(registerAlertMessage)
         }
     }
 }
@@ -1182,17 +1519,11 @@ struct HomeScreenView: View {
                 }
 
                 HStack(spacing: 8) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.appPrimaryPink)
-                            .frame(width: 28, height: 28)
-                        Image(systemName: "wrench.and.screwdriver.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(.white)
-                    }
+                    AppLogoImage(size: 28)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
 
                     Text("Trang chủ")
-                        .font(.system(size: 19, weight: .bold))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
                 }
 

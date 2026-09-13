@@ -7,11 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		110000152C12345600000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 110000162C12345600000001 /* Assets.xcassets */; };
 		110000012C12345600000001 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000022C12345600000001 /* iOSApp.swift */; };
 		110000032C12345600000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000042C12345600000001 /* ContentView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		110000162C12345600000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		110000052C12345600000001 /* QLTB.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QLTB.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		110000022C12345600000001 /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
 		110000042C12345600000001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -43,6 +45,7 @@
 				110000022C12345600000001 /* iOSApp.swift */,
 				110000042C12345600000001 /* ContentView.swift */,
 				110000062C12345600000001 /* Info.plist */,
+				110000162C12345600000001 /* Assets.xcassets */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -113,6 +116,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				110000152C12345600000001 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -257,7 +261,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iosApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "QLTB SGCOOP";
+				INFOPLIST_KEY_CFBundleDisplayName = "Quản Lý Thiết Bị";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -281,7 +285,7 @@
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iosApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "QLTB SGCOOP";
+				INFOPLIST_KEY_CFBundleDisplayName = "Quản Lý Thiết Bị";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
