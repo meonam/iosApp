@@ -829,7 +829,7 @@ struct ForgotPasswordSheet: View {
     @State private var isSuccess: Bool = false
 
     var body: some View {
-        NavigationStack {
+        NavigationView {
             VStack(spacing: 20) {
                 Text("Nhập email tài khoản để nhận liên kết đặt lại mật khẩu từ hệ thống Saigon Co.op.")
                     .font(.system(size: 14))
@@ -905,6 +905,7 @@ struct ForgotPasswordSheet: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
 
@@ -913,7 +914,7 @@ struct HelpInstructionSheet: View {
     @Binding var isPresented: Bool
 
     var body: some View {
-        NavigationStack {
+        NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     HStack(spacing: 12) {
@@ -935,24 +936,30 @@ struct HelpInstructionSheet: View {
                         Text("1. Hướng dẫn Đăng nhập:")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(Color.appSecondaryDarkBlue)
-                        Text("• Sử dụng tài khoản email nội bộ do Saigon Co.op cấp (VD: admin@sgcoop.com).
-• Nếu chưa có tài khoản, vui lòng liên hệ Quản lý phòng ban hoặc HelpDesk CNTT.")
+                        Text("""
+• Sử dụng tài khoản email nội bộ do Saigon Co.op cấp (VD: admin@sgcoop.com).
+• Nếu chưa có tài khoản, vui lòng liên hệ Quản lý phòng ban hoặc HelpDesk CNTT.
+""")
                             .font(.system(size: 13))
                             .foregroundColor(Color.appTextSecondary)
 
                         Text("2. Quản lý Thiết bị:")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(Color.appSecondaryDarkBlue)
-                        Text("• Tra cứu thiết bị theo mã vạch, tên máy hoặc số Serial.
-• Cập nhật trạng thái thiết bị trực tuyến (Đang dùng, Đang sửa, Hỏng...).")
+                        Text("""
+• Tra cứu thiết bị theo mã vạch, tên máy hoặc số Serial.
+• Cập nhật trạng thái thiết bị trực tuyến (Đang dùng, Đang sửa, Hỏng...).
+""")
                             .font(.system(size: 13))
                             .foregroundColor(Color.appTextSecondary)
 
                         Text("3. Yêu cầu Hỗ trợ Kỹ thuật:")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(Color.appSecondaryDarkBlue)
-                        Text("• Bấm nút tròn nổi (FAB) màu xanh để tạo nhanh phiếu cứu hộ sự cố quầy thu ngân.
-• Nhắn tin trao đổi thời gian thực trực tiếp với Kỹ thuật viên qua khung chat.")
+                        Text("""
+• Bấm nút tròn nổi (FAB) màu xanh để tạo nhanh phiếu cứu hộ sự cố quầy thu ngân.
+• Nhắn tin trao đổi thời gian thực trực tiếp với Kỹ thuật viên qua khung chat.
+""")
                             .font(.system(size: 13))
                             .foregroundColor(Color.appTextSecondary)
                     }
@@ -969,6 +976,7 @@ struct HelpInstructionSheet: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
 
