@@ -48,7 +48,7 @@ extension Color {
 }
 
 // MARK: - 2. DATA MODELS (Khớp 100% Firestore Collections)
-struct DeviceItem: Identifiable, Hashable {
+struct DeviceItem: Identifiable, Hashable, Sendable {
     var id: String
     var code: String
     var name: String
@@ -60,7 +60,7 @@ struct DeviceItem: Identifiable, Hashable {
     var iconName: String
 }
 
-struct SupportTicket: Identifiable, Hashable {
+struct SupportTicket: Identifiable, Hashable, Sendable {
     var id: String
     var title: String
     var unit: String
@@ -73,7 +73,7 @@ struct SupportTicket: Identifiable, Hashable {
     var lastMessage: String
 }
 
-struct ChatMessage: Identifiable, Hashable {
+struct ChatMessage: Identifiable, Hashable, Sendable {
     var id: String
     var senderName: String
     var senderEmail: String
@@ -208,8 +208,9 @@ class FirebaseService: ObservableObject {
                     }
                 }
 
+                let finalErr = errDesc
                 await MainActor.run {
-                    self.authError = errDesc
+                    self.authError = finalErr
                     self.isAuthenticating = false
                 }
                 return false
@@ -335,8 +336,9 @@ class FirebaseService: ObservableObject {
                         parsedList.append(item)
                     }
 
+                    let finalDevices = parsedList
                     await MainActor.run {
-                        self.devices = parsedList
+                        self.devices = finalDevices
                         self.isLoadingDevices = false
                     }
                     return
@@ -431,8 +433,9 @@ class FirebaseService: ObservableObject {
                         parsedTickets.append(t)
                     }
 
+                    let finalTickets = parsedTickets
                     await MainActor.run {
-                        self.tickets = parsedTickets
+                        self.tickets = finalTickets
                         self.isLoadingTickets = false
                     }
                     return
@@ -523,8 +526,9 @@ class FirebaseService: ObservableObject {
                         msgs.append(m)
                     }
 
+                    let finalMsgs = msgs
                     await MainActor.run {
-                        self.activeChatMessages = msgs
+                        self.activeChatMessages = finalMsgs
                         self.isLoadingMessages = false
                     }
                     return
