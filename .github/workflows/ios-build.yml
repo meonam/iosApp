@@ -46,7 +46,8 @@ jobs:
       - name: 5. Đóng gói ứng dụng thành tệp .IPA (Payload Packaging)
         run: |
           mkdir -p build/Payload
-          cp -r build/QLTB.xcarchive/Products/Applications/QLTB.app build/Payload/
+          # Sao chép file .app được tạo ra trong thư mục Applications vào thư mục Payload
+          cp -r build/QLTB.xcarchive/Products/Applications/*.app build/Payload/
           cd build
           zip -r QLTB_iOS_v1.0.0.ipa Payload
           ls -lh QLTB_iOS_v1.0.0.ipa
