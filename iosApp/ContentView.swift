@@ -782,6 +782,7 @@ struct ContentView: View {
                     .environmentObject(firebase)
             }
         }
+        .preferredColorScheme(.light)
     }
 }
 
@@ -847,11 +848,13 @@ struct ForgotPasswordSheet: View {
                         Image(systemName: "envelope.fill")
                             .foregroundColor(Color.appSecondaryDarkBlue)
                             .frame(width: 20)
-                        TextField("admin@sgcoop.com", text: $emailInput)
+                        TextField("Nhập email đã đăng ký", text: $emailInput)
                             .keyboardType(.emailAddress)
                             .autocapitalization(.none)
                             .disableAutocorrection(true)
                             .font(.system(size: 14))
+                            .foregroundColor(Color.appTextPrimary)
+                            .tint(Color.appSecondaryDarkBlue)
                     }
                     .padding(12)
                     .background(Color.appBackground)
@@ -983,8 +986,8 @@ struct HelpInstructionSheet: View {
 // MARK: - 5. LOGIN VIEW (Màn hình Đăng nhập Co.opmart)
 struct LoginScreenView: View {
     @EnvironmentObject var firebase: FirebaseService
-    @State private var emailInput: String = "admin@sgcoop.com"
-    @State private var passInput: String = "Admin123"
+    @State private var emailInput: String = ""
+    @State private var passInput: String = ""
     @State private var isPasswordVisible: Bool = false
     @State private var showForgotSheet: Bool = false
     @State private var showRegisterAlert: Bool = false
@@ -1060,8 +1063,10 @@ struct LoginScreenView: View {
                                     .foregroundColor(Color.appSecondaryDarkBlue)
                                     .frame(width: 22)
 
-                                TextField("admin@sgcoop.com", text: $emailInput)
+                                TextField("Nhập email hoặc số điện thoại", text: $emailInput)
                                     .font(.system(size: 14))
+                                    .foregroundColor(Color.appTextPrimary)
+                                    .tint(Color.appSecondaryDarkBlue)
                                     .autocapitalization(.none)
                                     .disableAutocorrection(true)
                             }
@@ -1085,11 +1090,15 @@ struct LoginScreenView: View {
                                 if isPasswordVisible {
                                     TextField("Nhập mật khẩu", text: $passInput)
                                         .font(.system(size: 14))
+                                        .foregroundColor(Color.appTextPrimary)
+                                        .tint(Color.appSecondaryDarkBlue)
                                         .autocapitalization(.none)
                                         .disableAutocorrection(true)
                                 } else {
                                     SecureField("Nhập mật khẩu", text: $passInput)
                                         .font(.system(size: 14))
+                                        .foregroundColor(Color.appTextPrimary)
+                                        .tint(Color.appSecondaryDarkBlue)
                                 }
 
                                 Button(action: { isPasswordVisible.toggle() }) {
@@ -1218,39 +1227,6 @@ struct LoginScreenView: View {
                                 .padding(.top, 8)
                             }
                         }
-
-                        // Phím tắt đăng nhập nhanh
-                        VStack(spacing: 8) {
-                            Divider().padding(.vertical, 8)
-                            Text("TÀI KHOẢN TRUY CẬP MẪU:")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(Color.appTextMuted)
-
-                            HStack(spacing: 10) {
-                                Button("Admin: admin@sgcoop.com") {
-                                    emailInput = "admin@sgcoop.com"
-                                    passInput = "Admin123"
-                                }
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(Color.appSecondaryDarkBlue)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.appSecondaryDarkBlue.opacity(0.08))
-                                .cornerRadius(8)
-
-                                Button("KTV: lethid@sgcoop.com") {
-                                    emailInput = "lethid@sgcoop.com"
-                                    passInput = "123456"
-                                }
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(Color.appSecondaryDarkBlue)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.appSecondaryDarkBlue.opacity(0.08))
-                                .cornerRadius(8)
-                            }
-                        }
-                        .padding(.top, 6)
                     }
                     .padding(24)
                     .background(Color.white)
@@ -1264,6 +1240,7 @@ struct LoginScreenView: View {
                 }
             }
         }
+        .preferredColorScheme(.light)
         .sheet(isPresented: $showForgotSheet) {
             ForgotPasswordSheet(isPresented: $showForgotSheet)
                 .environmentObject(firebase)
@@ -2006,6 +1983,8 @@ struct DeviceListView: View {
                     .foregroundColor(Color.appTextMuted)
                 TextField("Tìm theo tên, mã máy, Serial Number...", text: $searchText)
                     .font(.system(size: 14))
+                    .foregroundColor(Color.appTextPrimary)
+                    .tint(Color.appSecondaryDarkBlue)
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
                         Image(systemName: "xmark.circle.fill")
@@ -2482,12 +2461,8 @@ struct AppSidebarDrawer: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: 10) {
-                ZStack {
-                    Circle().fill(Color.white).frame(width: 54, height: 54)
-                    Image(systemName: "wrench.and.screwdriver.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(Color.appSecondaryDarkBlue)
-                }
+                AppLogoImage(size: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 Text(firebase.userName)
                     .font(.system(size: 17, weight: .bold))
@@ -2611,7 +2586,11 @@ struct AddDeviceModalView: View {
             Form {
                 Section(header: Text("THÔNG TIN ĐỊNH DANH (FIRESTORE)")) {
                     TextField("Mã thiết bị (VD: SG-POS-113-99)", text: $code)
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
                     TextField("Tên thiết bị (VD: Máy POS Sunmi)", text: $name)
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
                 }
 
                 Section(header: Text("PHÂN LOẠI & ĐƠN VỊ")) {
@@ -2622,6 +2601,8 @@ struct AddDeviceModalView: View {
                         ForEach(statuses, id: \.self) { Text($0) }
                     }
                     TextField("Đơn vị sử dụng", text: $unit)
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
                 }
             }
             .navigationTitle("Thêm Thiết Bị Mới")
@@ -2770,12 +2751,16 @@ struct QuickSupportModalView: View {
             Form {
                 Section(header: Text("YÊU CẦU TRỢ GIÚP KHẨN CẤP (LƯU LÊN FIRESTORE)")) {
                     TextField("Mô tả sự cố (VD: Máy in hóa đơn quầy 03 kẹt giấy)", text: $title)
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
                     Picker("Mức độ ưu tiên", selection: $priority) {
                         Text("P1 - Khẩn cấp (SLA 30p)").tag("URGENT")
                         Text("P2 - Cao (SLA 2h)").tag("HIGH")
                         Text("P3 - Bình thường (SLA 8h)").tag("NORMAL")
                     }
                     TextField("Địa điểm / Quầy xảy ra sự cố", text: $unit)
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
                 }
             }
             .navigationTitle("Tạo Yêu Cầu Hỗ Trợ")
