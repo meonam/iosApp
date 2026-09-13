@@ -749,6 +749,421 @@ class FirebaseService: ObservableObject {
         return "Đang sử dụng"
     }
 
+    // --- M. XÁC THỰC & TRA CỨU DOANH NGHIỆP / PHÒNG BAN / ĐƠN VỊ ---
+    private var cachedGuestToken: String = ""
+    private var guestTokenExpiry: Date = .distantPast
+
+    func ensureGuestToken() async -> String? {
+        if !cachedGuestToken.isEmpty && Date() < guestTokenExpiry {
+            return cachedGuestToken
+        }
+        let authUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=\(apiKey)"
+        guard let url = URL(string: authUrl) else { return nil }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = [
+            "email": "guest_lookup_qltb@gmail.com",
+            "password": "GuestLookup@2026!",
+            "returnSecureToken": true
+        ]
+        do {
+            req.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, res) = try await URLSession.shared.data(for: req)
+            if let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let idToken = json["idToken"] as? String {
+                let expiresIn = Double(json["expiresIn"] as? String ?? "3600") ?? 3600
+                self.cachedGuestToken = idToken
+                self.guestTokenExpiry = Date().addingTimeInterval(expiresIn - 60)
+                return idToken
+            }
+        } catch {}
+        return nil
+    }
+
+    func checkCompanyExists(code: String) async -> (Bool, String?) {
+        let cleanCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanCodeUpper = cleanCode.uppercased()
+        if cleanCode.isEmpty { return (false, nil) }
+        guard let token = await ensureGuestToken() else { return (false, nil) }
+
+        let directUrl = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(cleanCodeUpper)"
+        if let url = URL(string: directUrl) {
+            var req = URLRequest(url: url)
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            if let (data, res) = try? await URLSession.shared.data(for: req),
+               let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let fields = json["fields"] as? [String: Any] {
+                let name = parseString(fields, "companyName").isEmpty ? parseString(fields, "name") : parseString(fields, "companyName")
+                let finalName = !name.isEmpty ? name : cleanCodeUpper
+                return (true, finalName)
+            }
+        }
+
+        let listUrl = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies?pageSize=50"
+        if let url = URL(string: listUrl) {
+            var req = URLRequest(url: url)
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            if let (data, res) = try? await URLSession.shared.data(for: req),
+               let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let docs = json["documents"] as? [[String: Any]] {
+                for doc in docs {
+                    let docPath = doc["name"] as? String ?? ""
+                    let docId = docPath.components(separatedBy: "/").last ?? ""
+                    let f = doc["fields"] as? [String: Any] ?? [:]
+                    let cId = parseString(f, "companyId").isEmpty ? docId : parseString(f, "companyId")
+                    let cName = parseString(f, "companyName").isEmpty ? parseString(f, "name") : parseString(f, "companyName")
+                    if cId.caseInsensitiveCompare(cleanCode) == .orderedSame ||
+                       cId.caseInsensitiveCompare(cleanCodeUpper) == .orderedSame ||
+                       cName.caseInsensitiveCompare(cleanCode) == .orderedSame {
+                        let finalName = !cName.isEmpty ? cName : cleanCodeUpper
+                        return (true, finalName)
+                    }
+                }
+            }
+        }
+        return (false, nil)
+    }
+
+    func checkDepartmentExists(companyId: String, deptInput: String) async -> (Bool, String?) {
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let cleanDept = deptInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanComp.isEmpty || cleanDept.isEmpty { return (false, nil) }
+        guard let token = await ensureGuestToken() else { return (false, nil) }
+
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(cleanComp)/departments?pageSize=100"
+        guard let url = URL(string: urlStr) else { return (false, nil) }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        do {
+            let (data, res) = try await URLSession.shared.data(for: req)
+            if let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let docs = json["documents"] as? [[String: Any]] {
+                for doc in docs {
+                    let docPath = doc["name"] as? String ?? ""
+                    let docId = docPath.components(separatedBy: "/").last ?? ""
+                    let f = doc["fields"] as? [String: Any] ?? [:]
+                    let dId = parseString(f, "deptId").isEmpty ? (parseString(f, "departmentId").isEmpty ? docId : parseString(f, "departmentId")) : parseString(f, "deptId")
+                    let dName = parseString(f, "deptName").isEmpty ? (parseString(f, "departmentName").isEmpty ? parseString(f, "name") : parseString(f, "departmentName")) : parseString(f, "deptName")
+                    let finalName = !dName.isEmpty ? dName : dId
+                    if dId.caseInsensitiveCompare(cleanDept) == .orderedSame ||
+                       dName.caseInsensitiveCompare(cleanDept) == .orderedSame {
+                        return (true, finalName)
+                    }
+                }
+                for doc in docs {
+                    let docPath = doc["name"] as? String ?? ""
+                    let docId = docPath.components(separatedBy: "/").last ?? ""
+                    let f = doc["fields"] as? [String: Any] ?? [:]
+                    let dId = parseString(f, "deptId").isEmpty ? (parseString(f, "departmentId").isEmpty ? docId : parseString(f, "departmentId")) : parseString(f, "deptId")
+                    let dName = parseString(f, "deptName").isEmpty ? (parseString(f, "departmentName").isEmpty ? parseString(f, "name") : parseString(f, "departmentName")) : parseString(f, "deptName")
+                    let finalName = !dName.isEmpty ? dName : dId
+                    if dName.localizedCaseInsensitiveContains(cleanDept) || cleanDept.localizedCaseInsensitiveContains(dId) {
+                        return (true, finalName)
+                    }
+                }
+            }
+        } catch {}
+        return (false, nil)
+    }
+
+    func checkUnitExists(companyId: String, unitInput: String) async -> (Bool, String?) {
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let cleanUnit = unitInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanComp.isEmpty || cleanUnit.isEmpty { return (false, nil) }
+        guard let token = await ensureGuestToken() else { return (false, nil) }
+
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(cleanComp)/units?pageSize=100"
+        guard let url = URL(string: urlStr) else { return (false, nil) }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        do {
+            let (data, res) = try await URLSession.shared.data(for: req)
+            if let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let docs = json["documents"] as? [[String: Any]] {
+                for doc in docs {
+                    let docPath = doc["name"] as? String ?? ""
+                    let docId = docPath.components(separatedBy: "/").last ?? ""
+                    let f = doc["fields"] as? [String: Any] ?? [:]
+                    let uId = parseString(f, "unitId").isEmpty ? (parseString(f, "id").isEmpty ? docId : parseString(f, "id")) : parseString(f, "unitId")
+                    let uName = parseString(f, "unitName").isEmpty ? (parseString(f, "tenDonVi").isEmpty ? parseString(f, "name") : parseString(f, "tenDonVi")) : parseString(f, "unitName")
+                    let finalName = !uName.isEmpty ? uName : uId
+                    if uId.caseInsensitiveCompare(cleanUnit) == .orderedSame ||
+                       uName.caseInsensitiveCompare(cleanUnit) == .orderedSame {
+                        return (true, finalName)
+                    }
+                }
+                for doc in docs {
+                    let docPath = doc["name"] as? String ?? ""
+                    let docId = docPath.components(separatedBy: "/").last ?? ""
+                    let f = doc["fields"] as? [String: Any] ?? [:]
+                    let uId = parseString(f, "unitId").isEmpty ? (parseString(f, "id").isEmpty ? docId : parseString(f, "id")) : parseString(f, "unitId")
+                    let uName = parseString(f, "unitName").isEmpty ? (parseString(f, "tenDonVi").isEmpty ? parseString(f, "name") : parseString(f, "tenDonVi")) : parseString(f, "unitName")
+                    let finalName = !uName.isEmpty ? uName : uId
+                    if uName.localizedCaseInsensitiveContains(cleanUnit) || cleanUnit.localizedCaseInsensitiveContains(uId) {
+                        return (true, finalName)
+                    }
+                }
+            }
+        } catch {}
+        return (false, nil)
+    }
+
+    // --- N. ĐĂNG KÝ DOANH NGHIỆP (ADMIN TẠO MỚI) ---
+    func registerEnterprise(
+        fullName: String,
+        phone: String,
+        email: String,
+        pass: String,
+        companyName: String,
+        companyCode: String,
+        taxCode: String,
+        address: String
+    ) async -> (success: Bool, message: String) {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanCompanyId = companyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+
+        // 1. Tạo tài khoản Firebase Auth
+        let signUpUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=\(apiKey)"
+        guard let url = URL(string: signUpUrl) else {
+            return (false, "Lỗi tạo đường dẫn đăng ký.")
+        }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let authBody: [String: Any] = [
+            "email": cleanEmail,
+            "password": pass,
+            "returnSecureToken": true
+        ]
+
+        var newIdToken = ""
+        do {
+            req.httpBody = try JSONSerialization.data(withJSONObject: authBody)
+            let (data, res) = try await URLSession.shared.data(for: req)
+            if let httpRes = res as? HTTPURLResponse {
+                if httpRes.statusCode == 200,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let tok = json["idToken"] as? String {
+                    newIdToken = tok
+                } else {
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let err = json["error"] as? [String: Any],
+                       let msg = err["message"] as? String {
+                        if msg.contains("EMAIL_EXISTS") {
+                            return (false, "Email này đã được sử dụng trên hệ thống. Vui lòng sử dụng email khác.")
+                        } else if msg.contains("WEAK_PASSWORD") {
+                            return (false, "Mật khẩu quá yếu. Vui lòng nhập tối thiểu 6 ký tự.")
+                        }
+                    }
+                    return (false, "Đăng ký tài khoản không thành công. Vui lòng thử lại.")
+                }
+            }
+        } catch {
+            return (false, "Lỗi kết nối mạng: \(error.localizedDescription)")
+        }
+
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let tokenToUse = !newIdToken.isEmpty ? newIdToken : (await ensureGuestToken() ?? "")
+
+        // 2. Tạo document công ty: companies/{companyId}
+        let compUrlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(cleanCompanyId)"
+        if let compUrl = URL(string: compUrlStr) {
+            var compReq = URLRequest(url: compUrl)
+            compReq.httpMethod = "PATCH"
+            compReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            compReq.setValue("Bearer \(tokenToUse)", forHTTPHeaderField: "Authorization")
+            let compBody: [String: Any] = [
+                "fields": [
+                    "companyId": ["stringValue": cleanCompanyId],
+                    "companyName": ["stringValue": companyName],
+                    "taxCode": ["stringValue": taxCode],
+                    "address": ["stringValue": address],
+                    "phone": ["stringValue": phone],
+                    "adminEmail": ["stringValue": cleanEmail],
+                    "status": ["stringValue": "ACTIVE"],
+                    "createdAt": ["integerValue": "\(nowMs)"]
+                ]
+            ]
+            compReq.httpBody = try? JSONSerialization.data(withJSONObject: compBody)
+            _ = try? await URLSession.shared.data(for: compReq)
+        }
+
+        // 3. Tạo document người dùng admin: companies/{companyId}/users/{cleanEmail}
+        let userUrlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(cleanCompanyId)/users/\(cleanEmail)"
+        if let userUrl = URL(string: userUrlStr) {
+            var userReq = URLRequest(url: userUrl)
+            userReq.httpMethod = "PATCH"
+            userReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            userReq.setValue("Bearer \(tokenToUse)", forHTTPHeaderField: "Authorization")
+            let finalName = !fullName.isEmpty ? fullName : "Admin \(companyName)"
+            let userBody: [String: Any] = [
+                "fields": [
+                    "email": ["stringValue": cleanEmail],
+                    "role": ["stringValue": "admin"],
+                    "fullName": ["stringValue": finalName],
+                    "phone": ["stringValue": phone],
+                    "donVi": ["stringValue": companyName],
+                    "companyId": ["stringValue": cleanCompanyId],
+                    "departmentId": ["stringValue": "ADMIN"],
+                    "status": ["stringValue": "ACTIVE"],
+                    "password": ["stringValue": pass],
+                    "createdAt": ["integerValue": "\(nowMs)"]
+                ]
+            ]
+            userReq.httpBody = try? JSONSerialization.data(withJSONObject: userBody)
+            _ = try? await URLSession.shared.data(for: userReq)
+        }
+
+        return (true, "Đăng ký doanh nghiệp \(companyName) (\(cleanCompanyId)) thành công!")
+    }
+
+    // --- O. GIA NHẬP CÔNG TY (NHÂN VIÊN GỬI YÊU CẦU XÉT DUYỆT) ---
+    func joinCompany(
+        fullName: String,
+        mnv: String,
+        phone: String,
+        email: String,
+        pass: String,
+        companyCode: String,
+        deptCode: String,
+        deptName: String,
+        unitCode: String,
+        unitName: String
+    ) async -> (success: Bool, message: String) {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanCompId = companyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let cleanMnv = mnv.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanUnit = unitCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanDept = deptCode.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // 1. Tạo tài khoản Firebase Auth
+        let signUpUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=\(apiKey)"
+        guard let url = URL(string: signUpUrl) else {
+            return (false, "Lỗi tạo đường dẫn đăng ký.")
+        }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let authBody: [String: Any] = [
+            "email": cleanEmail,
+            "password": pass,
+            "returnSecureToken": true
+        ]
+
+        var newIdToken = ""
+        do {
+            req.httpBody = try JSONSerialization.data(withJSONObject: authBody)
+            let (data, res) = try await URLSession.shared.data(for: req)
+            if let httpRes = res as? HTTPURLResponse {
+                if httpRes.statusCode == 200,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let tok = json["idToken"] as? String {
+                    newIdToken = tok
+                } else {
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let err = json["error"] as? [String: Any],
+                       let msg = err["message"] as? String {
+                        if msg.contains("EMAIL_EXISTS") {
+                            return (false, "❌ Email này đã được đăng ký trên hệ thống. Vui lòng đăng nhập hoặc sử dụng email khác!")
+                        } else if msg.contains("WEAK_PASSWORD") {
+                            return (false, "❌ Mật khẩu quá yếu, vui lòng nhập tối thiểu 6 ký tự!")
+                        } else if msg.contains("INVALID_EMAIL") {
+                            return (false, "❌ Định dạng email không hợp lệ!")
+                        }
+                    }
+                    return (false, "❌ Không thể tạo tài khoản xác thực. Vui lòng thử lại sau.")
+                }
+            }
+        } catch {
+            return (false, "❌ Lỗi kết nối mạng: \(error.localizedDescription)")
+        }
+
+        // 2. Gửi email xác thực tài khoản
+        if !newIdToken.isEmpty {
+            let verifyUrl = "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=\(apiKey)"
+            if let vUrl = URL(string: verifyUrl) {
+                var vReq = URLRequest(url: vUrl)
+                vReq.httpMethod = "POST"
+                vReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                let vBody: [String: Any] = [
+                    "requestType": "VERIFY_EMAIL",
+                    "idToken": newIdToken
+                ]
+                vReq.httpBody = try? JSONSerialization.data(withJSONObject: vBody)
+                _ = try? await URLSession.shared.data(for: vReq)
+            }
+        }
+
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let tokenToUse = !newIdToken.isEmpty ? newIdToken : (await ensureGuestToken() ?? "")
+
+        // 3. Ghi nhận thông tin người dùng vào Firestore: companies/{companyId}/users/{email}
+        let userDocUrl = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(cleanCompId)/users/\(cleanEmail)"
+        if let uUrl = URL(string: userDocUrl) {
+            var uReq = URLRequest(url: uUrl)
+            uReq.httpMethod = "PATCH"
+            uReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            uReq.setValue("Bearer \(tokenToUse)", forHTTPHeaderField: "Authorization")
+
+            var fields: [String: Any] = [
+                "email": ["stringValue": cleanEmail],
+                "fullName": ["stringValue": fullName],
+                "phone": ["stringValue": phone],
+                "role": ["stringValue": "nhanvien"],
+                "companyId": ["stringValue": cleanCompId],
+                "unitId": ["stringValue": cleanUnit.uppercased()],
+                "donVi": ["stringValue": !unitName.isEmpty ? unitName : cleanUnit],
+                "departmentId": ["stringValue": cleanDept],
+                "phongBan": ["stringValue": !deptName.isEmpty ? deptName : cleanDept],
+                "status": ["stringValue": "PENDING"],
+                "emailVerified": ["booleanValue": false],
+                "password": ["stringValue": pass],
+                "createdAt": ["integerValue": "\(nowMs)"]
+            ]
+            if !cleanMnv.isEmpty {
+                fields["maNhanVien"] = ["stringValue": cleanMnv]
+                fields["employeeId"] = ["stringValue": cleanMnv]
+            }
+
+            let uBody: [String: Any] = ["fields": fields]
+            uReq.httpBody = try? JSONSerialization.data(withJSONObject: uBody)
+            _ = try? await URLSession.shared.data(for: uReq)
+        }
+
+        // 4. Gửi thông báo tới Quản trị viên: companies/{companyId}/notifications
+        let notifUrl = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(cleanCompId)/notifications"
+        if let nUrl = URL(string: notifUrl) {
+            var nReq = URLRequest(url: nUrl)
+            nReq.httpMethod = "POST"
+            nReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            nReq.setValue("Bearer \(tokenToUse)", forHTTPHeaderField: "Authorization")
+
+            let mnvMsg = !cleanMnv.isEmpty ? " | MNV: \(cleanMnv)" : ""
+            let nBody: [String: Any] = [
+                "fields": [
+                    "title": ["stringValue": "📩 Yêu cầu gia nhập mới"],
+                    "message": ["stringValue": "Nhân viên \(fullName) (\(cleanEmail)\(mnvMsg) | SĐT: \(phone)) đã gửi yêu cầu gia nhập [Phòng: \(!deptName.isEmpty ? deptName : cleanDept) | Đơn vị: \(!unitName.isEmpty ? unitName : cleanUnit)]"],
+                    "companyId": ["stringValue": cleanCompId],
+                    "type": ["stringValue": "JOIN_REQUEST"],
+                    "targetGroup": ["stringValue": "ADMIN"],
+                    "createdAt": ["integerValue": "\(nowMs)"]
+                ]
+            ]
+            nReq.httpBody = try? JSONSerialization.data(withJSONObject: nBody)
+            _ = try? await URLSession.shared.data(for: nReq)
+        }
+
+        return (true, cleanEmail)
+    }
+
     private func iconForCategory(_ cat: String) -> String {
         let c = cat.lowercased()
         if c.contains("pos") { return "computermouse.fill" }
@@ -983,6 +1398,817 @@ struct HelpInstructionSheet: View {
     }
 }
 
+// MARK: - 4.4. SHEET ĐĂNG KÝ DOANH NGHIỆP (ADMIN TẠO MỚI)
+struct RegisterEnterpriseSheet: View {
+    @EnvironmentObject var firebase: FirebaseService
+    @Binding var isPresented: Bool
+
+    @State private var adminFullName: String = ""
+    @State private var adminPhone: String = ""
+    @State private var adminEmail: String = ""
+    @State private var adminPassword: String = ""
+    @State private var adminPasswordVisible: Bool = false
+    @State private var companyNameInput: String = ""
+    @State private var customCompanyCode: String = ""
+    @State private var taxCode: String = ""
+    @State private var companyAddress: String = ""
+
+    @State private var isLoading: Bool = false
+    @State private var errorMessage: String? = nil
+    @State private var showSuccessAlert: Bool = false
+    @State private var successAlertMsg: String = ""
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 16) {
+                    // Card chứa biểu mẫu
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Thông tin Doanh nghiệp & Quản trị viên")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+
+                        Text("Vui lòng nhập đầy đủ tất cả các trường thông tin bắt buộc (*)")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color.appTextSecondary)
+
+                        // 1. Họ và tên Admin
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Họ và tên Quản trị viên (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .frame(width: 20)
+                                TextField("VD: Nguyễn Văn A", text: $adminFullName)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color.appTextPrimary)
+                                    .tint(Color.appSecondaryDarkBlue)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // 2. Số điện thoại
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Số điện thoại liên hệ (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "phone.fill")
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .frame(width: 20)
+                                TextField("VD: 0901234567", text: $adminPhone)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color.appTextPrimary)
+                                    .tint(Color.appSecondaryDarkBlue)
+                                    .keyboardType(.phonePad)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // 3. Email Quản trị viên
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Email Quản trị viên (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "envelope.fill")
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .frame(width: 20)
+                                TextField("admin@congty.com", text: $adminEmail)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color.appTextPrimary)
+                                    .tint(Color.appSecondaryDarkBlue)
+                                    .keyboardType(.emailAddress)
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // 4. Mật khẩu
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Mật khẩu Quản trị viên (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "lock.fill")
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .frame(width: 20)
+                                if adminPasswordVisible {
+                                    TextField("Tối thiểu 6 ký tự", text: $adminPassword)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Color.appTextPrimary)
+                                        .tint(Color.appSecondaryDarkBlue)
+                                        .autocapitalization(.none)
+                                        .disableAutocorrection(true)
+                                } else {
+                                    SecureField("Tối thiểu 6 ký tự", text: $adminPassword)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Color.appTextPrimary)
+                                        .tint(Color.appSecondaryDarkBlue)
+                                }
+                                Button(action: { adminPasswordVisible.toggle() }) {
+                                    Image(systemName: adminPasswordVisible ? "eye.fill" : "eye.slash.fill")
+                                        .foregroundColor(Color.appTextMuted)
+                                }
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // 5. Tên doanh nghiệp
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Tên Doanh nghiệp / Tổ chức (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "building.2.fill")
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .frame(width: 20)
+                                TextField("VD: Saigon Co.op, Co.opmart Cần Thơ...", text: $companyNameInput)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color.appTextPrimary)
+                                    .tint(Color.appSecondaryDarkBlue)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // 6. Mã doanh nghiệp
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Mã doanh nghiệp (Viết tắt) (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "key.fill")
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .frame(width: 20)
+                                TextField("VD: SGCOOP, SATRA...", text: Binding(
+                                    get: { customCompanyCode },
+                                    set: { customCompanyCode = $0.uppercased() }
+                                ))
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .tint(Color.appSecondaryDarkBlue)
+                                .autocapitalization(.characters)
+                                .disableAutocorrection(true)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+
+                            Text("Mã định danh duy nhất của doanh nghiệp, không thể đổi sau khi tạo.")
+                                .font(.system(size: 11.5, weight: .medium))
+                                .foregroundColor(Color.appPrimaryPink)
+                        }
+
+                        // 7. Mã số thuế (tuỳ chọn)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Mã số thuế (nếu có)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "number")
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .frame(width: 20)
+                                TextField("Mã số thuế doanh nghiệp", text: $taxCode)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color.appTextPrimary)
+                                    .tint(Color.appSecondaryDarkBlue)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // 8. Địa chỉ trụ sở (tuỳ chọn)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Địa chỉ trụ sở (nếu có)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "mappin.and.ellipse")
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .frame(width: 20)
+                                TextField("Địa chỉ trụ sở chính", text: $companyAddress)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color.appTextPrimary)
+                                    .tint(Color.appSecondaryDarkBlue)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // Thông báo lỗi nếu có
+                        if let err = errorMessage {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .foregroundColor(.white)
+                                Text(err)
+                                    .font(.system(size: 12.5, weight: .medium))
+                                    .foregroundColor(.white)
+                            }
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.statusBroken)
+                            .cornerRadius(10)
+                        }
+
+                        // Nút Đăng Ký
+                        Button(action: {
+                            handleRegister()
+                        }) {
+                            HStack(spacing: 8) {
+                                if isLoading {
+                                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Image(systemName: "building.2.fill")
+                                        .font(.system(size: 16, weight: .bold))
+                                    Text("Tạo Doanh Nghiệp & Kích Hoạt")
+                                        .font(.system(size: 15, weight: .bold))
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Color.appPrimaryPink)
+                            .cornerRadius(12)
+                        }
+                        .disabled(isLoading)
+                        .padding(.top, 8)
+                    }
+                    .padding(20)
+                    .background(Color.white)
+                    .cornerRadius(16)
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+                    .padding(16)
+                }
+            }
+            .background(Color.appBackground.ignoresSafeArea())
+            .navigationTitle("Đăng ký doanh nghiệp")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { isPresented = false }
+                }
+            }
+            .alert("Thông báo", isPresented: $showSuccessAlert) {
+                Button("Đăng nhập ngay") {
+                    isPresented = false
+                }
+            } message: {
+                Text(successAlertMsg)
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+
+    private func handleRegister() {
+        let cleanName = adminFullName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanPhone = adminPhone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanEmail = adminEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanPass = adminPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanCompName = companyNameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanCompCode = customCompanyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+
+        if cleanName.isEmpty || cleanPhone.isEmpty || cleanEmail.isEmpty || cleanPass.isEmpty || cleanCompName.isEmpty || cleanCompCode.isEmpty {
+            errorMessage = "Vui lòng nhập đầy đủ tất cả các trường bắt buộc (*)"
+            return
+        }
+
+        if cleanPass.count < 6 {
+            errorMessage = "Mật khẩu phải có tối thiểu 6 ký tự."
+            return
+        }
+
+        isLoading = true
+        errorMessage = nil
+
+        Task {
+            let (success, msg) = await firebase.registerEnterprise(
+                fullName: cleanName,
+                phone: cleanPhone,
+                email: cleanEmail,
+                pass: cleanPass,
+                companyName: cleanCompName,
+                companyCode: cleanCompCode,
+                taxCode: taxCode.trimmingCharacters(in: .whitespacesAndNewlines),
+                address: companyAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+
+            await MainActor.run {
+                isLoading = false
+                if success {
+                    successAlertMsg = "Đăng ký thành công! Đã tạo doanh nghiệp \(cleanCompName) với mã [\(cleanCompCode)]. Bạn có thể đăng nhập ngay bằng tài khoản Admin vừa tạo."
+                    showSuccessAlert = true
+                } else {
+                    errorMessage = msg
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 4.5. SHEET GIA NHẬP CÔNG TY (NHÂN VIÊN / KTV)
+struct JoinCompanySheet: View {
+    @EnvironmentObject var firebase: FirebaseService
+    @Binding var isPresented: Bool
+
+    @State private var staffFullName: String = ""
+    @State private var staffMnv: String = ""
+    @State private var staffPhone: String = ""
+    @State private var staffEmail: String = ""
+    @State private var staffPassword: String = ""
+    @State private var staffPasswordVisible: Bool = false
+    @State private var staffCompanyCode: String = ""
+    @State private var staffDeptCodeInput: String = ""
+    @State private var staffUnitCodeInput: String = ""
+
+    // Real-time verification states
+    @State private var isVerifyingCompany: Bool = false
+    @State private var verifiedCompanyName: String? = nil
+    @State private var isVerifyingDept: Bool = false
+    @State private var verifiedDeptName: String? = nil
+    @State private var isVerifyingUnit: Bool = false
+    @State private var verifiedUnitName: String? = nil
+
+    @State private var isLoading: Bool = false
+    @State private var errorMessage: String? = nil
+    @State private var showSuccessDialog: Bool = false
+    @State private var successEmailSentTo: String = ""
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Thông tin Nhân viên / Kỹ thuật viên")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(Color.appPrimaryPink)
+
+                        Text("Vui lòng nhập đầy đủ tất cả các trường thông tin bắt buộc (*)")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color.appTextSecondary)
+
+                        // 1. Họ và tên
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Họ và tên (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "person.fill")
+                                    .foregroundColor(Color.appPrimaryPink)
+                                    .frame(width: 20)
+                                TextField("VD: Nguyễn Văn B", text: $staffFullName)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color.appTextPrimary)
+                                    .tint(Color.appSecondaryDarkBlue)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // 2. Mã nhân viên (MNV)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Mã nhân viên (MNV) (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "person.text.rectangle")
+                                    .foregroundColor(Color.appPrimaryPink)
+                                    .frame(width: 20)
+                                TextField("VD: 7075, 43144...", text: $staffMnv)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color.appTextPrimary)
+                                    .tint(Color.appSecondaryDarkBlue)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // 3. Số điện thoại
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Số điện thoại liên hệ (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "phone.fill")
+                                    .foregroundColor(Color.appPrimaryPink)
+                                    .frame(width: 20)
+                                TextField("VD: 0987654321", text: $staffPhone)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color.appTextPrimary)
+                                    .tint(Color.appSecondaryDarkBlue)
+                                    .keyboardType(.phonePad)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // 4. Email
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Email (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "envelope.fill")
+                                    .foregroundColor(Color.appPrimaryPink)
+                                    .frame(width: 20)
+                                TextField("nhanvien@congty.com", text: Binding(
+                                    get: { staffEmail },
+                                    set: { staffEmail = $0.lowercased() }
+                                ))
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.appTextPrimary)
+                                .tint(Color.appSecondaryDarkBlue)
+                                .keyboardType(.emailAddress)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // 5. Mật khẩu
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Mật khẩu (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "lock.fill")
+                                    .foregroundColor(Color.appPrimaryPink)
+                                    .frame(width: 20)
+                                if staffPasswordVisible {
+                                    TextField("Tối thiểu 6 ký tự", text: $staffPassword)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Color.appTextPrimary)
+                                        .tint(Color.appSecondaryDarkBlue)
+                                        .autocapitalization(.none)
+                                        .disableAutocorrection(true)
+                                } else {
+                                    SecureField("Tối thiểu 6 ký tự", text: $staffPassword)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Color.appTextPrimary)
+                                        .tint(Color.appSecondaryDarkBlue)
+                                }
+                                Button(action: { staffPasswordVisible.toggle() }) {
+                                    Image(systemName: staffPasswordVisible ? "eye.fill" : "eye.slash.fill")
+                                        .foregroundColor(Color.appTextMuted)
+                                }
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                        }
+
+                        // 6. Mã Doanh Nghiệp (Có Realtime Lookup)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Mã doanh nghiệp xin gia nhập (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "key.fill")
+                                    .foregroundColor(Color.appPrimaryPink)
+                                    .frame(width: 20)
+                                TextField("VD: SGCOOP", text: Binding(
+                                    get: { staffCompanyCode },
+                                    set: {
+                                        staffCompanyCode = $0.uppercased()
+                                        triggerCompanyCheck(code: $0.uppercased())
+                                    }
+                                ))
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .tint(Color.appSecondaryDarkBlue)
+                                .autocapitalization(.characters)
+                                .disableAutocorrection(true)
+
+                                if isVerifyingCompany {
+                                    ProgressView().scaleEffect(0.8)
+                                }
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+
+                            // Supporting text
+                            if isVerifyingCompany {
+                                Text("Đang tìm kiếm thông tin doanh nghiệp...")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.appPrimaryPink)
+                            } else if !staffCompanyCode.isEmpty && verifiedCompanyName == nil {
+                                Text("Mã doanh nghiệp không tồn tại trên hệ thống.")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.statusBroken)
+                            } else if let cName = verifiedCompanyName {
+                                Text("✓ Gia nhập: \(cName)")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(Color(hex: "#15803D"))
+                            }
+                        }
+
+                        // 7. Mã Phòng Ban (Có Realtime Lookup)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Mã phòng ban (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "building.columns.fill")
+                                    .foregroundColor(Color.appPrimaryPink)
+                                    .frame(width: 20)
+                                TextField("VD: HELPDESK, CNTT, IT...", text: Binding(
+                                    get: { staffDeptCodeInput },
+                                    set: {
+                                        staffDeptCodeInput = $0
+                                        triggerDeptCheck(dept: $0)
+                                    }
+                                ))
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.appTextPrimary)
+                                .tint(Color.appSecondaryDarkBlue)
+
+                                if isVerifyingDept {
+                                    ProgressView().scaleEffect(0.8)
+                                }
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+
+                            if isVerifyingDept {
+                                Text("Đang kiểm tra phòng ban...")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.appPrimaryPink)
+                            } else if !staffDeptCodeInput.isEmpty && verifiedDeptName == nil && verifiedCompanyName != nil {
+                                Text("Không tìm thấy phòng ban này trong doanh nghiệp.")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.statusBroken)
+                            } else if let dName = verifiedDeptName {
+                                Text("✓ Phòng: \(dName)")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(Color(hex: "#15803D"))
+                            }
+                        }
+
+                        // 8. Mã Đơn Vị / Chi Nhánh (Có Realtime Lookup)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Mã đơn vị / Chi nhánh làm việc (*)")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+                            HStack {
+                                Image(systemName: "storefront.fill")
+                                    .foregroundColor(Color.appPrimaryPink)
+                                    .frame(width: 20)
+                                TextField("VD: CT, HCM, 001, COOPMART...", text: Binding(
+                                    get: { staffUnitCodeInput },
+                                    set: {
+                                        staffUnitCodeInput = $0
+                                        triggerUnitCheck(unit: $0)
+                                    }
+                                ))
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.appTextPrimary)
+                                .tint(Color.appSecondaryDarkBlue)
+
+                                if isVerifyingUnit {
+                                    ProgressView().scaleEffect(0.8)
+                                }
+                            }
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+
+                            if isVerifyingUnit {
+                                Text("Đang kiểm tra đơn vị...")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.appPrimaryPink)
+                            } else if !staffUnitCodeInput.isEmpty && verifiedUnitName == nil && verifiedCompanyName != nil {
+                                Text("Không tìm thấy đơn vị này trong doanh nghiệp.")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.statusBroken)
+                            } else if let uName = verifiedUnitName {
+                                Text("✓ Đơn vị: \(uName)")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(Color(hex: "#15803D"))
+                            }
+                        }
+
+                        // Thông báo lỗi nếu có
+                        if let err = errorMessage {
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .foregroundColor(.white)
+                                Text(err)
+                                    .font(.system(size: 12.5, weight: .medium))
+                                    .foregroundColor(.white)
+                            }
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.statusBroken)
+                            .cornerRadius(10)
+                        }
+
+                        // Nút Gửi Yêu Cầu
+                        Button(action: {
+                            handleJoin()
+                        }) {
+                            HStack(spacing: 8) {
+                                if isLoading {
+                                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Image(systemName: "paperplane.fill")
+                                        .font(.system(size: 16, weight: .bold))
+                                    Text("Gửi Yêu Cầu Xét Duyệt")
+                                        .font(.system(size: 15, weight: .bold))
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Color.appPrimaryPink)
+                            .cornerRadius(12)
+                        }
+                        .disabled(isLoading || verifiedCompanyName == nil || verifiedDeptName == nil || verifiedUnitName == nil)
+                        .opacity((verifiedCompanyName == nil || verifiedDeptName == nil || verifiedUnitName == nil) ? 0.6 : 1.0)
+                        .padding(.top, 8)
+                    }
+                    .padding(20)
+                    .background(Color.white)
+                    .cornerRadius(16)
+                    .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+                    .padding(16)
+                }
+            }
+            .background(Color.appBackground.ignoresSafeArea())
+            .navigationTitle("Gia nhập công ty")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { isPresented = false }
+                }
+            }
+            .alert("Gửi Yêu Cầu Thành Công!", isPresented: $showSuccessDialog) {
+                Button("Đã Hiểu") {
+                    isPresented = false
+                }
+            } message: {
+                Text("Hệ thống đã gửi liên kết kích hoạt đến email:\n\(successEmailSentTo)\n\nVui lòng mở hòm thư (kể cả mục Thư rác / Spam) và nhấp vào liên kết để xác thực email trước khi Quản trị viên phê duyệt.")
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+
+    private func triggerCompanyCheck(code: String) {
+        let clean = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !clean.isEmpty else {
+            verifiedCompanyName = nil
+            isVerifyingCompany = false
+            return
+        }
+        isVerifyingCompany = true
+        Task {
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            let (exists, name) = await firebase.checkCompanyExists(code: clean)
+            await MainActor.run {
+                self.isVerifyingCompany = false
+                self.verifiedCompanyName = exists ? name : nil
+                if exists {
+                    if !staffDeptCodeInput.isEmpty { triggerDeptCheck(dept: staffDeptCodeInput) }
+                    if !staffUnitCodeInput.isEmpty { triggerUnitCheck(unit: staffUnitCodeInput) }
+                }
+            }
+        }
+    }
+
+    private func triggerDeptCheck(dept: String) {
+        let cleanDept = dept.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanComp = staffCompanyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanDept.isEmpty, !cleanComp.isEmpty else {
+            verifiedDeptName = nil
+            isVerifyingDept = false
+            return
+        }
+        isVerifyingDept = true
+        Task {
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            let (exists, name) = await firebase.checkDepartmentExists(companyId: cleanComp, deptInput: cleanDept)
+            await MainActor.run {
+                self.isVerifyingDept = false
+                self.verifiedDeptName = exists ? name : nil
+            }
+        }
+    }
+
+    private func triggerUnitCheck(unit: String) {
+        let cleanUnit = unit.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanComp = staffCompanyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanUnit.isEmpty, !cleanComp.isEmpty else {
+            verifiedUnitName = nil
+            isVerifyingUnit = false
+            return
+        }
+        isVerifyingUnit = true
+        Task {
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            let (exists, name) = await firebase.checkUnitExists(companyId: cleanComp, unitInput: cleanUnit)
+            await MainActor.run {
+                self.isVerifyingUnit = false
+                self.verifiedUnitName = exists ? name : nil
+            }
+        }
+    }
+
+    private func handleJoin() {
+        let cleanName = staffFullName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanMnv = staffMnv.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanPhone = staffPhone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanEmail = staffEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanPass = staffPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanComp = staffCompanyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let cleanDept = staffDeptCodeInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanUnit = staffUnitCodeInput.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if cleanName.isEmpty || cleanMnv.isEmpty || cleanPhone.isEmpty || cleanEmail.isEmpty || cleanPass.isEmpty || cleanComp.isEmpty || cleanDept.isEmpty || cleanUnit.isEmpty {
+            errorMessage = "Vui lòng nhập đầy đủ tất cả các trường bắt buộc (*)"
+            return
+        }
+
+        if verifiedCompanyName == nil {
+            errorMessage = "Mã doanh nghiệp không tồn tại trên hệ thống."
+            return
+        }
+        if verifiedDeptName == nil {
+            errorMessage = "Không tìm thấy phòng ban hợp lệ trong doanh nghiệp."
+            return
+        }
+        if verifiedUnitName == nil {
+            errorMessage = "Không tìm thấy đơn vị hợp lệ trong doanh nghiệp."
+            return
+        }
+
+        isLoading = true
+        errorMessage = nil
+
+        Task {
+            let (success, resMsg) = await firebase.joinCompany(
+                fullName: cleanName,
+                mnv: cleanMnv,
+                phone: cleanPhone,
+                email: cleanEmail,
+                pass: cleanPass,
+                companyCode: cleanComp,
+                deptCode: cleanDept,
+                deptName: verifiedDeptName ?? cleanDept,
+                unitCode: cleanUnit,
+                unitName: verifiedUnitName ?? cleanUnit
+            )
+
+            await MainActor.run {
+                isLoading = false
+                if success {
+                    successEmailSentTo = resMsg
+                    showSuccessDialog = true
+                } else {
+                    errorMessage = resMsg
+                }
+            }
+        }
+    }
+}
+
 // MARK: - 5. LOGIN VIEW (Màn hình Đăng nhập Co.opmart)
 struct LoginScreenView: View {
     @EnvironmentObject var firebase: FirebaseService
@@ -990,9 +2216,8 @@ struct LoginScreenView: View {
     @State private var passInput: String = ""
     @State private var isPasswordVisible: Bool = false
     @State private var showForgotSheet: Bool = false
-    @State private var showRegisterAlert: Bool = false
-    @State private var registerAlertTitle: String = ""
-    @State private var registerAlertMessage: String = ""
+    @State private var showRegisterEnterpriseSheet: Bool = false
+    @State private var showJoinCompanySheet: Bool = false
     @State private var showHelpSheet: Bool = false
 
     var body: some View {
@@ -1175,9 +2400,7 @@ struct LoginScreenView: View {
 
                             HStack(spacing: 8) {
                                 Button(action: {
-                                    registerAlertTitle = "Đăng ký doanh nghiệp"
-                                    registerAlertMessage = "Tính năng dành cho Quản trị viên (Admin) tạo mã công ty mới trên hệ thống. Vui lòng liên hệ HelpDesk SGCOOP để cấp quyền."
-                                    showRegisterAlert = true
+                                    showRegisterEnterpriseSheet = true
                                 }) {
                                     HStack(spacing: 4) {
                                         Image(systemName: "building.2.fill")
@@ -1195,9 +2418,7 @@ struct LoginScreenView: View {
                                 }
 
                                 Button(action: {
-                                    registerAlertTitle = "Gia nhập công ty"
-                                    registerAlertMessage = "Tính năng dành cho Nhân viên/KTV mới gia nhập hệ thống Saigon Co.op. Quản lý phòng ban sẽ xét duyệt tài khoản của bạn."
-                                    showRegisterAlert = true
+                                    showJoinCompanySheet = true
                                 }) {
                                     HStack(spacing: 4) {
                                         Image(systemName: "person.badge.plus")
@@ -1248,10 +2469,13 @@ struct LoginScreenView: View {
         .sheet(isPresented: $showHelpSheet) {
             HelpInstructionSheet(isPresented: $showHelpSheet)
         }
-        .alert(registerAlertTitle, isPresented: $showRegisterAlert) {
-            Button("Đồng ý", role: .cancel) {}
-        } message: {
-            Text(registerAlertMessage)
+        .sheet(isPresented: $showRegisterEnterpriseSheet) {
+            RegisterEnterpriseSheet(isPresented: $showRegisterEnterpriseSheet)
+                .environmentObject(firebase)
+        }
+        .sheet(isPresented: $showJoinCompanySheet) {
+            JoinCompanySheet(isPresented: $showJoinCompanySheet)
+                .environmentObject(firebase)
         }
     }
 }
