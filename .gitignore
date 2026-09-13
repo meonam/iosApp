@@ -18,3 +18,5 @@ DerivedData/
 *.xcarchive
 Payload/
 *.ipa
+token*.txt
+*.token
