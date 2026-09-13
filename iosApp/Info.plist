@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <key>CFBundleDisplayName</key>
+    <string>QLTB SGCOOP</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.huyenhan.qltb</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <false/>
+    </dict>
+    <key>UILaunchScreen</key>
+    <dict/>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+        <string>armv7</string>
+    </array>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+    </array>
+
+    <!-- QUYỀN CAMERA ĐỂ QUÉT MÃ VẠCH & MÃ QR -->
+    <key>NSCameraUsageDescription</key>
+    <string>Ứng dụng cần quyền truy cập camera để quét mã vạch thiết bị và chụp ảnh biên bản hỗ trợ kỹ thuật.</string>
+
+    <!-- QUYỀN ĐỊNH VỊ GPS CHO ĐIỀU PHỐI VÀ CHẤM CÔNG SIÊU THỊ -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Ứng dụng cần quyền vị trí để định vị khoảng cách đến Co.opmart và dẫn đường xử lý sự cố.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Ứng dụng cần quyền vị trí nền để hỗ trợ giám sát hành trình KTV di chuyển hỗ trợ khẩn cấp.</string>
+
+    <!-- QUYỀN BLUETOOTH CHO MÁY IN NHIỆT CẦM TAY -->
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>Ứng dụng cần quyền Bluetooth để tìm kiếm và in phiếu biên bản qua máy in nhiệt cầm tay.</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>Ứng dụng cần quyền kết nối Bluetooth với máy in di động.</string>
+
+    <!-- CHẾ ĐỘ NỀN -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>fetch</string>
+        <string>location</string>
+        <string>remote-notification</string>
+    </array>
+</dict>
+</plist>
