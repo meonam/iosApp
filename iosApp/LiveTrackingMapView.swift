@@ -120,7 +120,7 @@ struct LiveTrackingMapView: View {
 
     init(ticket: SupportTicket, companyId: String = "SGCOOP") {
         self.ticket = ticket
-        self.customTicketCode = ticket.ticketCode
+        self.customTicketCode = ticket.id
         self.customDestinationName = ticket.unit.isEmpty ? ticket.title : ticket.unit
         self.customDestLat = nil
         self.customDestLng = nil

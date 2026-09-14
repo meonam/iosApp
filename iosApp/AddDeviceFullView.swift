@@ -331,7 +331,7 @@ public struct AddDeviceFullView: View {
                 department: department,
                 serialNumber: serialNumber,
                 price: priceStr,
-                warranty: warrantyMonths,
+                warranty: "\(warrantyMonths)",
                 imageUrl: uploadedImageUrl
             )
             isSubmitting = false

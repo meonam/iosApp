@@ -402,7 +402,7 @@ struct DeviceTypeManagerFullView: View {
                         Picker("Phòng ban", selection: $newTypeDept) {
                             Text("(Tất cả / Chung)").tag("")
                             ForEach(firebase.departmentsList) { dept in
-                                Text("\(dept.name) [\(dept.code.isEmpty ? dept.id : dept.code)]").tag(dept.name)
+                                Text("\(dept.name) [\(dept.id)]").tag(dept.name)
                             }
                         }
                     }
