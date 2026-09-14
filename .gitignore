@@ -23,3 +23,5 @@ token*.txt
 
 Release/
 xcode_error.txt
+build_output/
+latest_build_log.txt
