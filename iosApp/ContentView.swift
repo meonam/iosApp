@@ -82,6 +82,124 @@ struct ChatMessage: Identifiable, Hashable, Sendable {
     var isMe: Bool
 }
 
+struct UserItem: Identifiable, Hashable, Sendable {
+    var id: String { email }
+    var email: String
+    var fullName: String
+    var phone: String
+    var role: String
+    var status: String
+    var donVi: String
+    var companyId: String
+    var departmentId: String
+    var maNhanVien: String
+    var isOnline: Bool
+    var createdAt: String
+}
+
+struct PendingStaffItem: Identifiable, Hashable, Sendable {
+    var id: String { email }
+    var email: String
+    var fullName: String
+    var phone: String
+    var maNhanVien: String
+    var companyId: String
+    var departmentId: String
+    var unitId: String
+    var donVi: String
+    var phongBan: String
+    var createdAt: String
+}
+
+struct DepartmentItem: Identifiable, Hashable, Sendable {
+    var id: String
+    var name: String
+    var managerName: String
+    var hotline: String
+    var description: String
+}
+
+struct UnitItem: Identifiable, Hashable, Sendable {
+    var id: String
+    var name: String
+    var address: String
+    var phone: String
+}
+
+struct RegionItem: Identifiable, Hashable, Sendable {
+    var id: String
+    var name: String
+    var code: String
+}
+
+struct DeviceTypeItem: Identifiable, Hashable, Sendable {
+    var id: String
+    var name: String
+    var icon: String
+    var count: Int
+}
+
+struct DeviceHistoryItem: Identifiable, Hashable, Sendable {
+    var id: String
+    var deviceId: String
+    var action: String
+    var performedBy: String
+    var timestamp: String
+    var note: String
+    var oldStatus: String
+    var newStatus: String
+}
+
+struct AttendanceRecordItem: Identifiable, Hashable, Sendable {
+    var id: String
+    var userEmail: String
+    var userName: String
+    var date: String
+    var checkInTime: String
+    var checkOutTime: String
+    var checkInAddress: String
+    var checkInStatus: String
+    var totalWorkMinutes: Int
+}
+
+struct ShiftEntryItem: Identifiable, Hashable, Sendable {
+    var id: String { employeeId }
+    var employeeId: String
+    var employeeName: String
+    var shiftCode: String
+    var shiftName: String
+    var donVi: String
+    var khuVuc: String
+}
+
+struct OnlineKtvItem: Identifiable, Hashable, Sendable {
+    var id: String { email }
+    var email: String
+    var name: String
+    var isOnline: Bool
+    var lastActive: String
+    var currentUnit: String
+    var assignedTickets: Int
+}
+
+struct SystemNotificationItem: Identifiable, Hashable, Sendable {
+    var id: String
+    var title: String
+    var message: String
+    var createdAt: String
+    var isUrgent: Bool
+    var targetGroup: String
+}
+
+struct SupportRatingItem: Identifiable, Hashable, Sendable {
+    var id: String
+    var ticketId: String
+    var stars: Int
+    var feedback: String
+    var userEmail: String
+    var createdAt: String
+}
+
 // MARK: - 3. FIREBASE SERVICE ENGINE (Native Swift REST & Firestore Sync)
 class FirebaseService: ObservableObject {
     static let shared = FirebaseService()
@@ -92,6 +210,23 @@ class FirebaseService: ObservableObject {
     @Published var isLoggedIn: Bool = false
     @Published var isAuthenticating: Bool = false
     @Published var authError: String? = nil
+
+    // Trạng thái tài khoản (ACTIVE vs PENDING)
+    @Published var userAccountStatus: String = "ACTIVE"
+
+    // Bộ nhớ Cache Phân hệ
+    @Published var pendingStaffList: [PendingStaffItem] = []
+    @Published var allUsersList: [UserItem] = []
+    @Published var departmentsList: [DepartmentItem] = []
+    @Published var unitsList: [UnitItem] = []
+    @Published var regionsList: [RegionItem] = []
+    @Published var deviceTypesList: [DeviceTypeItem] = []
+    @Published var attendanceRecords: [AttendanceRecordItem] = []
+    @Published var onlineKtvs: [OnlineKtvItem] = []
+    @Published var shiftSchedules: [ShiftEntryItem] = []
+    @Published var systemNotificationsList: [SystemNotificationItem] = []
+    @Published var deviceHistoryList: [DeviceHistoryItem] = []
+    @Published var supportRatingsList: [SupportRatingItem] = []
 
     @Published var currentUserEmail: String = ""
     @Published var currentUserIdToken: String = ""
@@ -749,6 +884,568 @@ class FirebaseService: ObservableObject {
         return "Đang sử dụng"
     }
 
+    // --- P. QUẢN LÝ TÀI KHOẢN CHỜ PHÊ DUYỆT (PENDING STAFF) ---
+    func checkUserApprovalStatus() async {
+        let cleanEmail = currentUserEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if cleanEmail.isEmpty { return }
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users/\(cleanEmail)"
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        if let (data, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let fields = json["fields"] as? [String: Any] {
+            let st = parseString(fields, "status")
+            await MainActor.run {
+                self.userAccountStatus = !st.isEmpty ? st.uppercased() : "ACTIVE"
+            }
+        }
+    }
+
+    func fetchPendingStaff() async {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users?pageSize=100"
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        if let (data, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let docs = json["documents"] as? [[String: Any]] {
+            var list: [PendingStaffItem] = []
+            for d in docs {
+                let f = d["fields"] as? [String: Any] ?? [:]
+                let st = parseString(f, "status").uppercased()
+                if st == "PENDING" {
+                    let item = PendingStaffItem(
+                        email: parseString(f, "email"),
+                        fullName: parseString(f, "fullName"),
+                        phone: parseString(f, "phone"),
+                        maNhanVien: parseString(f, "maNhanVien"),
+                        companyId: parseString(f, "companyId"),
+                        departmentId: parseString(f, "departmentId"),
+                        unitId: parseString(f, "unitId"),
+                        donVi: parseString(f, "donVi"),
+                        phongBan: parseString(f, "phongBan"),
+                        createdAt: formatTimestamp(parseInteger(f, "createdAt"))
+                    )
+                    list.append(item)
+                }
+            }
+            let finalList = list
+            await MainActor.run { self.pendingStaffList = finalList }
+        }
+    }
+
+    func approveStaffMember(email: String, role: String, dept: String, unit: String) async -> Bool {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=status&updateMask.fieldPaths=role&updateMask.fieldPaths=phongBan&updateMask.fieldPaths=donVi"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "fields": [
+                "status": ["stringValue": "ACTIVE"],
+                "role": ["stringValue": role],
+                "phongBan": ["stringValue": dept],
+                "donVi": ["stringValue": unit]
+            ]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200 {
+            await fetchPendingStaff()
+            return true
+        }
+        return false
+    }
+
+    func rejectStaffMember(email: String) async -> Bool {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=status"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "fields": ["status": ["stringValue": "REJECTED"]]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200 {
+            await fetchPendingStaff()
+            return true
+        }
+        return false
+    }
+
+    // --- Q. QUẢN LÝ NGƯỜI DÙNG & PHÂN QUYỀN (USER MANAGEMENT) ---
+    func fetchAllUsers() async {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users?pageSize=100"
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        if let (data, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let docs = json["documents"] as? [[String: Any]] {
+            var list: [UserItem] = []
+            for d in docs {
+                let f = d["fields"] as? [String: Any] ?? [:]
+                let em = parseString(f, "email")
+                if !em.isEmpty {
+                    let u = UserItem(
+                        email: em,
+                        fullName: parseString(f, "fullName").isEmpty ? parseString(f, "name") : parseString(f, "fullName"),
+                        phone: parseString(f, "phone"),
+                        role: parseString(f, "role").isEmpty ? "nhanvien" : parseString(f, "role"),
+                        status: parseString(f, "status").isEmpty ? "ACTIVE" : parseString(f, "status").uppercased(),
+                        donVi: parseString(f, "donVi"),
+                        companyId: parseString(f, "companyId"),
+                        departmentId: parseString(f, "departmentId"),
+                        maNhanVien: parseString(f, "maNhanVien"),
+                        isOnline: (f["isOnline"] as? [String: Any])?["booleanValue"] as? Bool ?? false,
+                        createdAt: formatTimestamp(parseInteger(f, "createdAt"))
+                    )
+                    list.append(u)
+                }
+            }
+            let finalList = list
+            await MainActor.run { self.allUsersList = finalList }
+        }
+    }
+
+    func changeUserRole(email: String, newRole: String) async -> Bool {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=role"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "fields": ["role": ["stringValue": newRole]]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200 {
+            await fetchAllUsers()
+            return true
+        }
+        return false
+    }
+
+    func toggleUserBlock(email: String, block: Bool) async -> Bool {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let newSt = block ? "BLOCKED" : "ACTIVE"
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=status"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "fields": ["status": ["stringValue": newSt]]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200 {
+            await fetchAllUsers()
+            return true
+        }
+        return false
+    }
+
+    // --- R. QUẢN LÝ PHÒNG BAN, ĐƠN VỊ, KHU VỰC, LOẠI THIẾT BỊ ---
+    func fetchDepartments() async {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/departments?pageSize=100"
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        if let (data, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let docs = json["documents"] as? [[String: Any]] {
+            var list: [DepartmentItem] = []
+            for d in docs {
+                let docId = (d["name"] as? String ?? "").components(separatedBy: "/").last ?? ""
+                let f = d["fields"] as? [String: Any] ?? [:]
+                let name = parseString(f, "deptName").isEmpty ? (parseString(f, "departmentName").isEmpty ? docId : parseString(f, "departmentName")) : parseString(f, "deptName")
+                let item = DepartmentItem(
+                    id: docId,
+                    name: name,
+                    managerName: parseString(f, "managerName"),
+                    hotline: parseString(f, "hotline"),
+                    description: parseString(f, "description")
+                )
+                list.append(item)
+            }
+            let finalList = list
+            await MainActor.run { self.departmentsList = finalList }
+        }
+    }
+
+    func addDepartment(id: String, name: String, manager: String, hotline: String) async -> Bool {
+        let cleanId = id.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/departments/\(cleanId)"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "fields": [
+                "deptId": ["stringValue": cleanId],
+                "deptName": ["stringValue": name],
+                "managerName": ["stringValue": manager],
+                "hotline": ["stringValue": hotline],
+                "companyId": ["stringValue": companyId]
+            ]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+            await fetchDepartments()
+            return true
+        }
+        return false
+    }
+
+    func deleteDepartment(id: String) async -> Bool {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/departments/\(id)"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 204) {
+            await fetchDepartments()
+            return true
+        }
+        return false
+    }
+
+    func fetchUnits() async {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/units?pageSize=100"
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        if let (data, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let docs = json["documents"] as? [[String: Any]] {
+            var list: [UnitItem] = []
+            for d in docs {
+                let docId = (d["name"] as? String ?? "").components(separatedBy: "/").last ?? ""
+                let f = d["fields"] as? [String: Any] ?? [:]
+                let name = parseString(f, "unitName").isEmpty ? (parseString(f, "tenDonVi").isEmpty ? docId : parseString(f, "tenDonVi")) : parseString(f, "unitName")
+                let item = UnitItem(
+                    id: docId,
+                    name: name,
+                    address: parseString(f, "address"),
+                    phone: parseString(f, "phone")
+                )
+                list.append(item)
+            }
+            let finalList = list
+            await MainActor.run { self.unitsList = finalList }
+        }
+    }
+
+    func addUnit(id: String, name: String, address: String, phone: String) async -> Bool {
+        let cleanId = id.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/units/\(cleanId)"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "fields": [
+                "unitId": ["stringValue": cleanId],
+                "unitName": ["stringValue": name],
+                "address": ["stringValue": address],
+                "phone": ["stringValue": phone],
+                "companyId": ["stringValue": companyId]
+            ]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+            await fetchUnits()
+            return true
+        }
+        return false
+    }
+
+    func deleteUnit(id: String) async -> Bool {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/units/\(id)"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 204) {
+            await fetchUnits()
+            return true
+        }
+        return false
+    }
+
+    func fetchRegions() async {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/regions?pageSize=100"
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        if let (data, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let docs = json["documents"] as? [[String: Any]] {
+            var list: [RegionItem] = []
+            for d in docs {
+                let docId = (d["name"] as? String ?? "").components(separatedBy: "/").last ?? ""
+                let f = d["fields"] as? [String: Any] ?? [:]
+                let name = parseString(f, "name").isEmpty ? (parseString(f, "regionName").isEmpty ? docId : parseString(f, "regionName")) : parseString(f, "name")
+                let item = RegionItem(
+                    id: docId,
+                    name: name,
+                    description: parseString(f, "description"),
+                    leader: parseString(f, "leader"),
+                    phone: parseString(f, "phone")
+                )
+                list.append(item)
+            }
+            let finalList = list
+            await MainActor.run { self.regionsList = finalList }
+        }
+    }
+
+    func addRegion(id: String, name: String, leader: String, phone: String, desc: String) async {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/regions?documentId=\(id)"
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "fields": [
+                "name": ["stringValue": name],
+                "regionName": ["stringValue": name],
+                "leader": ["stringValue": leader],
+                "phone": ["stringValue": phone],
+                "description": ["stringValue": desc]
+            ]
+        ]
+        if let b = try? JSONSerialization.data(withJSONObject: body) {
+            req.httpBody = b
+            _ = try? await URLSession.shared.data(for: req)
+            await fetchRegions()
+        }
+    }
+
+    func deleteRegion(id: String) async {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/regions/\(id)"
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        _ = try? await URLSession.shared.data(for: req)
+        await fetchRegions()
+    }
+
+    // --- S. LỊCH SỬ THIẾT BỊ & CẬP NHẬT TRẠNG THÁI ---
+    func updateDeviceStatus(deviceId: String, newStatus: String, note: String) async -> Bool {
+        let cleanId = deviceId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/devices/\(cleanId)?updateMask.fieldPaths=trangThai"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "fields": ["trangThai": ["stringValue": newStatus]]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200 {
+            // Ghi nhật ký vào subcollection history
+            await addDeviceHistoryRecord(deviceId: cleanId, action: "Đổi trạng thái -> \(newStatus)", note: note, newSt: newStatus)
+            await loadDevices()
+            return true
+        }
+        return false
+    }
+
+    func addDeviceHistoryRecord(deviceId: String, action: String, note: String, newSt: String) async {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/devices/\(deviceId)/history"
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let body: [String: Any] = [
+            "fields": [
+                "action": ["stringValue": action],
+                "note": ["stringValue": note],
+                "performedBy": ["stringValue": userName],
+                "userEmail": ["stringValue": currentUserEmail],
+                "newStatus": ["stringValue": newSt],
+                "timestamp": ["integerValue": "\(nowMs)"]
+            ]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
+    func fetchDeviceHistory(deviceId: String) async {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/devices/\(deviceId)/history?pageSize=50"
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        if let (data, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let docs = json["documents"] as? [[String: Any]] {
+            var list: [DeviceHistoryItem] = []
+            for d in docs {
+                let docId = (d["name"] as? String ?? "").components(separatedBy: "/").last ?? ""
+                let f = d["fields"] as? [String: Any] ?? [:]
+                let item = DeviceHistoryItem(
+                    id: docId,
+                    deviceId: deviceId,
+                    action: parseString(f, "action"),
+                    performedBy: parseString(f, "performedBy"),
+                    timestamp: formatTimestamp(parseInteger(f, "timestamp")),
+                    note: parseString(f, "note"),
+                    oldStatus: parseString(f, "oldStatus"),
+                    newStatus: parseString(f, "newStatus")
+                )
+                list.append(item)
+            }
+            let finalList = list
+            await MainActor.run { self.deviceHistoryList = finalList }
+        }
+    }
+
+    // --- T. CHẤM CÔNG GPS & ĐIỀU PHỐI (ATTENDANCE & SHIFTS) ---
+    func checkInAttendance(isCheckIn: Bool, lat: Double, lng: Double, address: String) async -> Bool {
+        let dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        let cleanEmail = currentUserEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let docId = "att_\(dateStr)_\(cleanEmail.replacingOccurrences(of: "@", with: "_").replacingOccurrences(of: ".", with: "_"))"
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/attendances/\(docId)"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+
+        var fields: [String: Any] = [
+            "userEmail": ["stringValue": cleanEmail],
+            "userName": ["stringValue": userName],
+            "donVi": ["stringValue": userDonVi],
+            "departmentId": ["stringValue": userDept],
+            "companyId": ["stringValue": companyId],
+            "date": ["stringValue": dateStr]
+        ]
+        if isCheckIn {
+            fields["checkInTime"] = ["integerValue": "\(nowMs)"]
+            fields["checkInLat"] = ["doubleValue": lat]
+            fields["checkInLng"] = ["doubleValue": lng]
+            fields["checkInAddress"] = ["stringValue": address]
+            fields["checkInStatus"] = ["stringValue": "ON_TIME"]
+        } else {
+            fields["checkOutTime"] = ["integerValue": "\(nowMs)"]
+            fields["checkOutLat"] = ["doubleValue": lat]
+            fields["checkOutLng"] = ["doubleValue": lng]
+            fields["checkOutAddress"] = ["stringValue": address]
+            fields["checkOutStatus"] = ["stringValue": "NORMAL"]
+        }
+
+        let body = ["fields": fields]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+            await fetchAttendanceRecords()
+            return true
+        }
+        return false
+    }
+
+    func fetchAttendanceRecords() async {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/attendances?pageSize=50"
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        if let (data, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let docs = json["documents"] as? [[String: Any]] {
+            var list: [AttendanceRecordItem] = []
+            for d in docs {
+                let docId = (d["name"] as? String ?? "").components(separatedBy: "/").last ?? ""
+                let f = d["fields"] as? [String: Any] ?? [:]
+                let inTime = parseInteger(f, "checkInTime")
+                let outTime = parseInteger(f, "checkOutTime")
+                let item = AttendanceRecordItem(
+                    id: docId,
+                    userEmail: parseString(f, "userEmail"),
+                    userName: parseString(f, "userName"),
+                    date: parseString(f, "date"),
+                    checkInTime: formatTimestamp(inTime),
+                    checkOutTime: outTime > 0 ? formatTimestamp(outTime) : "--:--",
+                    checkInAddress: parseString(f, "checkInAddress"),
+                    checkInStatus: parseString(f, "checkInStatus").isEmpty ? "Đúng giờ" : "Đúng giờ",
+                    totalWorkMinutes: Int((outTime - inTime) / 60000)
+                )
+                list.append(item)
+            }
+            let finalList = list
+            await MainActor.run { self.attendanceRecords = finalList }
+        }
+    }
+
+    func fetchOnlineKtvs() async {
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/technician_locations?pageSize=50"
+        guard let url = URL(string: urlStr) else { return }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        if let (data, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let docs = json["documents"] as? [[String: Any]] {
+            var list: [OnlineKtvItem] = []
+            for d in docs {
+                let docId = (d["name"] as? String ?? "").components(separatedBy: "/").last ?? ""
+                let f = d["fields"] as? [String: Any] ?? [:]
+                let isOnline = (f["isOnline"] as? [String: Any])?["booleanValue"] as? Bool ?? false
+                let item = OnlineKtvItem(
+                    email: docId,
+                    name: parseString(f, "name").isEmpty ? docId : parseString(f, "name"),
+                    isOnline: isOnline,
+                    lastActive: formatTimestamp(parseInteger(f, "lastUpdatedAt")),
+                    currentUnit: parseString(f, "currentUnit").isEmpty ? "IT Tập trung" : parseString(f, "currentUnit"),
+                    assignedTickets: Int((f["activeTickets"] as? [String: Any])?["integerValue"] as? String ?? "0") ?? 0
+                )
+                list.append(item)
+            }
+            let finalList = list
+            await MainActor.run { self.onlineKtvs = finalList }
+        }
+    }
+
+    // Helper Date formatting
+    private func SimpleDateFormat(_ pattern: String, _ locale: Locale) -> DateFormatter {
+        let f = DateFormatter()
+        f.dateFormat = pattern
+        f.locale = locale
+        return f
+    }
+
     // --- M. XÁC THỰC & TRA CỨU DOANH NGHIỆP / PHÒNG BAN / ĐƠN VỊ ---
     private var cachedGuestToken: String = ""
     private var guestTokenExpiry: Date = .distantPast
@@ -1190,8 +1887,13 @@ struct ContentView: View {
     var body: some View {
         Group {
             if firebase.isLoggedIn {
-                MainAppView()
-                    .environmentObject(firebase)
+                if firebase.userAccountStatus == "PENDING" {
+                    PendingApprovalView()
+                        .environmentObject(firebase)
+                } else {
+                    MainAppView()
+                        .environmentObject(firebase)
+                }
             } else {
                 LoginScreenView()
                     .environmentObject(firebase)
@@ -1395,6 +2097,140 @@ struct HelpInstructionSheet: View {
             }
         }
         .navigationViewStyle(.stack)
+    }
+}
+
+// MARK: - 4.35. MÀN HÌNH CHỜ PHÊ DUYỆT (PENDING APPROVAL - CHUẨN 100% ANDROID)
+struct PendingApprovalView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    @State private var isChecking: Bool = false
+    @State private var checkMessage: String? = nil
+
+    var body: some View {
+        ZStack {
+            Color.appBackground.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Spacer()
+
+                VStack(spacing: 20) {
+                    // Biểu tượng đồng hồ cát chờ duyệt
+                    ZStack {
+                        Circle()
+                            .fill(Color(hex: "#FEF3C7"))
+                            .frame(width: 90, height: 90)
+                        Image(systemName: "hourglass.badge.eye")
+                            .font(.system(size: 42))
+                            .foregroundColor(Color(hex: "#D97706"))
+                    }
+
+                    Text("Tài Khoản Đang Chờ Phê Duyệt")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .multilineTextAlignment(.center)
+
+                    Text("Yêu cầu gia nhập của bạn đã được chuyển tới Ban Quản Trị hệ thống Saigon Co.op.")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color.appTextSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 16)
+
+                    // Thẻ thông tin tài khoản
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("Email đăng ký:")
+                                .font(.system(size: 13))
+                                .foregroundColor(Color.appTextSecondary)
+                            Spacer()
+                            Text(firebase.currentUserEmail)
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(Color.appTextPrimary)
+                        }
+                        Divider()
+                        HStack {
+                            Text("Mã doanh nghiệp:")
+                                .font(.system(size: 13))
+                                .foregroundColor(Color.appTextSecondary)
+                            Spacer()
+                            Text(firebase.companyId)
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(Color.appPrimaryPink)
+                        }
+                        Divider()
+                        HStack {
+                            Text("Trạng thái xét duyệt:")
+                                .font(.system(size: 13))
+                                .foregroundColor(Color.appTextSecondary)
+                            Spacer()
+                            HStack(spacing: 4) {
+                                Circle().fill(Color(hex: "#F59E0B")).frame(width: 8, height: 8)
+                                Text("ĐANG CHỜ DUYỆT")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(Color(hex: "#D97706"))
+                            }
+                        }
+                    }
+                    .padding(16)
+                    .background(Color(hex: "#FFFBEB"))
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#FDE68A"), lineWidth: 1))
+
+                    if let msg = checkMessage {
+                        Text(msg)
+                            .font(.system(size: 12.5, weight: .medium))
+                            .foregroundColor(Color(hex: "#D97706"))
+                    }
+
+                    // Nút Kiểm tra lại
+                    Button(action: {
+                        isChecking = true
+                        Task {
+                            await firebase.checkUserApprovalStatus()
+                            isChecking = false
+                            if firebase.userAccountStatus == "ACTIVE" {
+                                checkMessage = "✅ Tài khoản đã được phê duyệt! Đang vào hệ thống..."
+                            } else {
+                                checkMessage = "⏳ Tài khoản vẫn đang chờ phê duyệt. Vui lòng liên hệ Quản lý phòng ban."
+                            }
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            if isChecking {
+                                ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                                Text("Kiểm tra lại trạng thái")
+                                    .font(.system(size: 15, weight: .bold))
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(Color.appSecondaryDarkBlue)
+                        .cornerRadius(12)
+                    }
+                    .disabled(isChecking)
+
+                    // Nút Đăng xuất
+                    Button(action: {
+                        firebase.signOut()
+                    }) {
+                        Text("Đăng xuất tài khoản")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color.statusBroken)
+                    }
+                    .padding(.top, 4)
+                }
+                .padding(24)
+                .background(Color.white)
+                .cornerRadius(20)
+                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                .padding(.horizontal, 20)
+
+                Spacer()
+            }
+        }
+        .preferredColorScheme(.light)
     }
 }
 
@@ -2249,6 +3085,1645 @@ struct JoinCompanySheet: View {
     }
 }
 
+
+// MARK: - 7. PHÂN HỆ QUẢN LÝ THIẾT BỊ & TÀI SẢN (DEVICE ECOSYSTEM)
+
+// MARK: - 7.1. CHI TIẾT THIẾT BỊ (DEVICE DETAIL VIEW - CHUẨN ANDROID DeviceScreen.kt)
+struct DeviceDetailView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var device: DeviceItem
+    var onDismiss: () -> Void
+
+    @State private var showStatusPicker: Bool = false
+    @State private var selectedStatus: String = ""
+    @State private var statusNote: String = ""
+    @State private var showHistorySheet: Bool = false
+    @State private var showPrintSheet: Bool = false
+    @State private var isUpdating: Bool = false
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 16) {
+                    headerCard
+                    specsCard
+                    actionsCard
+                }
+                .padding(16)
+            }
+            .background(Color.appBackground.ignoresSafeArea())
+            .navigationTitle("Chi tiết thiết bị")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+            .sheet(isPresented: $showHistorySheet) {
+                DeviceHistorySheetView(device: device, onDismiss: { showHistorySheet = false })
+                    .environmentObject(firebase)
+            }
+            .sheet(isPresented: $showPrintSheet) {
+                PrintBarcodeView(device: device, onDismiss: { showPrintSheet = false })
+            }
+            .confirmationDialog("Cập nhật trạng thái thiết bị", isPresented: $showStatusPicker, titleVisibility: .visible) {
+                Button("Mới nhập") { updateStatus("Mới nhập") }
+                Button("Trong kho (Sẵn sàng)") { updateStatus("Trong kho (Sẵn sàng)") }
+                Button("Đang sử dụng") { updateStatus("Đang sử dụng") }
+                Button("Đang sửa chữa / Bảo hành") { updateStatus("Đang sửa chữa / Bảo hành") }
+                Button("Hỏng / Chờ xử lý", role: .destructive) { updateStatus("Hỏng / Chờ xử lý") }
+                Button("Đã thanh lý", role: .destructive) { updateStatus("Đã thanh lý") }
+                Button("Hủy", role: .cancel) {}
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+
+    @ViewBuilder
+    private var headerCard: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(hex: "#EFF6FF"))
+                        .frame(width: 64, height: 64)
+                    Image(systemName: device.iconName)
+                        .font(.system(size: 30))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(device.name)
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(Color.appTextPrimary)
+                    Text("Mã: \(device.code)")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                    Text("Serial: \(device.serialNumber)")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.appTextSecondary)
+                }
+                Spacer()
+            }
+
+            Divider()
+
+            HStack {
+                Text("Trạng thái hiện tại:")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color.appTextSecondary)
+                Spacer()
+                Text(device.status)
+                    .font(.system(size: 12.5, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(statusColor(device.status))
+                    .cornerRadius(8)
+            }
+        }
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(16)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.appCardBorder, lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private var specsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("THÔNG TIN VẬN HÀNH")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(Color.appTextMuted)
+
+            infoRow(label: "Chủng loại", val: device.category, icon: "tag.fill")
+            infoRow(label: "Đơn vị sử dụng", val: device.unit, icon: "storefront.fill")
+            infoRow(label: "Phòng ban quản lý", val: device.department.isEmpty ? "Chưa gán" : device.department, icon: "building.2.fill")
+            infoRow(label: "Doanh nghiệp", val: firebase.companyId, icon: "building.columns.fill")
+        }
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(16)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.appCardBorder, lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private var actionsCard: some View {
+        VStack(spacing: 10) {
+            Button(action: { showStatusPicker = true }) {
+                HStack {
+                    Image(systemName: "arrow.triangle.2.circlepath")
+                    Text("Đổi trạng thái thiết bị")
+                        .font(.system(size: 15, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(Color.appPrimaryPink)
+                .cornerRadius(12)
+            }
+
+            HStack(spacing: 10) {
+                Button(action: {
+                    Task {
+                        await firebase.fetchDeviceHistory(deviceId: device.code)
+                        showHistorySheet = true
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "clock.arrow.circlepath")
+                        Text("Lịch sử bảo trì")
+                            .font(.system(size: 13.5, weight: .bold))
+                    }
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.white)
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                }
+
+                Button(action: { showPrintSheet = true }) {
+                    HStack {
+                        Image(systemName: "printer.fill")
+                        Text("In tem nhãn QR")
+                            .font(.system(size: 13.5, weight: .bold))
+                    }
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.white)
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+                }
+            }
+        }
+    }
+
+    private func infoRow(label: String, val: String, icon: String) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .foregroundColor(Color.appSecondaryDarkBlue)
+                .frame(width: 20)
+            Text(label)
+                .font(.system(size: 13.5))
+                .foregroundColor(Color.appTextSecondary)
+            Spacer()
+            Text(val)
+                .font(.system(size: 13.5, weight: .semibold))
+                .foregroundColor(Color.appTextPrimary)
+        }
+    }
+
+    private func statusColor(_ st: String) -> Color {
+        let s = st.lowercased()
+        if s.contains("mới") || s.contains("kho") { return Color.statusNew }
+        if s.contains("dùng") || s.contains("hoạt động") { return Color.statusInUse }
+        if s.contains("sửa") || s.contains("bảo hành") { return Color.statusRepair }
+        return Color.statusBroken
+    }
+
+    private func updateStatus(_ newSt: String) {
+        Task {
+            _ = await firebase.updateDeviceStatus(deviceId: device.code, newStatus: newSt, note: "Cập nhật qua ứng dụng iOS")
+        }
+    }
+}
+
+// MARK: - 7.2. LỊCH SỬ THIẾT BỊ (DEVICE HISTORY VIEW - LichSuScreen.kt)
+struct DeviceHistorySheetView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var device: DeviceItem
+    var onDismiss: () -> Void
+
+    var body: some View {
+        NavigationView {
+            Group {
+                if firebase.deviceHistoryList.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "clock.badge.checkmark")
+                            .font(.system(size: 48))
+                            .foregroundColor(Color.appTextMuted)
+                        Text("Chưa có biến động bảo trì nào")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(Color.appTextSecondary)
+                        Text("Thiết bị hoạt động ổn định từ ngày nhập kho.")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color.appTextMuted)
+                    }
+                    .padding(32)
+                } else {
+                    List {
+                        ForEach(firebase.deviceHistoryList) { h in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text(h.action)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(Color.appSecondaryDarkBlue)
+                                    Spacer()
+                                    Text(h.timestamp)
+                                        .font(.system(size: 12))
+                                        .foregroundColor(Color.appTextMuted)
+                                }
+                                if !h.note.isEmpty {
+                                    Text(h.note)
+                                        .font(.system(size: 13))
+                                        .foregroundColor(Color.appTextSecondary)
+                                }
+                                HStack {
+                                    Text("Bởi: \(h.performedBy)")
+                                        .font(.system(size: 11.5))
+                                        .foregroundColor(Color.appTextMuted)
+                                    Spacer()
+                                    if !h.newStatus.isEmpty {
+                                        Text(h.newStatus)
+                                            .font(.system(size: 11, weight: .semibold))
+                                            .foregroundColor(Color.statusInUse)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Lịch sử thiết bị \(device.code)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+}
+
+// MARK: - 7.3. IN TEM NHÃN MÃ VẠCH QR (PRINT SCREEN - PrintScreen.kt)
+struct PrintBarcodeView: View {
+    var device: DeviceItem
+    var onDismiss: () -> Void
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                Spacer()
+
+                // Tem nhãn chuẩn siêu thị Saigon Co.op
+                VStack(spacing: 12) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("SAIGON CO.OP")
+                                .font(.system(size: 14, weight: .heavy))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                            Text("HỆ THỐNG QUẢN LÝ THIẾT BỊ")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(Color.appTextSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "shield.lefthalf.filled")
+                            .font(.system(size: 20))
+                            .foregroundColor(Color.appPrimaryPink)
+                    }
+
+                    Divider()
+
+                    HStack(spacing: 16) {
+                        // QR Code đồ hoạ
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.black, lineWidth: 2)
+                                .frame(width: 90, height: 90)
+                            VStack(spacing: 3) {
+                                Image(systemName: "qrcode")
+                                    .font(.system(size: 60))
+                                    .foregroundColor(.black)
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(device.name)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.black)
+                                .maxLines(2)
+                            Text("MÃ TB: \(device.code)")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                            Text("SN: \(device.serialNumber)")
+                                .font(.system(size: 11))
+                                .foregroundColor(.gray)
+                            Text("ĐV: \(device.unit)")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.black)
+                        }
+                        Spacer()
+                    }
+                }
+                .padding(18)
+                .background(Color.white)
+                .cornerRadius(12)
+                .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 4)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#CBD5E1"), lineWidth: 1.5))
+                .padding(.horizontal, 24)
+
+                Text("Tem nhãn QR chuẩn dùng để dán lên thân thiết bị, hỗ trợ quét nhanh bằng camera máy tính bảng hoặc máy quét cầm tay Datalogic.")
+                    .font(.system(size: 12.5))
+                    .foregroundColor(Color.appTextSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+
+                Spacer()
+
+                // Nút In
+                VStack(spacing: 12) {
+                    Button(action: {
+                        onDismiss()
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "printer.fill")
+                            Text("In Tem Qua AirPrint / Máy In WiFi")
+                                .font(.system(size: 15, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.appSecondaryDarkBlue)
+                        .cornerRadius(12)
+                    }
+
+                    Button(action: {
+                        onDismiss()
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "square.and.arrow.up")
+                            Text("Chia sẻ tệp tem nhãn (PDF)")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+            }
+            .background(Color.appBackground.ignoresSafeArea())
+            .navigationTitle("In tem nhãn QR")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+}
+
+// MARK: - 7.4. THỐNG KÊ & BÁO CÁO (STATISTICS VIEW - ThongkeScreen.kt)
+struct StatisticsView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var onDismiss: () -> Void
+
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(spacing: 16) {
+                    overviewGrid
+                    statusBreakdownCard
+                    categoryBreakdownCard
+                }
+                .padding(16)
+            }
+            .background(Color.appBackground.ignoresSafeArea())
+            .navigationTitle("Thống kê tài sản thiết bị")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+
+    @ViewBuilder
+    private var overviewGrid: some View {
+        let total = firebase.devices.count
+        let inUse = firebase.devices.filter { $0.status.contains("dùng") || $0.status.contains("Đang") }.count
+        let repair = firebase.devices.filter { $0.status.contains("sửa") || $0.status.contains("hành") }.count
+        let broken = firebase.devices.filter { $0.status.contains("Hỏng") || $0.status.contains("hỏng") }.count
+
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            statBox(title: "TỔNG THIẾT BỊ", count: total, color: Color.appSecondaryDarkBlue, icon: "desktopcomputer")
+            statBox(title: "ĐANG SỬ DỤNG", count: inUse, color: Color.statusInUse, icon: "checkmark.seal.fill")
+            statBox(title: "ĐANG SỬA CHỮA", count: repair, color: Color.statusRepair, icon: "wrench.and.screwdriver.fill")
+            statBox(title: "HỎNG HÓC", count: broken, color: Color.statusBroken, icon: "exclamationmark.octagon.fill")
+        }
+    }
+
+    private func statBox(title: String, count: Int, color: Color, icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(Color.appTextSecondary)
+                Spacer()
+                Image(systemName: icon)
+                    .foregroundColor(color)
+            }
+            Text("\(count)")
+                .font(.system(size: 26, weight: .heavy))
+                .foregroundColor(color)
+        }
+        .padding(14)
+        .background(Color.white)
+        .cornerRadius(14)
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private var statusBreakdownCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("TỶ LỆ PHÂN BỔ TRẠNG THÁI")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(Color.appTextMuted)
+
+            let total = max(1, firebase.devices.count)
+            let inUse = firebase.devices.filter { $0.status.contains("dùng") || $0.status.contains("Đang") }.count
+            let inStock = firebase.devices.filter { $0.status.contains("kho") || $0.status.contains("Mới") }.count
+            let repair = firebase.devices.filter { $0.status.contains("sửa") || $0.status.contains("hành") }.count
+
+            progressBar(label: "Đang sử dụng", count: inUse, total: total, color: Color.statusInUse)
+            progressBar(label: "Trong kho / Mới", count: inStock, total: total, color: Color.statusNew)
+            progressBar(label: "Sửa chữa / Bảo hành", count: repair, total: total, color: Color.statusRepair)
+        }
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(16)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.appCardBorder, lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private var categoryBreakdownCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("PHÂN THEO CHỦNG LOẠI THIẾT BỊ")
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(Color.appTextMuted)
+
+            let categories = ["POS", "Máy in", "Máy quét", "Mạng WiFi", "UPS"]
+            ForEach(categories, id: \.self) { cat in
+                let cCount = firebase.devices.filter { $0.category.localizedCaseInsensitiveContains(cat) }.count
+                HStack {
+                    Text(cat)
+                        .font(.system(size: 13.5, weight: .medium))
+                        .foregroundColor(Color.appTextPrimary)
+                    Spacer()
+                    Text("\(cCount) máy")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                }
+                Divider()
+            }
+        }
+        .padding(16)
+        .background(Color.white)
+        .cornerRadius(16)
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.appCardBorder, lineWidth: 1))
+    }
+
+    private func progressBar(label: String, count: Int, total: Int, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundColor(Color.appTextPrimary)
+                Spacer()
+                Text("\(count)/\(total) (\(Int(Double(count) / Double(total) * 100))%)")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(color)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color(hex: "#F1F5F9")).frame(height: 8)
+                    Capsule().fill(color).frame(width: geo.size.width * CGFloat(Double(count) / Double(total)), height: 8)
+                }
+            }
+            .frame(height: 8)
+        }
+    }
+}
+
+// MARK: - 7.5. QUẢN LÝ LOẠI THIẾT BỊ (DEVICE TYPE MANAGER - DeviceTypeManagerScreen.kt)
+struct DeviceTypeManagerView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var onDismiss: () -> Void
+
+    @State private var newTypeName: String = ""
+    @State private var showAddDialog: Bool = false
+
+    var defaultTypes = [
+        ("Máy bán hàng POS", "computermouse.fill", "#2563EB"),
+        ("Máy quét mã vạch", "barcode.viewfinder", "#059669"),
+        ("Máy in bill nhiệt", "printer.fill", "#7C3AED"),
+        ("Thiết bị mạng WiFi", "wifi", "#0891B2"),
+        ("Bộ lưu điện UPS", "bolt.batteryblock.fill", "#EA580C"),
+        ("Máy vi tính PC", "desktopcomputer", "#475569")
+    ]
+
+    var body: some View {
+        NavigationView {
+            List {
+                Section(header: Text("DANH MỤC THIẾT BỊ CHÍNH THỨC")) {
+                    ForEach(defaultTypes, id: \.0) { t in
+                        HStack(spacing: 12) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(Color(hex: t.2).opacity(0.12))
+                                    .frame(width: 36, height: 36)
+                                Image(systemName: t.1)
+                                    .foregroundColor(Color(hex: t.2))
+                            }
+                            Text(t.0)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(Color.appTextPrimary)
+                            Spacer()
+                            let count = firebase.devices.filter { $0.category.localizedCaseInsensitiveContains(t.0.prefix(5)) }.count
+                            Text("\(count)")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.appSecondaryDarkBlue))
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Danh mục loại thiết bị")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+}
+
+// MARK: - 8. PHÂN HỆ QUẢN TRỊ NHÂN SỰ & TỔ CHỨC (HR & ORGANIZATION)
+
+// MARK: - 8.1. DUYỆT NHÂN VIÊN MỚI (APPROVE STAFF VIEW - ApproveStaffScreen.kt)
+struct ApproveStaffView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var onDismiss: () -> Void
+
+    @State private var isLoading: Bool = false
+    @State private var selectedStaff: PendingStaffItem? = nil
+    @State private var selectedRole: String = "nhanvien"
+
+    var body: some View {
+        NavigationView {
+            Group {
+                if firebase.pendingStaffList.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "person.crop.circle.badge.checkmark")
+                            .font(.system(size: 54))
+                            .foregroundColor(Color.statusInUse)
+                        Text("Không có yêu cầu chờ duyệt")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                        Text("Tất cả nhân viên đăng ký đã được Quản trị viên xử lý.")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color.appTextSecondary)
+                    }
+                    .padding(32)
+                } else {
+                    List {
+                        ForEach(firebase.pendingStaffList) { staff in
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(staff.fullName)
+                                            .font(.system(size: 15, weight: .bold))
+                                            .foregroundColor(Color.appTextPrimary)
+                                        Text(staff.email)
+                                            .font(.system(size: 12.5))
+                                            .foregroundColor(Color.appTextSecondary)
+                                    }
+                                    Spacer()
+                                    Text("MNV: \(staff.maNhanVien.isEmpty ? "--" : staff.maNhanVien)")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color(hex: "#EFF6FF"))
+                                        .foregroundColor(Color.appSecondaryDarkBlue)
+                                        .cornerRadius(6)
+                                }
+
+                                HStack(spacing: 12) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "phone.fill").font(.system(size: 11))
+                                        Text(staff.phone)
+                                    }
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "storefront.fill").font(.system(size: 11))
+                                        Text(staff.donVi.isEmpty ? staff.unitId : staff.donVi)
+                                    }
+                                }
+                                .font(.system(size: 12))
+                                .foregroundColor(Color.appTextSecondary)
+
+                                Divider()
+
+                                HStack(spacing: 10) {
+                                    Button(action: {
+                                        Task {
+                                            _ = await firebase.rejectStaffMember(email: staff.email)
+                                        }
+                                    }) {
+                                        Text("Từ chối")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundColor(Color.statusBroken)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 36)
+                                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.statusBroken, lineWidth: 1))
+                                    }
+
+                                    Button(action: {
+                                        Task {
+                                            _ = await firebase.approveStaffMember(
+                                                email: staff.email,
+                                                role: "nhanvien",
+                                                dept: staff.phongBan,
+                                                unit: staff.donVi
+                                            )
+                                        }
+                                    }) {
+                                        Text("Phê duyệt")
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundColor(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 36)
+                                            .background(Color.statusInUse)
+                                            .cornerRadius(8)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 6)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Duyệt nhân viên mới (\(firebase.pendingStaffList.count))")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+            .onAppear {
+                Task { await firebase.fetchPendingStaff() }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+}
+
+// MARK: - 8.2. QUẢN LÝ NGƯỜI DÙNG (USER MANAGEMENT - UserManagementScreen.kt)
+struct UserManagementView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var onDismiss: () -> Void
+
+    @State private var searchText: String = ""
+    @State private var filterRole: String = "ALL"
+
+    var filteredUsers: [UserItem] {
+        firebase.allUsersList.filter { u in
+            let matchSearch = searchText.isEmpty ||
+                u.fullName.localizedCaseInsensitiveContains(searchText) ||
+                u.email.localizedCaseInsensitiveContains(searchText) ||
+                u.phone.contains(searchText)
+            let matchRole = filterRole == "ALL" || u.role.localizedCaseInsensitiveContains(filterRole)
+            return matchSearch && matchRole
+        }
+    }
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // Search bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(Color.appTextMuted)
+                    TextField("Tìm theo tên, email, số điện thoại...", text: $searchText)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
+                }
+                .padding(10)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                .padding(12)
+
+                // Danh sách người dùng
+                List {
+                    ForEach(filteredUsers) { u in
+                        HStack(spacing: 12) {
+                            // Avatar
+                            ZStack {
+                                Circle()
+                                    .fill(avatarColor(u.role))
+                                    .frame(width: 40, height: 40)
+                                Text(u.fullName.prefix(1).uppercased())
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack {
+                                    Text(u.fullName)
+                                        .font(.system(size: 14.5, weight: .bold))
+                                        .foregroundColor(Color.appTextPrimary)
+                                    Spacer()
+                                    Text(u.role.uppercased())
+                                        .font(.system(size: 10, weight: .heavy))
+                                        .foregroundColor(roleColor(u.role))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(roleColor(u.role).opacity(0.12))
+                                        .cornerRadius(6)
+                                }
+                                Text(u.email)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.appTextSecondary)
+                                HStack {
+                                    Text(u.donVi.isEmpty ? "Co.opmart" : u.donVi)
+                                        .font(.system(size: 11.5))
+                                        .foregroundColor(Color.appTextMuted)
+                                    Spacer()
+                                    if u.status == "BLOCKED" {
+                                        Text("ĐÃ KHÓA")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(Color.statusBroken)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        .contextMenu {
+                            Button("Đổi quyền -> Admin") { changeRole(u.email, "admin") }
+                            Button("Đổi quyền -> Kỹ thuật viên") { changeRole(u.email, "kythuat") }
+                            Button("Đổi quyền -> Quản lý phòng") { changeRole(u.email, "quanly") }
+                            Button("Đổi quyền -> Nhân viên") { changeRole(u.email, "nhanvien") }
+                            Divider()
+                            if u.status == "BLOCKED" {
+                                Button("Mở khóa tài khoản") { toggleBlock(u.email, false) }
+                            } else {
+                                Button("Khóa tài khoản", role: .destructive) { toggleBlock(u.email, true) }
+                            }
+                        }
+                    }
+                }
+            }
+            .background(Color.appBackground.ignoresSafeArea())
+            .navigationTitle("Quản lý thành viên (\(firebase.allUsersList.count))")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+            .onAppear {
+                Task { await firebase.fetchAllUsers() }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+
+    private func roleColor(_ r: String) -> Color {
+        let rl = r.lowercased()
+        if rl.contains("admin") { return Color.appPrimaryPink }
+        if rl.contains("kythuat") || rl.contains("tech") { return Color(hex: "#059669") }
+        if rl.contains("quanly") || rl.contains("phong") { return Color(hex: "#7C3AED") }
+        return Color.appSecondaryDarkBlue
+    }
+
+    private func avatarColor(_ r: String) -> Color {
+        roleColor(r)
+    }
+
+    private func changeRole(_ email: String, _ role: String) {
+        Task { _ = await firebase.changeUserRole(email: email, newRole: role) }
+    }
+
+    private func toggleBlock(_ email: String, _ block: Bool) {
+        Task { _ = await firebase.toggleUserBlock(email: email, block: block) }
+    }
+}
+
+// MARK: - 8.3. QUẢN LÝ PHÒNG BAN (DEPARTMENT MANAGER - DepartmentManagerScreen.kt)
+struct DepartmentManagerView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var onDismiss: () -> Void
+
+    @State private var showAddSheet: Bool = false
+    @State private var newDeptId: String = ""
+    @State private var newDeptName: String = ""
+    @State private var newDeptManager: String = ""
+    @State private var newDeptHotline: String = ""
+
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(firebase.departmentsList) { d in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(d.name)
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                            Spacer()
+                            Text(d.id)
+                                .font(.system(size: 11, weight: .bold))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color(hex: "#EFF6FF"))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .cornerRadius(6)
+                        }
+                        if !d.managerName.isEmpty {
+                            Text("Phụ trách: \(d.managerName)")
+                                .font(.system(size: 12.5))
+                                .foregroundColor(Color.appTextSecondary)
+                        }
+                        if !d.hotline.isEmpty {
+                            Text("Hotline: \(d.hotline)")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color.appTextMuted)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .onDelete { idx in
+                    for i in idx {
+                        let id = firebase.departmentsList[i].id
+                        Task { _ = await firebase.deleteDepartment(id: id) }
+                    }
+                }
+            }
+            .navigationTitle("Quản lý phòng ban")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Thêm") { showAddSheet = true }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+            .sheet(isPresented: $showAddSheet) {
+                addDeptSheet
+            }
+            .onAppear {
+                Task { await firebase.fetchDepartments() }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+
+    @ViewBuilder
+    private var addDeptSheet: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("THÔNG TIN PHÒNG BAN MỚI")) {
+                    TextField("Mã phòng ban (VD: HELPDESK, CNTT)", text: $newDeptId)
+                        .autocapitalization(.allCharacters)
+                    TextField("Tên phòng ban (*)", text: $newDeptName)
+                    TextField("Họ tên Trưởng phòng / Phụ trách", text: $newDeptManager)
+                    TextField("Số điện thoại Hotline", text: $newDeptHotline)
+                        .keyboardType(.phonePad)
+                }
+            }
+            .navigationTitle("Thêm phòng ban")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Hủy") { showAddSheet = false }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Lưu") {
+                        Task {
+                            _ = await firebase.addDepartment(
+                                id: newDeptId,
+                                name: newDeptName,
+                                manager: newDeptManager,
+                                hotline: newDeptHotline
+                            )
+                            showAddSheet = false
+                            newDeptId = ""
+                            newDeptName = ""
+                        }
+                    }
+                    .disabled(newDeptId.isEmpty || newDeptName.isEmpty)
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+}
+
+// MARK: - 8.4. QUẢN LÝ ĐƠN VỊ (UNIT MANAGER - UnitManagerScreen.kt)
+struct UnitManagerView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var onDismiss: () -> Void
+
+    @State private var showAddSheet: Bool = false
+    @State private var newUnitId: String = ""
+    @State private var newUnitName: String = ""
+    @State private var newUnitAddress: String = ""
+    @State private var newUnitPhone: String = ""
+
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(firebase.unitsList) { u in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(u.name)
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                            Spacer()
+                            Text(u.id)
+                                .font(.system(size: 11, weight: .bold))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color(hex: "#EFF6FF"))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .cornerRadius(6)
+                        }
+                        if !u.address.isEmpty {
+                            Text(u.address)
+                                .font(.system(size: 12.5))
+                                .foregroundColor(Color.appTextSecondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .onDelete { idx in
+                    for i in idx {
+                        let id = firebase.unitsList[i].id
+                        Task { _ = await firebase.deleteUnit(id: id) }
+                    }
+                }
+            }
+            .navigationTitle("Quản lý đơn vị Co.opmart")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Thêm") { showAddSheet = true }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+            .sheet(isPresented: $showAddSheet) {
+                addUnitSheet
+            }
+            .onAppear {
+                Task { await firebase.fetchUnits() }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+
+    @ViewBuilder
+    private var addUnitSheet: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("THÔNG TIN ĐƠN VỊ / CHI NHÁNH")) {
+                    TextField("Mã đơn vị (VD: CT, HCM, 001)", text: $newUnitId)
+                        .autocapitalization(.allCharacters)
+                    TextField("Tên đơn vị (*)", text: $newUnitName)
+                    TextField("Địa chỉ chi nhánh", text: $newUnitAddress)
+                    TextField("Số điện thoại liên hệ", text: $newUnitPhone)
+                        .keyboardType(.phonePad)
+                }
+            }
+            .navigationTitle("Thêm đơn vị")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Hủy") { showAddSheet = false }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Lưu") {
+                        Task {
+                            _ = await firebase.addUnit(
+                                id: newUnitId,
+                                name: newUnitName,
+                                address: newUnitAddress,
+                                phone: newUnitPhone
+                            )
+                            showAddSheet = false
+                            newUnitId = ""
+                            newUnitName = ""
+                        }
+                    }
+                    .disabled(newUnitId.isEmpty || newUnitName.isEmpty)
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+}
+
+struct RegionManagerView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var onDismiss: () -> Void
+
+    @State private var showAddSheet: Bool = false
+    @State private var newRegionName: String = ""
+    @State private var newRegionLeader: String = ""
+    @State private var newRegionPhone: String = ""
+    @State private var newRegionDesc: String = ""
+
+    var body: some View {
+        NavigationView {
+            List {
+                if firebase.regionsList.isEmpty {
+                    VStack(alignment: .center, spacing: 10) {
+                        Image(systemName: "map.fill")
+                            .font(.system(size: 36))
+                            .foregroundColor(Color.appTextMuted)
+                        Text("Chưa có khu vực nào")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.appTextSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 30)
+                } else {
+                    ForEach(firebase.regionsList) { r in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text(r.name)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                Spacer()
+                                Text(r.id)
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(Color.appTextMuted)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.gray.opacity(0.12))
+                                    .cornerRadius(4)
+                            }
+                            if !r.leader.isEmpty {
+                                Text("👤 Phụ trách: \(r.leader)")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.appTextSecondary)
+                            }
+                            if !r.phone.isEmpty {
+                                Text("📞 Hotline: \(r.phone)")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.appTextSecondary)
+                            }
+                            if !r.description.isEmpty {
+                                Text(r.description)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.appTextMuted)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                    .onDelete { indices in
+                        for i in indices {
+                            let item = firebase.regionsList[i]
+                            Task { await firebase.deleteRegion(id: item.id) }
+                        }
+                    }
+                }
+            }
+            .listStyle(InsetGroupedListStyle())
+            .navigationTitle("Quản lý khu vực")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Đóng") { onDismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { showAddSheet = true }) {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
+            .task {
+                await firebase.fetchRegions()
+            }
+            .sheet(isPresented: $showAddSheet) {
+                NavigationView {
+                    Form {
+                        Section(header: Text("THÔNG TIN KHU VỰC")) {
+                            TextField("Tên khu vực (VD: Khu Vực Miền Tây)", text: $newRegionName)
+                            TextField("Người phụ trách khu vực", text: $newRegionLeader)
+                            TextField("Số điện thoại liên hệ", text: $newRegionPhone)
+                                .keyboardType(.phonePad)
+                            TextField("Ghi chú / Mô tả", text: $newRegionDesc)
+                        }
+                    }
+                    .navigationTitle("Thêm Khu Vực")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            Button("Hủy") { showAddSheet = false }
+                        }
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Lưu") {
+                                let name = newRegionName.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guard !name.isEmpty else { return }
+                                let id = "KV_\(abs(name.hashValue % 9000) + 1000)"
+                                Task {
+                                    await firebase.addRegion(id: id, name: name, leader: newRegionLeader, phone: newRegionPhone, desc: newRegionDesc)
+                                    newRegionName = ""
+                                    newRegionLeader = ""
+                                    newRegionPhone = ""
+                                    newRegionDesc = ""
+                                    showAddSheet = false
+                                }
+                            }
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(Color.appPrimaryPink)
+                            .disabled(newRegionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+}
+
+
+// MARK: - 9. PHÂN HỆ CHẤM CÔNG & ĐIỀU PHỐI (ATTENDANCE & DISPATCH)
+
+// MARK: - 9.1. ĐIỂM DANH CHẤM CÔNG GPS (ATTENDANCE CHECKIN - AttendanceCheckInScreen.kt)
+struct AttendanceCheckInView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var onDismiss: () -> Void
+
+    @State private var isProcessing: Bool = false
+    @State private var resultMessage: String? = nil
+    @State private var currentTimeStr: String = ""
+
+    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                // Header Đồng hồ lớn
+                VStack(spacing: 6) {
+                    Text(currentTimeStr.isEmpty ? "08:00:00" : currentTimeStr)
+                        .font(.system(size: 40, weight: .heavy, design: .monospaced))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                    Text("Hôm nay: \(DateFormatter.localizedString(from: Date(), dateStyle: .full, timeStyle: .none))")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color.appTextSecondary)
+                }
+                .padding(.top, 16)
+                .onReceive(timer) { _ in
+                    let f = DateFormatter()
+                    f.dateFormat = "HH:mm:ss"
+                    currentTimeStr = f.string(from: Date())
+                }
+
+                // Thẻ Vị trí GPS
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Image(systemName: "location.circle.fill")
+                            .foregroundColor(Color.appPrimaryPink)
+                        Text("VỊ TRÍ ĐIỂM DANH")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color.appTextMuted)
+                        Spacer()
+                        HStack(spacing: 4) {
+                            Circle().fill(Color.statusInUse).frame(width: 8, height: 8)
+                            Text("GPS HỢP LỆ")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(Color.statusInUse)
+                        }
+                    }
+
+                    Text("Địa điểm: \(firebase.userDonVi)")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(Color.appTextPrimary)
+
+                    Text("Tọa độ: 10.0352° N, 105.7890° E (Bán kính hợp lệ: 300m)")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.appTextSecondary)
+                }
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(16)
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.appCardBorder, lineWidth: 1))
+                .padding(.horizontal, 16)
+
+                if let msg = resultMessage {
+                    Text(msg)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.statusInUse)
+                        .padding(.horizontal, 16)
+                }
+
+                Spacer()
+
+                // Nút Chấm công Vào / Ra Ca
+                HStack(spacing: 12) {
+                    Button(action: {
+                        handleCheck(isCheckIn: true)
+                    }) {
+                        VStack(spacing: 6) {
+                            Image(systemName: "arrow.down.to.bracket")
+                                .font(.system(size: 22, weight: .bold))
+                            Text("VÀO CA")
+                                .font(.system(size: 15, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 70)
+                        .background(Color.appSecondaryDarkBlue)
+                        .cornerRadius(16)
+                    }
+
+                    Button(action: {
+                        handleCheck(isCheckIn: false)
+                    }) {
+                        VStack(spacing: 6) {
+                            Image(systemName: "arrow.up.right.and.arrow.down.left.rectangle")
+                                .font(.system(size: 22, weight: .bold))
+                            Text("RA CA")
+                                .font(.system(size: 15, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 70)
+                        .background(Color.appPrimaryPink)
+                        .cornerRadius(16)
+                    }
+                }
+                .disabled(isProcessing)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 24)
+            }
+            .background(Color.appBackground.ignoresSafeArea())
+            .navigationTitle("Điểm danh chấm công GPS")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+
+    private func handleCheck(isCheckIn: Bool) {
+        isProcessing = true
+        Task {
+            let ok = await firebase.checkInAttendance(
+                isCheckIn: isCheckIn,
+                lat: 10.0352,
+                lng: 105.7890,
+                address: firebase.userDonVi
+            )
+            isProcessing = false
+            resultMessage = ok ? "✅ Điểm danh \(isCheckIn ? "vào ca" : "ra ca") thành công tại \(firebase.userDonVi)!" : "❌ Không thể ghi nhận chấm công."
+        }
+    }
+}
+
+// MARK: - 9.2. BÁO CÁO CÔNG & LỊCH SỬ (ATTENDANCE REPORT - AttendanceReportScreen.kt)
+struct AttendanceReportView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var onDismiss: () -> Void
+
+    var body: some View {
+        NavigationView {
+            Group {
+                if firebase.attendanceRecords.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.system(size: 48))
+                            .foregroundColor(Color.appTextMuted)
+                        Text("Chưa có dữ liệu chấm công")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(Color.appTextSecondary)
+                    }
+                    .padding(32)
+                } else {
+                    List {
+                        ForEach(firebase.attendanceRecords) { rec in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    Text(rec.userName)
+                                        .font(.system(size: 14.5, weight: .bold))
+                                        .foregroundColor(Color.appTextPrimary)
+                                    Spacer()
+                                    Text(rec.date)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(Color.appSecondaryDarkBlue)
+                                }
+                                HStack(spacing: 16) {
+                                    Text("Vào: \(rec.checkInTime)")
+                                        .font(.system(size: 12.5))
+                                        .foregroundColor(Color.statusInUse)
+                                    Text("Ra: \(rec.checkOutTime)")
+                                        .font(.system(size: 12.5))
+                                        .foregroundColor(Color.statusRepair)
+                                    Spacer()
+                                    Text(rec.checkInStatus)
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(Color.statusInUse)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Báo cáo chấm công")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+            .onAppear {
+                Task { await firebase.fetchAttendanceRecords() }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+}
+
+// MARK: - 9.3. LỊCH TRỰC CA (SHIFT SCHEDULE - ShiftScheduleScreen.kt)
+struct ShiftScheduleView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var onDismiss: () -> Void
+
+    var sampleShifts = [
+        ("Dam Huu Phuc", "Sáng", "06:00 - 14:00", "IT TẬP TRUNG"),
+        ("Ngo Duy Linh", "Chiều", "14:00 - 22:00", "IT TẬP TRUNG"),
+        ("Huỳnh Nguyễn Anh Đức", "Hành chính", "08:00 - 17:00", "Co.opmart Cần Thơ"),
+        ("Nguyễn Trung Hiếu", "Trực HT", "24/7 Hotline", "Phòng HelpDesk")
+    ]
+
+    var body: some View {
+        NavigationView {
+            List {
+                Section(header: Text("LỊCH TRỰC KỸ THUẬT TUẦN NÀY")) {
+                    ForEach(sampleShifts, id: \.0) { s in
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle().fill(Color.appSecondaryDarkBlue.opacity(0.12)).frame(width: 38, height: 38)
+                                Image(systemName: "calendar.badge.clock")
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(s.0)
+                                    .font(.system(size: 14.5, weight: .bold))
+                                    .foregroundColor(Color.appTextPrimary)
+                                Text(s.3)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.appTextSecondary)
+                            }
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(s.1)
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(Color.appPrimaryPink)
+                                Text(s.2)
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Color.appTextMuted)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+            .navigationTitle("Lịch trực & Phân ca")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+}
+
+// MARK: - 9.4. THEO DÕI KTV ONLINE (ONLINE KTV MONITOR - OnlineKtvMonitorScreen.kt)
+struct OnlineKtvMonitorView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var onDismiss: () -> Void
+
+    var body: some View {
+        NavigationView {
+            Group {
+                if firebase.onlineKtvs.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                            .font(.system(size: 48))
+                            .foregroundColor(Color.appTextMuted)
+                        Text("Đang tải dữ liệu KTV...")
+                            .font(.system(size: 15))
+                            .foregroundColor(Color.appTextSecondary)
+                    }
+                } else {
+                    List {
+                        ForEach(firebase.onlineKtvs) { ktv in
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle().fill(ktv.isOnline ? Color.statusInUse : Color.gray.opacity(0.3)).frame(width: 12, height: 12)
+                                }
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(ktv.name)
+                                        .font(.system(size: 14.5, weight: .bold))
+                                        .foregroundColor(Color.appTextPrimary)
+                                    Text(ktv.email)
+                                        .font(.system(size: 12))
+                                        .foregroundColor(Color.appTextSecondary)
+                                    Text("Địa bàn: \(ktv.currentUnit)")
+                                        .font(.system(size: 11.5))
+                                        .foregroundColor(Color.appTextMuted)
+                                }
+                                Spacer()
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text(ktv.isOnline ? "TRỰC TUYẾN" : "OFFLINE")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(ktv.isOnline ? Color.statusInUse : Color.gray)
+                                    Text(ktv.lastActive)
+                                        .font(.system(size: 11))
+                                        .foregroundColor(Color.appTextMuted)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Theo dõi KTV trực tuyến")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+            .onAppear {
+                Task { await firebase.fetchOnlineKtvs() }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+}
+
+// MARK: - 10. HỆ THỐNG & BẢN QUYỀN (SYSTEM & LICENSING)
+
+// MARK: - 10.1. THÔNG BÁO HỆ THỐNG (SYSTEM NOTIFICATIONS - SystemNotificationScreen.kt)
+struct SystemNotificationFullView: View {
+    @EnvironmentObject var firebase: FirebaseService
+    var onDismiss: () -> Void
+
+    var sampleNotifs = [
+        ("🚨 Bảo trì hệ thống POS", "Hệ thống máy tính tiền POS tại Co.opmart Cần Thơ sẽ được cập nhật phần mềm lúc 22:30 hôm nay.", "10 phút trước", true),
+        ("📢 Thông báo lịch trực Lễ", "Đề nghị các Kỹ thuật viên kiểm tra lịch phân ca trực Lễ 2/9 trong mục Lịch trực ca.", "2 giờ trước", false),
+        ("🔔 Cập nhật ứng dụng QLTB v1.0.0", "Phiên bản mới đã bổ sung 100% chức năng Quản lý thiết bị, Chấm công GPS và Phê duyệt nhân sự.", "Hôm qua", false)
+    ]
+
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(sampleNotifs, id: \.0) { n in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(n.0)
+                                .font(.system(size: 14.5, weight: .bold))
+                                .foregroundColor(n.3 ? Color.appPrimaryPink : Color.appSecondaryDarkBlue)
+                            Spacer()
+                            Text(n.2)
+                                .font(.system(size: 11))
+                                .foregroundColor(Color.appTextMuted)
+                        }
+                        Text(n.1)
+                            .font(.system(size: 13))
+                            .foregroundColor(Color.appTextPrimary)
+                    }
+                    .padding(.vertical, 6)
+                }
+            }
+            .navigationTitle("Thông báo toàn hệ thống")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+}
+
+// MARK: - 10.2. GÓI CƯỚC & BẢN QUYỀN (PAYWALL - PaywallScreen.kt)
+struct PaywallView: View {
+    var onDismiss: () -> Void
+
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                Spacer()
+
+                ZStack {
+                    Circle().fill(Color(hex: "#FEF3C7")).frame(width: 80, height: 80)
+                    Image(systemName: "crown.fill")
+                        .font(.system(size: 38))
+                        .foregroundColor(Color(hex: "#D97706"))
+                }
+
+                Text("QLTB ENTERPRISE PRO")
+                    .font(.system(size: 20, weight: .heavy))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+
+                Text("Hệ thống quản lý tài sản doanh nghiệp chính thức dành cho Saigon Co.op")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color.appTextSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 24)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    proFeatureRow("Đồng bộ Firestore thời gian thực 2 chiều")
+                    proFeatureRow("Chấm công định vị GPS chuẩn cự ly siêu thị")
+                    proFeatureRow("Quản lý toàn diện thiết bị, in mã vạch QR")
+                    proFeatureRow("Điều phối KTV và chat hỗ trợ khẩn cấp SLA")
+                    proFeatureRow("Bảo mật tài khoản doanh nghiệp cao cấp")
+                }
+                .padding(18)
+                .background(Color.white)
+                .cornerRadius(16)
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.appCardBorder, lineWidth: 1))
+                .padding(.horizontal, 20)
+
+                Spacer()
+
+                Button(action: { onDismiss() }) {
+                    Text("Đã Kích Hoạt Bản Quyền Doanh Nghiệp")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.statusInUse)
+                        .cornerRadius(12)
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 16)
+            }
+            .background(Color.appBackground.ignoresSafeArea())
+            .navigationTitle("Bản quyền hệ thống")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") { onDismiss() }
+                }
+            }
+        }
+        .navigationViewStyle(.stack)
+        .preferredColorScheme(.light)
+    }
+
+    private func proFeatureRow(_ text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(Color.statusInUse)
+            Text(text)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(Color.appTextPrimary)
+        }
+    }
+}
+
 // MARK: - 5. LOGIN VIEW (Màn hình Đăng nhập Co.opmart)
 struct LoginScreenView: View {
     @EnvironmentObject var firebase: FirebaseService
@@ -2521,18 +4996,64 @@ struct LoginScreenView: View {
 }
 
 // MARK: - 6. MAIN APP VIEW (Được nhúng sau khi đăng nhập)
+
+enum ActiveSheet: Identifiable {
+    case deviceDetail(DeviceItem)
+    case scanner
+    case addDevice
+    case printBarcode
+    case statistics
+    case deviceType
+    case approveStaff
+    case userMgmt
+    case department
+    case unit
+    case region
+    case attendance
+    case attendanceReport
+    case shiftSchedule
+    case ktvMonitor
+    case systemNotif
+    case paywall
+    case notifications
+    case guide
+    case quickSupport
+    case ticketDetail(SupportTicket)
+
+    var id: String {
+        switch self {
+        case .deviceDetail(let d): return "dev_\(d.id)"
+        case .scanner: return "scanner"
+        case .addDevice: return "addDevice"
+        case .printBarcode: return "printBarcode"
+        case .statistics: return "statistics"
+        case .deviceType: return "deviceType"
+        case .approveStaff: return "approveStaff"
+        case .userMgmt: return "userMgmt"
+        case .department: return "department"
+        case .unit: return "unit"
+        case .region: return "region"
+        case .attendance: return "attendance"
+        case .attendanceReport: return "attendanceReport"
+        case .shiftSchedule: return "shiftSchedule"
+        case .ktvMonitor: return "ktvMonitor"
+        case .systemNotif: return "systemNotif"
+        case .paywall: return "paywall"
+        case .notifications: return "notifications"
+        case .guide: return "guide"
+        case .quickSupport: return "quickSupport"
+        case .ticketDetail(let t): return "ticket_\(t.id)"
+        }
+    }
+}
+
 struct MainAppView: View {
     @EnvironmentObject var firebase: FirebaseService
 
     @State private var selectedTab: Int = 0
     @State private var showDrawer: Bool = false
-    @State private var showNotifications: Bool = false
-    @State private var showGuide: Bool = false
     @State private var showLogoutDialog: Bool = false
-    @State private var showAddDeviceSheet: Bool = false
-    @State private var showScannerSheet: Bool = false
-    @State private var showTicketDetail: SupportTicket? = nil
-    @State private var showQuickSupportSheet: Bool = false
+    @State private var activeSheet: ActiveSheet? = nil
 
     var body: some View {
         ZStack {
@@ -2545,29 +5066,42 @@ struct MainAppView: View {
                     case 0:
                         HomeScreenView(
                             onOpenDrawer: { showDrawer = true },
-                            onOpenGuide: { showGuide = true },
-                            onOpenNotifications: { showNotifications = true },
+                            onOpenGuide: { activeSheet = .guide },
+                            onOpenNotifications: { activeSheet = .notifications },
                             onOpenLogout: { showLogoutDialog = true },
                             onNavigateTab: { tab in selectedTab = tab },
-                            onScanQr: { showScannerSheet = true },
-                            onAddDevice: { showAddDeviceSheet = true }
+                            onScanQr: { activeSheet = .scanner },
+                            onAddDevice: { activeSheet = .addDevice },
+                            onOpenAttendance: { activeSheet = .attendance },
+                            onOpenShiftSchedule: { activeSheet = .shiftSchedule },
+                            onOpenStatistics: { activeSheet = .statistics },
+                            onOpenPrintBarcode: { activeSheet = .printBarcode }
                         )
                     case 1:
                         DeviceListView(
                             onOpenDrawer: { showDrawer = true },
-                            onAddDevice: { showAddDeviceSheet = true },
-                            onScanDevice: { showScannerSheet = true }
+                            onAddDevice: { activeSheet = .addDevice },
+                            onScanDevice: { activeSheet = .scanner },
+                            onSelectDevice: { device in activeSheet = .deviceDetail(device) }
                         )
                     case 2:
                         SupportHubView(
                             onOpenDrawer: { showDrawer = true },
-                            onSelectTicket: { ticket in showTicketDetail = ticket },
-                            onCreateTicket: { showQuickSupportSheet = true }
+                            onSelectTicket: { ticket in activeSheet = .ticketDetail(ticket) },
+                            onCreateTicket: { activeSheet = .quickSupport }
                         )
                     case 3:
                         SettingsView(
                             onOpenDrawer: { showDrawer = true },
-                            onLogout: { showLogoutDialog = true }
+                            onLogout: { showLogoutDialog = true },
+                            onOpenPaywall: { activeSheet = .paywall },
+                            onOpenDeviceTypes: { activeSheet = .deviceType },
+                            onOpenDepartments: { activeSheet = .department },
+                            onOpenUnits: { activeSheet = .unit },
+                            onOpenRegions: { activeSheet = .region },
+                            onOpenUserManagement: { activeSheet = .userMgmt },
+                            onOpenApproveStaff: { activeSheet = .approveStaff },
+                            onOpenSystemNotifications: { activeSheet = .systemNotif }
                         )
                     default:
                         EmptyView()
@@ -2584,7 +5118,7 @@ struct MainAppView: View {
                 Spacer()
                 HStack {
                     Spacer()
-                    Button(action: { showQuickSupportSheet = true }) {
+                    Button(action: { activeSheet = .quickSupport }) {
                         ZStack(alignment: .topTrailing) {
                             Circle()
                                 .fill(Color.appSecondaryDarkBlue)
@@ -2622,40 +5156,44 @@ struct MainAppView: View {
                     AppSidebarDrawer(
                         onSelectRoute: { route in
                             withAnimation { showDrawer = false }
-                            if route == "home" { selectedTab = 0 }
-                            else if route == "devices" { selectedTab = 1 }
-                            else if route == "support" { selectedTab = 2 }
-                            else if route == "settings" { selectedTab = 3 }
+                            switch route {
+                            case "home": selectedTab = 0
+                            case "devices": selectedTab = 1
+                            case "support": selectedTab = 2
+                            case "settings", "cai_dat_scanner": selectedTab = 3
+                            case "add_device": activeSheet = .addDevice
+                            case "printscreen": activeSheet = .printBarcode
+                            case "thongke": activeSheet = .statistics
+                            case "device_types": activeSheet = .deviceType
+                            case "approve_staff": activeSheet = .approveStaff
+                            case "user_mgmt": activeSheet = .userMgmt
+                            case "department_manager": activeSheet = .department
+                            case "unit_manager": activeSheet = .unit
+                            case "region_manager": activeSheet = .region
+                            case "attendance_checkin": activeSheet = .attendance
+                            case "attendance_report": activeSheet = .attendanceReport
+                            case "shift_schedule": activeSheet = .shiftSchedule
+                            case "online_ktv_monitor": activeSheet = .ktvMonitor
+                            case "system_notifications": activeSheet = .systemNotif
+                            case "paywall": activeSheet = .paywall
+                            case "help": activeSheet = .guide
+                            default: break
+                            }
                         },
                         onLogout: {
                             showDrawer = false
                             showLogoutDialog = true
                         }
                     )
-                    .frame(width: 300)
                     .transition(.move(edge: .leading))
 
                     Spacer()
                 }
             }
         }
-        .sheet(isPresented: $showScannerSheet) {
-            ScannerMockView(onDismiss: { showScannerSheet = false })
-        }
-        .sheet(isPresented: $showAddDeviceSheet) {
-            AddDeviceModalView(onDismiss: { showAddDeviceSheet = false })
-        }
-        .sheet(isPresented: $showNotifications) {
-            NotificationListView(onDismiss: { showNotifications = false })
-        }
-        .sheet(isPresented: $showGuide) {
-            GuideTourModalView(onDismiss: { showGuide = false })
-        }
-        .sheet(isPresented: $showQuickSupportSheet) {
-            QuickSupportModalView(onDismiss: { showQuickSupportSheet = false })
-        }
-        .sheet(item: $showTicketDetail) { ticket in
-            TicketChatDetailView(ticket: ticket, onDismiss: { showTicketDetail = nil })
+        .sheet(item: $activeSheet) { sheet in
+            sheetDestination(sheet)
+                .environmentObject(firebase)
         }
         .alert(isPresented: $showLogoutDialog) {
             Alert(
@@ -2666,6 +5204,54 @@ struct MainAppView: View {
                 },
                 secondaryButton: .cancel(Text("Hủy"))
             )
+        }
+    }
+
+    @ViewBuilder
+    private func sheetDestination(_ sheet: ActiveSheet) -> some View {
+        switch sheet {
+        case .deviceDetail(let dev):
+            DeviceDetailView(device: dev, onDismiss: { activeSheet = nil })
+        case .scanner:
+            ScannerMockView(onDismiss: { activeSheet = nil })
+        case .addDevice:
+            AddDeviceModalView(onDismiss: { activeSheet = nil })
+        case .printBarcode:
+            PrintBarcodeView(onDismiss: { activeSheet = nil })
+        case .statistics:
+            StatisticsView(onDismiss: { activeSheet = nil })
+        case .deviceType:
+            DeviceTypeManagerView(onDismiss: { activeSheet = nil })
+        case .approveStaff:
+            ApproveStaffView(onDismiss: { activeSheet = nil })
+        case .userMgmt:
+            UserManagementView(onDismiss: { activeSheet = nil })
+        case .department:
+            DepartmentManagerView(onDismiss: { activeSheet = nil })
+        case .unit:
+            UnitManagerView(onDismiss: { activeSheet = nil })
+        case .region:
+            RegionManagerView(onDismiss: { activeSheet = nil })
+        case .attendance:
+            AttendanceCheckInView(onDismiss: { activeSheet = nil })
+        case .attendanceReport:
+            AttendanceReportView(onDismiss: { activeSheet = nil })
+        case .shiftSchedule:
+            ShiftScheduleView(onDismiss: { activeSheet = nil })
+        case .ktvMonitor:
+            OnlineKtvMonitorView(onDismiss: { activeSheet = nil })
+        case .systemNotif:
+            SystemNotificationFullView(onDismiss: { activeSheet = nil })
+        case .paywall:
+            PaywallView(onDismiss: { activeSheet = nil })
+        case .notifications:
+            NotificationListView(onDismiss: { activeSheet = nil })
+        case .guide:
+            GuideTourModalView(onDismiss: { activeSheet = nil })
+        case .quickSupport:
+            QuickSupportModalView(onDismiss: { activeSheet = nil })
+        case .ticketDetail(let ticket):
+            TicketChatDetailView(ticket: ticket, onDismiss: { activeSheet = nil })
         }
     }
 }
@@ -2752,6 +5338,10 @@ struct HomeScreenView: View {
     let onNavigateTab: (Int) -> Void
     let onScanQr: () -> Void
     let onAddDevice: () -> Void
+    var onOpenAttendance: (() -> Void)? = nil
+    var onOpenShiftSchedule: (() -> Void)? = nil
+    var onOpenStatistics: (() -> Void)? = nil
+    var onOpenPrintBarcode: (() -> Void)? = nil
 
     @State private var showEditNameAlert: Bool = false
     @State private var showEditPhoneAlert: Bool = false
@@ -2869,7 +5459,10 @@ struct HomeScreenView: View {
                         onAddDevice: onAddDevice,
                         onDeviceList: { onNavigateTab(1) },
                         onSupportHub: { onNavigateTab(2) },
-                        onSettings: { onNavigateTab(3) }
+                        onAttendance: onOpenAttendance,
+                        onShiftSchedule: onOpenShiftSchedule,
+                        onStatistics: onOpenStatistics,
+                        onPrintBarcode: onOpenPrintBarcode
                     )
 
                     Spacer().frame(height: 80)
@@ -3109,7 +5702,10 @@ struct QuickAccessSectionView: View {
     let onAddDevice: () -> Void
     let onDeviceList: () -> Void
     let onSupportHub: () -> Void
-    let onSettings: () -> Void
+    var onAttendance: (() -> Void)? = nil
+    var onShiftSchedule: (() -> Void)? = nil
+    var onStatistics: (() -> Void)? = nil
+    var onPrintBarcode: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -3131,10 +5727,10 @@ struct QuickAccessSectionView: View {
             }
 
             HStack(spacing: 10) {
-                QuickCardItem(title: "Chấm công", icon: "clock.fill", color: Color(hex: "#059669"), bgColor: Color(hex: "#D1FAE5"), action: {})
-                QuickCardItem(title: "Phân ca", icon: "calendar.badge.clock", color: Color(hex: "#7C3AED"), bgColor: Color(hex: "#EDE9FE"), action: {})
-                QuickCardItem(title: "Thống kê", icon: "chart.bar.fill", color: Color(hex: "#D97706"), bgColor: Color(hex: "#FEF3C7"), action: {})
-                QuickCardItem(title: "In tem", icon: "printer.fill", color: Color(hex: "#4F46E5"), bgColor: Color(hex: "#EEF2FF"), action: onSettings)
+                QuickCardItem(title: "Chấm công", icon: "clock.fill", color: Color(hex: "#059669"), bgColor: Color(hex: "#D1FAE5"), action: { onAttendance?() })
+                QuickCardItem(title: "Phân ca", icon: "calendar.badge.clock", color: Color(hex: "#7C3AED"), bgColor: Color(hex: "#EDE9FE"), action: { onShiftSchedule?() })
+                QuickCardItem(title: "Thống kê", icon: "chart.bar.fill", color: Color(hex: "#D97706"), bgColor: Color(hex: "#FEF3C7"), action: { onStatistics?() })
+                QuickCardItem(title: "In tem", icon: "printer.fill", color: Color(hex: "#4F46E5"), bgColor: Color(hex: "#EEF2FF"), action: { onPrintBarcode?() })
             }
         }
     }
@@ -3186,6 +5782,7 @@ struct DeviceListView: View {
     let onOpenDrawer: () -> Void
     let onAddDevice: () -> Void
     let onScanDevice: () -> Void
+    var onSelectDevice: ((DeviceItem) -> Void)? = nil
 
     @State private var searchText: String = ""
     @State private var selectedFilter: String = "Tất cả"
@@ -3300,7 +5897,9 @@ struct DeviceListView: View {
                         .padding(.top, 40)
                     } else {
                         ForEach(filteredDevices) { item in
-                            DeviceCardItemView(device: item)
+                            DeviceCardItemView(device: item) {
+                                onSelectDevice?(item)
+                            }
                         }
                     }
                     Spacer().frame(height: 80)
@@ -3314,6 +5913,7 @@ struct DeviceListView: View {
 
 struct DeviceCardItemView: View {
     let device: DeviceItem
+    var onTap: (() -> Void)? = nil
 
     var statusColor: Color {
         switch device.status {
@@ -3326,62 +5926,65 @@ struct DeviceCardItemView: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(statusColor.opacity(0.12))
-                    .frame(width: 48, height: 48)
+        Button(action: { onTap?() }) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(statusColor.opacity(0.12))
+                        .frame(width: 48, height: 48)
 
-                Image(systemName: device.iconName)
-                    .font(.system(size: 22))
-                    .foregroundColor(statusColor)
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(device.code)
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(Color.appSecondaryDarkBlue)
-
-                    Spacer()
-
-                    Text(device.status)
-                        .font(.system(size: 11, weight: .bold))
+                    Image(systemName: device.iconName)
+                        .font(.system(size: 22))
                         .foregroundColor(statusColor)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(statusColor.opacity(0.12))
-                        .cornerRadius(6)
                 }
 
-                Text(device.name)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color.appTextPrimary)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text(device.code)
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
 
-                HStack(spacing: 8) {
-                    Text("SN: \(device.serialNumber)")
-                        .font(.system(size: 11))
-                        .foregroundColor(Color.appTextMuted)
+                        Spacer()
 
-                    Text("•")
-                        .foregroundColor(Color.appTextMuted)
+                        Text(device.status)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(statusColor)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(statusColor.opacity(0.12))
+                            .cornerRadius(6)
+                    }
 
-                    Text(device.unit)
-                        .font(.system(size: 11))
-                        .foregroundColor(Color.appTextSecondary)
+                    Text(device.name)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color.appTextPrimary)
                         .lineLimit(1)
+
+                    HStack(spacing: 8) {
+                        Text("SN: \(device.serialNumber)")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color.appTextMuted)
+
+                        Text("•")
+                            .foregroundColor(Color.appTextMuted)
+
+                        Text(device.unit)
+                            .font(.system(size: 11))
+                            .foregroundColor(Color.appTextSecondary)
+                            .lineLimit(1)
+                    }
                 }
             }
+            .padding(14)
+            .background(Color.white)
+            .cornerRadius(14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.appCardBorder, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.02), radius: 3, x: 0, y: 1)
         }
-        .padding(14)
-        .background(Color.white)
-        .cornerRadius(14)
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.appCardBorder, lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.02), radius: 3, x: 0, y: 1)
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -3584,6 +6187,14 @@ struct SettingsView: View {
 
     let onOpenDrawer: () -> Void
     let onLogout: () -> Void
+    var onOpenPaywall: (() -> Void)? = nil
+    var onOpenDeviceTypes: (() -> Void)? = nil
+    var onOpenDepartments: (() -> Void)? = nil
+    var onOpenUnits: (() -> Void)? = nil
+    var onOpenRegions: (() -> Void)? = nil
+    var onOpenUserManagement: (() -> Void)? = nil
+    var onOpenApproveStaff: (() -> Void)? = nil
+    var onOpenSystemNotifications: (() -> Void)? = nil
 
     @State private var printThermalAuto: Bool = true
 
@@ -3609,6 +6220,7 @@ struct SettingsView: View {
 
             ScrollView {
                 VStack(spacing: 16) {
+                    // MÁY IN NHIỆT & MÃ VẠCH
                     VStack(alignment: .leading, spacing: 10) {
                         Text("MÁY IN NHIỆT & MÃ VẠCH")
                             .font(.system(size: 12, weight: .bold))
@@ -3651,6 +6263,33 @@ struct SettingsView: View {
                         .cornerRadius(14)
                     }
 
+                    // QUẢN TRỊ DOANH NGHIỆP & HỆ THỐNG
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("QUẢN TRỊ DOANH NGHIỆP & HỆ THỐNG")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color.appTextSecondary)
+                            .padding(.horizontal, 4)
+
+                        VStack(spacing: 0) {
+                            settingsNavButton(title: "Quản trị người dùng & Phân quyền", icon: "person.2.fill", action: { onOpenUserManagement?() })
+                            Divider()
+                            settingsNavButton(title: "Duyệt nhân viên mới", icon: "person.crop.circle.badge.checkmark", badge: firebase.pendingStaffList.count, action: { onOpenApproveStaff?() })
+                            Divider()
+                            settingsNavButton(title: "Quản lý danh mục loại thiết bị", icon: "square.grid.2x2.fill", action: { onOpenDeviceTypes?() })
+                            Divider()
+                            settingsNavButton(title: "Quản lý phòng ban", icon: "building.2.fill", action: { onOpenDepartments?() })
+                            Divider()
+                            settingsNavButton(title: "Quản lý đơn vị / cơ sở", icon: "building.columns.fill", action: { onOpenUnits?() })
+                            Divider()
+                            settingsNavButton(title: "Quản lý khu vực", icon: "map.fill", action: { onOpenRegions?() })
+                            Divider()
+                            settingsNavButton(title: "Thông báo hệ thống toàn quốc", icon: "bell.badge.fill", action: { onOpenSystemNotifications?() })
+                        }
+                        .background(Color.white)
+                        .cornerRadius(14)
+                    }
+
+                    // TÀI KHOẢN & BẢN QUYỀN DOANH NGHIỆP
                     VStack(alignment: .leading, spacing: 10) {
                         Text("TÀI KHOẢN & BẢN QUYỀN DOANH NGHIỆP")
                             .font(.system(size: 12, weight: .bold))
@@ -3673,6 +6312,24 @@ struct SettingsView: View {
                         .padding(14)
                         .background(Color.white)
                         .cornerRadius(14)
+
+                        Button(action: { onOpenPaywall?() }) {
+                            HStack {
+                                Image(systemName: "crown.fill")
+                                    .foregroundColor(Color(hex: "#F59E0B"))
+                                Text("Nâng cấp gói Doanh nghiệp PRO")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(Color(hex: "#D97706"))
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(Color(hex: "#D97706"))
+                            }
+                            .padding(12)
+                            .background(Color(hex: "#FEF3C7"))
+                            .cornerRadius(10)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
 
                     Button(action: onLogout) {
@@ -3695,6 +6352,33 @@ struct SettingsView: View {
                 .padding(16)
             }
         }
+    }
+
+    private func settingsNavButton(title: String, icon: String, badge: Int = 0, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .frame(width: 28)
+                Text(title)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(Color.appTextPrimary)
+                Spacer()
+                if badge > 0 {
+                    Text("\(badge)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.appPrimaryPink))
+                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color.appTextMuted)
+            }
+            .padding(14)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -3722,42 +6406,174 @@ struct AppSidebarDrawer: View {
     let onSelectRoute: (String) -> Void
     let onLogout: () -> Void
 
+    @State private var isDeviceExpanded: Bool = true
+    @State private var isPersonnelExpanded: Bool = true
+    @State private var isAttendanceExpanded: Bool = true
+    @State private var isSystemExpanded: Bool = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 10) {
-                AppLogoImage(size: 52)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            // Header Công ty & Hồ sơ
+            drawerHeader
 
-                Text(firebase.userName)
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(.white)
-                Text(firebase.currentUserEmail)
-                    .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.8))
-                Text("🏬 \(firebase.userDonVi)")
-                    .font(.system(size: 12))
-                    .foregroundColor(Color.white.opacity(0.9))
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 60)
-            .padding(.bottom, 24)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.appSecondaryDarkBlue)
-
+            // Scrollable Menu
             ScrollView {
                 VStack(spacing: 4) {
-                    DrawerItem(title: "Trang chủ", icon: "house.fill", action: { onSelectRoute("home") })
-                    DrawerItem(title: "Quản lý thiết bị", icon: "laptopcomputer", action: { onSelectRoute("devices") })
-                    DrawerItem(title: "Trung tâm Hỗ trợ Kỹ thuật", icon: "headphones", action: { onSelectRoute("support") })
-                    DrawerItem(title: "Cấu hình & Ngoại vi", icon: "gearshape.fill", action: { onSelectRoute("settings") })
-                    Divider().padding(.vertical, 8)
-                    DrawerItem(title: "Đăng xuất", icon: "rectangle.portrait.and.arrow.right", isDestructive: true, action: onLogout)
+                    DrawerItem(title: "Trang chủ", icon: "house.fill", iconColor: Color(hex: "#0284C7"), action: { onSelectRoute("home") })
+
+                    let openTickets = firebase.tickets.filter { $0.status == "OPEN" }.count
+                    DrawerItem(title: "Hỗ trợ kỹ thuật", icon: "headphones", iconColor: Color.appPrimaryPink, badgeCount: openTickets, action: { onSelectRoute("support") })
+
+                    // Section 1: Quản lý thiết bị
+                    drawerSectionHeader(title: "QUẢN LÝ THIẾT BỊ", color: Color(hex: "#059669"), isExpanded: $isDeviceExpanded)
+                    if isDeviceExpanded {
+                        DrawerItem(title: "Danh sách thiết bị", icon: "laptopcomputer", iconColor: Color(hex: "#10B981"), action: { onSelectRoute("devices") })
+                        DrawerItem(title: "Thêm thiết bị mới", icon: "plus.app.fill", iconColor: Color(hex: "#8B5CF6"), action: { onSelectRoute("add_device") })
+                        DrawerItem(title: "Danh mục loại thiết bị", icon: "square.grid.2x2.fill", iconColor: Color(hex: "#0EA5E9"), action: { onSelectRoute("device_types") })
+                        DrawerItem(title: "In ấn & Tem nhãn QR", icon: "printer.fill", iconColor: Color(hex: "#A855F7"), action: { onSelectRoute("printscreen") })
+                        DrawerItem(title: "Thống kê thiết bị", icon: "chart.bar.xaxis", iconColor: Color(hex: "#14B8A6"), action: { onSelectRoute("thongke") })
+                    }
+
+                    // Section 2: Quản lý nhân sự & Tổ chức (Admin / Quản lý)
+                    if firebase.userRole.lowercased().contains("admin") || firebase.userRole.lowercased().contains("quản lý") || firebase.userRole.lowercased().contains("quanly") || firebase.userRole.lowercased().contains("phòng") {
+                        drawerSectionHeader(title: "QUẢN LÝ NHÂN SỰ & TỔ CHỨC", color: Color(hex: "#6366F1"), isExpanded: $isPersonnelExpanded)
+                        if isPersonnelExpanded {
+                            DrawerItem(title: "Quản lý người dùng", icon: "person.2.fill", iconColor: Color(hex: "#3B82F6"), action: { onSelectRoute("user_mgmt") })
+                            DrawerItem(title: "Duyệt nhân viên mới", icon: "person.crop.circle.badge.checkmark", iconColor: Color(hex: "#10B981"), badgeCount: firebase.pendingStaffList.count, action: { onSelectRoute("approve_staff") })
+                            DrawerItem(title: "Quản lý phòng ban", icon: "building.2.fill", iconColor: Color(hex: "#818CF8"), action: { onSelectRoute("department_manager") })
+                            DrawerItem(title: "Quản lý đơn vị", icon: "building.columns.fill", iconColor: Color(hex: "#6366F1"), action: { onSelectRoute("unit_manager") })
+                            DrawerItem(title: "Quản lý khu vực", icon: "map.fill", iconColor: Color(hex: "#F59E0B"), action: { onSelectRoute("region_manager") })
+                        }
+                    }
+
+                    // Section 3: Chấm công & Điều phối
+                    drawerSectionHeader(title: "CHẤM CÔNG & ĐIỀU PHỐI", color: Color(hex: "#F97316"), isExpanded: $isAttendanceExpanded)
+                    if isAttendanceExpanded {
+                        DrawerItem(title: "Điểm danh Chấm công GPS", icon: "location.circle.fill", iconColor: Color(hex: "#06B6D4"), action: { onSelectRoute("attendance_checkin") })
+                        DrawerItem(title: "Báo cáo công & OSRM", icon: "doc.text.magnifyingglass", iconColor: Color(hex: "#FB923C"), action: { onSelectRoute("attendance_report") })
+                        DrawerItem(title: "Lịch trực & Phân ca", icon: "calendar.badge.clock", iconColor: Color(hex: "#8B5CF6"), action: { onSelectRoute("shift_schedule") })
+                        DrawerItem(title: "Theo dõi KTV Online", icon: "antenna.radiowaves.left.and.right", iconColor: Color(hex: "#10B981"), action: { onSelectRoute("online_ktv_monitor") })
+                    }
+
+                    // Section 4: Hệ thống & Cài đặt
+                    drawerSectionHeader(title: "HỆ THỐNG & BẢN QUYỀN", color: Color(hex: "#64748B"), isExpanded: $isSystemExpanded)
+                    if isSystemExpanded {
+                        DrawerItem(title: "Cài đặt máy in / máy quét", icon: "gearshape.2.fill", iconColor: Color(hex: "#64748B"), action: { onSelectRoute("cai_dat_scanner") })
+                        DrawerItem(title: "Thông báo hệ thống", icon: "bell.badge.fill", iconColor: Color(hex: "#475569"), action: { onSelectRoute("system_notifications") })
+                        DrawerItem(title: "Gói cước & Bản quyền", icon: "crown.fill", iconColor: Color(hex: "#F59E0B"), action: { onSelectRoute("paywall") })
+                        DrawerItem(title: "Cẩm nang trợ giúp", icon: "questionmark.circle.fill", iconColor: Color(hex: "#FBBF24"), action: { onSelectRoute("help") })
+                    }
+
+                    Spacer().frame(height: 20)
                 }
-                .padding(.vertical, 12)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+            }
+
+            // Footer Đăng xuất
+            drawerFooter
+        }
+        .frame(width: 320)
+        .background(Color(hex: "#F8FAFC"))
+        .ignoresSafeArea()
+    }
+
+    private var drawerHeader: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                AppLogoImage(size: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("SAIGON CO.OP")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.white)
+                    Text("Mã DN: \(firebase.companyId)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(hex: "#93C5FD"))
+                }
+                Spacer()
+            }
+
+            Divider().background(Color.white.opacity(0.15))
+
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(Color.appPrimaryPink)
+                        .frame(width: 42, height: 42)
+                    let initial = String(firebase.userName.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased()
+                    Text(initial.isEmpty ? "U" : initial)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(firebase.userName)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    Text(firebase.currentUserEmail)
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "#CBD5E1"))
+                        .lineLimit(1)
+                    Text(firebase.userRole)
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(Color(hex: "#FDE68A"))
+                }
             }
         }
+        .padding(.horizontal, 16)
+        .padding(.top, 54)
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.appSecondaryDarkBlue)
+    }
+
+    private var drawerFooter: some View {
+        VStack(spacing: 0) {
+            Divider()
+            HStack {
+                Button(action: onLogout) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .font(.system(size: 14, weight: .bold))
+                        Text("Đăng xuất")
+                            .font(.system(size: 13, weight: .bold))
+                    }
+                    .foregroundColor(Color(hex: "#DC2626"))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color(hex: "#FEE2E2"))
+                    .cornerRadius(8)
+                }
+                Spacer()
+                Text("v1.0.0 (Build 34773809159)")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color.gray)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
         .background(Color.white)
-        .ignoresSafeArea()
+    }
+
+    private func drawerSectionHeader(title: String, color: Color, isExpanded: Binding<Bool>) -> some View {
+        Button(action: { withAnimation { isExpanded.wrappedValue.toggle() } }) {
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(color)
+                    .frame(width: 3.5, height: 13)
+                Text(title)
+                    .font(.system(size: 11, weight: .heavy))
+                    .foregroundColor(color)
+                Spacer()
+                Image(systemName: isExpanded.wrappedValue ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(color.opacity(0.8))
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -3765,25 +6581,41 @@ struct DrawerItem: View {
     let title: String
     let icon: String
     var isDestructive: Bool = false
+    var iconColor: Color = Color(hex: "#64748B")
+    var badgeCount: Int = 0
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 16) {
-                Image(systemName: icon)
-                    .font(.system(size: 18))
-                    .foregroundColor(isDestructive ? Color(hex: "#DC2626") : Color.appSecondaryDarkBlue)
-                    .frame(width: 24)
-
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isDestructive ? Color.red.opacity(0.12) : iconColor.opacity(0.12))
+                        .frame(width: 32, height: 32)
+                    Image(systemName: icon)
+                        .font(.system(size: 15))
+                        .foregroundColor(isDestructive ? .red : iconColor)
+                }
                 Text(title)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isDestructive ? Color(hex: "#DC2626") : Color.appTextPrimary)
-
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(isDestructive ? .red : Color(hex: "#334155"))
+                    .lineLimit(1)
                 Spacer()
+                if badgeCount > 0 {
+                    Text(badgeCount > 99 ? "99+" : "\(badgeCount)")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.appPrimaryPink))
+                }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(Color.clear)
+            .cornerRadius(8)
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

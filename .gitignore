@@ -20,3 +20,6 @@ Payload/
 *.ipa
 token*.txt
 *.token
+
+Release/
+xcode_error.txt
