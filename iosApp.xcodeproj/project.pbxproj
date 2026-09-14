@@ -10,6 +10,29 @@
 		110000152C12345600000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 110000162C12345600000001 /* Assets.xcassets */; };
 		110000012C12345600000001 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000022C12345600000001 /* iOSApp.swift */; };
 		110000032C12345600000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000042C12345600000001 /* ContentView.swift */; };
+		110000B12C12345600000001 /* CoopmartDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A12C12345600000001 /* CoopmartDirectory.swift */; };
+		110000B22C12345600000001 /* OSRMRoutingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A22C12345600000001 /* OSRMRoutingService.swift */; };
+		110000B32C12345600000001 /* CloudinaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A32C12345600000001 /* CloudinaryService.swift */; };
+		110000B42C12345600000001 /* ZaloAssetConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A42C12345600000001 /* ZaloAssetConstants.swift */; };
+		110000B52C12345600000001 /* MediaViewerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A52C12345600000001 /* MediaViewerSheet.swift */; };
+		110000B62C12345600000001 /* BarcodeQrGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A62C12345600000001 /* BarcodeQrGenerator.swift */; };
+		110000B72C12345600000001 /* BluetoothPrinterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A72C12345600000001 /* BluetoothPrinterService.swift */; };
+		110000B82C12345600000001 /* PrintScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A82C12345600000001 /* PrintScreenView.swift */; };
+		110000B92C12345600000001 /* LiveTrackingMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A92C12345600000001 /* LiveTrackingMapView.swift */; };
+		110000D12C12345600000001 /* AttendanceManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000C12C12345600000001 /* AttendanceManagementView.swift */; };
+		110000D22C12345600000001 /* UserManagementFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000C22C12345600000001 /* UserManagementFullView.swift */; };
+		110000D32C12345600000001 /* DepartmentManagerFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000C32C12345600000001 /* DepartmentManagerFullView.swift */; };
+		110000D42C12345600000001 /* DeviceManagementFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000C42C12345600000001 /* DeviceManagementFullView.swift */; };
+		110000F12C12345600000001 /* ApproveStaffFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000E12C12345600000001 /* ApproveStaffFullView.swift */; };
+		110000F22C12345600000001 /* ShiftScheduleFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000E22C12345600000001 /* ShiftScheduleFullView.swift */; };
+		110000F32C12345600000001 /* OnlineKtvMonitorFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000E32C12345600000001 /* OnlineKtvMonitorFullView.swift */; };
+		110000F42C12345600000001 /* SupportRatingReportFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000E42C12345600000001 /* SupportRatingReportFullView.swift */; };
+		110000F52C12345600000001 /* UnitRegionManagerFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000E52C12345600000001 /* UnitRegionManagerFullView.swift */; };
+		110001112C12345600000001 /* AddDeviceFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001012C12345600000001 /* AddDeviceFullView.swift */; };
+		110001122C12345600000001 /* DeviceTypeManagerFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001022C12345600000001 /* DeviceTypeManagerFullView.swift */; };
+		110001132C12345600000001 /* HardwareScannerSettingsFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001032C12345600000001 /* HardwareScannerSettingsFullView.swift */; };
+		110001142C12345600000001 /* AssetStatisticsFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001042C12345600000001 /* AssetStatisticsFullView.swift */; };
+		110001152C12345600000001 /* PaywallLicenseFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001052C12345600000001 /* PaywallLicenseFullView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -18,6 +41,29 @@
 		110000022C12345600000001 /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
 		110000042C12345600000001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		110000062C12345600000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		110000A12C12345600000001 /* CoopmartDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoopmartDirectory.swift; sourceTree = "<group>"; };
+		110000A22C12345600000001 /* OSRMRoutingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSRMRoutingService.swift; sourceTree = "<group>"; };
+		110000A32C12345600000001 /* CloudinaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudinaryService.swift; sourceTree = "<group>"; };
+		110000A42C12345600000001 /* ZaloAssetConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZaloAssetConstants.swift; sourceTree = "<group>"; };
+		110000A52C12345600000001 /* MediaViewerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaViewerSheet.swift; sourceTree = "<group>"; };
+		110000A62C12345600000001 /* BarcodeQrGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeQrGenerator.swift; sourceTree = "<group>"; };
+		110000A72C12345600000001 /* BluetoothPrinterService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothPrinterService.swift; sourceTree = "<group>"; };
+		110000A82C12345600000001 /* PrintScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintScreenView.swift; sourceTree = "<group>"; };
+		110000A92C12345600000001 /* LiveTrackingMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTrackingMapView.swift; sourceTree = "<group>"; };
+		110000C12C12345600000001 /* AttendanceManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceManagementView.swift; sourceTree = "<group>"; };
+		110000C22C12345600000001 /* UserManagementFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserManagementFullView.swift; sourceTree = "<group>"; };
+		110000C32C12345600000001 /* DepartmentManagerFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepartmentManagerFullView.swift; sourceTree = "<group>"; };
+		110000C42C12345600000001 /* DeviceManagementFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceManagementFullView.swift; sourceTree = "<group>"; };
+		110000E12C12345600000001 /* ApproveStaffFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApproveStaffFullView.swift; sourceTree = "<group>"; };
+		110000E22C12345600000001 /* ShiftScheduleFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftScheduleFullView.swift; sourceTree = "<group>"; };
+		110000E32C12345600000001 /* OnlineKtvMonitorFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineKtvMonitorFullView.swift; sourceTree = "<group>"; };
+		110000E42C12345600000001 /* SupportRatingReportFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportRatingReportFullView.swift; sourceTree = "<group>"; };
+		110000E52C12345600000001 /* UnitRegionManagerFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitRegionManagerFullView.swift; sourceTree = "<group>"; };
+		110001012C12345600000001 /* AddDeviceFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDeviceFullView.swift; sourceTree = "<group>"; };
+		110001022C12345600000001 /* DeviceTypeManagerFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceTypeManagerFullView.swift; sourceTree = "<group>"; };
+		110001032C12345600000001 /* HardwareScannerSettingsFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareScannerSettingsFullView.swift; sourceTree = "<group>"; };
+		110001042C12345600000001 /* AssetStatisticsFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetStatisticsFullView.swift; sourceTree = "<group>"; };
+		110001052C12345600000001 /* PaywallLicenseFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallLicenseFullView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -42,6 +88,29 @@
 		110000092C12345600000001 /* iosApp */ = {
 			isa = PBXGroup;
 			children = (
+				110001012C12345600000001 /* AddDeviceFullView.swift */,
+				110001022C12345600000001 /* DeviceTypeManagerFullView.swift */,
+				110001032C12345600000001 /* HardwareScannerSettingsFullView.swift */,
+				110001042C12345600000001 /* AssetStatisticsFullView.swift */,
+				110001052C12345600000001 /* PaywallLicenseFullView.swift */,
+				110000E12C12345600000001 /* ApproveStaffFullView.swift */,
+				110000E22C12345600000001 /* ShiftScheduleFullView.swift */,
+				110000E32C12345600000001 /* OnlineKtvMonitorFullView.swift */,
+				110000E42C12345600000001 /* SupportRatingReportFullView.swift */,
+				110000E52C12345600000001 /* UnitRegionManagerFullView.swift */,
+				110000C12C12345600000001 /* AttendanceManagementView.swift */,
+				110000C22C12345600000001 /* UserManagementFullView.swift */,
+				110000C32C12345600000001 /* DepartmentManagerFullView.swift */,
+				110000C42C12345600000001 /* DeviceManagementFullView.swift */,
+				110000A12C12345600000001 /* CoopmartDirectory.swift */,
+				110000A22C12345600000001 /* OSRMRoutingService.swift */,
+				110000A32C12345600000001 /* CloudinaryService.swift */,
+				110000A42C12345600000001 /* ZaloAssetConstants.swift */,
+				110000A52C12345600000001 /* MediaViewerSheet.swift */,
+				110000A62C12345600000001 /* BarcodeQrGenerator.swift */,
+				110000A72C12345600000001 /* BluetoothPrinterService.swift */,
+				110000A82C12345600000001 /* PrintScreenView.swift */,
+				110000A92C12345600000001 /* LiveTrackingMapView.swift */,
 				110000022C12345600000001 /* iOSApp.swift */,
 				110000042C12345600000001 /* ContentView.swift */,
 				110000062C12345600000001 /* Info.plist */,
@@ -127,6 +196,29 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				110001112C12345600000001 /* AddDeviceFullView.swift in Sources */,
+				110001122C12345600000001 /* DeviceTypeManagerFullView.swift in Sources */,
+				110001132C12345600000001 /* HardwareScannerSettingsFullView.swift in Sources */,
+				110001142C12345600000001 /* AssetStatisticsFullView.swift in Sources */,
+				110001152C12345600000001 /* PaywallLicenseFullView.swift in Sources */,
+				110000F12C12345600000001 /* ApproveStaffFullView.swift in Sources */,
+				110000F22C12345600000001 /* ShiftScheduleFullView.swift in Sources */,
+				110000F32C12345600000001 /* OnlineKtvMonitorFullView.swift in Sources */,
+				110000F42C12345600000001 /* SupportRatingReportFullView.swift in Sources */,
+				110000F52C12345600000001 /* UnitRegionManagerFullView.swift in Sources */,
+				110000D12C12345600000001 /* AttendanceManagementView.swift in Sources */,
+				110000D22C12345600000001 /* UserManagementFullView.swift in Sources */,
+				110000D32C12345600000001 /* DepartmentManagerFullView.swift in Sources */,
+				110000D42C12345600000001 /* DeviceManagementFullView.swift in Sources */,
+				110000B12C12345600000001 /* CoopmartDirectory.swift in Sources */,
+				110000B22C12345600000001 /* OSRMRoutingService.swift in Sources */,
+				110000B32C12345600000001 /* CloudinaryService.swift in Sources */,
+				110000B42C12345600000001 /* ZaloAssetConstants.swift in Sources */,
+				110000B52C12345600000001 /* MediaViewerSheet.swift in Sources */,
+				110000B62C12345600000001 /* BarcodeQrGenerator.swift in Sources */,
+				110000B72C12345600000001 /* BluetoothPrinterService.swift in Sources */,
+				110000B82C12345600000001 /* PrintScreenView.swift in Sources */,
+				110000B92C12345600000001 /* LiveTrackingMapView.swift in Sources */,
 				110000012C12345600000001 /* iOSApp.swift in Sources */,
 				110000032C12345600000001 /* ContentView.swift in Sources */,
 			);

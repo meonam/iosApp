@@ -81,6 +81,8 @@ struct ChatMessage: Identifiable, Hashable, Sendable {
     var text: String
     var time: String
     var isMe: Bool
+    var imageUrl: String = ""
+    var reactions: [String: String] = [:]
 }
 
 struct UserItem: Identifiable, Hashable, Sendable {
@@ -968,13 +970,27 @@ class FirebaseService: ObservableObject {
                         let dateStr = self.formatTimestamp(ts)
                         let isMe = senderEmail.lowercased() == currentUserEmail.lowercased()
 
+                        let imageUrl = self.parseString(f, "imageUrl").isEmpty ? self.parseString(f, "mediaUrl") : self.parseString(f, "imageUrl")
+                        var reactionsMap: [String: String] = [:]
+                        if let reactionsVal = f["reactions"] as? [String: Any],
+                           let mapValue = reactionsVal["mapValue"] as? [String: Any],
+                           let reactFields = mapValue["fields"] as? [String: Any] {
+                            for (emoji, fieldData) in reactFields {
+                                if let dict = fieldData as? [String: Any], let val = dict["stringValue"] as? String {
+                                    reactionsMap[emoji] = val
+                                }
+                            }
+                        }
+
                         let m = ChatMessage(
                             id: docId,
                             senderName: !sender.isEmpty ? sender : "KTV",
                             senderEmail: senderEmail,
                             text: text,
                             time: dateStr,
-                            isMe: isMe
+                            isMe: isMe,
+                            imageUrl: imageUrl,
+                            reactions: reactionsMap
                         )
                         msgs.append(m)
                     }
@@ -993,7 +1009,7 @@ class FirebaseService: ObservableObject {
     }
 
     // --- I. GỬI TIN NHẮN LÊN FIRESTORE SUBCOLLECTION ---
-    func sendMessage(ticketId: String, text: String) async -> Bool {
+    func sendMessage(ticketId: String, text: String, imageUrl: String = "") async -> Bool {
         let endpoint = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/support_tickets/\(ticketId)/messages"
         guard let url = URL(string: endpoint) else { return false }
 
@@ -1004,22 +1020,57 @@ class FirebaseService: ObservableObject {
         request.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
 
         let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        var fields: [String: Any] = [
+            "message": ["stringValue": text],
+            "senderName": ["stringValue": userName],
+            "senderEmail": ["stringValue": currentUserEmail],
+            "departmentId": ["stringValue": userDept],
+            "donVi": ["stringValue": userDonVi],
+            "timestamp": ["integerValue": "\(nowMs)"]
+        ]
+        if !imageUrl.isEmpty {
+            fields["imageUrl"] = ["stringValue": imageUrl]
+        }
+
+        let body: [String: Any] = ["fields": fields]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+                await self.loadMessages(for: ticketId)
+                return true
+            }
+        } catch {}
+        return false
+    }
+
+    func addReaction(ticketId: String, messageId: String, emoji: String) async -> Bool {
+        let endpoint = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/support_tickets/\(ticketId)/messages/\(messageId)?updateMask.fieldPaths=reactions"
+        guard let url = URL(string: endpoint) else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
         let body: [String: Any] = [
             "fields": [
-                "message": ["stringValue": text],
-                "senderName": ["stringValue": userName],
-                "senderEmail": ["stringValue": currentUserEmail],
-                "departmentId": ["stringValue": userDept],
-                "donVi": ["stringValue": userDonVi],
-                "timestamp": ["integerValue": "\(nowMs)"]
+                "reactions": [
+                    "mapValue": [
+                        "fields": [
+                            emoji: ["stringValue": currentUserEmail]
+                        ]
+                    ]
+                ]
             ]
         ]
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (_, response) = try await URLSession.shared.data(for: request)
-            if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
-                // Cập nhật lại tin nhắn hiển thị
+            if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
                 await self.loadMessages(for: ticketId)
                 return true
             }
@@ -1355,6 +1406,70 @@ class FirebaseService: ObservableObject {
         return false
     }
 
+    func addUserByAdmin(email: String, fullName: String, mnv: String, phone: String, role: String, unit: String, dept: String, password: String) async -> Bool {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !cleanEmail.isEmpty else { return false }
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users/\(cleanEmail)"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let body: [String: Any] = [
+            "fields": [
+                "email": ["stringValue": cleanEmail],
+                "name": ["stringValue": fullName],
+                "fullName": ["stringValue": fullName],
+                "maNhanVien": ["stringValue": mnv],
+                "employeeId": ["stringValue": mnv],
+                "phone": ["stringValue": phone],
+                "phoneNumber": ["stringValue": phone],
+                "sdt": ["stringValue": phone],
+                "role": ["stringValue": role],
+                "departmentId": ["stringValue": dept],
+                "unitId": ["stringValue": unit],
+                "donVi": ["stringValue": unit],
+                "companyId": ["stringValue": companyId],
+                "status": ["stringValue": "ACTIVE"],
+                "password": ["stringValue": password],
+                "createdAt": ["integerValue": "\(nowMs)"]
+            ]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+            await fetchAllUsers()
+            return true
+        }
+        return false
+    }
+
+    func transferUser(email: String, newUnit: String, newDept: String) async -> Bool {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !cleanEmail.isEmpty else { return false }
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=donVi&updateMask.fieldPaths=unitId&updateMask.fieldPaths=departmentId"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "fields": [
+                "donVi": ["stringValue": newUnit],
+                "unitId": ["stringValue": newUnit],
+                "departmentId": ["stringValue": newDept]
+            ]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200 {
+            await fetchAllUsers()
+            return true
+        }
+        return false
+    }
+
     // --- R. QUẢN LÝ PHÒNG BAN, ĐƠN VỊ, KHU VỰC, LOẠI THIẾT BỊ ---
     func fetchDepartments() async {
         let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/departments?pageSize=100"
@@ -1382,6 +1497,36 @@ class FirebaseService: ObservableObject {
             let finalList = list
             await MainActor.run { self.departmentsList = finalList }
         }
+    }
+
+    func saveDepartment(id: String, name: String, manager: String, hotline: String, desc: String) async -> Bool {
+        let cleanId = id.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanId.isEmpty else { return false }
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/departments/\(cleanId)"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "fields": [
+                "deptId": ["stringValue": cleanId],
+                "deptName": ["stringValue": name],
+                "departmentName": ["stringValue": name],
+                "managerName": ["stringValue": manager],
+                "hotline": ["stringValue": hotline],
+                "description": ["stringValue": desc],
+                "location": ["stringValue": desc],
+                "companyId": ["stringValue": companyId]
+            ]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+            await fetchDepartments()
+            return true
+        }
+        return false
     }
 
     func addDepartment(id: String, name: String, manager: String, hotline: String) async -> Bool {
@@ -1489,6 +1634,133 @@ class FirebaseService: ObservableObject {
             return true
         }
         return false
+    }
+
+    func approveUser(email: String, role: String, unitId: String, unitName: String, deptId: String) async -> Bool {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !cleanEmail.isEmpty else { return false }
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=status&updateMask.fieldPaths=role&updateMask.fieldPaths=unitId&updateMask.fieldPaths=donVi&updateMask.fieldPaths=departmentId&updateMask.fieldPaths=phongBan"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "fields": [
+                "status": ["stringValue": "ACTIVE"],
+                "role": ["stringValue": role.uppercased()],
+                "unitId": ["stringValue": unitId],
+                "donVi": ["stringValue": unitName],
+                "departmentId": ["stringValue": deptId],
+                "phongBan": ["stringValue": deptId]
+            ]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+            let delUrlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/pending_staff/\(cleanEmail)"
+            if let delUrl = URL(string: delUrlStr) {
+                var delReq = URLRequest(url: delUrl)
+                delReq.httpMethod = "DELETE"
+                delReq.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+                _ = try? await URLSession.shared.data(for: delReq)
+            }
+            await fetchPendingStaff()
+            await fetchAllUsers()
+            return true
+        }
+        return false
+    }
+
+    func rejectUser(email: String) async -> Bool {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !cleanEmail.isEmpty else { return false }
+        let delUrlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/pending_staff/\(cleanEmail)"
+        if let delUrl = URL(string: delUrlStr) {
+            var delReq = URLRequest(url: delUrl)
+            delReq.httpMethod = "DELETE"
+            delReq.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+            _ = try? await URLSession.shared.data(for: delReq)
+        }
+        let userUrlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=status"
+        if let userUrl = URL(string: userUrlStr) {
+            var userReq = URLRequest(url: userUrl)
+            userReq.httpMethod = "PATCH"
+            userReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            userReq.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+            let body: [String: Any] = ["fields": ["status": ["stringValue": "REJECTED"]]]
+            userReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            _ = try? await URLSession.shared.data(for: userReq)
+        }
+        await fetchPendingStaff()
+        await fetchAllUsers()
+        return true
+    }
+
+    func fetchShiftSchedules(weekId: String) async -> [String: [String: String]] {
+        let cleanWeek = weekId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/shift_schedules/\(cleanWeek)"
+        guard let url = URL(string: urlStr) else { return [:] }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        if let (data, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let fields = json["fields"] as? [String: Any] {
+            var result: [String: [String: String]] = [:]
+            for (ktvKey, val) in fields {
+                if let mapVal = val as? [String: Any],
+                   let mapFields = (mapVal["mapValue"] as? [String: Any])?["fields"] as? [String: Any] {
+                    var dayMap: [String: String] = [:]
+                    for (dayKey, dayVal) in mapFields {
+                        if let dMap = dayVal as? [String: Any],
+                           let s = dMap["stringValue"] as? String {
+                            dayMap[dayKey] = s
+                        }
+                    }
+                    result[ktvKey] = dayMap
+                }
+            }
+            return result
+        }
+        return [:]
+    }
+
+    func saveShiftSchedule(weekId: String, ktvEmail: String, dayKey: String, shiftCode: String) async -> Bool {
+        let cleanWeek = weekId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanKey = ktvEmail.replacingOccurrences(of: "@", with: "_").replacingOccurrences(of: ".", with: "_")
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/shift_schedules/\(cleanWeek)?updateMask.fieldPaths=\(cleanKey).\(dayKey)"
+        guard let url = URL(string: urlStr) else { return false }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = [
+            "fields": [
+                cleanKey: [
+                    "mapValue": [
+                        "fields": [
+                            dayKey: ["stringValue": shiftCode]
+                        ]
+                    ]
+                ]
+            ]
+        ]
+        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+            return true
+        }
+        return false
+    }
+
+    func saveUnit(id: String, name: String, address: String, phone: String) async -> Bool {
+        return await addUnit(id: id, name: name, address: address, phone: phone)
+    }
+
+    func saveRegion(code: String, name: String, leader: String, phone: String) async -> Bool {
+        await addRegion(id: code, name: name, leader: leader, phone: phone, desc: "")
+        return true
     }
 
     func fetchRegions() async {
@@ -3423,7 +3695,7 @@ struct DeviceDetailView: View {
                     .environmentObject(firebase)
             }
             .sheet(isPresented: $showPrintSheet) {
-                PrintBarcodeView(device: device, onDismiss: { showPrintSheet = false })
+                PrintScreenView(device: device)
             }
             .confirmationDialog("Cập nhật trạng thái thiết bị", isPresented: $showStatusPicker, titleVisibility: .visible) {
                 Button("Mới nhập") { updateStatus("Mới nhập") }
@@ -4673,9 +4945,22 @@ struct AttendanceCheckInView: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundColor(Color.appTextPrimary)
 
-                    Text("Tọa độ thực tế: \(locationManager.locationStr) (Bán kính hợp lệ: 300m)")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color.appTextSecondary)
+                    if let loc = locationManager.lastLocation,
+                       let store = CoopmartDirectory.resolveLocation(firebase.userDonVi) {
+                        let distMeters = Int(store.distance(from: loc.coordinate.latitude, loc.coordinate.longitude) * 1000.0)
+                        let isOk = distMeters <= 300
+                        HStack {
+                            Image(systemName: isOk ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                                .foregroundColor(isOk ? .green : .orange)
+                            Text("Khoảng cách tới siêu thị: \(distMeters)m (\(isOk ? "Trong bán kính hợp lệ" : "Vượt quá 300m"))")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(isOk ? .green : .orange)
+                        }
+                    } else {
+                        Text("Tọa độ thực tế: \(locationManager.locationStr) (Bán kính hợp lệ: 300m)")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color.appTextSecondary)
+                    }
                 }
                 .padding(16)
                 .background(Color.white)
@@ -5366,6 +5651,9 @@ enum ActiveSheet: Identifiable {
     case guide
     case quickSupport
     case ticketDetail(SupportTicket)
+    case deviceMgmtFull
+    case supportRatingReport
+    case scannerSettings
 
     var id: String {
         switch self {
@@ -5390,6 +5678,9 @@ enum ActiveSheet: Identifiable {
         case .guide: return "guide"
         case .quickSupport: return "quickSupport"
         case .ticketDetail(let t): return "ticket_\(t.id)"
+        case .deviceMgmtFull: return "deviceMgmtFull"
+        case .supportRatingReport: return "supportRatingReport"
+        case .scannerSettings: return "scannerSettings"
         }
     }
 }
@@ -5429,13 +5720,15 @@ struct MainAppView: View {
                             onOpenDrawer: { showDrawer = true },
                             onAddDevice: { activeSheet = .addDevice },
                             onScanDevice: { activeSheet = .scanner },
-                            onSelectDevice: { device in activeSheet = .deviceDetail(device) }
+                            onSelectDevice: { device in activeSheet = .deviceDetail(device) },
+                            onOpenAdvancedManagement: { activeSheet = .deviceMgmtFull }
                         )
                     case 2:
                         SupportHubView(
                             onOpenDrawer: { showDrawer = true },
                             onSelectTicket: { ticket in activeSheet = .ticketDetail(ticket) },
-                            onCreateTicket: { activeSheet = .quickSupport }
+                            onCreateTicket: { activeSheet = .quickSupport },
+                            onOpenRatingReport: { activeSheet = .supportRatingReport }
                         )
                     case 3:
                         SettingsView(
@@ -5506,8 +5799,10 @@ struct MainAppView: View {
                             switch route {
                             case "home": selectedTab = 0
                             case "devices": selectedTab = 1
+                            case "devices_full": activeSheet = .deviceMgmtFull
                             case "support": selectedTab = 2
-                            case "settings", "cai_dat_scanner": selectedTab = 3
+                            case "settings": selectedTab = 3
+                            case "cai_dat_scanner": activeSheet = .scannerSettings
                             case "add_device": activeSheet = .addDevice
                             case "printscreen": activeSheet = .printBarcode
                             case "thongke": activeSheet = .statistics
@@ -5519,6 +5814,7 @@ struct MainAppView: View {
                             case "region_manager": activeSheet = .region
                             case "attendance_checkin": activeSheet = .attendance
                             case "attendance_report": activeSheet = .attendanceReport
+                            case "support_rating_report": activeSheet = .supportRatingReport
                             case "shift_schedule": activeSheet = .shiftSchedule
                             case "online_ktv_monitor": activeSheet = .ktvMonitor
                             case "system_notifications": activeSheet = .systemNotif
@@ -5562,35 +5858,41 @@ struct MainAppView: View {
         case .scanner:
             ScannerMockView(onDismiss: { activeSheet = nil })
         case .addDevice:
-            AddDeviceModalView(onDismiss: { activeSheet = nil })
+            AddDeviceFullView(onDismiss: { activeSheet = nil })
         case .printBarcode:
             PrintBarcodeView(device: firebase.devices.first, onDismiss: { activeSheet = nil })
         case .statistics:
-            StatisticsView(onDismiss: { activeSheet = nil })
+            AssetStatisticsFullView(onDismiss: { activeSheet = nil })
         case .deviceType:
-            DeviceTypeManagerView(onDismiss: { activeSheet = nil })
+            DeviceTypeManagerFullView(onDismiss: { activeSheet = nil })
         case .approveStaff:
-            ApproveStaffView(onDismiss: { activeSheet = nil })
+            ApproveStaffFullView(onDismiss: { activeSheet = nil })
         case .userMgmt:
-            UserManagementView(onDismiss: { activeSheet = nil })
+            UserManagementFullView(onDismiss: { activeSheet = nil })
         case .department:
-            DepartmentManagerView(onDismiss: { activeSheet = nil })
+            DepartmentManagerFullView(onDismiss: { activeSheet = nil })
         case .unit:
-            UnitManagerView(onDismiss: { activeSheet = nil })
+            UnitRegionManagerFullView(onDismiss: { activeSheet = nil }, initialTab: 0)
         case .region:
-            RegionManagerView(onDismiss: { activeSheet = nil })
+            UnitRegionManagerFullView(onDismiss: { activeSheet = nil }, initialTab: 1)
         case .attendance:
-            AttendanceCheckInView(onDismiss: { activeSheet = nil })
+            AttendanceCheckInFullView(onDismiss: { activeSheet = nil })
         case .attendanceReport:
-            AttendanceReportView(onDismiss: { activeSheet = nil })
+            AttendanceReportFullView(onDismiss: { activeSheet = nil })
+        case .deviceMgmtFull:
+            DeviceManagementFullView(onDismiss: { activeSheet = nil })
         case .shiftSchedule:
-            ShiftScheduleView(onDismiss: { activeSheet = nil })
+            ShiftScheduleFullView(onDismiss: { activeSheet = nil })
         case .ktvMonitor:
-            OnlineKtvMonitorView(onDismiss: { activeSheet = nil })
+            OnlineKtvMonitorFullView(onDismiss: { activeSheet = nil })
+        case .supportRatingReport:
+            SupportRatingReportFullView(onDismiss: { activeSheet = nil })
         case .systemNotif:
             SystemNotificationFullView(onDismiss: { activeSheet = nil })
         case .paywall:
-            PaywallView(onDismiss: { activeSheet = nil })
+            PaywallLicenseFullView(onDismiss: { activeSheet = nil })
+        case .scannerSettings:
+            HardwareScannerSettingsFullView(onDismiss: { activeSheet = nil })
         case .notifications:
             NotificationListView(onDismiss: { activeSheet = nil })
         case .guide:
@@ -6130,6 +6432,7 @@ struct DeviceListView: View {
     let onAddDevice: () -> Void
     let onScanDevice: () -> Void
     var onSelectDevice: ((DeviceItem) -> Void)? = nil
+    var onOpenAdvancedManagement: (() -> Void)? = nil
 
     @State private var searchText: String = ""
     @State private var selectedFilter: String = "Tất cả"
@@ -6166,6 +6469,14 @@ struct DeviceListView: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(0.8)
+                }
+
+                if let advAction = onOpenAdvancedManagement {
+                    Button(action: advAction) {
+                        Image(systemName: "square.stack.3d.up.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white)
+                    }
                 }
 
                 Button(action: onScanDevice) {
@@ -6342,6 +6653,7 @@ struct SupportHubView: View {
     let onOpenDrawer: () -> Void
     let onSelectTicket: (SupportTicket) -> Void
     let onCreateTicket: () -> Void
+    var onOpenRatingReport: (() -> Void)? = nil
 
     @State private var selectedStatus: String = "OPEN"
 
@@ -6369,6 +6681,14 @@ struct SupportHubView: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(0.8)
+                }
+
+                if let reportAction = onOpenRatingReport {
+                    Button(action: reportAction) {
+                        Image(systemName: "star.bubble.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white)
+                    }
                 }
 
                 Button(action: onCreateTicket) {
@@ -6775,6 +7095,7 @@ struct AppSidebarDrawer: View {
                     drawerSectionHeader(title: "QUẢN LÝ THIẾT BỊ", color: Color(hex: "#059669"), isExpanded: $isDeviceExpanded)
                     if isDeviceExpanded {
                         DrawerItem(title: "Danh sách thiết bị", icon: "laptopcomputer", iconColor: Color(hex: "#10B981"), action: { onSelectRoute("devices") })
+                        DrawerItem(title: "Quản lý nâng cao (Gom nhóm)", icon: "square.stack.3d.up.fill", iconColor: Color(hex: "#059669"), action: { onSelectRoute("devices_full") })
                         DrawerItem(title: "Thêm thiết bị mới", icon: "plus.app.fill", iconColor: Color(hex: "#8B5CF6"), action: { onSelectRoute("add_device") })
                         DrawerItem(title: "Danh mục loại thiết bị", icon: "square.grid.2x2.fill", iconColor: Color(hex: "#0EA5E9"), action: { onSelectRoute("device_types") })
                         DrawerItem(title: "In ấn & Tem nhãn QR", icon: "printer.fill", iconColor: Color(hex: "#A855F7"), action: { onSelectRoute("printscreen") })
@@ -6800,6 +7121,7 @@ struct AppSidebarDrawer: View {
                         DrawerItem(title: "Báo cáo công & OSRM", icon: "doc.text.magnifyingglass", iconColor: Color(hex: "#FB923C"), action: { onSelectRoute("attendance_report") })
                         DrawerItem(title: "Lịch trực & Phân ca", icon: "calendar.badge.clock", iconColor: Color(hex: "#8B5CF6"), action: { onSelectRoute("shift_schedule") })
                         DrawerItem(title: "Theo dõi KTV Online", icon: "antenna.radiowaves.left.and.right", iconColor: Color(hex: "#10B981"), action: { onSelectRoute("online_ktv_monitor") })
+                        DrawerItem(title: "Đánh giá chất lượng CSAT & SLA", icon: "star.bubble.fill", iconColor: Color(hex: "#F59E0B"), action: { onSelectRoute("support_rating_report") })
                     }
 
                     // Section 4: Hệ thống & Cài đặt
@@ -7237,6 +7559,46 @@ struct QuickSupportModalView: View {
     }
 }
 
+// MARK: - ImagePickerModal (Native UIImagePickerController for iOS 15)
+struct ImagePickerModal: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    var sourceType: UIImagePickerController.SourceType
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        if UIImagePickerController.isSourceTypeAvailable(sourceType) {
+            picker.sourceType = sourceType
+        } else {
+            picker.sourceType = .photoLibrary
+        }
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ImagePickerModal
+        init(_ parent: ImagePickerModal) { self.parent = parent }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let img = info[.originalImage] as? UIImage {
+                parent.selectedImage = img
+            }
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.dismiss()
+        }
+    }
+}
+
 struct TicketChatDetailView: View {
     @EnvironmentObject var firebase: FirebaseService
     let ticket: SupportTicket
@@ -7244,12 +7606,21 @@ struct TicketChatDetailView: View {
 
     @State private var messageInput: String = ""
     @State private var isSending: Bool = false
+    @State private var showLiveTracking: Bool = false
+    @State private var showIconPicker: Bool = false
+    @State private var showImagePicker: Bool = false
+    @State private var pickerSourceType: UIImagePickerController.SourceType = .photoLibrary
+    @State private var showAttachmentActionSheet: Bool = false
+    @State private var selectedImage: UIImage? = nil
+    @State private var isUploadingImage: Bool = false
+    @State private var selectedViewerImageUrl: String? = nil
+    @State private var activeReactionMessageId: String? = nil
 
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
                 // Header Ticket Info
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     HStack {
                         Text(ticket.id)
                             .font(.system(size: 12, weight: .bold))
@@ -7262,6 +7633,28 @@ struct TicketChatDetailView: View {
                     Text(ticket.title)
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(Color.appTextPrimary)
+
+                    HStack {
+                        Image(systemName: "building.2.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                        Text(ticket.unit.isEmpty ? "Co.opmart" : ticket.unit)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Button(action: { showLiveTracking = true }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "map.fill")
+                                Text("Lộ trình GPS")
+                            }
+                            .font(.system(size: 11, weight: .bold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.appSecondaryDarkBlue.opacity(0.12))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                            .clipShape(Capsule())
+                        }
+                    }
                 }
                 .padding(14)
                 .background(Color.white)
@@ -7285,41 +7678,55 @@ struct TicketChatDetailView: View {
                             .padding(.top, 40)
                         } else {
                             ForEach(firebase.activeChatMessages) { msg in
-                                HStack {
-                                    if msg.isMe { Spacer() }
-
-                                    VStack(alignment: msg.isMe ? .trailing : .leading, spacing: 3) {
-                                        Text(msg.senderName)
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundColor(Color.appTextSecondary)
-
-                                        Text(msg.text)
-                                            .font(.system(size: 14))
-                                            .foregroundColor(msg.isMe ? .white : Color.appTextPrimary)
-                                            .padding(.horizontal, 14)
-                                            .padding(.vertical, 9)
-                                            .background(msg.isMe ? Color.appSecondaryDarkBlue : Color.white)
-                                            .cornerRadius(16)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 16)
-                                                    .stroke(Color.appCardBorder, lineWidth: msg.isMe ? 0 : 1)
-                                            )
-
-                                        Text(msg.time)
-                                            .font(.system(size: 9))
-                                            .foregroundColor(Color.appTextMuted)
-                                    }
-
-                                    if !msg.isMe { Spacer() }
-                                }
+                                chatBubble(for: msg)
                             }
                         }
                     }
                     .padding(16)
                 }
 
+                if isUploadingImage {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("Đang tải ảnh lên Cloudinary...")
+                            .font(.caption.bold())
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 6)
+                }
+
+                // Floating Reaction Bar khi đang chọn message
+                if let msgId = activeReactionMessageId {
+                    HStack {
+                        Spacer()
+                        ZaloReactionBar { emoji in
+                            Task {
+                                _ = await firebase.addReaction(ticketId: ticket.id, messageId: msgId, emoji: emoji)
+                                activeReactionMessageId = nil
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(.bottom, 6)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
                 // Input bar
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    // Attachment button
+                    Button(action: { showAttachmentActionSheet = true }) {
+                        Image(systemName: "camera.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                    }
+
+                    // Zalo icon picker button
+                    Button(action: { showIconPicker = true }) {
+                        Image(systemName: "face.smiling.fill")
+                            .font(.system(size: 26))
+                            .foregroundColor(Color.orange)
+                    }
+
                     TextField("Nhập nội dung trao đổi sự cố...", text: $messageInput)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
@@ -7340,19 +7747,19 @@ struct TicketChatDetailView: View {
                     }) {
                         if isSending {
                             ProgressView()
-                                .frame(width: 40, height: 40)
+                                .frame(width: 38, height: 38)
                         } else {
                             Image(systemName: "paperplane.fill")
-                                .font(.system(size: 18))
+                                .font(.system(size: 16))
                                 .foregroundColor(.white)
-                                .frame(width: 40, height: 40)
+                                .frame(width: 38, height: 38)
                                 .background(Color.appPrimaryPink)
                                 .clipShape(Circle())
                         }
                     }
                     .disabled(isSending || messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                .padding(12)
+                .padding(10)
                 .background(Color.white)
             }
             .navigationTitle("Trao Đổi Sự Cố")
@@ -7363,10 +7770,164 @@ struct TicketChatDetailView: View {
                 }
             }
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { showLiveTracking = true }) {
+                        Image(systemName: "map.fill")
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Đóng", action: onDismiss)
                 }
             }
+            .sheet(isPresented: $showLiveTracking) {
+                LiveTrackingMapView(ticket: ticket, companyId: firebase.companyId)
+            }
+            .sheet(isPresented: $showIconPicker) {
+                ZaloIconPickerSheet { iconCode in
+                    messageInput += iconCode
+                }
+            }
+            .sheet(isPresented: $showImagePicker) {
+                ImagePickerModal(selectedImage: $selectedImage, sourceType: pickerSourceType)
+            }
+            .sheet(isPresented: Binding(
+                get: { selectedViewerImageUrl != nil },
+                set: { if !$0 { selectedViewerImageUrl = nil } }
+            )) {
+                if let url = selectedViewerImageUrl {
+                    MediaViewerSheet(imageUrl: url, title: "Hình ảnh sự cố #\(ticket.id)")
+                }
+            }
+            .confirmationDialog("Đính kèm hình ảnh biên bản", isPresented: $showAttachmentActionSheet, titleVisibility: .visible) {
+                Button("Chụp ảnh từ Camera") {
+                    pickerSourceType = .camera
+                    showImagePicker = true
+                }
+                Button("Chọn ảnh từ Thư viện") {
+                    pickerSourceType = .photoLibrary
+                    showImagePicker = true
+                }
+                Button("Hủy", role: .cancel) {}
+            }
+            .onChange(of: selectedImage) { img in
+                if let img = img {
+                    uploadAndSendImage(img)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func chatBubble(for msg: ChatMessage) -> some View {
+        let trimmed = msg.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isSingleIcon = trimmed.hasPrefix(":zalo_") && trimmed.hasSuffix(":") && trimmed.count == 9
+
+        HStack {
+            if msg.isMe { Spacer() }
+
+            VStack(alignment: msg.isMe ? .trailing : .leading, spacing: 4) {
+                Text(msg.senderName)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(Color.appTextSecondary)
+
+                if isSingleIcon, let icon = ZaloAssetConstants.iconMap[trimmed] {
+                    AsyncImage(url: URL(string: icon.iconUrl)) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image.resizable().scaledToFit().frame(width: 48, height: 48)
+                        default:
+                            Text("😀").font(.system(size: 32))
+                        }
+                    }
+                    .padding(4)
+                } else {
+                    // Normal text bubble
+                    if !msg.text.isEmpty {
+                        Text(msg.text)
+                            .font(.system(size: 14))
+                            .foregroundColor(msg.isMe ? .white : Color.appTextPrimary)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 9)
+                            .background(msg.isMe ? Color.appSecondaryDarkBlue : Color.white)
+                            .cornerRadius(16)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color.appCardBorder, lineWidth: msg.isMe ? 0 : 1)
+                            )
+                    }
+                }
+
+                // Image preview if attached
+                let imgUrl = !msg.imageUrl.isEmpty ? msg.imageUrl : (msg.text.hasPrefix("http") && (msg.text.contains("cloudinary") || msg.text.contains(".jpg") || msg.text.contains(".png")) ? msg.text : "")
+                if !imgUrl.isEmpty {
+                    Button(action: {
+                        selectedViewerImageUrl = imgUrl
+                    }) {
+                        AsyncImage(url: URL(string: imgUrl)) { phase in
+                            switch phase {
+                            case .empty:
+                                ProgressView()
+                                    .frame(width: 140, height: 100)
+                                    .background(Color.gray.opacity(0.1))
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 160, height: 120)
+                                    .clipped()
+                                    .cornerRadius(12)
+                            default:
+                                Image(systemName: "photo")
+                                    .frame(width: 140, height: 100)
+                                    .background(Color.gray.opacity(0.1))
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                // Reaction summary pills
+                if !msg.reactions.isEmpty {
+                    HStack(spacing: 4) {
+                        ForEach(Array(msg.reactions.keys), id: \.self) { emoji in
+                            Text(emoji)
+                                .font(.system(size: 11))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color(UIColor.secondarySystemBackground))
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+
+                HStack(spacing: 6) {
+                    Text(msg.time)
+                        .font(.system(size: 9))
+                        .foregroundColor(Color.appTextMuted)
+
+                    Button(action: {
+                        activeReactionMessageId = (activeReactionMessageId == msg.id) ? nil : msg.id
+                    }) {
+                        Image(systemName: "face.smiling")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            if !msg.isMe { Spacer() }
+        }
+    }
+
+    private func uploadAndSendImage(_ img: UIImage) {
+        isUploadingImage = true
+        Task {
+            if let uploadedUrl = await CloudinaryService.uploadImage(img, folder: "support_tickets") {
+                _ = await firebase.sendMessage(ticketId: ticket.id, text: "[Hình ảnh đính kèm]", imageUrl: uploadedUrl)
+            }
+            selectedImage = nil
+            isUploadingImage = false
         }
     }
 }
