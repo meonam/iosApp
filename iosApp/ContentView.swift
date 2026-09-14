@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import CoreLocation
 
 // MARK: - 1. THEME & COLORS (Chuẩn 100% Android Color.kt)
 extension Color {
@@ -255,6 +256,64 @@ class FirebaseService: ObservableObject {
     private var syncCancellable: AnyCancellable?
     private var presenceCancellable: AnyCancellable?
 
+    // MARK: - VAI TRÒ & PHÂN QUYỀN CHUẨN ANDROID (AdminSupportViewModel.kt)
+    @Published var rawRole: String = "nhanvien"
+
+    var isAdmin: Bool {
+        let r = rawRole.lowercased().trimmingCharacters(in: .whitespaces)
+        return r == "admin" || r == "superadmin" || r == "super_admin" || r == "developer"
+    }
+
+    var isHelpDesk: Bool {
+        let r = rawRole.lowercased().trimmingCharacters(in: .whitespaces)
+        if r == "helpdesk" || r.contains("helpdesk") { return true }
+        let d = userDept.lowercased()
+        let dv = userDonVi.lowercased()
+        return d.contains("helpdesk") || dv.contains("helpdesk")
+    }
+
+    var isManager: Bool {
+        let r = rawRole.lowercased().trimmingCharacters(in: .whitespaces)
+        return r == "phongban" || r == "quanly" || r == "manager" || r == "truongphong"
+    }
+
+    var isTechnician: Bool {
+        let r = rawRole.lowercased().trimmingCharacters(in: .whitespaces)
+        if ["kythuat", "technician", "ktv", "ky_thuat", "tech"].contains(r) || r.contains("kythuat") || r.contains("technician") || r.contains("ktv") {
+            return true
+        }
+        if isAdmin || isHelpDesk || isManager {
+            return false
+        }
+        let d = userDept.lowercased()
+        let dv = userDonVi.lowercased()
+        return d.contains("kỹ thuật") || d.contains("ky thuat") || d.contains("sửa chữa") || d.contains("sua chua") ||
+               d.contains("bảo trì") || d.contains("bao tri") || d.contains("xử lý sự cố") || d.contains("xu ly su co") ||
+               d.contains("cntt") || d.contains("it") || dv.contains("kỹ thuật")
+    }
+
+    var isManagerOrAdmin: Bool {
+        isAdmin || isHelpDesk || isManager
+    }
+
+    // Bộ đệm thời gian tạo ticket chống spam (1 phút cooldown theo Android)
+    private var lastTicketCreatedTime: [String: Double] = [:]
+
+    func checkTicketCooldown(email: String) -> (canCreate: Bool, remainingSecs: Int) {
+        let clean = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard let lastTime = lastTicketCreatedTime[clean] else { return (true, 0) }
+        let elapsed = Date().timeIntervalSince1970 - lastTime
+        if elapsed < 60 {
+            return (false, Int(60 - elapsed))
+        }
+        return (true, 0)
+    }
+
+    func recordTicketCreated(email: String) {
+        let clean = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        lastTicketCreatedTime[clean] = Date().timeIntervalSince1970
+    }
+
     init() {
         // Tự động kiểm tra phiên đăng nhập đã lưu trong máy
         let savedEmail = UserDefaults.standard.string(forKey: "fb_user_email") ?? ""
@@ -280,16 +339,218 @@ class FirebaseService: ObservableObject {
         }
     }
 
-    // --- A. ĐĂNG NHẬP (FIREBASE AUTH) ---
+    // --- A1. NHẬN DIỆN SỐ ĐIỆN THOẠI & TRA CỨU EMAIL (UserCompanyResolver.kt) ---
+    func isLikelyPhoneNumber(_ input: String) -> Bool {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.contains("@") { return false }
+        let digits = trimmed.filter { "0123456789".contains($0) }
+        return digits.count >= 8 && digits.count <= 12
+    }
+
+    func resolveEmailFromPhone(_ phoneInput: String) async -> String? {
+        guard let guestToken = await ensureGuestToken() else { return nil }
+        let clean = phoneInput.trimmingCharacters(in: .whitespacesAndNewlines).filter { "0123456789+".contains($0) }
+        var norm = clean
+        if norm.hasPrefix("+84") {
+            norm = "0" + norm.dropFirst(3)
+        } else if norm.hasPrefix("84") && norm.count >= 11 {
+            norm = "0" + norm.dropFirst(2)
+        }
+
+        let variations = [clean, norm, "+84" + (norm.hasPrefix("0") ? String(norm.dropFirst()) : norm)]
+        let queryUrl = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents:runQuery"
+        guard let qUrl = URL(string: queryUrl) else { return nil }
+
+        for variant in variations {
+            for field in ["phone", "phoneNumber", "sdt"] {
+                var req = URLRequest(url: qUrl)
+                req.httpMethod = "POST"
+                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                req.setValue("Bearer \(guestToken)", forHTTPHeaderField: "Authorization")
+                req.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
+                let queryBody: [String: Any] = [
+                    "structuredQuery": [
+                        "from": [["collectionId": "users", "allDescendants": true]],
+                        "where": [
+                            "fieldFilter": [
+                                "field": ["fieldPath": field],
+                                "op": "EQUAL",
+                                "value": ["stringValue": variant]
+                            ]
+                        ],
+                        "limit": 1
+                    ]
+                ]
+                if let bData = try? JSONSerialization.data(withJSONObject: queryBody) {
+                    req.httpBody = bData
+                    if let (data, res) = try? await URLSession.shared.data(for: req),
+                       let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+                       let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                        for item in results {
+                            if let doc = item["document"] as? [String: Any],
+                               let fields = doc["fields"] as? [String: Any] {
+                                let email = parseString(fields, "email")
+                                if email.contains("@") {
+                                    return email.lowercased()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
+    // --- A2. BỘ GIẢI QUYẾT DOANH NGHIỆP ĐỘNG (UserCompanyResolver.kt) ---
+    func resolveUserCompany(cleanEmail: String, idToken: String) async -> (String, [String: Any]?) {
+        // 1. Kiểm tra cache công ty gần nhất đã lưu
+        let cachedComp = UserDefaults.standard.string(forKey: "cache_company_id") ?? self.companyId
+        if !cachedComp.isEmpty {
+            if let fields = await fetchUserDoc(company: cachedComp, email: cleanEmail, token: idToken) {
+                return (cachedComp.uppercased(), fields)
+            }
+        }
+
+        // 2. Chạy Firestore REST runQuery trên collectionGroup("users") với Token đã xác thực
+        let queryUrl = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents:runQuery"
+        if let qUrl = URL(string: queryUrl) {
+            var req = URLRequest(url: qUrl)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            req.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
+            let queryBody: [String: Any] = [
+                "structuredQuery": [
+                    "from": [["collectionId": "users", "allDescendants": true]],
+                    "where": [
+                        "fieldFilter": [
+                            "field": ["fieldPath": "email"],
+                            "op": "EQUAL",
+                            "value": ["stringValue": cleanEmail]
+                        ]
+                    ],
+                    "limit": 1
+                ]
+            ]
+            if let bData = try? JSONSerialization.data(withJSONObject: queryBody) {
+                req.httpBody = bData
+                if let (data, res) = try? await URLSession.shared.data(for: req),
+                   let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+                   let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                    for item in results {
+                        if let doc = item["document"] as? [String: Any],
+                           let name = doc["name"] as? String,
+                           let fields = doc["fields"] as? [String: Any] {
+                            let parts = name.components(separatedBy: "/")
+                            if let cIdx = parts.firstIndex(of: "companies"), cIdx + 1 < parts.count {
+                                let compId = parts[cIdx + 1].uppercased()
+                                return (compId, fields)
+                            }
+                            let compField = parseString(fields, "companyId").uppercased()
+                            if !compField.isEmpty {
+                                return (compField, fields)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Fallback: Kiểm tra công ty Admin bằng adminEmail
+        if let qUrl = URL(string: queryUrl) {
+            var req = URLRequest(url: qUrl)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            req.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
+            let queryBody: [String: Any] = [
+                "structuredQuery": [
+                    "from": [["collectionId": "companies", "allDescendants": false]],
+                    "where": [
+                        "fieldFilter": [
+                            "field": ["fieldPath": "adminEmail"],
+                            "op": "EQUAL",
+                            "value": ["stringValue": cleanEmail]
+                        ]
+                    ],
+                    "limit": 1
+                ]
+            ]
+            if let bData = try? JSONSerialization.data(withJSONObject: queryBody) {
+                req.httpBody = bData
+                if let (data, res) = try? await URLSession.shared.data(for: req),
+                   let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+                   let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                    for item in results {
+                        if let doc = item["document"] as? [String: Any],
+                           let name = doc["name"] as? String {
+                            let compId = name.components(separatedBy: "/").last?.uppercased() ?? ""
+                            if !compId.isEmpty {
+                                let fields = await fetchUserDoc(company: compId, email: cleanEmail, token: idToken)
+                                return (compId, fields)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Fallback danh sách công ty phổ biến
+        let defaultCompanies = ["SGCOOP", "COOP", "SAIGONCOOP"]
+        for comp in defaultCompanies {
+            if let fields = await fetchUserDoc(company: comp, email: cleanEmail, token: idToken) {
+                return (comp, fields)
+            }
+        }
+
+        return (cachedComp.isEmpty ? "SGCOOP" : cachedComp.uppercased(), nil)
+    }
+
+    private func fetchUserDoc(company: String, email: String, token: String) async -> [String: Any]? {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanComp = company.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(cleanComp)/users/\(cleanEmail)"
+        guard let url = URL(string: urlStr) else { return nil }
+        var req = URLRequest(url: url)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        req.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+        if let (data, res) = try? await URLSession.shared.data(for: req),
+           let httpRes = res as? HTTPURLResponse, httpRes.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let fields = json["fields"] as? [String: Any] {
+            return fields
+        }
+        return nil
+    }
+
+    // --- A. ĐĂNG NHẬP (FIREBASE AUTH & SĐT/EMAIL CHUẨN ANDROID) ---
     func signIn(email: String, pass: String) async -> Bool {
         await MainActor.run {
             self.isAuthenticating = true
             self.authError = nil
         }
 
-        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let authEndpoint = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=\(apiKey)"
+        let trimmedAccount = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        var cleanEmail = trimmedAccount.lowercased()
 
+        // 1. Nhận diện nếu nhập Số điện thoại thì tự động tra cứu Email tương ứng
+        if isLikelyPhoneNumber(trimmedAccount) {
+            if let resolvedEmail = await resolveEmailFromPhone(trimmedAccount) {
+                cleanEmail = resolvedEmail
+            } else {
+                await MainActor.run {
+                    self.authError = "Không tìm thấy tài khoản gắn với số điện thoại này."
+                    self.isAuthenticating = false
+                }
+                return false
+            }
+        }
+
+        let authEndpoint = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=\(apiKey)"
         guard let url = URL(string: authEndpoint) else { return false }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -311,10 +572,35 @@ class FirebaseService: ObservableObject {
                    let idToken = json["idToken"] as? String,
                    let refreshToken = json["refreshToken"] as? String {
 
+                    // 2. Tự động giải quyết Doanh nghiệp & Hồ sơ người dùng từ Firestore
+                    let (resolvedCompId, userFields) = await resolveUserCompany(cleanEmail: cleanEmail, idToken: idToken)
+
                     await MainActor.run {
                         self.currentUserEmail = cleanEmail
                         self.currentUserIdToken = idToken
                         self.currentRefreshToken = refreshToken
+                        self.companyId = resolvedCompId.uppercased()
+
+                        if let f = userFields {
+                            let fn = self.parseString(f, "fullName")
+                            let n = self.parseString(f, "name")
+                            let r = self.parseString(f, "role")
+                            let dv = self.parseString(f, "donVi")
+                            let dp = self.parseString(f, "phongBan")
+                            let ph = self.parseString(f, "phone").isEmpty ? self.parseString(f, "phoneNumber") : self.parseString(f, "phone")
+                            let st = self.parseString(f, "status").uppercased()
+
+                            self.rawRole = !r.isEmpty ? r.lowercased() : "nhanvien"
+                            self.userName = !fn.isEmpty ? fn : (!n.isEmpty ? n : cleanEmail)
+                            self.userRole = self.formatRoleTitle(r)
+                            self.userDonVi = !dv.isEmpty ? dv : "Co.opmart Cần Thơ"
+                            self.userDept = !dp.isEmpty ? dp : "Phòng Công nghệ thông tin"
+                            self.userPhone = ph
+                            self.userAccountStatus = !st.isEmpty ? st : "ACTIVE"
+                        } else {
+                            self.userAccountStatus = "ACTIVE"
+                        }
+
                         self.isLoggedIn = true
                         self.isAuthenticating = false
 
@@ -322,10 +608,17 @@ class FirebaseService: ObservableObject {
                         UserDefaults.standard.set(cleanEmail, forKey: "fb_user_email")
                         UserDefaults.standard.set(idToken, forKey: "fb_id_token")
                         UserDefaults.standard.set(refreshToken, forKey: "fb_refresh_token")
+                        UserDefaults.standard.set(self.companyId, forKey: "cache_company_id")
+                        UserDefaults.standard.set(self.userName, forKey: "cache_name")
+                        UserDefaults.standard.set(self.userRole, forKey: "cache_role")
+                        UserDefaults.standard.set(self.rawRole, forKey: "cache_raw_role")
+                        UserDefaults.standard.set(self.userDonVi, forKey: "cache_donvi")
+                        UserDefaults.standard.set(self.userDept, forKey: "cache_dept")
+                        UserDefaults.standard.set(self.userPhone, forKey: "cache_phone")
+                        UserDefaults.standard.set(self.userAccountStatus, forKey: "cache_status")
                     }
 
-                    // Tải dữ liệu người dùng & Firestore
-                    await self.loadUserProfile()
+                    // Tải dữ liệu các phân hệ
                     await self.loadDevices()
                     await self.loadTickets()
                     await MainActor.run { self.startRealtimePolling() }
@@ -333,16 +626,18 @@ class FirebaseService: ObservableObject {
                     return true
                 }
             } else {
-                var errDesc = "Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu."
+                var errDesc = "Tài khoản hoặc mật khẩu không chính xác."
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let errorObj = json["error"] as? [String: Any],
                    let msg = errorObj["message"] as? String {
-                    if msg.contains("INVALID_LOGIN_CREDENTIALS") || msg.contains("INVALID_PASSWORD") {
-                        errDesc = "Mật khẩu không chính xác."
-                    } else if msg.contains("EMAIL_NOT_FOUND") {
-                        errDesc = "Tài khoản email này chưa được đăng ký."
+                    if msg.contains("INVALID_LOGIN_CREDENTIALS") || msg.contains("INVALID_PASSWORD") || msg.contains("wrong-password") {
+                        errDesc = "Tài khoản hoặc mật khẩu không chính xác."
+                    } else if msg.contains("EMAIL_NOT_FOUND") || msg.contains("user-not-found") {
+                        errDesc = "Tài khoản chưa được đăng ký trong hệ thống."
                     } else if msg.contains("USER_DISABLED") {
-                        errDesc = "Tài khoản đã bị tạm khóa."
+                        errDesc = "Tài khoản đã bị tạm khóa. Vui lòng liên hệ Quản trị viên."
+                    } else if msg.contains("TOO_MANY_ATTEMPTS_TRY_LATER") {
+                        errDesc = "Đã thử đăng nhập sai quá nhiều lần. Vui lòng đợi một lát rồi thử lại."
                     }
                 }
 
@@ -408,48 +703,44 @@ class FirebaseService: ObservableObject {
         }
     }
 
-    // --- C. ĐỒNG BỘ HỒ SƠ NGƯỜI DÙNG TỪ FIRESTORE ---
+    // --- C. ĐỒNG BỘ HỒ SƠ NGƯỜI DÙNG TỪ FIRESTORE (TỰ ĐỘNG NHẬN DIỆN DOANH NGHIỆP) ---
     func loadUserProfile() async {
         let cleanEmail = currentUserEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if cleanEmail.isEmpty { return }
 
-        let userDocUrl = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users/\(cleanEmail)"
-        guard let url = URL(string: userDocUrl) else { return }
+        // Gọi resolveUserCompany để luôn đảm bảo tải đúng công ty và hồ sơ
+        let (resolvedComp, userFields) = await resolveUserCompany(cleanEmail: cleanEmail, idToken: currentUserIdToken)
 
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+        await MainActor.run {
+            self.companyId = resolvedComp.uppercased()
+            UserDefaults.standard.set(self.companyId, forKey: "cache_company_id")
 
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
-                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let fields = json["fields"] as? [String: Any] {
+            if let fields = userFields {
+                let fn = self.parseString(fields, "fullName")
+                let n = self.parseString(fields, "name")
+                let r = self.parseString(fields, "role")
+                let dv = self.parseString(fields, "donVi")
+                let dp = self.parseString(fields, "phongBan")
+                let ph = self.parseString(fields, "phone").isEmpty ? self.parseString(fields, "phoneNumber") : self.parseString(fields, "phone")
+                let st = self.parseString(fields, "status").uppercased()
 
-                    let fn = parseString(fields, "fullName")
-                    let n = parseString(fields, "name")
-                    let r = parseString(fields, "role")
-                    let dv = parseString(fields, "donVi")
-                    let dp = parseString(fields, "phongBan")
-                    let ph = parseString(fields, "phone").isEmpty ? parseString(fields, "phoneNumber") : parseString(fields, "phone")
+                self.rawRole = !r.isEmpty ? r.lowercased() : "nhanvien"
+                self.userName = !fn.isEmpty ? fn : (!n.isEmpty ? n : cleanEmail)
+                self.userRole = self.formatRoleTitle(r)
+                self.userDonVi = !dv.isEmpty ? dv : "Co.opmart Cần Thơ"
+                self.userDept = !dp.isEmpty ? dp : "Phòng Công nghệ thông tin"
+                self.userPhone = ph
+                self.userAccountStatus = !st.isEmpty ? st : "ACTIVE"
 
-                    await MainActor.run {
-                        self.userName = !fn.isEmpty ? fn : (!n.isEmpty ? n : cleanEmail)
-                        self.userRole = self.formatRoleTitle(r)
-                        self.userDonVi = !dv.isEmpty ? dv : "Co.opmart Cần Thơ"
-                        self.userDept = !dp.isEmpty ? dp : "Phòng Công nghệ thông tin"
-                        self.userPhone = ph
-
-                        // Lưu cache local
-                        UserDefaults.standard.set(self.userName, forKey: "cache_name")
-                        UserDefaults.standard.set(self.userRole, forKey: "cache_role")
-                        UserDefaults.standard.set(self.userDonVi, forKey: "cache_donvi")
-                        UserDefaults.standard.set(self.userDept, forKey: "cache_dept")
-                        UserDefaults.standard.set(self.userPhone, forKey: "cache_phone")
-                    }
-                }
+                UserDefaults.standard.set(self.userName, forKey: "cache_name")
+                UserDefaults.standard.set(self.userRole, forKey: "cache_role")
+                UserDefaults.standard.set(self.rawRole, forKey: "cache_raw_role")
+                UserDefaults.standard.set(self.userDonVi, forKey: "cache_donvi")
+                UserDefaults.standard.set(self.userDept, forKey: "cache_dept")
+                UserDefaults.standard.set(self.userPhone, forKey: "cache_phone")
+                UserDefaults.standard.set(self.userAccountStatus, forKey: "cache_status")
             }
-        } catch {}
+        }
     }
 
     // --- D. ĐỌC DANH SÁCH THIẾT BỊ (FIRESTORE) ---
@@ -4286,10 +4577,54 @@ struct RegionManagerView: View {
 // MARK: - 9. PHÂN HỆ CHẤM CÔNG & ĐIỀU PHỐI (ATTENDANCE & DISPATCH)
 
 // MARK: - 9.1. ĐIỂM DANH CHẤM CÔNG GPS (ATTENDANCE CHECKIN - AttendanceCheckInScreen.kt)
+// MARK: - 2.9. CORE LOCATION GPS MANAGER (Định vị chuẩn iOS)
+class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+    private let manager = CLLocationManager()
+    @Published var latitude: Double = 10.0352
+    @Published var longitude: Double = 105.7890
+    @Published var isAuthorized: Bool = false
+    @Published var locationStr: String = "10.0352° N, 105.7890° E"
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.requestWhenInUseAuthorization()
+        manager.startUpdatingLocation()
+    }
+
+    func requestPermission() {
+        manager.requestWhenInUseAuthorization()
+        manager.startUpdatingLocation()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let loc = locations.last else { return }
+        self.latitude = loc.coordinate.latitude
+        self.longitude = loc.coordinate.longitude
+        let latDir = loc.coordinate.latitude >= 0 ? "N" : "S"
+        let lonDir = loc.coordinate.longitude >= 0 ? "E" : "W"
+        self.locationStr = String(format: "%.4f° %@, %.4f° %@", abs(loc.coordinate.latitude), latDir, abs(loc.coordinate.longitude), lonDir)
+    }
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        #if os(iOS)
+        switch manager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            self.isAuthorized = true
+            manager.startUpdatingLocation()
+        default:
+            self.isAuthorized = false
+        }
+        #endif
+    }
+}
+
 struct AttendanceCheckInView: View {
     @EnvironmentObject var firebase: FirebaseService
     var onDismiss: () -> Void
 
+    @StateObject private var locationManager = LocationManager()
     @State private var isProcessing: Bool = false
     @State private var resultMessage: String? = nil
     @State private var currentTimeStr: String = ""
@@ -4336,7 +4671,7 @@ struct AttendanceCheckInView: View {
                         .font(.system(size: 15, weight: .bold))
                         .foregroundColor(Color.appTextPrimary)
 
-                    Text("Tọa độ: 10.0352° N, 105.7890° E (Bán kính hợp lệ: 300m)")
+                    Text("Tọa độ thực tế: \(locationManager.locationStr) (Bán kính hợp lệ: 300m)")
                         .font(.system(size: 12))
                         .foregroundColor(Color.appTextSecondary)
                 }
@@ -4411,8 +4746,8 @@ struct AttendanceCheckInView: View {
         Task {
             let ok = await firebase.checkInAttendance(
                 isCheckIn: isCheckIn,
-                lat: 10.0352,
-                lng: 105.7890,
+                lat: locationManager.latitude,
+                lng: locationManager.longitude,
                 address: firebase.userDonVi
             )
             isProcessing = false
@@ -6445,7 +6780,7 @@ struct AppSidebarDrawer: View {
                     }
 
                     // Section 2: Quản lý nhân sự & Tổ chức (Admin / Quản lý)
-                    if firebase.userRole.lowercased().contains("admin") || firebase.userRole.lowercased().contains("quản lý") || firebase.userRole.lowercased().contains("quanly") || firebase.userRole.lowercased().contains("phòng") {
+                    if firebase.isManagerOrAdmin {
                         drawerSectionHeader(title: "QUẢN LÝ NHÂN SỰ & TỔ CHỨC", color: Color(hex: "#6366F1"), isExpanded: $isPersonnelExpanded)
                         if isPersonnelExpanded {
                             DrawerItem(title: "Quản lý người dùng", icon: "person.2.fill", iconColor: Color(hex: "#3B82F6"), action: { onSelectRoute("user_mgmt") })
