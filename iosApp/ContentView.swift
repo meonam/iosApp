@@ -1606,7 +1606,7 @@ struct RegisterEnterpriseSheet: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color.appSecondaryDarkBlue)
                     .tint(Color.appSecondaryDarkBlue)
-                    .autocapitalization(.characters)
+                    .autocapitalization(.allCharacters)
                     .disableAutocorrection(true)
                 }
                 .padding(12)
@@ -1973,7 +1973,7 @@ struct JoinCompanySheet: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color.appSecondaryDarkBlue)
                     .tint(Color.appSecondaryDarkBlue)
-                    .autocapitalization(.characters)
+                    .autocapitalization(.allCharacters)
                     .disableAutocorrection(true)
 
                     if isVerifyingCompany {
