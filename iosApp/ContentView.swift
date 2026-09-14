@@ -3372,7 +3372,7 @@ struct PrintBarcodeView: View {
     var onDismiss: () -> Void
 
     private var targetDevice: DeviceItem {
-        device ?? DeviceItem(id: "DEMO", code: "POS-01", name: "Máy POS Thu Ngân", status: "Đang sử dụng", serialNumber: "SN-SGCOOP-8899", unit: "Co.opmart Cần Thơ", iconName: "computermouse.fill")
+        device ?? DeviceItem(id: "DEMO", code: "POS-01", name: "Máy POS Thu Ngân", category: "POS", serialNumber: "SN-SGCOOP-8899", unit: "Co.opmart Cần Thơ", status: "Đang sử dụng", department: "Thu Ngân", iconName: "computermouse.fill")
     }
 
     var body: some View {
