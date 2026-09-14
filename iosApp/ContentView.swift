@@ -1422,239 +1422,14 @@ struct RegisterEnterpriseSheet: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 16) {
-                    // Card chứa biểu mẫu
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("Thông tin Doanh nghiệp & Quản trị viên")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
-
-                        Text("Vui lòng nhập đầy đủ tất cả các trường thông tin bắt buộc (*)")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color.appTextSecondary)
-
-                        // 1. Họ và tên Admin
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Họ và tên Quản trị viên (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .frame(width: 20)
-                                TextField("VD: Nguyễn Văn A", text: $adminFullName)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(Color.appTextPrimary)
-                                    .tint(Color.appSecondaryDarkBlue)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-
-                        // 2. Số điện thoại
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Số điện thoại liên hệ (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "phone.fill")
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .frame(width: 20)
-                                TextField("VD: 0901234567", text: $adminPhone)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(Color.appTextPrimary)
-                                    .tint(Color.appSecondaryDarkBlue)
-                                    .keyboardType(.phonePad)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-
-                        // 3. Email Quản trị viên
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Email Quản trị viên (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "envelope.fill")
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .frame(width: 20)
-                                TextField("admin@congty.com", text: $adminEmail)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(Color.appTextPrimary)
-                                    .tint(Color.appSecondaryDarkBlue)
-                                    .keyboardType(.emailAddress)
-                                    .autocapitalization(.none)
-                                    .disableAutocorrection(true)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-
-                        // 4. Mật khẩu
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Mật khẩu Quản trị viên (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "lock.fill")
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .frame(width: 20)
-                                if adminPasswordVisible {
-                                    TextField("Tối thiểu 6 ký tự", text: $adminPassword)
-                                        .font(.system(size: 14))
-                                        .foregroundColor(Color.appTextPrimary)
-                                        .tint(Color.appSecondaryDarkBlue)
-                                        .autocapitalization(.none)
-                                        .disableAutocorrection(true)
-                                } else {
-                                    SecureField("Tối thiểu 6 ký tự", text: $adminPassword)
-                                        .font(.system(size: 14))
-                                        .foregroundColor(Color.appTextPrimary)
-                                        .tint(Color.appSecondaryDarkBlue)
-                                }
-                                Button(action: { adminPasswordVisible.toggle() }) {
-                                    Image(systemName: adminPasswordVisible ? "eye.fill" : "eye.slash.fill")
-                                        .foregroundColor(Color.appTextMuted)
-                                }
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-
-                        // 5. Tên doanh nghiệp
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Tên Doanh nghiệp / Tổ chức (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "building.2.fill")
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .frame(width: 20)
-                                TextField("VD: Saigon Co.op, Co.opmart Cần Thơ...", text: $companyNameInput)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(Color.appTextPrimary)
-                                    .tint(Color.appSecondaryDarkBlue)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-
-                        // 6. Mã doanh nghiệp
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Mã doanh nghiệp (Viết tắt) (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "key.fill")
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .frame(width: 20)
-                                TextField("VD: SGCOOP, SATRA...", text: Binding(
-                                    get: { customCompanyCode },
-                                    set: { customCompanyCode = $0.uppercased() }
-                                ))
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(Color.appSecondaryDarkBlue)
-                                .tint(Color.appSecondaryDarkBlue)
-                                .autocapitalization(.characters)
-                                .disableAutocorrection(true)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-
-                            Text("Mã định danh duy nhất của doanh nghiệp, không thể đổi sau khi tạo.")
-                                .font(.system(size: 11.5, weight: .medium))
-                                .foregroundColor(Color.appPrimaryPink)
-                        }
-
-                        // 7. Mã số thuế (tuỳ chọn)
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Mã số thuế (nếu có)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "number")
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .frame(width: 20)
-                                TextField("Mã số thuế doanh nghiệp", text: $taxCode)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(Color.appTextPrimary)
-                                    .tint(Color.appSecondaryDarkBlue)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-
-                        // 8. Địa chỉ trụ sở (tuỳ chọn)
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Địa chỉ trụ sở (nếu có)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "mappin.and.ellipse")
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .frame(width: 20)
-                                TextField("Địa chỉ trụ sở chính", text: $companyAddress)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(Color.appTextPrimary)
-                                    .tint(Color.appSecondaryDarkBlue)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-
-                        // Thông báo lỗi nếu có
+                        headerSection
+                        adminInfoFields
+                        companyInfoFields
                         if let err = errorMessage {
-                            HStack(alignment: .top, spacing: 8) {
-                                Image(systemName: "exclamationmark.circle.fill")
-                                    .foregroundColor(.white)
-                                Text(err)
-                                    .font(.system(size: 12.5, weight: .medium))
-                                    .foregroundColor(.white)
-                            }
-                            .padding(10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.statusBroken)
-                            .cornerRadius(10)
+                            errorBanner(err)
                         }
-
-                        // Nút Đăng Ký
-                        Button(action: {
-                            handleRegister()
-                        }) {
-                            HStack(spacing: 8) {
-                                if isLoading {
-                                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Image(systemName: "building.2.fill")
-                                        .font(.system(size: 16, weight: .bold))
-                                    Text("Tạo Doanh Nghiệp & Kích Hoạt")
-                                        .font(.system(size: 15, weight: .bold))
-                                }
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Color.appPrimaryPink)
-                            .cornerRadius(12)
-                        }
-                        .disabled(isLoading)
-                        .padding(.top, 8)
+                        submitButton
                     }
                     .padding(20)
                     .background(Color.white)
@@ -1681,6 +1456,247 @@ struct RegisterEnterpriseSheet: View {
         }
         .navigationViewStyle(.stack)
         .preferredColorScheme(.light)
+    }
+
+    @ViewBuilder
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Thông tin Doanh nghiệp & Quản trị viên")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(Color.appSecondaryDarkBlue)
+
+            Text("Vui lòng nhập đầy đủ tất cả các trường thông tin bắt buộc (*)")
+                .font(.system(size: 12))
+                .foregroundColor(Color.appTextSecondary)
+        }
+    }
+
+    @ViewBuilder
+    private var adminInfoFields: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Họ và tên Quản trị viên (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "person.fill")
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .frame(width: 20)
+                    TextField("VD: Nguyễn Văn A", text: $adminFullName)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Số điện thoại liên hệ (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "phone.fill")
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .frame(width: 20)
+                    TextField("VD: 0901234567", text: $adminPhone)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
+                        .keyboardType(.phonePad)
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Email Quản trị viên (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "envelope.fill")
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .frame(width: 20)
+                    TextField("admin@congty.com", text: $adminEmail)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
+                        .keyboardType(.emailAddress)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Mật khẩu Quản trị viên (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "lock.fill")
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .frame(width: 20)
+                    if adminPasswordVisible {
+                        TextField("Tối thiểu 6 ký tự", text: $adminPassword)
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.appTextPrimary)
+                            .tint(Color.appSecondaryDarkBlue)
+                            .autocapitalization(.none)
+                            .disableAutocorrection(true)
+                    } else {
+                        SecureField("Tối thiểu 6 ký tự", text: $adminPassword)
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.appTextPrimary)
+                            .tint(Color.appSecondaryDarkBlue)
+                    }
+                    Button(action: { adminPasswordVisible.toggle() }) {
+                        Image(systemName: adminPasswordVisible ? "eye.fill" : "eye.slash.fill")
+                            .foregroundColor(Color.appTextMuted)
+                    }
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var companyInfoFields: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Tên Doanh nghiệp / Tổ chức (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "building.2.fill")
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .frame(width: 20)
+                    TextField("VD: Saigon Co.op, Co.opmart Cần Thơ...", text: $companyNameInput)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Mã doanh nghiệp (Viết tắt) (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "key.fill")
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .frame(width: 20)
+                    TextField("VD: SGCOOP, SATRA...", text: Binding(
+                        get: { customCompanyCode },
+                        set: { customCompanyCode = $0.uppercased() }
+                    ))
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .tint(Color.appSecondaryDarkBlue)
+                    .autocapitalization(.characters)
+                    .disableAutocorrection(true)
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+
+                Text("Mã định danh duy nhất của doanh nghiệp, không thể đổi sau khi tạo.")
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundColor(Color.appPrimaryPink)
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Mã số thuế (nếu có)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "number")
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .frame(width: 20)
+                    TextField("Mã số thuế doanh nghiệp", text: $taxCode)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Địa chỉ trụ sở (nếu có)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "mappin.and.ellipse")
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .frame(width: 20)
+                    TextField("Địa chỉ trụ sở chính", text: $companyAddress)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func errorBanner(_ err: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundColor(.white)
+            Text(err)
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundColor(.white)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.statusBroken)
+        .cornerRadius(10)
+    }
+
+    @ViewBuilder
+    private var submitButton: some View {
+        Button(action: {
+            handleRegister()
+        }) {
+            HStack(spacing: 8) {
+                if isLoading {
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                } else {
+                    Image(systemName: "building.2.fill")
+                        .font(.system(size: 16, weight: .bold))
+                    Text("Tạo Doanh Nghiệp & Kích Hoạt")
+                        .font(.system(size: 15, weight: .bold))
+                }
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(Color.appPrimaryPink)
+            .cornerRadius(12)
+        }
+        .disabled(isLoading)
+        .padding(.top, 8)
     }
 
     private func handleRegister() {
@@ -1762,307 +1778,13 @@ struct JoinCompanySheet: View {
             ScrollView {
                 VStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("Thông tin Nhân viên / Kỹ thuật viên")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(Color.appPrimaryPink)
-
-                        Text("Vui lòng nhập đầy đủ tất cả các trường thông tin bắt buộc (*)")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color.appTextSecondary)
-
-                        // 1. Họ và tên
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Họ và tên (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(Color.appPrimaryPink)
-                                    .frame(width: 20)
-                                TextField("VD: Nguyễn Văn B", text: $staffFullName)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(Color.appTextPrimary)
-                                    .tint(Color.appSecondaryDarkBlue)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-
-                        // 2. Mã nhân viên (MNV)
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Mã nhân viên (MNV) (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "person.text.rectangle")
-                                    .foregroundColor(Color.appPrimaryPink)
-                                    .frame(width: 20)
-                                TextField("VD: 7075, 43144...", text: $staffMnv)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(Color.appTextPrimary)
-                                    .tint(Color.appSecondaryDarkBlue)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-
-                        // 3. Số điện thoại
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Số điện thoại liên hệ (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "phone.fill")
-                                    .foregroundColor(Color.appPrimaryPink)
-                                    .frame(width: 20)
-                                TextField("VD: 0987654321", text: $staffPhone)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(Color.appTextPrimary)
-                                    .tint(Color.appSecondaryDarkBlue)
-                                    .keyboardType(.phonePad)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-
-                        // 4. Email
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Email (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "envelope.fill")
-                                    .foregroundColor(Color.appPrimaryPink)
-                                    .frame(width: 20)
-                                TextField("nhanvien@congty.com", text: Binding(
-                                    get: { staffEmail },
-                                    set: { staffEmail = $0.lowercased() }
-                                ))
-                                .font(.system(size: 14))
-                                .foregroundColor(Color.appTextPrimary)
-                                .tint(Color.appSecondaryDarkBlue)
-                                .keyboardType(.emailAddress)
-                                .autocapitalization(.none)
-                                .disableAutocorrection(true)
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-
-                        // 5. Mật khẩu
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Mật khẩu (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "lock.fill")
-                                    .foregroundColor(Color.appPrimaryPink)
-                                    .frame(width: 20)
-                                if staffPasswordVisible {
-                                    TextField("Tối thiểu 6 ký tự", text: $staffPassword)
-                                        .font(.system(size: 14))
-                                        .foregroundColor(Color.appTextPrimary)
-                                        .tint(Color.appSecondaryDarkBlue)
-                                        .autocapitalization(.none)
-                                        .disableAutocorrection(true)
-                                } else {
-                                    SecureField("Tối thiểu 6 ký tự", text: $staffPassword)
-                                        .font(.system(size: 14))
-                                        .foregroundColor(Color.appTextPrimary)
-                                        .tint(Color.appSecondaryDarkBlue)
-                                }
-                                Button(action: { staffPasswordVisible.toggle() }) {
-                                    Image(systemName: staffPasswordVisible ? "eye.fill" : "eye.slash.fill")
-                                        .foregroundColor(Color.appTextMuted)
-                                }
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-
-                        // 6. Mã Doanh Nghiệp (Có Realtime Lookup)
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Mã doanh nghiệp xin gia nhập (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "key.fill")
-                                    .foregroundColor(Color.appPrimaryPink)
-                                    .frame(width: 20)
-                                TextField("VD: SGCOOP", text: Binding(
-                                    get: { staffCompanyCode },
-                                    set: {
-                                        staffCompanyCode = $0.uppercased()
-                                        triggerCompanyCheck(code: $0.uppercased())
-                                    }
-                                ))
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(Color.appSecondaryDarkBlue)
-                                .tint(Color.appSecondaryDarkBlue)
-                                .autocapitalization(.characters)
-                                .disableAutocorrection(true)
-
-                                if isVerifyingCompany {
-                                    ProgressView().scaleEffect(0.8)
-                                }
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-
-                            // Supporting text
-                            if isVerifyingCompany {
-                                Text("Đang tìm kiếm thông tin doanh nghiệp...")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Color.appPrimaryPink)
-                            } else if !staffCompanyCode.isEmpty && verifiedCompanyName == nil {
-                                Text("Mã doanh nghiệp không tồn tại trên hệ thống.")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Color.statusBroken)
-                            } else if let cName = verifiedCompanyName {
-                                Text("✓ Gia nhập: \(cName)")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Color(hex: "#15803D"))
-                            }
-                        }
-
-                        // 7. Mã Phòng Ban (Có Realtime Lookup)
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Mã phòng ban (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "building.columns.fill")
-                                    .foregroundColor(Color.appPrimaryPink)
-                                    .frame(width: 20)
-                                TextField("VD: HELPDESK, CNTT, IT...", text: Binding(
-                                    get: { staffDeptCodeInput },
-                                    set: {
-                                        staffDeptCodeInput = $0
-                                        triggerDeptCheck(dept: $0)
-                                    }
-                                ))
-                                .font(.system(size: 14))
-                                .foregroundColor(Color.appTextPrimary)
-                                .tint(Color.appSecondaryDarkBlue)
-
-                                if isVerifyingDept {
-                                    ProgressView().scaleEffect(0.8)
-                                }
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-
-                            if isVerifyingDept {
-                                Text("Đang kiểm tra phòng ban...")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Color.appPrimaryPink)
-                            } else if !staffDeptCodeInput.isEmpty && verifiedDeptName == nil && verifiedCompanyName != nil {
-                                Text("Không tìm thấy phòng ban này trong doanh nghiệp.")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Color.statusBroken)
-                            } else if let dName = verifiedDeptName {
-                                Text("✓ Phòng: \(dName)")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Color(hex: "#15803D"))
-                            }
-                        }
-
-                        // 8. Mã Đơn Vị / Chi Nhánh (Có Realtime Lookup)
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Mã đơn vị / Chi nhánh làm việc (*)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
-                            HStack {
-                                Image(systemName: "storefront.fill")
-                                    .foregroundColor(Color.appPrimaryPink)
-                                    .frame(width: 20)
-                                TextField("VD: CT, HCM, 001, COOPMART...", text: Binding(
-                                    get: { staffUnitCodeInput },
-                                    set: {
-                                        staffUnitCodeInput = $0
-                                        triggerUnitCheck(unit: $0)
-                                    }
-                                ))
-                                .font(.system(size: 14))
-                                .foregroundColor(Color.appTextPrimary)
-                                .tint(Color.appSecondaryDarkBlue)
-
-                                if isVerifyingUnit {
-                                    ProgressView().scaleEffect(0.8)
-                                }
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
-
-                            if isVerifyingUnit {
-                                Text("Đang kiểm tra đơn vị...")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Color.appPrimaryPink)
-                            } else if !staffUnitCodeInput.isEmpty && verifiedUnitName == nil && verifiedCompanyName != nil {
-                                Text("Không tìm thấy đơn vị này trong doanh nghiệp.")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Color.statusBroken)
-                            } else if let uName = verifiedUnitName {
-                                Text("✓ Đơn vị: \(uName)")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Color(hex: "#15803D"))
-                            }
-                        }
-
-                        // Thông báo lỗi nếu có
+                        headerSection
+                        staffPersonalFields
+                        organizationLookupFields
                         if let err = errorMessage {
-                            HStack(alignment: .top, spacing: 8) {
-                                Image(systemName: "exclamationmark.circle.fill")
-                                    .foregroundColor(.white)
-                                Text(err)
-                                    .font(.system(size: 12.5, weight: .medium))
-                                    .foregroundColor(.white)
-                            }
-                            .padding(10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.statusBroken)
-                            .cornerRadius(10)
+                            errorBanner(err)
                         }
-
-                        // Nút Gửi Yêu Cầu
-                        Button(action: {
-                            handleJoin()
-                        }) {
-                            HStack(spacing: 8) {
-                                if isLoading {
-                                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Image(systemName: "paperplane.fill")
-                                        .font(.system(size: 16, weight: .bold))
-                                    Text("Gửi Yêu Cầu Xét Duyệt")
-                                        .font(.system(size: 15, weight: .bold))
-                                }
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Color.appPrimaryPink)
-                            .cornerRadius(12)
-                        }
-                        .disabled(isLoading || verifiedCompanyName == nil || verifiedDeptName == nil || verifiedUnitName == nil)
-                        .opacity((verifiedCompanyName == nil || verifiedDeptName == nil || verifiedUnitName == nil) ? 0.6 : 1.0)
-                        .padding(.top, 8)
+                        submitButton
                     }
                     .padding(20)
                     .background(Color.white)
@@ -2089,6 +1811,324 @@ struct JoinCompanySheet: View {
         }
         .navigationViewStyle(.stack)
         .preferredColorScheme(.light)
+    }
+
+    @ViewBuilder
+    private var headerSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Thông tin Nhân viên / Kỹ thuật viên")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(Color.appPrimaryPink)
+
+            Text("Vui lòng nhập đầy đủ tất cả các trường thông tin bắt buộc (*)")
+                .font(.system(size: 12))
+                .foregroundColor(Color.appTextSecondary)
+        }
+    }
+
+    @ViewBuilder
+    private var staffPersonalFields: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Họ tên
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Họ và tên (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "person.fill")
+                        .foregroundColor(Color.appPrimaryPink)
+                        .frame(width: 20)
+                    TextField("VD: Nguyễn Văn B", text: $staffFullName)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+            }
+
+            // Mã NV (MNV)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Mã nhân viên (MNV) (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "person.text.rectangle")
+                        .foregroundColor(Color.appPrimaryPink)
+                        .frame(width: 20)
+                    TextField("VD: 7075, 43144...", text: $staffMnv)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+            }
+
+            // SĐT
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Số điện thoại liên hệ (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "phone.fill")
+                        .foregroundColor(Color.appPrimaryPink)
+                        .frame(width: 20)
+                    TextField("VD: 0987654321", text: $staffPhone)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.appTextPrimary)
+                        .tint(Color.appSecondaryDarkBlue)
+                        .keyboardType(.phonePad)
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+            }
+
+            // Email
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Email (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "envelope.fill")
+                        .foregroundColor(Color.appPrimaryPink)
+                        .frame(width: 20)
+                    TextField("nhanvien@congty.com", text: Binding(
+                        get: { staffEmail },
+                        set: { staffEmail = $0.lowercased() }
+                    ))
+                    .font(.system(size: 14))
+                    .foregroundColor(Color.appTextPrimary)
+                    .tint(Color.appSecondaryDarkBlue)
+                    .keyboardType(.emailAddress)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+            }
+
+            // Mật khẩu
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Mật khẩu (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "lock.fill")
+                        .foregroundColor(Color.appPrimaryPink)
+                        .frame(width: 20)
+                    if staffPasswordVisible {
+                        TextField("Tối thiểu 6 ký tự", text: $staffPassword)
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.appTextPrimary)
+                            .tint(Color.appSecondaryDarkBlue)
+                            .autocapitalization(.none)
+                            .disableAutocorrection(true)
+                    } else {
+                        SecureField("Tối thiểu 6 ký tự", text: $staffPassword)
+                            .font(.system(size: 14))
+                            .foregroundColor(Color.appTextPrimary)
+                            .tint(Color.appSecondaryDarkBlue)
+                    }
+                    Button(action: { staffPasswordVisible.toggle() }) {
+                        Image(systemName: staffPasswordVisible ? "eye.fill" : "eye.slash.fill")
+                            .foregroundColor(Color.appTextMuted)
+                    }
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var organizationLookupFields: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Mã DN
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Mã doanh nghiệp xin gia nhập (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "key.fill")
+                        .foregroundColor(Color.appPrimaryPink)
+                        .frame(width: 20)
+                    TextField("VD: SGCOOP", text: Binding(
+                        get: { staffCompanyCode },
+                        set: {
+                            staffCompanyCode = $0.uppercased()
+                            triggerCompanyCheck(code: $0.uppercased())
+                        }
+                    ))
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .tint(Color.appSecondaryDarkBlue)
+                    .autocapitalization(.characters)
+                    .disableAutocorrection(true)
+
+                    if isVerifyingCompany {
+                        ProgressView().scaleEffect(0.8)
+                    }
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+
+                if isVerifyingCompany {
+                    Text("Đang tìm kiếm thông tin doanh nghiệp...")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.appPrimaryPink)
+                } else if !staffCompanyCode.isEmpty && verifiedCompanyName == nil {
+                    Text("Mã doanh nghiệp không tồn tại trên hệ thống.")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.statusBroken)
+                } else if let cName = verifiedCompanyName {
+                    Text("✓ Gia nhập: \(cName)")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(hex: "#15803D"))
+                }
+            }
+
+            // Mã Phòng Ban
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Mã phòng ban (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "building.columns.fill")
+                        .foregroundColor(Color.appPrimaryPink)
+                        .frame(width: 20)
+                    TextField("VD: HELPDESK, CNTT, IT...", text: Binding(
+                        get: { staffDeptCodeInput },
+                        set: {
+                            staffDeptCodeInput = $0
+                            triggerDeptCheck(dept: $0)
+                        }
+                    ))
+                    .font(.system(size: 14))
+                    .foregroundColor(Color.appTextPrimary)
+                    .tint(Color.appSecondaryDarkBlue)
+
+                    if isVerifyingDept {
+                        ProgressView().scaleEffect(0.8)
+                    }
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+
+                if isVerifyingDept {
+                    Text("Đang kiểm tra phòng ban...")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.appPrimaryPink)
+                } else if !staffDeptCodeInput.isEmpty && verifiedDeptName == nil && verifiedCompanyName != nil {
+                    Text("Không tìm thấy phòng ban này trong doanh nghiệp.")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.statusBroken)
+                } else if let dName = verifiedDeptName {
+                    Text("✓ Phòng: \(dName)")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(hex: "#15803D"))
+                }
+            }
+
+            // Mã Đơn Vị
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Mã đơn vị / Chi nhánh làm việc (*)")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color.appTextPrimary)
+                HStack {
+                    Image(systemName: "storefront.fill")
+                        .foregroundColor(Color.appPrimaryPink)
+                        .frame(width: 20)
+                    TextField("VD: CT, HCM, 001, COOPMART...", text: Binding(
+                        get: { staffUnitCodeInput },
+                        set: {
+                            staffUnitCodeInput = $0
+                            triggerUnitCheck(unit: $0)
+                        }
+                    ))
+                    .font(.system(size: 14))
+                    .foregroundColor(Color.appTextPrimary)
+                    .tint(Color.appSecondaryDarkBlue)
+
+                    if isVerifyingUnit {
+                        ProgressView().scaleEffect(0.8)
+                    }
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1.2))
+
+                if isVerifyingUnit {
+                    Text("Đang kiểm tra đơn vị...")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.appPrimaryPink)
+                } else if !staffUnitCodeInput.isEmpty && verifiedUnitName == nil && verifiedCompanyName != nil {
+                    Text("Không tìm thấy đơn vị này trong doanh nghiệp.")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.statusBroken)
+                } else if let uName = verifiedUnitName {
+                    Text("✓ Đơn vị: \(uName)")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(hex: "#15803D"))
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func errorBanner(_ err: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.circle.fill")
+                .foregroundColor(.white)
+            Text(err)
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundColor(.white)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.statusBroken)
+        .cornerRadius(10)
+    }
+
+    @ViewBuilder
+    private var submitButton: some View {
+        Button(action: {
+            handleJoin()
+        }) {
+            HStack(spacing: 8) {
+                if isLoading {
+                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                } else {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 16, weight: .bold))
+                    Text("Gửi Yêu Cầu Xét Duyệt")
+                        .font(.system(size: 15, weight: .bold))
+                }
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .background(Color.appPrimaryPink)
+            .cornerRadius(12)
+        }
+        .disabled(isLoading || verifiedCompanyName == nil || verifiedDeptName == nil || verifiedUnitName == nil)
+        .opacity((verifiedCompanyName == nil || verifiedDeptName == nil || verifiedUnitName == nil) ? 0.6 : 1.0)
+        .padding(.top, 8)
     }
 
     private func triggerCompanyCheck(code: String) {
