@@ -535,9 +535,9 @@ class FirebaseService: ObservableObject {
         }
 
         let trimmedAccount = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        var cleanEmail = trimmedAccount.lowercased()
 
         // 1. Nhận diện nếu nhập Số điện thoại thì tự động tra cứu Email tương ứng
+        let cleanEmail: String
         if isLikelyPhoneNumber(trimmedAccount) {
             if let resolvedEmail = await resolveEmailFromPhone(trimmedAccount) {
                 cleanEmail = resolvedEmail
@@ -548,6 +548,8 @@ class FirebaseService: ObservableObject {
                 }
                 return false
             }
+        } else {
+            cleanEmail = trimmedAccount.lowercased()
         }
 
         let authEndpoint = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=\(apiKey)"
