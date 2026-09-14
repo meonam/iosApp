@@ -129,7 +129,10 @@ struct UnitItem: Identifiable, Hashable, Sendable {
 struct RegionItem: Identifiable, Hashable, Sendable {
     var id: String
     var name: String
-    var code: String
+    var code: String = ""
+    var description: String = ""
+    var leader: String = ""
+    var phone: String = ""
 }
 
 struct DeviceTypeItem: Identifiable, Hashable, Sendable {
@@ -1212,6 +1215,7 @@ class FirebaseService: ObservableObject {
                 let item = RegionItem(
                     id: docId,
                     name: name,
+                    code: docId,
                     description: parseString(f, "description"),
                     leader: parseString(f, "leader"),
                     phone: parseString(f, "phone")
@@ -1333,7 +1337,9 @@ class FirebaseService: ObservableObject {
 
     // --- T. CHẤM CÔNG GPS & ĐIỀU PHỐI (ATTENDANCE & SHIFTS) ---
     func checkInAttendance(isCheckIn: Bool, lat: Double, lng: Double, address: String) async -> Bool {
-        let dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        let dateStr = df.string(from: Date())
         let cleanEmail = currentUserEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let docId = "att_\(dateStr)_\(cleanEmail.replacingOccurrences(of: "@", with: "_").replacingOccurrences(of: ".", with: "_"))"
         let urlStr = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/attendances/\(docId)"
@@ -3362,8 +3368,12 @@ struct DeviceHistorySheetView: View {
 
 // MARK: - 7.3. IN TEM NHÃN MÃ VẠCH QR (PRINT SCREEN - PrintScreen.kt)
 struct PrintBarcodeView: View {
-    var device: DeviceItem
+    var device: DeviceItem? = nil
     var onDismiss: () -> Void
+
+    private var targetDevice: DeviceItem {
+        device ?? DeviceItem(id: "DEMO", code: "POS-01", name: "Máy POS Thu Ngân", status: "Đang sử dụng", serialNumber: "SN-SGCOOP-8899", unit: "Co.opmart Cần Thơ", iconName: "computermouse.fill")
+    }
 
     var body: some View {
         NavigationView {
@@ -3403,17 +3413,17 @@ struct PrintBarcodeView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(device.name)
+                            Text(targetDevice.name)
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.black)
-                                .maxLines(2)
-                            Text("MÃ TB: \(device.code)")
+                                .lineLimit(2)
+                            Text("MÃ TB: \(targetDevice.code)")
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(Color.appSecondaryDarkBlue)
-                            Text("SN: \(device.serialNumber)")
+                            Text("SN: \(targetDevice.serialNumber)")
                                 .font(.system(size: 11))
                                 .foregroundColor(.gray)
-                            Text("ĐV: \(device.unit)")
+                            Text("ĐV: \(targetDevice.unit)")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.black)
                         }
@@ -5217,7 +5227,7 @@ struct MainAppView: View {
         case .addDevice:
             AddDeviceModalView(onDismiss: { activeSheet = nil })
         case .printBarcode:
-            PrintBarcodeView(onDismiss: { activeSheet = nil })
+            PrintBarcodeView(device: firebase.devices.first, onDismiss: { activeSheet = nil })
         case .statistics:
             StatisticsView(onDismiss: { activeSheet = nil })
         case .deviceType:
