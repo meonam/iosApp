@@ -483,16 +483,16 @@ struct HardwareScannerSettingsFullView: View {
                 .cornerRadius(8)
             } else {
                 VStack(spacing: 6) {
-                    ForEach(btPrinter.discoveredPrinters, id: \.identifier) { p in
-                        let isConnected = btPrinter.connectedPrinter?.identifier == p.identifier
+                    ForEach(btPrinter.discoveredPrinters) { p in
+                        let isConnected = btPrinter.connectedPeripheral?.identifier == p.peripheral.identifier
                         HStack {
                             Image(systemName: "printer.fill")
                                 .foregroundColor(isConnected ? Color.appPrimaryPink : Color.appSecondaryDarkBlue)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(p.name ?? "Máy in nhiệt không tên")
+                                Text(p.name)
                                     .font(.system(size: 13, weight: .bold))
                                     .foregroundColor(Color.appSecondaryDarkBlue)
-                                Text("UUID: \(p.identifier.uuidString.prefix(12))...")
+                                Text("UUID: \(p.id.uuidString.prefix(12))...")
                                     .font(.system(size: 10))
                                     .foregroundColor(.gray)
                             }
@@ -509,7 +509,7 @@ struct HardwareScannerSettingsFullView: View {
                             } else {
                                 Button("Kết nối") {
                                     btPrinter.connect(to: p)
-                                    selectedBtName = p.name ?? "Máy in Bluetooth"
+                                    selectedBtName = p.name
                                 }
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundColor(Color.appPrimaryPink)
@@ -615,10 +615,10 @@ struct HardwareScannerSettingsFullView: View {
 
         if connectionType == "Bluetooth" {
             // Send test ESC/POS bytes to Bluetooth
-            if btPrinter.connectedPrinter != nil {
+            if btPrinter.isConnected {
                 let testText = "SAIGON CO.OP - QLTB\nIN THU NGHIEM THANH CONG\nNgay: \(Date().formatted())\n--------------------------\n\n\n"
                 if let data = testText.data(using: .utf8) {
-                    btPrinter.sendData(data)
+                    btPrinter.printData(data)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                         self.isTestingPrint = false
                         self.testPrintStatus = "Đã gửi lệnh in thành công tới máy in Bluetooth!"

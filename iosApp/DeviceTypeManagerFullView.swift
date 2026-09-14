@@ -38,13 +38,17 @@ struct DeviceTypeManagerFullView: View {
 
     // Permissions
     var userRole: String {
-        firebase.currentUserRole.lowercased()
+        firebase.userRole.lowercased()
     }
     var canManage: Bool {
         userRole == "admin" || userRole == "phongban" || userRole == "quanly"
     }
     var isAdmin: Bool {
         userRole == "admin"
+    }
+
+    private var firestoreBaseURL: String {
+        "https://firestore.googleapis.com/v1/projects/\(firebase.projectId)/databases/(default)/documents/companies/\(firebase.companyId)"
     }
 
     // Auto-generated ID
@@ -154,7 +158,7 @@ struct DeviceTypeManagerFullView: View {
                             Image(systemName: "square.grid.2x2")
                                 .font(.system(size: 48))
                                 .foregroundColor(.gray.opacity(0.4))
-                            Text(searchQuery.isEmpty ? "Chưa có loại thiết bị nào" : "Không tìm thấy loại thiết bị phù hợp với "\(searchQuery)"")
+                            Text(searchQuery.isEmpty ? "Chưa có loại thiết bị nào" : "Không tìm thấy loại thiết bị phù hợp với \"\(searchQuery)\"")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.gray)
                                 .multilineTextAlignment(.center)
@@ -206,7 +210,7 @@ struct DeviceTypeManagerFullView: View {
                         if canManage {
                             Button(action: {
                                 newTypeName = ""
-                                newTypeDept = isAdmin ? "" : firebase.currentUserDepartment
+                                newTypeDept = isAdmin ? "" : firebase.userDept
                                 showAddDialog = true
                             }) {
                                 Image(systemName: "plus")
@@ -245,7 +249,7 @@ struct DeviceTypeManagerFullView: View {
         .alert(isPresented: $showDeleteDialog) {
             Alert(
                 title: Text("Xác nhận xóa loại thiết bị"),
-                message: Text("Bạn có chắc chắn muốn xóa loại thiết bị "\(typeToDelete?.displayName ?? "")" khỏi hệ thống?"),
+                message: Text("Bạn có chắc chắn muốn xóa loại thiết bị \"\(typeToDelete?.displayName ?? "")\" khỏi hệ thống?"),
                 primaryButton: .destructive(Text("Xóa")) {
                     if let t = typeToDelete {
                         deleteDeviceType(t.id)
@@ -397,7 +401,7 @@ struct DeviceTypeManagerFullView: View {
                     Section(header: Text("PHÒNG BAN QUẢN LÝ")) {
                         Picker("Phòng ban", selection: $newTypeDept) {
                             Text("(Tất cả / Chung)").tag("")
-                            ForEach(firebase.departments) { dept in
+                            ForEach(firebase.departmentsList) { dept in
                                 Text("\(dept.name) [\(dept.code.isEmpty ? dept.id : dept.code)]").tag(dept.name)
                             }
                         }
@@ -432,7 +436,7 @@ struct DeviceTypeManagerFullView: View {
         isLoading = true
         errorMessage = nil
 
-        let urlStr = "\(firebase.firestoreBaseURL)/device_types"
+        let urlStr = "\(firestoreBaseURL)/device_types"
         guard let url = URL(string: urlStr) else {
             isLoading = false
             return
@@ -440,8 +444,8 @@ struct DeviceTypeManagerFullView: View {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        if !firebase.authToken.isEmpty {
-            request.setValue("Bearer \(firebase.authToken)", forHTTPHeaderField: "Authorization")
+        if !firebase.currentUserIdToken.isEmpty {
+            request.setValue("Bearer \(firebase.currentUserIdToken)", forHTTPHeaderField: "Authorization")
         }
 
         URLSession.shared.dataTask(with: request) { data, response, error in
@@ -508,7 +512,7 @@ struct DeviceTypeManagerFullView: View {
         let docId = customId.isEmpty ? Self.generateStandardDeviceTypeId(name: name, dept: dept) : customId
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let urlStr = "\(firebase.firestoreBaseURL)/device_types?documentId=\(docId)"
+        let urlStr = "\(firestoreBaseURL)/device_types?documentId=\(docId)"
         guard let url = URL(string: urlStr) else { return }
 
         var fields: [String: Any] = [
@@ -524,8 +528,8 @@ struct DeviceTypeManagerFullView: View {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !firebase.authToken.isEmpty {
-            request.setValue("Bearer \(firebase.authToken)", forHTTPHeaderField: "Authorization")
+        if !firebase.currentUserIdToken.isEmpty {
+            request.setValue("Bearer \(firebase.currentUserIdToken)", forHTTPHeaderField: "Authorization")
         }
 
         do {
@@ -544,7 +548,7 @@ struct DeviceTypeManagerFullView: View {
         let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return }
 
-        let urlStr = "\(firebase.firestoreBaseURL)/device_types/\(id)?updateMask.fieldPaths=name"
+        let urlStr = "\(firestoreBaseURL)/device_types/\(id)?updateMask.fieldPaths=name"
         guard let url = URL(string: urlStr) else { return }
 
         let body: [String: Any] = [
@@ -556,8 +560,8 @@ struct DeviceTypeManagerFullView: View {
         var request = URLRequest(url: url)
         request.httpMethod = "PATCH"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !firebase.authToken.isEmpty {
-            request.setValue("Bearer \(firebase.authToken)", forHTTPHeaderField: "Authorization")
+        if !firebase.currentUserIdToken.isEmpty {
+            request.setValue("Bearer \(firebase.currentUserIdToken)", forHTTPHeaderField: "Authorization")
         }
 
         do {
@@ -574,13 +578,13 @@ struct DeviceTypeManagerFullView: View {
     }
 
     private func deleteDeviceType(_ id: String) {
-        let urlStr = "\(firebase.firestoreBaseURL)/device_types/\(id)"
+        let urlStr = "\(firestoreBaseURL)/device_types/\(id)"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
-        if !firebase.authToken.isEmpty {
-            request.setValue("Bearer \(firebase.authToken)", forHTTPHeaderField: "Authorization")
+        if !firebase.currentUserIdToken.isEmpty {
+            request.setValue("Bearer \(firebase.currentUserIdToken)", forHTTPHeaderField: "Authorization")
         }
 
         URLSession.shared.dataTask(with: request) { _, _, _ in

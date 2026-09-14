@@ -298,7 +298,7 @@ public struct AddDeviceFullView: View {
         guard let data = img.jpegData(compressionQuality: 0.75) else { return }
         isUploadingImage = true
         Task {
-            if let url = await CloudinaryService.uploadImage(imageData: data) {
+            if let url = await CloudinaryService.uploadImage(img, folder: "devices") {
                 uploadedImageUrl = url
                 alertMessage = "✅ Đã tải ảnh lên CDN thành công!"
             }

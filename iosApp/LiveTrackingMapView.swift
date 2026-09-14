@@ -3,24 +3,24 @@ import MapKit
 import CoreLocation
 
 // MARK: - MKMapView Representable (iOS 15.0+ Polyline & Pin Rendering)
-public struct LiveTrackingMKMapView: UIViewRepresentable {
-    public let technicianCoord: CLLocationCoordinate2D?
-    public let destinationCoord: CLLocationCoordinate2D
-    public let destinationName: String
-    public let routeCoords: [CLLocationCoordinate2D]
+struct LiveTrackingMKMapView: UIViewRepresentable {
+    let technicianCoord: CLLocationCoordinate2D?
+    let destinationCoord: CLLocationCoordinate2D
+    let destinationName: String
+    let routeCoords: [CLLocationCoordinate2D]
 
-    public func makeCoordinator() -> Coordinator {
+    func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
 
-    public func makeUIView(context: Context) -> MKMapView {
+    func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = true
         return mapView
     }
 
-    public func updateUIView(_ uiView: MKMapView, context: Context) {
+    func updateUIView(_ uiView: MKMapView, context: Context) {
         uiView.removeAnnotations(uiView.annotations)
         uiView.removeOverlays(uiView.overlays)
 
@@ -56,14 +56,14 @@ public struct LiveTrackingMKMapView: UIViewRepresentable {
         }
     }
 
-    public class Coordinator: NSObject, MKMapViewDelegate {
+    class Coordinator: NSObject, MKMapViewDelegate {
         var parent: LiveTrackingMKMapView
 
         init(_ parent: LiveTrackingMKMapView) {
             self.parent = parent
         }
 
-        public func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
                 renderer.strokeColor = UIColor(Color.appPrimaryPink)
@@ -75,7 +75,7 @@ public struct LiveTrackingMKMapView: UIViewRepresentable {
             return MKOverlayRenderer(overlay: overlay)
         }
 
-        public func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             if annotation is MKUserLocation { return nil }
 
             let identifier = "TrackingAnnotation"
@@ -100,9 +100,13 @@ public struct LiveTrackingMKMapView: UIViewRepresentable {
 }
 
 // MARK: - Full Live Tracking Dialog / View
-public struct LiveTrackingMapView: View {
-    public let ticket: SupportTicket
-    public let companyId: String
+struct LiveTrackingMapView: View {
+    let ticket: SupportTicket?
+    let customTicketCode: String?
+    let customDestinationName: String?
+    let customDestLat: Double?
+    let customDestLng: Double?
+    let companyId: String
     @Environment(\.dismiss) private var dismiss
 
     @State private var technicianCoord: CLLocationCoordinate2D? = nil
@@ -114,8 +118,21 @@ public struct LiveTrackingMapView: View {
     @State private var isLoadingRoute: Bool = false
     @State private var isTechnicianMoving: Bool = false
 
-    public init(ticket: SupportTicket, companyId: String = "SGCOOP") {
+    init(ticket: SupportTicket, companyId: String = "SGCOOP") {
         self.ticket = ticket
+        self.customTicketCode = ticket.ticketCode
+        self.customDestinationName = ticket.unit.isEmpty ? ticket.title : ticket.unit
+        self.customDestLat = nil
+        self.customDestLng = nil
+        self.companyId = companyId
+    }
+
+    init(destinationName: String, destLat: Double = 10.764412, destLng: Double = 106.693425, ticketCode: String = "GPS", companyId: String = "SGCOOP") {
+        self.ticket = nil
+        self.customTicketCode = ticketCode
+        self.customDestinationName = destinationName
+        self.customDestLat = destLat
+        self.customDestLng = destLng
         self.companyId = companyId
     }
 
@@ -155,11 +172,11 @@ public struct LiveTrackingMapView: View {
                     // Header ticket & destination
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(ticket.title)
+                            Text(ticket?.title ?? customTicketCode ?? "Theo dõi vị trí")
                                 .font(.headline)
                                 .foregroundColor(.appTextPrimary)
                                 .lineLimit(1)
-                            Text("Đơn vị: \(ticket.unit)")
+                            Text("Đơn vị: \(ticket?.unit ?? customDestinationName ?? destinationName)")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
@@ -270,12 +287,17 @@ public struct LiveTrackingMapView: View {
 
     private func resolveDestinationAndRoute() async {
         isLoadingRoute = true
-        destinationName = ticket.unit.isEmpty ? ticket.title : ticket.unit
+        let destName = customDestinationName ?? ticket?.unit ?? ticket?.title ?? "Điểm đến"
+        destinationName = destName
 
         // 1. Resolve store destination GPS
-        if let store = CoopmartDirectory.resolveLocation(ticket.unit) {
+        if let lat = customDestLat, let lng = customDestLng, lat != 0, lng != 0 {
+            destinationCoord = CLLocationCoordinate2D(latitude: lat, longitude: lng)
+        } else if let unit = ticket?.unit, let store = CoopmartDirectory.resolveLocation(unit) {
             destinationCoord = CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng)
-        } else if let geocoded = await OSRMRoutingService.shared.geocodeAddress(ticket.unit) {
+        } else if let store = CoopmartDirectory.resolveLocation(destName) {
+            destinationCoord = CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng)
+        } else if let geocoded = await OSRMRoutingService.shared.geocodeAddress(destName) {
             destinationCoord = CLLocationCoordinate2D(latitude: geocoded.lat, longitude: geocoded.lng)
         }
 

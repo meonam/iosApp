@@ -1,31 +1,31 @@
 import SwiftUI
 import UIKit
 
-public struct SupportRatingItem: Identifiable, Hashable {
-    public var id: String
-    public var ticketCode: String
-    public var ticketTitle: String
-    public var storeName: String
-    public var technicianName: String
-    public var ratingStars: Int // 1 to 5
-    public var feedbackComment: String
-    public var createdAt: String
-    public var isSlaMet: Bool
+struct SupportRatingDetailItem: Identifiable, Hashable {
+    var id: String
+    var ticketCode: String
+    var ticketTitle: String
+    var storeName: String
+    var technicianName: String
+    var ratingStars: Int // 1 to 5
+    var feedbackComment: String
+    var createdAt: String
+    var isSlaMet: Bool
 }
 
-public struct KtvLeaderboardItem: Identifiable, Hashable {
-    public var id: String { name }
-    public var name: String
-    public var mnv: String
-    public var unit: String
-    public var totalSolved: Int
-    public var fiveStarCount: Int
-    public var averageStars: Double
-    public var slaRate: Int // %
+struct KtvLeaderboardItem: Identifiable, Hashable {
+    var id: String { name }
+    var name: String
+    var mnv: String
+    var unit: String
+    var totalSolved: Int
+    var fiveStarCount: Int
+    var averageStars: Double
+    var slaRate: Int // %
 }
 
 // MARK: - MÀN HÌNH BÁO CÁO ĐÁNH GIÁ CHẤT LƯỢNG CSAT & SLA (SupportRatingReportScreen.kt)
-public struct SupportRatingReportFullView: View {
+struct SupportRatingReportFullView: View {
     @EnvironmentObject var firebase: FirebaseService
     var onDismiss: () -> Void
 
@@ -33,19 +33,19 @@ public struct SupportRatingReportFullView: View {
     @State private var timeFilter: String = "ALL" // ALL, MONTH, WEEK, TODAY
     @State private var searchQuery: String = ""
 
-    public init(onDismiss: @escaping () -> Void) {
+    init(onDismiss: @escaping () -> Void) {
         self.onDismiss = onDismiss
     }
 
     // Default CSAT reviews matching Saigon Co.op support tickets
-    private var sampleReviews: [SupportRatingItem] {
+    private var sampleReviews: [SupportRatingDetailItem] {
         [
-            SupportRatingItem(id: "rv1", ticketCode: "SC-9821", ticketTitle: "Lỗi máy in bill POS quầy thu ngân 03", storeName: "Co.opmart Cần Thơ", technicianName: "Dam Huu Phuc", ratingStars: 5, feedbackComment: "KTV hỗ trợ rất nhanh, thay cáp và in thử hoạt động hoàn hảo!", createdAt: "12/09/2026", isSlaMet: true),
-            SupportRatingItem(id: "rv2", ticketCode: "SC-9818", ticketTitle: "Mất kết nối switch mạng tầng trệt", storeName: "Co.opmart Thốt Nốt", technicianName: "Dinh Quoc Huy", ratingStars: 5, feedbackComment: "Xử lý chuyên nghiệp, thông mạng kịp giờ mở cửa bán hàng.", createdAt: "11/09/2026", isSlaMet: true),
-            SupportRatingItem(id: "rv3", ticketCode: "SC-9805", ticketTitle: "Cân điện tử rau củ không in tem barcode", storeName: "Co.opmart Vị Thanh", technicianName: "Huỳnh Nguyễn Anh Đức", ratingStars: 4, feedbackComment: "Khắc phục tốt, KTV hướng dẫn nhân viên vệ sinh mắt đọc tem.", createdAt: "10/09/2026", isSlaMet: true),
-            SupportRatingItem(id: "rv4", ticketCode: "SC-9799", ticketTitle: "Máy tính thu ngân treo màn hình xanh", storeName: "Co.opmart Bến Tre", technicianName: "Hồ Thân Khánh", ratingStars: 5, feedbackComment: "Thay RAM và khôi phục dữ liệu ca bán hàng cực kỳ an toàn.", createdAt: "09/09/2026", isSlaMet: true),
-            SupportRatingItem(id: "rv5", ticketCode: "SC-9782", ticketTitle: "Máy quét mã vạch không nhận QR Momo/VNPay", storeName: "Co.opmart Sa Đéc", technicianName: "Ngo Duy Linh", ratingStars: 4, feedbackComment: "Cập nhật firmware máy quét thành công.", createdAt: "08/09/2026", isSlaMet: false),
-            SupportRatingItem(id: "rv6", ticketCode: "SC-9770", ticketTitle: "Lỗi kết nối camera an ninh kho đông lạnh", storeName: "Co.opmart Cà Mau", technicianName: "Nguyen Thanh Sang", ratingStars: 5, feedbackComment: "KTV nhiệt tình, đi đường xa nhưng đến đúng hẹn.", createdAt: "07/09/2026", isSlaMet: true)
+            SupportRatingDetailItem(id: "rv1", ticketCode: "SC-9821", ticketTitle: "Lỗi máy in bill POS quầy thu ngân 03", storeName: "Co.opmart Cần Thơ", technicianName: "Dam Huu Phuc", ratingStars: 5, feedbackComment: "KTV hỗ trợ rất nhanh, thay cáp và in thử hoạt động hoàn hảo!", createdAt: "12/09/2026", isSlaMet: true),
+            SupportRatingDetailItem(id: "rv2", ticketCode: "SC-9818", ticketTitle: "Mất kết nối switch mạng tầng trệt", storeName: "Co.opmart Thốt Nốt", technicianName: "Dinh Quoc Huy", ratingStars: 5, feedbackComment: "Xử lý chuyên nghiệp, thông mạng kịp giờ mở cửa bán hàng.", createdAt: "11/09/2026", isSlaMet: true),
+            SupportRatingDetailItem(id: "rv3", ticketCode: "SC-9805", ticketTitle: "Cân điện tử rau củ không in tem barcode", storeName: "Co.opmart Vị Thanh", technicianName: "Huỳnh Nguyễn Anh Đức", ratingStars: 4, feedbackComment: "Khắc phục tốt, KTV hướng dẫn nhân viên vệ sinh mắt đọc tem.", createdAt: "10/09/2026", isSlaMet: true),
+            SupportRatingDetailItem(id: "rv4", ticketCode: "SC-9799", ticketTitle: "Máy tính thu ngân treo màn hình xanh", storeName: "Co.opmart Bến Tre", technicianName: "Hồ Thân Khánh", ratingStars: 5, feedbackComment: "Thay RAM và khôi phục dữ liệu ca bán hàng cực kỳ an toàn.", createdAt: "09/09/2026", isSlaMet: true),
+            SupportRatingDetailItem(id: "rv5", ticketCode: "SC-9782", ticketTitle: "Máy quét mã vạch không nhận QR Momo/VNPay", storeName: "Co.opmart Sa Đéc", technicianName: "Ngo Duy Linh", ratingStars: 4, feedbackComment: "Cập nhật firmware máy quét thành công.", createdAt: "08/09/2026", isSlaMet: false),
+            SupportRatingDetailItem(id: "rv6", ticketCode: "SC-9770", ticketTitle: "Lỗi kết nối camera an ninh kho đông lạnh", storeName: "Co.opmart Cà Mau", technicianName: "Nguyen Thanh Sang", ratingStars: 5, feedbackComment: "KTV nhiệt tình, đi đường xa nhưng đến đúng hẹn.", createdAt: "07/09/2026", isSlaMet: true)
         ]
     }
 
@@ -60,7 +60,7 @@ public struct SupportRatingReportFullView: View {
         ]
     }
 
-    var filteredReviews: [SupportRatingItem] {
+    var filteredReviews: [SupportRatingDetailItem] {
         sampleReviews.filter { r in
             searchQuery.isEmpty ||
             r.ticketCode.localizedCaseInsensitiveContains(searchQuery) ||
@@ -76,16 +76,22 @@ public struct SupportRatingReportFullView: View {
     }
 
     var satisfactionPercent: Int {
+        let count = sampleReviews.count
+        if count == 0 { return 100 }
         let happy = sampleReviews.filter { $0.ratingStars >= 4 }.count
-        return sampleReviews.isEmpty ? 100 : Int((Double(happy) / Double(sampleReviews.count)) * 100.0)
+        let ratio = Double(happy) / Double(count)
+        return Int(ratio * 100.0)
     }
 
     var slaMetPercent: Int {
+        let count = sampleReviews.count
+        if count == 0 { return 100 }
         let met = sampleReviews.filter { $0.isSlaMet }.count
-        return sampleReviews.isEmpty ? 100 : Int((Double(met) / Double(sampleReviews.count)) * 100.0)
+        let ratio = Double(met) / Double(count)
+        return Int(ratio * 100.0)
     }
 
-    public var body: some View {
+    var body: some View {
         NavigationView {
             VStack(spacing: 0) {
                 // 1. KPI Top Summary Cards

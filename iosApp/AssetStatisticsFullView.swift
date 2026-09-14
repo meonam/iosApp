@@ -20,9 +20,9 @@ struct AssetStatisticsFullView: View {
 
     // Base devices filtered by role & permissions
     var baseDevices: [DeviceItem] {
-        let role = firebase.currentUserRole.lowercased()
-        let userDept = firebase.currentUserDepartment.trimmingCharacters(in: .whitespacesAndNewlines)
-        let userUnit = firebase.currentUserUnit.trimmingCharacters(in: .whitespacesAndNewlines)
+        let role = firebase.userRole.lowercased()
+        let userDept = firebase.userDept.trimmingCharacters(in: .whitespacesAndNewlines)
+        let userUnit = firebase.userDonVi.trimmingCharacters(in: .whitespacesAndNewlines)
 
         if role == "admin" {
             return firebase.devices
@@ -269,7 +269,7 @@ struct AssetStatisticsFullView: View {
                         .foregroundColor(.white.opacity(0.9))
                 }
 
-                Text(firebase.currentUserRole.lowercased() == "admin" ? "Phạm vi: Toàn chuỗi siêu thị Saigon Co.op" : "Phạm vi: Đơn vị / Phòng ban được phân quyền")
+                Text(firebase.userRole.lowercased() == "admin" ? "Phạm vi: Toàn chuỗi siêu thị Saigon Co.op" : "Phạm vi: Đơn vị / Phòng ban được phân quyền")
                     .font(.system(size: 11))
                     .foregroundColor(.white.opacity(0.75))
             }

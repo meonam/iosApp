@@ -843,6 +843,46 @@ class FirebaseService: ObservableObject {
         return false
     }
 
+    func addDevice(code: String, name: String, category: String, status: String, unit: String, department: String = "", serialNumber: String = "", price: String = "", warranty: String = "", imageUrl: String = "") async -> Bool {
+        let cleanCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        let endpoint = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/devices?documentId=\(cleanCode)"
+        guard let url = URL(string: endpoint) else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let fields: [String: Any] = [
+            "id": ["stringValue": cleanCode],
+            "ten": ["stringValue": name],
+            "loai": ["stringValue": category],
+            "trangThai": ["stringValue": status],
+            "tenDonVi": ["stringValue": unit],
+            "phongBan": ["stringValue": department.isEmpty ? userDept : department],
+            "serialNumber": ["stringValue": serialNumber],
+            "donGia": ["stringValue": price],
+            "thoiGianBaoHanh": ["stringValue": warranty],
+            "hinhAnh": ["stringValue": imageUrl],
+            "moTa": ["stringValue": "Nhập mới từ ứng dụng QLTB iOS"],
+            "createdAt": ["integerValue": "\(nowMs)"],
+            "createdBy": ["stringValue": currentUserEmail]
+        ]
+        let body: [String: Any] = ["fields": fields]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+                await self.loadDevices()
+                return true
+            }
+        } catch {}
+        return false
+    }
+
     // --- F. ĐỌC DANH SÁCH TICKET SỰ CỐ (FIRESTORE) ---
     func loadTickets() async {
         await MainActor.run { self.isLoadingTickets = true }
@@ -4856,6 +4896,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     private let manager = CLLocationManager()
     @Published var latitude: Double = 10.0352
     @Published var longitude: Double = 105.7890
+    @Published var lastLocation: CLLocation? = nil
     @Published var isAuthorized: Bool = false
     @Published var locationStr: String = "10.0352° N, 105.7890° E"
 
@@ -4874,6 +4915,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
 
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let loc = locations.last else { return }
+        self.lastLocation = loc
         self.latitude = loc.coordinate.latitude
         self.longitude = loc.coordinate.longitude
         let latDir = loc.coordinate.latitude >= 0 ? "N" : "S"

@@ -1,6 +1,6 @@
 import SwiftUI
 
-public enum LabelPaperSize: String, CaseIterable, Identifiable {
+enum LabelPaperSize: String, CaseIterable, Identifiable {
     case decal1 = "Decal 1 tem (50x30 mm)"
     case decal40x30 = "Decal 1 tem (40x30 mm)"
     case decal50x25 = "Decal 1 tem (50x25 mm)"
@@ -10,19 +10,20 @@ public enum LabelPaperSize: String, CaseIterable, Identifiable {
     case k80 = "Giấy in nhiệt K80"
     case k58 = "Giấy in nhiệt K58"
 
-    public var id: String { rawValue }
+    var id: String { rawValue }
 }
 
-public enum LabelLayoutMode: String, CaseIterable, Identifiable {
+enum LabelLayoutMode: String, CaseIterable, Identifiable {
     case qrLeftTextRight = "Mã QR Trái - Chữ Phải"
     case qrTopTextBottom = "Mã QR Trên - Chữ Dưới"
     case qrOnlyWithCode = "QR + Serial (Tối giản)"
 
-    public var id: String { rawValue }
+    var id: String { rawValue }
 }
 
-public struct PrintScreenView: View {
-    public let device: DeviceItem?
+struct PrintScreenView: View {
+    let device: DeviceItem?
+    var onDismiss: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
 
     @ObservedObject private var printerService = BluetoothPrinterService.shared
@@ -43,8 +44,9 @@ public struct PrintScreenView: View {
     @State private var showBluetoothSheet: Bool = false
     @State private var toastMessage: String? = nil
 
-    public init(device: DeviceItem?) {
+    init(device: DeviceItem? = nil, onDismiss: (() -> Void)? = nil) {
         self.device = device
+        self.onDismiss = onDismiss
     }
 
     private var sampleDevice: DeviceItem {
@@ -317,9 +319,15 @@ public struct PrintScreenView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Xong") { dismiss() }
-                        .font(.headline)
-                        .foregroundColor(.appPrimaryPink)
+                    Button("Xong") {
+                        if let onDismiss = onDismiss {
+                            onDismiss()
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .font(.headline)
+                    .foregroundColor(.appPrimaryPink)
                 }
             }
             .sheet(isPresented: $showBluetoothSheet) {
