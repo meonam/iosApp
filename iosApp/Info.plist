@@ -31,7 +31,7 @@
     <dict/>
     <key>UIRequiredDeviceCapabilities</key>
     <array>
-        <string>armv7</string>
+        <string>arm64</string>
     </array>
     <key>UISupportedInterfaceOrientations</key>
     <array>
@@ -46,20 +46,12 @@
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Ứng dụng cần quyền vị trí để định vị khoảng cách đến Co.opmart và dẫn đường xử lý sự cố.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Ứng dụng cần quyền vị trí nền để hỗ trợ giám sát hành trình KTV di chuyển hỗ trợ khẩn cấp.</string>
+    <string>Ứng dụng cần quyền vị trí để định vị khoảng cách đến Co.opmart và chấm công GPS.</string>
 
     <!-- QUYỀN BLUETOOTH CHO MÁY IN NHIỆT CẦM TAY -->
     <key>NSBluetoothAlwaysUsageDescription</key>
     <string>Ứng dụng cần quyền Bluetooth để tìm kiếm và in phiếu biên bản qua máy in nhiệt cầm tay.</string>
     <key>NSBluetoothPeripheralUsageDescription</key>
     <string>Ứng dụng cần quyền kết nối Bluetooth với máy in di động.</string>
-
-    <!-- CHẾ ĐỘ NỀN -->
-    <key>UIBackgroundModes</key>
-    <array>
-        <string>fetch</string>
-        <string>location</string>
-        <string>remote-notification</string>
-    </array>
 </dict>
 </plist>
