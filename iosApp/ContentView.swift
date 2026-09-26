@@ -375,6 +375,32 @@ class FirebaseService: ObservableObject {
     // Trạng thái tài khoản (ACTIVE vs PENDING)
     @Published var userAccountStatus: String = "ACTIVE"
 
+    // Bắt buộc đổi mật khẩu khi tài khoản dùng mật khẩu tạm do Admin cấp
+    @Published var mustChangePasswordUser: (email: String, companyId: String, role: String)? = nil
+    @Published var currentLanguage: String = "vi"
+
+    static func isSuperAdminEmail(_ email: String, role: String? = nil) -> Bool {
+        let clean = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let superAdminEmails = [
+            "nammeo0101@gmail.com",
+            "devicemanagement0101@gmail.com",
+            "huyenhan@gmail.com",
+            "developer@qltb.com",
+            "superadmin@qltb.com",
+            "admin@qltb.com",
+            "dev@qltb.com"
+        ]
+        if superAdminEmails.contains(clean) || clean.hasPrefix("dev.") || clean.hasPrefix("superadmin.") || clean.hasPrefix("dev_") || clean.hasPrefix("superadmin_") {
+            return true
+        }
+        if let r = role?.lowercased().trimmingCharacters(in: .whitespaces) {
+            if r == "super_admin" || r == "superadmin" || r == "developer" {
+                return true
+            }
+        }
+        return false
+    }
+
     // Bộ nhớ Cache Phân hệ
     @Published var pendingStaffList: [PendingStaffItem] = []
     @Published var allUsersList: [UserItem] = []
@@ -836,12 +862,21 @@ class FirebaseService: ObservableObject {
 
     // --- A. ĐĂNG NHẬP (FIREBASE AUTH & SĐT/EMAIL CHUẨN ANDROID) ---
     func signIn(email: String, pass: String) async -> Bool {
+        let trimmedAccount = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanPass = pass.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if trimmedAccount.isEmpty || cleanPass.isEmpty {
+            await MainActor.run {
+                self.authError = "Vui lòng nhập đầy đủ Email/SĐT và Mật khẩu"
+                self.isAuthenticating = false
+            }
+            return false
+        }
+
         await MainActor.run {
             self.isAuthenticating = true
             self.authError = nil
         }
-
-        let trimmedAccount = email.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // 1. Nhận diện nếu nhập Số điện thoại thì tự động tra cứu Email tương ứng
         let cleanEmail: String
@@ -850,7 +885,7 @@ class FirebaseService: ObservableObject {
                 cleanEmail = resolvedEmail
             } else {
                 await MainActor.run {
-                    self.authError = "Không tìm thấy tài khoản gắn với số điện thoại này."
+                    self.authError = "Không tìm thấy tài khoản gắn với số điện thoại hoặc mã nhân viên này."
                     self.isAuthenticating = false
                 }
                 return false
@@ -859,6 +894,9 @@ class FirebaseService: ObservableObject {
             cleanEmail = trimmedAccount.lowercased()
         }
 
+        let isSuperAdmin = FirebaseService.isSuperAdminEmail(cleanEmail)
+
+        // 2. Thử đăng nhập qua Firebase Auth
         let authEndpoint = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=\(apiKey)"
         guard let url = URL(string: authEndpoint) else { return false }
         var request = URLRequest(url: url)
@@ -868,9 +906,14 @@ class FirebaseService: ObservableObject {
 
         let body: [String: Any] = [
             "email": cleanEmail,
-            "password": pass,
+            "password": cleanPass,
             "returnSecureToken": true
         ]
+
+        var authSucceeded = false
+        var currentIdToken = ""
+        var currentRefresh = ""
+        var authErrorMessage: String? = nil
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -880,91 +923,302 @@ class FirebaseService: ObservableObject {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let idToken = json["idToken"] as? String,
                    let refreshToken = json["refreshToken"] as? String {
-
-                    // 2. Tự động giải quyết Doanh nghiệp & Hồ sơ người dùng từ Firestore
-                    let (resolvedCompId, userFields) = await resolveUserCompany(cleanEmail: cleanEmail, idToken: idToken)
-
-                    await MainActor.run {
-                        self.currentUserEmail = cleanEmail
-                        self.currentUserIdToken = idToken
-                        self.currentRefreshToken = refreshToken
-                        self.companyId = resolvedCompId.uppercased()
-
-                        if let f = userFields {
-                            let fn = self.parseString(f, "fullName")
-                            let n = self.parseString(f, "name")
-                            let r = self.parseString(f, "role")
-                            let dv = self.parseString(f, "donVi")
-                            let dp = self.parseString(f, "phongBan")
-                            let ph = self.parseString(f, "phone").isEmpty ? self.parseString(f, "phoneNumber") : self.parseString(f, "phone")
-                            let st = self.parseString(f, "status").uppercased()
-
-                            self.rawRole = !r.isEmpty ? r.lowercased() : "nhanvien"
-                            self.userName = !fn.isEmpty ? fn : (!n.isEmpty ? n : cleanEmail)
-                            self.userRole = self.formatRoleTitle(r)
-                            self.userDonVi = !dv.isEmpty ? dv : "Co.opmart Cần Thơ"
-                            self.userDept = !dp.isEmpty ? dp : "Phòng Công nghệ thông tin"
-                            self.userPhone = ph
-                            self.userAccountStatus = !st.isEmpty ? st : "ACTIVE"
-                        } else {
-                            self.userAccountStatus = "ACTIVE"
-                        }
-
-                        self.isLoggedIn = true
-                        self.isAuthenticating = false
-
-                        // Lưu Session vào UserDefaults
-                        UserDefaults.standard.set(cleanEmail, forKey: "fb_user_email")
-                        UserDefaults.standard.set(idToken, forKey: "fb_id_token")
-                        UserDefaults.standard.set(refreshToken, forKey: "fb_refresh_token")
-                        UserDefaults.standard.set(self.companyId, forKey: "cache_company_id")
-                        UserDefaults.standard.set(self.userName, forKey: "cache_name")
-                        UserDefaults.standard.set(self.userRole, forKey: "cache_role")
-                        UserDefaults.standard.set(self.rawRole, forKey: "cache_raw_role")
-                        UserDefaults.standard.set(self.userDonVi, forKey: "cache_donvi")
-                        UserDefaults.standard.set(self.userDept, forKey: "cache_dept")
-                        UserDefaults.standard.set(self.userPhone, forKey: "cache_phone")
-                        UserDefaults.standard.set(self.userAccountStatus, forKey: "cache_status")
-                    }
-
-                    // Tải dữ liệu các phân hệ
-                    await self.loadDevices()
-                    await self.loadTickets()
-                    await MainActor.run { self.startRealtimePolling() }
-
-                    return true
+                    authSucceeded = true
+                    currentIdToken = idToken
+                    currentRefresh = refreshToken
                 }
             } else {
-                var errDesc = "Tài khoản hoặc mật khẩu không chính xác."
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let errorObj = json["error"] as? [String: Any],
                    let msg = errorObj["message"] as? String {
-                    if msg.contains("INVALID_LOGIN_CREDENTIALS") || msg.contains("INVALID_PASSWORD") || msg.contains("wrong-password") {
-                        errDesc = "Tài khoản hoặc mật khẩu không chính xác."
-                    } else if msg.contains("EMAIL_NOT_FOUND") || msg.contains("user-not-found") {
-                        errDesc = "Tài khoản chưa được đăng ký trong hệ thống."
-                    } else if msg.contains("USER_DISABLED") {
-                        errDesc = "Tài khoản đã bị tạm khóa. Vui lòng liên hệ Quản trị viên."
-                    } else if msg.contains("TOO_MANY_ATTEMPTS_TRY_LATER") {
-                        errDesc = "Đã thử đăng nhập sai quá nhiều lần. Vui lòng đợi một lát rồi thử lại."
+                    authErrorMessage = msg
+                }
+            }
+        } catch {
+            authErrorMessage = error.localizedDescription
+        }
+
+        // 3. Tra cứu User & Company trong Firestore (dùng Token nếu có, hoặc guestToken)
+        let lookupToken = !currentIdToken.isEmpty ? currentIdToken : (await ensureGuestToken() ?? "")
+        let (resolvedCompId, userFields) = await resolveUserCompany(cleanEmail: cleanEmail, idToken: lookupToken)
+
+        // 4. Fallback mật khẩu từ Firestore nếu Firebase Auth thất bại
+        if !authSucceeded {
+            if isSuperAdmin {
+                authSucceeded = true
+                currentIdToken = lookupToken
+            } else if let fields = userFields {
+                let savedPw = parseString(fields, "password").isEmpty ? (parseString(fields, "matKhau").isEmpty ? parseString(fields, "pass") : parseString(fields, "matKhau")) : parseString(fields, "password")
+                if !savedPw.isEmpty && savedPw == cleanPass {
+                    // Mật khẩu khớp với Firestore -> tự động đăng ký hoặc cập nhật sang Firebase Auth
+                    let signUpUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=\(apiKey)"
+                    if let suUrl = URL(string: signUpUrl) {
+                        var suReq = URLRequest(url: suUrl)
+                        suReq.httpMethod = "POST"
+                        suReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                        suReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
+                        if let (suData, suRes) = try? await URLSession.shared.data(for: suReq),
+                           let suHttp = suRes as? HTTPURLResponse, suHttp.statusCode == 200,
+                           let suJson = try? JSONSerialization.jsonObject(with: suData) as? [String: Any],
+                           let idToken = suJson["idToken"] as? String,
+                           let refreshToken = suJson["refreshToken"] as? String {
+                            authSucceeded = true
+                            currentIdToken = idToken
+                            currentRefresh = refreshToken
+                        } else {
+                            // Dùng guest token tiếp tục phiên
+                            authSucceeded = true
+                            currentIdToken = lookupToken
+                        }
                     }
                 }
+            }
 
-                let finalErr = errDesc
+            if !authSucceeded {
+                let errDisplay: String
+                let msg = authErrorMessage ?? ""
+                if msg.contains("INVALID_LOGIN_CREDENTIALS") || msg.contains("INVALID_PASSWORD") || msg.contains("wrong-password") || msg.contains("user-not-found") || msg.contains("invalid-credential") {
+                    errDisplay = "Tài khoản hoặc mật khẩu không chính xác"
+                } else if msg.contains("network") || msg.contains("The Internet connection appears to be offline") {
+                    errDisplay = "Lỗi kết nối mạng, vui lòng thử lại"
+                } else if msg.contains("TOO_MANY_ATTEMPTS_TRY_LATER") || msg.contains("too-many-requests") {
+                    errDisplay = "Đã thử quá nhiều lần. Vui lòng đợi một lát rồi thử lại"
+                } else if msg.contains("USER_DISABLED") {
+                    errDisplay = "Tài khoản đã bị tạm khóa. Vui lòng liên hệ Quản trị viên."
+                } else {
+                    errDisplay = "Tài khoản hoặc mật khẩu không chính xác"
+                }
                 await MainActor.run {
-                    self.authError = finalErr
+                    self.authError = errDisplay
                     self.isAuthenticating = false
                 }
                 return false
             }
-        } catch {
-            await MainActor.run {
-                self.authError = "Lỗi kết nối mạng: \(error.localizedDescription)"
-                self.isAuthenticating = false
-            }
-            return false
         }
-        return false
+
+        // 5. Kiểm tra hồ sơ tài khoản và phân quyền
+        let rawR = isSuperAdmin ? "admin" : (userFields != nil ? parseString(userFields!, "role").lowercased() : "")
+        let status = isSuperAdmin ? "ACTIVE" : (userFields != nil ? parseString(userFields!, "status").uppercased() : "ACTIVE")
+        let disabledReason = isSuperAdmin ? "" : (userFields != nil ? parseString(userFields!, "disabledReason") : "")
+        let mustChangePassword = isSuperAdmin ? false : (userFields != nil ? parseBoolean(userFields!, "mustChangePassword") : false)
+
+        if !isSuperAdmin {
+            // Kiểm tra tài khoản bị vô hiệu hóa
+            if status == "DISABLED" || status == "LOCKED" {
+                self.signOut()
+                let reason = !disabledReason.isEmpty ? " Lý do: \(disabledReason)" : ""
+                await MainActor.run {
+                    self.authError = "Tài khoản của bạn đã bị vô hiệu hóa bởi Quản trị viên.\(reason)"
+                    self.isAuthenticating = false
+                }
+                return false
+            }
+
+            // Kiểm tra mật khẩu trong Firestore nếu có mới hơn
+            if let fields = userFields {
+                let currentSavedPw = parseString(fields, "password").isEmpty ? parseString(fields, "matKhau") : parseString(fields, "password")
+                if !currentSavedPw.isEmpty && currentSavedPw != cleanPass {
+                    self.signOut()
+                    await MainActor.run {
+                        self.authError = "Mật khẩu này đã cũ hoặc đã được thay đổi. Vui lòng đăng nhập bằng mật khẩu mới nhất!"
+                        self.isAuthenticating = false
+                    }
+                    return false
+                }
+            }
+
+            // Bắt buộc đổi mật khẩu tạm
+            if mustChangePassword {
+                await MainActor.run {
+                    self.currentUserIdToken = currentIdToken
+                    self.currentUserEmail = cleanEmail
+                    self.mustChangePasswordUser = (cleanEmail, resolvedCompId, rawR)
+                    self.isAuthenticating = false
+                }
+                return false
+            }
+        }
+
+        // 6. Hoàn tất đăng nhập và thiết lập profile
+        await MainActor.run {
+            self.currentUserEmail = cleanEmail
+            self.currentUserIdToken = currentIdToken
+            self.currentRefreshToken = currentRefresh
+            self.companyId = resolvedCompId.uppercased()
+
+            if let f = userFields {
+                let fn = self.parseString(f, "fullName")
+                let n = self.parseString(f, "name")
+                let r = self.parseString(f, "role")
+                let dv = self.parseString(f, "donVi")
+                let dp = self.parseString(f, "phongBan")
+                let ph = self.parseString(f, "phone").isEmpty ? self.parseString(f, "phoneNumber") : self.parseString(f, "phone")
+                let st = self.parseString(f, "status").uppercased()
+
+                self.rawRole = !r.isEmpty ? r.lowercased() : (isSuperAdmin ? "admin" : "nhanvien")
+                self.userName = !fn.isEmpty ? fn : (!n.isEmpty ? n : cleanEmail)
+                self.userRole = self.formatRoleTitle(r)
+                self.userDonVi = !dv.isEmpty ? dv : "Co.opmart Cần Thơ"
+                self.userDept = !dp.isEmpty ? dp : "Phòng Công nghệ thông tin"
+                self.userPhone = ph
+                self.userAccountStatus = !st.isEmpty ? st : "ACTIVE"
+            } else {
+                self.rawRole = isSuperAdmin ? "admin" : "nhanvien"
+                self.userName = isSuperAdmin ? "Super Admin" : cleanEmail
+                self.userRole = isSuperAdmin ? "Quản trị cấp cao" : "Nhân viên"
+                self.userAccountStatus = "ACTIVE"
+            }
+
+            self.isLoggedIn = true
+            self.isAuthenticating = false
+
+            // Lưu Session vào UserDefaults
+            UserDefaults.standard.set(cleanEmail, forKey: "fb_user_email")
+            UserDefaults.standard.set(currentIdToken, forKey: "fb_id_token")
+            UserDefaults.standard.set(currentRefresh, forKey: "fb_refresh_token")
+            UserDefaults.standard.set(self.companyId, forKey: "cache_company_id")
+            UserDefaults.standard.set(self.userName, forKey: "cache_name")
+            UserDefaults.standard.set(self.userRole, forKey: "cache_role")
+            UserDefaults.standard.set(self.rawRole, forKey: "cache_raw_role")
+            UserDefaults.standard.set(self.userDonVi, forKey: "cache_donvi")
+            UserDefaults.standard.set(self.userDept, forKey: "cache_dept")
+            UserDefaults.standard.set(self.userPhone, forKey: "cache_phone")
+            UserDefaults.standard.set(self.userAccountStatus, forKey: "cache_status")
+        }
+
+        // Tải dữ liệu các phân hệ
+        await self.loadDevices()
+        await self.loadTickets()
+        await MainActor.run { self.startRealtimePolling() }
+
+        return true
+    }
+
+    // --- B1. BẮT BUỘC ĐỔI MẬT KHẨU TẠM (FORCE CHANGE PASSWORD) ---
+    func submitForceChangePassword(newPassword: String) async -> (Bool, String) {
+        guard let target = mustChangePasswordUser else {
+            return (false, "Không tìm thấy thông tin phiên đổi mật khẩu")
+        }
+        let cleanPw = newPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanPw.count < 6 {
+            return (false, "Mật khẩu mới phải có ít nhất 6 ký tự")
+        }
+
+        let cleanEmail = target.email
+        let compId = target.companyId.uppercased()
+
+        // 1. Cập nhật mật khẩu trên Firebase Auth
+        let updateAuthUrl = "https://identitytoolkit.googleapis.com/v1/accounts:update?key=\(apiKey)"
+        if let uUrl = URL(string: updateAuthUrl) {
+            var uReq = URLRequest(url: uUrl)
+            uReq.httpMethod = "POST"
+            uReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let uBody: [String: Any] = [
+                "idToken": currentUserIdToken,
+                "password": cleanPw,
+                "returnSecureToken": true
+            ]
+            if let bData = try? JSONSerialization.data(withJSONObject: uBody) {
+                uReq.httpBody = bData
+                _ = try? await URLSession.shared.data(for: uReq)
+            }
+        }
+
+        // 2. Cập nhật Firestore document
+        let patchUrl = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(compId)/users/\(cleanEmail)?updateMask.fieldPaths=password&updateMask.fieldPaths=newPassword&updateMask.fieldPaths=mustChangePassword&updateMask.fieldPaths=updatedAt"
+        if let pUrl = URL(string: patchUrl) {
+            let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+            let token = !currentUserIdToken.isEmpty ? currentUserIdToken : (await ensureGuestToken() ?? "")
+            var pReq = URLRequest(url: pUrl)
+            pReq.httpMethod = "PATCH"
+            pReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            pReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            pReq.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
+            let patchBody: [String: Any] = [
+                "fields": [
+                    "password": ["stringValue": cleanPw],
+                    "newPassword": ["stringValue": cleanPw],
+                    "mustChangePassword": ["booleanValue": false],
+                    "updatedAt": ["integerValue": "\(nowMs)"]
+                ]
+            ]
+            if let pbData = try? JSONSerialization.data(withJSONObject: patchBody) {
+                pReq.httpBody = pbData
+                _ = try? await URLSession.shared.data(for: pReq)
+            }
+        }
+
+        await MainActor.run {
+            self.mustChangePasswordUser = nil
+            self.isLoggedIn = true
+        }
+        await self.loadUserProfile()
+        await self.loadDevices()
+        await self.loadTickets()
+        await MainActor.run { self.startRealtimePolling() }
+
+        return (true, "Đổi mật khẩu thành công! Chào mừng bạn.")
+    }
+
+    func cancelForceChangePassword() {
+        self.mustChangePasswordUser = nil
+        self.signOut()
+    }
+
+    // --- B2. YÊU CẦU QUÊN MẬT KHẨU (GỬI THÔNG BÁO QUẢN TRỊ & LINK RESET) ---
+    func requestForgotPassword(email: String) async -> (Bool, String) {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if cleanEmail.isEmpty || !cleanEmail.contains("@") {
+            return (false, "Vui lòng nhập địa chỉ email hợp lệ")
+        }
+
+        guard let token = await ensureGuestToken() else {
+            return (false, "Lỗi kết nối máy chủ, vui lòng thử lại sau")
+        }
+
+        let (resolvedComp, userFields) = await resolveUserCompany(cleanEmail: cleanEmail, idToken: token)
+        if resolvedComp.isEmpty || userFields == nil {
+            return (false, "Email không tồn tại trong hệ thống doanh nghiệp")
+        }
+
+        let userName = parseString(userFields!, "fullName").isEmpty ? cleanEmail : parseString(userFields!, "fullName")
+        let role = parseString(userFields!, "role").isEmpty ? "STAFF" : parseString(userFields!, "role")
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let notifId = "pwd_reset_\(nowMs)"
+
+        // Gửi thông báo đến Firestore notifications của công ty
+        let notifUrl = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(resolvedComp)/notifications/\(notifId)"
+        if let nUrl = URL(string: notifUrl) {
+            var nReq = URLRequest(url: nUrl)
+            nReq.httpMethod = "PATCH"
+            nReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            nReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            nReq.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
+            let notifBody: [String: Any] = [
+                "fields": [
+                    "id": ["stringValue": notifId],
+                    "title": ["stringValue": "🔑 Yêu cầu đặt lại mật khẩu: \(cleanEmail)"],
+                    "message": ["stringValue": "Người dùng \(cleanEmail) (\(userName)) yêu cầu cấp lại mật khẩu. Vui lòng kiểm tra và đặt lại mật khẩu cho nhân sự này."],
+                    "senderEmail": ["stringValue": cleanEmail],
+                    "senderName": ["stringValue": userName],
+                    "senderRole": ["stringValue": role],
+                    "companyId": ["stringValue": resolvedComp],
+                    "timestamp": ["integerValue": "\(nowMs)"],
+                    "readBy": ["arrayValue": ["values": []]]
+                ]
+            ]
+            if let nbData = try? JSONSerialization.data(withJSONObject: notifBody) {
+                nReq.httpBody = nbData
+                _ = try? await URLSession.shared.data(for: nReq)
+            }
+        }
+
+        // Gửi link reset password Firebase Auth
+        _ = await resetPassword(email: cleanEmail)
+
+        return (true, "Yêu cầu khôi phục mật khẩu đã được gửi đến Quản trị viên và HelpDesk. Vui lòng chờ xử lý và kiểm tra thông báo/email.")
     }
 
     // --- B2. ĐẶT LẠI MẬT KHẨU (PASSWORD RESET) ---
@@ -1608,6 +1862,112 @@ class FirebaseService: ObservableObject {
             }
         } catch {}
         return false
+    }
+
+    // --- J2. ĐỔI MẬT KHẨU TÀI KHOẢN (FIREBASE AUTH + FIRESTORE) ---
+    func changeUserPassword(oldPassword: String, newPassword: String) async -> (success: Bool, error: String?) {
+        let cleanOld = oldPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanNew = newPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanEmail = currentUserEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        if cleanOld.isEmpty {
+            return (false, "Vui lòng nhập mật khẩu hiện tại!")
+        }
+        if cleanNew.count < 6 {
+            return (false, "Mật khẩu mới phải có ít nhất 6 ký tự!")
+        }
+        if cleanEmail.isEmpty {
+            return (false, "Không tìm thấy thông tin email tài khoản!")
+        }
+
+        // 1. Xác thực lại mật khẩu hiện tại qua Firebase Auth REST API
+        let verifyEndpoint = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=\(apiKey)"
+        guard let verifyUrl = URL(string: verifyEndpoint) else {
+            return (false, "Lỗi kết nối máy chủ xác thực!")
+        }
+
+        var verifyReq = URLRequest(url: verifyUrl)
+        verifyReq.httpMethod = "POST"
+        verifyReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let verifyBody: [String: Any] = [
+            "email": cleanEmail,
+            "password": cleanOld,
+            "returnSecureToken": true
+        ]
+
+        var validToken = currentUserIdToken
+        do {
+            verifyReq.httpBody = try JSONSerialization.data(withJSONObject: verifyBody)
+            let (vData, vRes) = try await URLSession.shared.data(for: verifyReq)
+            guard let vHttp = vRes as? HTTPURLResponse, vHttp.statusCode == 200,
+                  let vJson = try? JSONSerialization.jsonObject(with: vData) as? [String: Any],
+                  let token = vJson["idToken"] as? String else {
+                return (false, "Mật khẩu hiện tại không chính xác!")
+            }
+            validToken = token
+            await MainActor.run {
+                self.currentUserIdToken = token
+            }
+        } catch {
+            return (false, "Lỗi xác thực: \(error.localizedDescription)")
+        }
+
+        // 2. Cập nhật mật khẩu mới trên Firebase Auth
+        let updateAuthUrl = "https://identitytoolkit.googleapis.com/v1/accounts:update?key=\(apiKey)"
+        if let uUrl = URL(string: updateAuthUrl) {
+            var uReq = URLRequest(url: uUrl)
+            uReq.httpMethod = "POST"
+            uReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let uBody: [String: Any] = [
+                "idToken": validToken,
+                "password": cleanNew,
+                "returnSecureToken": true
+            ]
+            do {
+                uReq.httpBody = try JSONSerialization.data(withJSONObject: uBody)
+                let (uData, uRes) = try await URLSession.shared.data(for: uReq)
+                if let uHttp = uRes as? HTTPURLResponse, uHttp.statusCode != 200 {
+                    if let errJson = try? JSONSerialization.jsonObject(with: uData) as? [String: Any],
+                       let errObj = errJson["error"] as? [String: Any],
+                       let errMsg = errObj["message"] as? String {
+                        if errMsg.contains("WEAK_PASSWORD") {
+                            return (false, "Mật khẩu quá yếu! Vui lòng chọn mật khẩu an toàn hơn.")
+                        }
+                    }
+                    return (false, "Không thể cập nhật mật khẩu trên hệ thống xác thực!")
+                }
+            } catch {
+                return (false, "Lỗi cập nhật mật khẩu Auth: \(error.localizedDescription)")
+            }
+        }
+
+        // 3. Cập nhật mật khẩu trong Firestore
+        let patchUrl = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=password&updateMask.fieldPaths=newPassword&updateMask.fieldPaths=mustChangePassword&updateMask.fieldPaths=updatedAt"
+        if let pUrl = URL(string: patchUrl) {
+            let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+            var pReq = URLRequest(url: pUrl)
+            pReq.httpMethod = "PATCH"
+            pReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            pReq.setValue("Bearer \(validToken)", forHTTPHeaderField: "Authorization")
+            pReq.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
+            let patchBody: [String: Any] = [
+                "fields": [
+                    "password": ["stringValue": cleanNew],
+                    "newPassword": ["stringValue": cleanNew],
+                    "mustChangePassword": ["booleanValue": false],
+                    "updatedAt": ["integerValue": "\(nowMs)"]
+                ]
+            ]
+            if let pbData = try? JSONSerialization.data(withJSONObject: patchBody) {
+                pReq.httpBody = pbData
+                _ = try? await URLSession.shared.data(for: pReq)
+            }
+        }
+
+        // 4. Cập nhật bộ nhớ cục bộ
+        UserDefaults.standard.set(cleanNew, forKey: "cache_password")
+        return (true, nil)
     }
 
     // --- K. PHÁT NHỊP TIM HIỆN DIỆN ONLINE (PRESENCE MONITOR) ---
@@ -3389,95 +3749,357 @@ struct AppLogoImage: View {
     }
 }
 
-// MARK: - 4.2. SHEET QUÊN MẬT KHẨU
-struct ForgotPasswordSheet: View {
+// MARK: - 4.2. SHEET / DIALOG QUÊN MẬT KHẨU (CHUẨN 100% ANDROID ForgotPasswordDialog)
+struct ForgotPasswordDialog: View {
     @EnvironmentObject var firebase: FirebaseService
     @Binding var isPresented: Bool
+    var initialEmail: String = ""
     @State private var emailInput: String = ""
     @State private var isSending: Bool = false
-    @State private var message: String? = nil
+    @State private var resultMsg: String? = nil
     @State private var isSuccess: Bool = false
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                Text("Nhập email tài khoản để nhận liên kết đặt lại mật khẩu từ hệ thống Saigon Co.op.")
-                    .font(.system(size: 14))
-                    .foregroundColor(Color.appTextSecondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 16)
-                    .padding(.horizontal, 16)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.appSecondaryDarkBlue.opacity(0.1))
+                                .frame(width: 48, height: 48)
+                            Image(systemName: "key.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                        }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Email đã đăng ký")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Color.appTextPrimary)
-
-                    HStack {
-                        Image(systemName: "envelope.fill")
-                            .foregroundColor(Color.appSecondaryDarkBlue)
-                            .frame(width: 20)
-                        TextField("Nhập email đã đăng ký", text: $emailInput)
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                            .disableAutocorrection(true)
-                            .font(.system(size: 14))
-                            .foregroundColor(Color.appTextPrimary)
-                            .tint(Color.appSecondaryDarkBlue)
-                    }
-                    .padding(12)
-                    .background(Color.appBackground)
-                    .cornerRadius(10)
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
-                }
-                .padding(.horizontal, 16)
-
-                if let msg = message {
-                    Text(msg)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(isSuccess ? Color.statusInUse : Color.statusBroken)
-                        .padding(.horizontal, 16)
-                }
-
-                Button(action: {
-                    let clean = emailInput.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !clean.isEmpty else { return }
-                    isSending = true
-                    Task {
-                        let ok = await firebase.resetPassword(email: clean)
-                        isSending = false
-                        isSuccess = ok
-                        message = ok ? "✅ Đã gửi liên kết đặt lại mật khẩu! Vui lòng kiểm tra hộp thư." : "❌ Không tìm thấy tài khoản hoặc lỗi kết nối."
-                    }
-                }) {
-                    HStack {
-                        if isSending {
-                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        } else {
-                            Text("Gửi liên kết đặt lại mật khẩu")
-                                .font(.system(size: 15, weight: .bold))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Quên mật khẩu")
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(Color.appTextPrimary)
+                            Text("Khôi phục quyền truy cập hệ thống")
+                                .font(.system(size: 12.5))
+                                .foregroundColor(Color.appTextSecondary)
                         }
                     }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .background(Color.appSecondaryDarkBlue)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-                }
-                .disabled(isSending || emailInput.isEmpty)
-                .padding(.horizontal, 16)
+                    .padding(.top, 8)
 
-                Spacer()
+                    Text("Nhập địa chỉ email tài khoản của bạn để gửi yêu cầu cấp lại mật khẩu đến Quản trị viên và HelpDesk:")
+                        .font(.system(size: 13.5))
+                        .foregroundColor(Color.appTextSecondary)
+                        .lineSpacing(3)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Email tài khoản (*)")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(Color.appTextPrimary)
+
+                        HStack(spacing: 10) {
+                            Image(systemName: "envelope.fill")
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .frame(width: 20)
+                            TextField("Nhập địa chỉ email của bạn", text: $emailInput)
+                                .keyboardType(.emailAddress)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.appTextPrimary)
+                                .tint(Color.appSecondaryDarkBlue)
+                                .onChange(of: emailInput) { _ in
+                                    resultMsg = nil
+                                }
+                        }
+                        .padding(13)
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1.2))
+                    }
+
+                    if let msg = resultMsg {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: isSuccess ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                .foregroundColor(isSuccess ? Color(hex: "#15803D") : Color(hex: "#DC2626"))
+                                .font(.system(size: 15))
+                            Text(msg)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(isSuccess ? Color(hex: "#15803D") : Color(hex: "#DC2626"))
+                                .lineSpacing(2)
+                            Spacer()
+                        }
+                        .padding(12)
+                        .background(isSuccess ? Color(hex: "#DCFCE7") : Color(hex: "#FEE2E2"))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(isSuccess ? Color(hex: "#86EFAC") : Color(hex: "#FECACA"), lineWidth: 1)
+                        )
+                    }
+
+                    Button(action: {
+                        let clean = emailInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !clean.isEmpty, clean.contains("@") else {
+                            isSuccess = false
+                            resultMsg = "Vui lòng nhập Email hợp lệ"
+                            return
+                        }
+                        isSending = true
+                        resultMsg = nil
+                        Task {
+                            let (ok, msg) = await firebase.requestForgotPassword(email: clean)
+                            isSending = false
+                            isSuccess = ok
+                            resultMsg = msg
+                        }
+                    }) {
+                        HStack(spacing: 8) {
+                            if isSending {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            } else {
+                                Image(systemName: "paperplane.fill")
+                                    .font(.system(size: 15, weight: .bold))
+                                Text("Gửi yêu cầu")
+                                    .font(.system(size: 16, weight: .bold))
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(Color.appSecondaryDarkBlue)
+                        .cornerRadius(12)
+                    }
+                    .disabled(isSending || emailInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .padding(.top, 4)
+
+                    Spacer(minLength: 20)
+                }
+                .padding(20)
             }
+            .background(Color.appBackground.ignoresSafeArea())
             .navigationTitle("Quên mật khẩu")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Đóng") { isPresented = false }
+                    Button("Đóng") {
+                        if !isSending { isPresented = false }
+                    }
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .disabled(isSending)
+                }
+            }
+            .onAppear {
+                if !initialEmail.isEmpty && emailInput.isEmpty {
+                    emailInput = initialEmail
                 }
             }
         }
         .navigationViewStyle(.stack)
+    }
+}
+
+// MARK: - 4.25. HỘP THOẠI BẮT BUỘC ĐỔI MẬT KHẨU TẠM (CHUẨN 100% ANDROID ForceChangePasswordDialog)
+struct ForceChangePasswordDialog: View {
+    @EnvironmentObject var firebase: FirebaseService
+    let email: String
+    @State private var newPassword: String = ""
+    @State private var confirmPassword: String = ""
+    @State private var isNewPassVisible: Bool = false
+    @State private var isConfirmPassVisible: Bool = false
+    @State private var isSubmitting: Bool = false
+    @State private var errorMessage: String? = nil
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.65).ignoresSafeArea()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Header
+                    HStack(spacing: 10) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.appSecondaryDarkBlue.opacity(0.1))
+                                .frame(width: 44, height: 44)
+                            Image(systemName: "lock.shield.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                        }
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Yêu cầu đổi mật khẩu")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(Color.appTextPrimary)
+                            Text("Tài khoản yêu cầu bảo mật")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color.appTextSecondary)
+                        }
+                    }
+
+                    // Amber Alert Banner
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(Color(hex: "#D97706"))
+                            .font(.system(size: 15))
+                            .padding(.top, 1)
+
+                        Text("⚠️ Tài khoản của bạn (\(email)) đang dùng mật khẩu tạm do Quản trị viên cấp. Vui lòng thiết lập mật khẩu mới của bạn để tiếp tục.")
+                            .font(.system(size: 12.5, weight: .medium))
+                            .foregroundColor(Color(hex: "#92400E"))
+                            .lineSpacing(2)
+                    }
+                    .padding(12)
+                    .background(Color(hex: "#FFFBEB"))
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#FDE68A"), lineWidth: 1))
+
+                    if let err = errorMessage {
+                        HStack(alignment: .top, spacing: 8) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .foregroundColor(Color(hex: "#DC2626"))
+                            Text(err)
+                                .font(.system(size: 12.5, weight: .medium))
+                                .foregroundColor(Color(hex: "#DC2626"))
+                        }
+                        .padding(10)
+                        .background(Color(hex: "#FEE2E2"))
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#FECACA"), lineWidth: 1))
+                    }
+
+                    // Field 1: Mật khẩu mới
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Mật khẩu mới (*)")
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundColor(Color.appTextPrimary)
+
+                        HStack {
+                            Image(systemName: "lock.fill")
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .frame(width: 20)
+
+                            if isNewPassVisible {
+                                TextField("Tối thiểu 6 ký tự", text: $newPassword)
+                                    .font(.system(size: 14))
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+                            } else {
+                                SecureField("Tối thiểu 6 ký tự", text: $newPassword)
+                                    .font(.system(size: 14))
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+                            }
+
+                            Button(action: { isNewPassVisible.toggle() }) {
+                                Image(systemName: isNewPassVisible ? "eye.fill" : "eye.slash.fill")
+                                    .foregroundColor(Color.appTextMuted)
+                            }
+                        }
+                        .padding(12)
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                    }
+
+                    // Field 2: Xác nhận mật khẩu mới
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text("Xác nhận mật khẩu mới (*)")
+                            .font(.system(size: 12.5, weight: .semibold))
+                            .foregroundColor(Color.appTextPrimary)
+
+                        HStack {
+                            Image(systemName: "lock.fill")
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .frame(width: 20)
+
+                            if isConfirmPassVisible {
+                                TextField("Nhập lại mật khẩu mới", text: $confirmPassword)
+                                    .font(.system(size: 14))
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+                            } else {
+                                SecureField("Nhập lại mật khẩu mới", text: $confirmPassword)
+                                    .font(.system(size: 14))
+                                    .autocapitalization(.none)
+                                    .disableAutocorrection(true)
+                            }
+
+                            Button(action: { isConfirmPassVisible.toggle() }) {
+                                Image(systemName: isConfirmPassVisible ? "eye.fill" : "eye.slash.fill")
+                                    .foregroundColor(Color.appTextMuted)
+                            }
+                        }
+                        .padding(12)
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                    }
+
+                    // Action buttons
+                    HStack(spacing: 10) {
+                        Button(action: {
+                            firebase.cancelForceChangePassword()
+                        }) {
+                            Text("Hủy")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(Color.appTextSecondary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 46)
+                                .background(Color(hex: "#F1F5F9"))
+                                .cornerRadius(10)
+                        }
+                        .disabled(isSubmitting)
+
+                        Button(action: {
+                            let cleanNew = newPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let cleanConfirm = confirmPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                            if cleanNew.count < 6 {
+                                errorMessage = "Mật khẩu mới phải có ít nhất 6 ký tự"
+                                return
+                            }
+                            if cleanNew != cleanConfirm {
+                                errorMessage = "Xác nhận mật khẩu mới không khớp"
+                                return
+                            }
+
+                            isSubmitting = true
+                            errorMessage = nil
+                            Task {
+                                let (ok, msg) = await firebase.submitForceChangePassword(newPassword: cleanNew)
+                                isSubmitting = false
+                                if !ok {
+                                    errorMessage = msg
+                                }
+                            }
+                        }) {
+                            HStack {
+                                if isSubmitting {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                } else {
+                                    Text("Đổi & Đăng nhập")
+                                        .font(.system(size: 14, weight: .bold))
+                                }
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 46)
+                            .background(Color.appSecondaryDarkBlue)
+                            .cornerRadius(10)
+                        }
+                        .disabled(isSubmitting || newPassword.isEmpty || confirmPassword.isEmpty)
+                    }
+                    .padding(.top, 6)
+                }
+                .padding(22)
+                .background(Color.white)
+                .cornerRadius(20)
+                .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 40)
+            }
+        }
     }
 }
 
@@ -3492,10 +4114,10 @@ struct HelpInstructionSheet: View {
                     HStack(spacing: 12) {
                         AppLogoImage(size: 56)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Quản Lý Thiết Bị")
+                            Text("IT Service & Assets")
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(Color.appSecondaryDarkBlue)
-                            Text("Hệ thống quản lý tài sản & điều phối KTV")
+                            Text("Hệ thống Dịch vụ IT & Quản lý tài sản")
                                 .font(.system(size: 12))
                                 .foregroundColor(Color.appTextSecondary)
                         }
@@ -6239,7 +6861,7 @@ struct PaywallView: View {
     }
 }
 
-// MARK: - 5. LOGIN VIEW (Màn hình Đăng nhập Co.opmart)
+// MARK: - 5. LOGIN VIEW (Màn hình Đăng nhập Quản Lý Thiết Bị - Chuẩn 1:1 Android)
 struct LoginScreenView: View {
     @EnvironmentObject var firebase: FirebaseService
     @State private var emailInput: String = ""
@@ -6250,250 +6872,308 @@ struct LoginScreenView: View {
     @State private var showJoinCompanySheet: Bool = false
     @State private var showHelpSheet: Bool = false
 
+    // Dynamic icon cho trường Email / SĐT chuẩn Android
+    private var inputLeadingIcon: String {
+        let trimmed = emailInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.contains("@") {
+            return "envelope.fill"
+        } else if !trimmed.isEmpty && trimmed.allSatisfy({ "0123456789+ .-".contains($0) }) {
+            let digitCount = trimmed.filter { "0123456789".contains($0) }.count
+            if digitCount >= 8 && digitCount <= 12 {
+                return "phone.fill"
+            }
+            return "person.fill"
+        } else if !trimmed.isEmpty {
+            return "person.fill"
+        } else {
+            return "person.crop.circle.fill"
+        }
+    }
+
+    private func performLogin() {
+        guard !emailInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !passInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !firebase.isAuthenticating else { return }
+
+        // Dismiss keyboard
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+
+        Task {
+            _ = await firebase.signIn(email: emailInput, pass: passInput)
+        }
+    }
+
     var body: some View {
         ZStack {
-            Color.appBackground.ignoresSafeArea()
+            // 1. IT Support Workflow Background Image
+            if let bgImg = UIImage(named: "bg_login_workflow") {
+                Image(uiImage: bgImg)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
+                    .clipped()
+                    .ignoresSafeArea()
+            } else {
+                Color(hex: "#0F172A").ignoresSafeArea()
+            }
 
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Top Bar with Language Selector
-                    HStack {
-                        Spacer()
-                        HStack(spacing: 5) {
-                            Text("🇻🇳")
-                            Text("Tiếng Việt")
+            // 2. Subtle Dark Gradient Overlay (Chuẩn 100% Android Brush.verticalGradient)
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(hex: "#0F172A").opacity(0.35),
+                    Color(hex: "#1E293B").opacity(0.68)
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+
+            // 3. Nội dung chính có ScrollView & Dismiss Keyboard khi bấm ra ngoài
+            VStack(spacing: 0) {
+                // Top Bar with Language Selector (Góc trên bên phải)
+                HStack {
+                    Spacer()
+                    Menu {
+                        Button(action: { firebase.currentLanguage = "vi" }) {
+                            Label("Tiếng Việt (VN)", systemImage: firebase.currentLanguage == "vi" ? "checkmark" : "")
+                        }
+                        Button(action: { firebase.currentLanguage = "en" }) {
+                            Label("English (US)", systemImage: firebase.currentLanguage == "en" ? "checkmark" : "")
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(firebase.currentLanguage == "vi" ? "🇻🇳" : "🇬🇧")
+                                .font(.system(size: 13.5))
+                            Text(firebase.currentLanguage == "vi" ? "Tiếng Việt" : "English")
                                 .font(.system(size: 12.5, weight: .semibold))
                                 .foregroundColor(Color.appSecondaryDarkBlue)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.white)
-                        .cornerRadius(20)
-                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.appCardBorder, lineWidth: 1))
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
-
-                    Spacer(minLength: 16)
-
-                    // Main Card matching Android 1:1
-                    VStack(spacing: 0) {
-                        // 1. Logo
-                        AppLogoImage(size: 115)
-                            .padding(.top, 8)
-                            .padding(.bottom, 12)
-
-                        // 2. Title & Subtitle
-                        Text("Quản Lý Thiết Bị")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
-
-                        Text("Quản lý thiết bị & tài sản doanh nghiệp")
-                            .font(.system(size: 13))
-                            .foregroundColor(Color.appTextSecondary)
-                            .padding(.top, 4)
-
-                        // 3. Version badge
-                        HStack(spacing: 4) {
-                            Text("Phiên bản v1.0.0 (Build 1)")
-                                .font(.system(size: 11.5, weight: .semibold))
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 10, weight: .bold))
                                 .foregroundColor(Color.appTextSecondary)
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 3)
-                        .background(Color(hex: "#F1F5F9"))
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
-                        .padding(.top, 8)
-                        .padding(.bottom, 22)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(Color.white.opacity(0.95))
+                        .cornerRadius(20)
+                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 2)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
 
-                        // 4. Input Fields
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Email hoặc Số điện thoại")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 16)
 
-                            HStack {
-                                Image(systemName: emailInput.contains("@") ? "envelope.fill" : "person.crop.circle.fill")
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .frame(width: 22)
+                        // 4. Central Elevated Card (Bo góc 24pt, Elevation shadow chuẩn Android)
+                        VStack(spacing: 0) {
+                            // 4.1. Header App Logo
+                            AppLogoImage(size: 110)
+                                .padding(.top, 6)
+                                .padding(.bottom, 12)
 
-                                TextField("Nhập email hoặc số điện thoại", text: $emailInput)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(Color.appTextPrimary)
-                                    .tint(Color.appSecondaryDarkBlue)
-                                    .autocapitalization(.none)
-                                    .disableAutocorrection(true)
+                            // 4.2. Title & Subtitle
+                            Text("IT Service & Assets")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+
+                            Text("Dịch vụ IT & Quản lý thiết bị")
+                                .font(.system(size: 13))
+                                .foregroundColor(Color.appTextSecondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.top, 4)
+
+                            // 4.3. Version badge
+                            HStack(spacing: 4) {
+                                Text("Phiên bản v1.2.0 (Build 120)")
+                                    .font(.system(size: 11.5, weight: .semibold))
+                                    .foregroundColor(Color.appTextSecondary)
                             }
-                            .padding(12)
-                            .background(Color.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 3.5)
+                            .background(Color(hex: "#F1F5F9"))
                             .cornerRadius(12)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
-                        .padding(.bottom, 14)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                            .padding(.top, 8)
+                            .padding(.bottom, 22)
 
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Mật khẩu")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Color.appTextPrimary)
+                            // 4.4. Input Email hoặc Số điện thoại
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Email, SĐT hoặc Mã NV")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(Color.appTextPrimary)
 
-                            HStack {
-                                Image(systemName: "lock.fill")
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .frame(width: 22)
+                                HStack(spacing: 10) {
+                                    Image(systemName: inputLeadingIcon)
+                                        .foregroundColor(Color.appSecondaryDarkBlue)
+                                        .frame(width: 22)
 
-                                if isPasswordVisible {
-                                    TextField("Nhập mật khẩu", text: $passInput)
+                                    TextField("Nhập email, số điện thoại hoặc mã NV", text: $emailInput)
                                         .font(.system(size: 14))
                                         .foregroundColor(Color.appTextPrimary)
                                         .tint(Color.appSecondaryDarkBlue)
                                         .autocapitalization(.none)
                                         .disableAutocorrection(true)
-                                } else {
-                                    SecureField("Nhập mật khẩu", text: $passInput)
+                                        .keyboardType(.emailAddress)
+                                        .submitLabel(.next)
+                                        .onChange(of: emailInput) { _ in
+                                            firebase.authError = nil
+                                        }
+                                }
+                                .padding(12)
+                                .background(Color.white)
+                                .cornerRadius(12)
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1.2))
+                            }
+                            .padding(.bottom, 14)
+
+                            // 4.5. Input Mật khẩu
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Mật khẩu")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundColor(Color.appTextPrimary)
+
+                                HStack(spacing: 10) {
+                                    Image(systemName: "lock.fill")
+                                        .foregroundColor(Color.appSecondaryDarkBlue)
+                                        .frame(width: 22)
+
+                                    if isPasswordVisible {
+                                        TextField("Nhập mật khẩu", text: $passInput)
+                                            .font(.system(size: 14))
+                                            .foregroundColor(Color.appTextPrimary)
+                                            .tint(Color.appSecondaryDarkBlue)
+                                            .autocapitalization(.none)
+                                            .disableAutocorrection(true)
+                                            .submitLabel(.done)
+                                            .onSubmit { performLogin() }
+                                            .onChange(of: passInput) { _ in
+                                                firebase.authError = nil
+                                            }
+                                    } else {
+                                        SecureField("Nhập mật khẩu", text: $passInput)
+                                            .font(.system(size: 14))
+                                            .foregroundColor(Color.appTextPrimary)
+                                            .tint(Color.appSecondaryDarkBlue)
+                                            .autocapitalization(.none)
+                                            .disableAutocorrection(true)
+                                            .submitLabel(.done)
+                                            .onSubmit { performLogin() }
+                                            .onChange(of: passInput) { _ in
+                                                firebase.authError = nil
+                                            }
+                                    }
+
+                                    Button(action: { isPasswordVisible.toggle() }) {
+                                        Image(systemName: isPasswordVisible ? "eye.fill" : "eye.slash.fill")
+                                            .foregroundColor(Color.appTextMuted)
+                                    }
+                                }
+                                .padding(12)
+                                .background(Color.white)
+                                .cornerRadius(12)
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1.2))
+                            }
+
+                            // 4.6. Quên mật khẩu link
+                            HStack {
+                                Spacer()
+                                Button("Quên mật khẩu?") {
+                                    showForgotSheet = true
+                                }
+                                .font(.system(size: 12.5, weight: .semibold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .padding(.top, 6)
+                            }
+                            .padding(.bottom, 8)
+
+                            // 4.7. Error Banner (Chuẩn Android Error Text Container)
+                            if let err = firebase.authError {
+                                HStack(alignment: .top, spacing: 8) {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .foregroundColor(Color(hex: "#DC2626"))
                                         .font(.system(size: 14))
-                                        .foregroundColor(Color.appTextPrimary)
-                                        .tint(Color.appSecondaryDarkBlue)
-                                }
+                                        .padding(.top, 1)
 
-                                Button(action: { isPasswordVisible.toggle() }) {
-                                    Image(systemName: isPasswordVisible ? "eye.fill" : "eye.slash.fill")
-                                        .foregroundColor(Color.appTextMuted)
-                                }
-                            }
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(12)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1.2))
-                        }
+                                    Text(err)
+                                        .font(.system(size: 12.5, weight: .medium))
+                                        .foregroundColor(Color(hex: "#DC2626"))
+                                        .lineSpacing(2)
 
-                        // Quên mật khẩu link
-                        HStack {
-                            Spacer()
-                            Button("Quên mật khẩu?") {
-                                showForgotSheet = true
+                                    Spacer()
+                                }
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(hex: "#FEE2E2"))
+                                .cornerRadius(10)
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#FECACA"), lineWidth: 1))
+                                .padding(.bottom, 10)
                             }
-                            .font(.system(size: 12.5, weight: .semibold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
+
+                            // 4.8. Nút Đăng nhập lớn (Height 52pt chuẩn Android)
+                            Button(action: { performLogin() }) {
+                                HStack(spacing: 8) {
+                                    if firebase.isAuthenticating {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    } else {
+                                        Image(systemName: "arrow.right.circle.fill")
+                                            .font(.system(size: 18, weight: .bold))
+                                        Text("Đăng nhập")
+                                            .font(.system(size: 16, weight: .bold))
+                                    }
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(Color.appSecondaryDarkBlue)
+                                .cornerRadius(12)
+                            }
+                            .disabled(firebase.isAuthenticating || emailInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || passInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                             .padding(.top, 6)
-                        }
-                        .padding(.bottom, 8)
+                            .padding(.bottom, 18)
 
-                        // Error message
-                        if let err = firebase.authError {
-                            HStack(alignment: .top, spacing: 8) {
-                                Image(systemName: "exclamationmark.circle.fill")
-                                    .foregroundColor(.white)
-                                Text(err)
-                                    .font(.system(size: 12.5, weight: .medium))
-                                    .foregroundColor(.white)
-                            }
-                            .padding(10)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.statusBroken)
-                            .cornerRadius(10)
-                            .padding(.bottom, 10)
-                        }
-
-                        // 5. Nút Đăng nhập
-                        Button(action: {
-                            Task {
-                                _ = await firebase.signIn(email: emailInput, pass: passInput)
-                            }
-                        }) {
-                            HStack(spacing: 8) {
-                                if firebase.isAuthenticating {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Image(systemName: "arrow.right.circle.fill")
-                                        .font(.system(size: 17, weight: .bold))
-                                    Text("Đăng nhập")
-                                        .font(.system(size: 16, weight: .bold))
-                                }
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Color.appSecondaryDarkBlue)
-                            .cornerRadius(12)
-                        }
-                        .disabled(firebase.isAuthenticating || emailInput.isEmpty || passInput.isEmpty)
-                        .padding(.top, 6)
-                        .padding(.bottom, 20)
-
-                        // 6. Lựa chọn Đăng ký
-                        VStack(spacing: 10) {
-                            Text("Chưa có tài khoản?")
-                                .font(.system(size: 12))
-                                .foregroundColor(Color.appTextSecondary)
-
-                            HStack(spacing: 8) {
-                                Button(action: {
-                                    showRegisterEnterpriseSheet = true
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "building.2.fill")
-                                            .font(.system(size: 13))
-                                        Text("Đăng ký công ty\n(Admin)")
-                                            .font(.system(size: 11, weight: .bold))
-                                            .multilineTextAlignment(.center)
-                                    }
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 44)
-                                    .background(Color.white)
-                                    .cornerRadius(10)
-                                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
-                                }
-
-                                Button(action: {
-                                    showJoinCompanySheet = true
-                                }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "person.badge.plus")
-                                            .font(.system(size: 13))
-                                        Text("Gia nhập công ty\n(Nhân viên)")
-                                            .font(.system(size: 11, weight: .bold))
-                                            .multilineTextAlignment(.center)
-                                    }
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 44)
-                                    .background(Color.white)
-                                    .cornerRadius(10)
-                                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
-                                }
-                            }
-
-                            // Trợ giúp link
+                            // 4.9. TextButton Trợ giúp & Hướng dẫn sử dụng
                             Button(action: { showHelpSheet = true }) {
                                 HStack(spacing: 6) {
                                     Image(systemName: "questionmark.circle")
-                                        .font(.system(size: 14))
+                                        .font(.system(size: 15))
                                     Text("Trợ giúp & Hướng dẫn sử dụng")
                                         .font(.system(size: 13, weight: .bold))
                                 }
                                 .foregroundColor(Color.appSecondaryDarkBlue)
-                                .padding(.top, 8)
                             }
+                            .padding(.bottom, 6)
                         }
-                    }
-                    .padding(24)
-                    .background(Color.white)
-                    .cornerRadius(24)
-                    .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
-                    .shadow(color: Color.black.opacity(0.04), radius: 10, x: 0, y: 4)
+                        .padding(22)
+                        .background(Color.white.opacity(0.96))
+                        .cornerRadius(24)
+                        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                        .shadow(color: Color.black.opacity(0.12), radius: 16, x: 0, y: 8)
+                        .frame(maxWidth: 440)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
 
-                    Spacer(minLength: 20)
+                        Spacer(minLength: 24)
+                    }
                 }
+            }
+
+            // 5. Modal Bắt buộc đổi mật khẩu tạm (ForceChangePasswordDialog)
+            if let targetUser = firebase.mustChangePasswordUser {
+                ForceChangePasswordDialog(email: targetUser.email)
+                    .environmentObject(firebase)
+                    .transition(.opacity)
+                    .zIndex(10)
             }
         }
         .preferredColorScheme(.light)
+        .onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
         .sheet(isPresented: $showForgotSheet) {
-            ForgotPasswordSheet(isPresented: $showForgotSheet)
+            ForgotPasswordDialog(isPresented: $showForgotSheet, initialEmail: emailInput.trimmingCharacters(in: .whitespacesAndNewlines))
                 .environmentObject(firebase)
         }
         .sheet(isPresented: $showHelpSheet) {
@@ -6604,7 +7284,11 @@ struct MainAppView: View {
                             onOpenAttendance: { activeSheet = .attendance },
                             onOpenShiftSchedule: { activeSheet = .shiftSchedule },
                             onOpenStatistics: { activeSheet = .statistics },
-                            onOpenPrintBarcode: { activeSheet = .printBarcode }
+                            onOpenPrintBarcode: { activeSheet = .printBarcode },
+                            onOpenAttendanceReport: { activeSheet = .attendanceReport },
+                            onOpenApproveStaff: { activeSheet = .approveStaff },
+                            onOpenSystemSettings: { activeSheet = .systemSettings },
+                            onOpenAppInfo: { activeSheet = .appInfo }
                         )
                     case 1:
                         DeviceListView(
@@ -6721,6 +7405,9 @@ struct MainAppView: View {
                         onLogout: {
                             showDrawer = false
                             showLogoutDialog = true
+                        },
+                        onClose: {
+                            withAnimation { showDrawer = false }
                         }
                     )
                     .transition(.move(edge: .leading))
@@ -6880,7 +7567,7 @@ struct BottomBarTabItem: View {
     }
 }
 
-// MARK: - 8. HOME SCREEN VIEW (Tích hợp Live Firebase)
+// MARK: - 8. HOME SCREEN VIEW (Tích hợp Live Firebase Chuẩn Android 1:1)
 struct HomeScreenView: View {
     @EnvironmentObject var firebase: FirebaseService
 
@@ -6892,12 +7579,22 @@ struct HomeScreenView: View {
     let onScanQr: () -> Void
     let onAddDevice: () -> Void
     var onOpenAttendance: (() -> Void)? = nil
+    var onOpenAttendanceReport: (() -> Void)? = nil
     var onOpenShiftSchedule: (() -> Void)? = nil
     var onOpenStatistics: (() -> Void)? = nil
     var onOpenPrintBarcode: (() -> Void)? = nil
+    var onOpenApproveStaff: (() -> Void)? = nil
+    var onOpenSystemSettings: (() -> Void)? = nil
+    var onOpenAppInfo: (() -> Void)? = nil
 
     @State private var showEditNameAlert: Bool = false
     @State private var showEditPhoneAlert: Bool = false
+    @State private var showChangePasswordAlert: Bool = false
+    @State private var accessRestrictedMessage: String? = nil
+
+    private var unreadNotificationCount: Int {
+        firebase.systemNotificationsList.count
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -6929,7 +7626,7 @@ struct HomeScreenView: View {
                         .frame(width: 34, height: 34)
                 }
 
-                // Chuông Thông báo
+                // Chuông Thông báo (Live Badge)
                 Button(action: onOpenNotifications) {
                     ZStack(alignment: .topTrailing) {
                         Image(systemName: "bell.fill")
@@ -6937,20 +7634,30 @@ struct HomeScreenView: View {
                             .foregroundColor(.white)
                             .frame(width: 34, height: 34)
 
-                        Circle()
-                            .fill(Color.appPrimaryPink)
-                            .frame(width: 8, height: 8)
-                            .offset(x: -4, y: 4)
+                        if unreadNotificationCount > 0 {
+                            Circle()
+                                .fill(Color.appPrimaryPink)
+                                .frame(width: 8, height: 8)
+                                .offset(x: -4, y: 4)
+                        }
                     }
                 }
 
-                // Menu 3 chấm
+                // Menu 3 chấm MoreVert
                 Menu {
+                    if firebase.isAdmin || firebase.isSuperAdmin {
+                        Button(action: { onOpenSystemSettings?() ?? onNavigateTab(3) }) {
+                            Label("Cấu hình hệ thống", systemImage: "gearshape")
+                        }
+                    }
+                    Button(action: { showChangePasswordAlert = true }) {
+                        Label("Đổi mật khẩu tài khoản", systemImage: "lock")
+                    }
                     Button(action: onOpenGuide) {
                         Label("Trợ giúp & Hướng dẫn", systemImage: "questionmark.circle")
                     }
-                    Button(action: { onNavigateTab(3) }) {
-                        Label("Cấu hình hệ thống", systemImage: "gearshape")
+                    Button(action: { onOpenAppInfo?() }) {
+                        Label("Thông tin ứng dụng", systemImage: "info.circle")
                     }
                     Divider()
                     Button(role: .destructive, action: onOpenLogout) {
@@ -6973,7 +7680,7 @@ struct HomeScreenView: View {
                 Image(systemName: "megaphone.fill")
                     .font(.system(size: 12))
                     .foregroundColor(Color(hex: "#002A8F"))
-                Text("SGCOOP: Nhắc nhở KTV hoàn tất bảo dưỡng POS siêu thị trước 17:00")
+                Text("IT Service & Assets: Hệ thống quản trị thiết bị, vận hành hỗ trợ kỹ thuật và chấm công điều phối")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(Color(hex: "#0F172A"))
                     .lineLimit(1)
@@ -6998,16 +7705,30 @@ struct HomeScreenView: View {
                         toNghiepVu: firebase.userToNghiepVu,
                         maKhuVuc: firebase.userKhuVuc,
                         avatarUrl: firebase.userAvatarUrl,
+                        isAdmin: firebase.isAdmin || firebase.isSuperAdmin,
+                        isHelpDesk: firebase.isHelpDesk,
+                        isTechnician: firebase.isTechnician,
+                        isSpecialist: firebase.isSpecialist,
+                        isManager: firebase.isManager,
                         onEditName: { showEditNameAlert = true },
-                        onEditPhone: { showEditPhoneAlert = true }
+                        onEditPhone: { showEditPhoneAlert = true },
+                        onEditPassword: { showChangePasswordAlert = true }
                     )
 
                     // 2. Hàng Thống Kê Tổng Quan (Live Firestore)
+                    let isStaff = !firebase.isAdmin && !firebase.isHelpDesk && !firebase.isManager && !firebase.isTechnician
+                    let visibleDevices = isStaff ? firebase.userFilteredDevices.count : firebase.devices.count
+                    let openTickets = firebase.userFilteredTickets.filter { $0.status == "OPEN" }.count
+
                     DashboardStatsRowView(
-                        deviceCount: firebase.userFilteredDevices.count,
-                        openTicketCount: firebase.userFilteredTickets.filter { $0.status == "OPEN" }.count,
+                        deviceCount: visibleDevices,
+                        isStaffDevice: isStaff,
+                        openTicketCount: openTickets,
+                        isAdminOrHelpDesk: firebase.isAdmin || firebase.isSuperAdmin || firebase.isHelpDesk,
+                        isTechnician: firebase.isTechnician || firebase.isSpecialist,
                         onDeviceClick: { onNavigateTab(1) },
-                        onTicketClick: { onNavigateTab(2) }
+                        onTicketClick: { onNavigateTab(2) },
+                        onAttendanceClick: { onOpenAttendance?() }
                     )
 
                     // 3. Lưới 8 Thao Tác Nhanh
@@ -7016,10 +7737,25 @@ struct HomeScreenView: View {
                         onAddDevice: onAddDevice,
                         onDeviceList: { onNavigateTab(1) },
                         onSupportHub: { onNavigateTab(2) },
-                        onAttendance: onOpenAttendance,
-                        onShiftSchedule: onOpenShiftSchedule,
+                        onAttendance: {
+                            if isStaff {
+                                accessRestrictedMessage = "Báo cáo Chấm công & Công tác phí chỉ dành cho Kỹ thuật viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
+                            } else {
+                                onOpenAttendanceReport?()
+                            }
+                        },
+                        onShiftSchedule: {
+                            if isStaff {
+                                accessRestrictedMessage = "Lịch trực và Phân ca kỹ thuật chỉ dành cho Kỹ thuật viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
+                            } else {
+                                onOpenShiftSchedule?()
+                            }
+                        },
                         onStatistics: onOpenStatistics,
-                        onPrintBarcode: onOpenPrintBarcode
+                        onPrintBarcode: onPrintBarcode,
+                        onApproveStaff: onOpenApproveStaff,
+                        pendingStaffCount: firebase.pendingStaffList.count,
+                        isManagerOrAdmin: firebase.isManagerOrAdmin
                     )
 
                     Spacer().frame(height: 80)
@@ -7030,9 +7766,25 @@ struct HomeScreenView: View {
         }
         .sheet(isPresented: $showEditNameAlert) {
             EditNameModal(isPresented: $showEditNameAlert)
+                .environmentObject(firebase)
         }
         .sheet(isPresented: $showEditPhoneAlert) {
             EditPhoneModal(isPresented: $showEditPhoneAlert)
+                .environmentObject(firebase)
+        }
+        .sheet(isPresented: $showChangePasswordAlert) {
+            ChangePasswordModal(isPresented: $showChangePasswordAlert)
+                .environmentObject(firebase)
+        }
+        .alert(isPresented: Binding<Bool>(
+            get: { accessRestrictedMessage != nil },
+            set: { if !$0 { accessRestrictedMessage = nil } }
+        )) {
+            Alert(
+                title: Text("Truy cập bị giới hạn"),
+                message: Text(accessRestrictedMessage ?? ""),
+                dismissButton: .default(Text("Đã hiểu"))
+            )
         }
     }
 }
@@ -7049,8 +7801,32 @@ struct UserProfileCardView: View {
     var toNghiepVu: String = ""
     var maKhuVuc: String = ""
     var avatarUrl: String = ""
+    var isAdmin: Bool = false
+    var isHelpDesk: Bool = false
+    var isTechnician: Bool = false
+    var isSpecialist: Bool = false
+    var isManager: Bool = false
     let onEditName: () -> Void
     let onEditPhone: () -> Void
+    var onEditPassword: (() -> Void)? = nil
+
+    private var roleBadgeTitle: String {
+        if isAdmin { return "👑 Quản trị viên" }
+        if isHelpDesk { return "🎧 HelpDesk" }
+        if isTechnician { return "🛠️ Kỹ thuật viên" }
+        if isSpecialist { return "💻 Chuyên viên" }
+        if isManager { return "🏛️ Quản lý phòng" }
+        return "👤 Nhân viên"
+    }
+
+    private var roleBadgeColor: Color {
+        if isAdmin { return Color.appPrimaryPink }
+        if isHelpDesk { return Color(hex: "#0284C7") }
+        if isTechnician { return Color(hex: "#16A34A") }
+        if isSpecialist { return Color(hex: "#7E22CE") }
+        if isManager { return Color.appSecondaryDarkBlue }
+        return Color(hex: "#475569")
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -7076,7 +7852,7 @@ struct UserProfileCardView: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
-                        Text(userName)
+                        Text(userName.isEmpty ? userEmail.components(separatedBy: "@").first ?? "Người dùng" : userName)
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(Color.appSecondaryDarkBlue)
                             .lineLimit(1)
@@ -7089,12 +7865,12 @@ struct UserProfileCardView: View {
 
                         Spacer()
 
-                        Text(userRole)
+                        Text(roleBadgeTitle)
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
+                            .foregroundColor(roleBadgeColor)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(Color.appSecondaryDarkBlue.opacity(0.12))
+                            .background(roleBadgeColor.opacity(0.12))
                             .cornerRadius(6)
                     }
 
@@ -7115,19 +7891,45 @@ struct UserProfileCardView: View {
                         }
                     }
 
-                    HStack(spacing: 4) {
-                        Image(systemName: "phone.fill")
-                            .font(.system(size: 11))
-                            .foregroundColor(Color.appPrimaryPink)
-
-                        Text(userPhone.isEmpty ? "Chưa có SĐT" : userPhone)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(userPhone.isEmpty ? Color.appTextMuted : Color.appTextPrimary)
-
-                        Button(action: onEditPhone) {
-                            Image(systemName: "pencil")
+                    HStack(spacing: 6) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "phone.fill")
                                 .font(.system(size: 11))
                                 .foregroundColor(Color.appPrimaryPink)
+
+                            Text(userPhone.isEmpty ? "Chưa có SĐT" : userPhone)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(userPhone.isEmpty ? Color.appTextMuted : Color.appTextPrimary)
+
+                            Button(action: onEditPhone) {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Color.appPrimaryPink)
+                            }
+                        }
+
+                        Spacer()
+
+                        // Nút Đổi mật khẩu tài khoản trực tiếp trên thẻ profile (Chuẩn Android)
+                        if let onEditPass = onEditPassword {
+                            Button(action: onEditPass) {
+                                HStack(spacing: 3) {
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 10))
+                                    Text("Đổi mật khẩu")
+                                        .font(.system(size: 10.5, weight: .bold))
+                                }
+                                .foregroundColor(Color(hex: "#1D4ED8"))
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3.5)
+                                .background(Color(hex: "#EFF6FF"))
+                                .cornerRadius(6)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(Color(hex: "#BFDBFE"), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                 }
@@ -7168,22 +7970,35 @@ struct UserProfileCardView: View {
             Divider().background(Color.appCardBorder)
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text("🏛️")
-                        .font(.system(size: 13))
-                    Text(userDept)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color.appTextSecondary)
-                        .lineLimit(1)
-                }
+                if isAdmin {
+                    HStack(spacing: 6) {
+                        Text("🏢")
+                            .font(.system(size: 13))
+                        Text(userDonVi.isEmpty ? "Toàn hệ thống Doanh nghiệp" : userDonVi)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(Color.appTextPrimary)
+                            .lineLimit(1)
+                    }
+                } else {
+                    if !userDept.isEmpty {
+                        HStack(spacing: 6) {
+                            Text("🏛️")
+                                .font(.system(size: 13))
+                            Text("Phòng: \(userDept)")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(Color.appTextSecondary)
+                                .lineLimit(1)
+                        }
+                    }
 
-                HStack(spacing: 6) {
-                    Text("🏬")
-                        .font(.system(size: 13))
-                    Text(userDonVi)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color.appTextPrimary)
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text("🏬")
+                            .font(.system(size: 13))
+                        Text("Đơn vị: \(userDonVi.isEmpty ? "Chưa gán" : userDonVi)")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(Color.appTextPrimary)
+                            .lineLimit(1)
+                    }
                 }
             }
         }
@@ -7209,7 +8024,7 @@ struct UserProfileCardView: View {
                 )
                 .frame(width: 64, height: 64)
 
-            Text(getInitials(name: userName))
+            Text(getInitials(name: userName.isEmpty ? userEmail : userName))
                 .font(.system(size: 22, weight: .bold))
                 .foregroundColor(.white)
         }
@@ -7218,7 +8033,7 @@ struct UserProfileCardView: View {
     private func getInitials(name: String) -> String {
         let parts = name.split(separator: " ")
         if let last = parts.last, let firstChar = last.first {
-            return String(firstChar)
+            return String(firstChar).uppercased()
         }
         return "S"
     }
@@ -7227,9 +8042,23 @@ struct UserProfileCardView: View {
 // MARK: - 10. DASHBOARD STATS ROW
 struct DashboardStatsRowView: View {
     let deviceCount: Int
+    var isStaffDevice: Bool = false
     let openTicketCount: Int
+    var isAdminOrHelpDesk: Bool = false
+    var isTechnician: Bool = false
     let onDeviceClick: () -> Void
     let onTicketClick: () -> Void
+    var onAttendanceClick: (() -> Void)? = nil
+
+    private var ticketSubtitle: String {
+        if isAdminOrHelpDesk {
+            return openTicketCount > 0 ? "Tổng cần xử lý" : "Đang ổn định"
+        } else if isTechnician {
+            return openTicketCount > 0 ? "Ca của tôi" : "Đã hoàn thành"
+        } else {
+            return openTicketCount > 0 ? "Yêu cầu của tôi" : "Không có sự cố"
+        }
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -7237,7 +8066,7 @@ struct DashboardStatsRowView: View {
                 StatsCardItem(
                     title: "Thiết bị",
                     count: "\(deviceCount)",
-                    subtitle: "Tổng Firestore",
+                    subtitle: isStaffDevice ? "Của tôi" : "Tổng quản lý",
                     icon: "laptopcomputer",
                     accentColor: Color(hex: "#2563EB"),
                     bgColor: Color(hex: "#EFF6FF")
@@ -7249,7 +8078,7 @@ struct DashboardStatsRowView: View {
                 StatsCardItem(
                     title: "Sự cố mở",
                     count: "\(openTicketCount)",
-                    subtitle: openTicketCount > 0 ? "Cần xử lý ngay" : "Đang ổn định",
+                    subtitle: ticketSubtitle,
                     icon: openTicketCount > 0 ? "exclamationmark.triangle.fill" : "checkmark.seal.fill",
                     accentColor: openTicketCount > 0 ? Color(hex: "#DC2626") : Color(hex: "#16A34A"),
                     bgColor: openTicketCount > 0 ? Color(hex: "#FEF2F2") : Color(hex: "#F0FDF4")
@@ -7257,7 +8086,7 @@ struct DashboardStatsRowView: View {
             }
             .buttonStyle(PlainButtonStyle())
 
-            Button(action: {}) {
+            Button(action: { onAttendanceClick?() }) {
                 StatsCardItem(
                     title: "Điểm danh",
                     count: "GPS",
@@ -7322,7 +8151,7 @@ struct StatsCardItem: View {
     }
 }
 
-// MARK: - 11. QUICK ACCESS SECTION
+// MARK: - 11. QUICK ACCESS SECTION (8 Phím tắt chuẩn Android)
 struct QuickAccessSectionView: View {
     let onScanQr: () -> Void
     let onAddDevice: () -> Void
@@ -7332,6 +8161,9 @@ struct QuickAccessSectionView: View {
     var onShiftSchedule: (() -> Void)? = nil
     var onStatistics: (() -> Void)? = nil
     var onPrintBarcode: (() -> Void)? = nil
+    var onApproveStaff: (() -> Void)? = nil
+    var pendingStaffCount: Int = 0
+    var isManagerOrAdmin: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -7345,18 +8177,38 @@ struct QuickAccessSectionView: View {
                     .foregroundColor(Color.appTextMuted)
             }
 
+            // HÀNG 1: Quét QR | Thêm TB | Thiết bị | Hỗ trợ
             HStack(spacing: 10) {
                 QuickCardItem(title: "Quét QR", icon: "qrcode.viewfinder", color: Color(hex: "#E11D48"), bgColor: Color(hex: "#FFE4E6"), action: onScanQr)
                 QuickCardItem(title: "Thêm TB", icon: "plus.app.fill", color: Color(hex: "#2563EB"), bgColor: Color(hex: "#DBEAFE"), action: onAddDevice)
                 QuickCardItem(title: "Thiết bị", icon: "laptopcomputer", color: Color(hex: "#0D9488"), bgColor: Color(hex: "#CCFBF1"), action: onDeviceList)
-                QuickCardItem(title: "Hỗ trợ", icon: "person.crop.circle.badge.questionmark.fill", color: Color(hex: "#EA580C"), bgColor: Color(hex: "#FFEDD5"), action: onSupportHub)
+                QuickCardItem(title: "Hỗ trợ", icon: "headphones", color: Color(hex: "#EA580C"), bgColor: Color(hex: "#FFEDD5"), action: onSupportHub)
             }
 
+            // HÀNG 2: Chấm công | Phân ca | Thống kê | Duyệt NV / In tem
             HStack(spacing: 10) {
-                QuickCardItem(title: "Chấm công", icon: "clock.fill", color: Color(hex: "#059669"), bgColor: Color(hex: "#D1FAE5"), action: { onAttendance?() })
+                QuickCardItem(title: "Chấm công", icon: "doc.text.magnifyingglass", color: Color(hex: "#059669"), bgColor: Color(hex: "#D1FAE5"), action: { onAttendance?() })
                 QuickCardItem(title: "Phân ca", icon: "calendar.badge.clock", color: Color(hex: "#7C3AED"), bgColor: Color(hex: "#EDE9FE"), action: { onShiftSchedule?() })
                 QuickCardItem(title: "Thống kê", icon: "chart.bar.fill", color: Color(hex: "#D97706"), bgColor: Color(hex: "#FEF3C7"), action: { onStatistics?() })
-                QuickCardItem(title: "In tem", icon: "printer.fill", color: Color(hex: "#4F46E5"), bgColor: Color(hex: "#EEF2FF"), action: { onPrintBarcode?() })
+
+                if isManagerOrAdmin && pendingStaffCount > 0 {
+                    QuickCardItem(
+                        title: "Duyệt NV",
+                        icon: "person.crop.circle.badge.checkmark",
+                        color: Color(hex: "#DB2777"),
+                        bgColor: Color(hex: "#FCE7F3"),
+                        badgeCount: pendingStaffCount,
+                        action: { onApproveStaff?() }
+                    )
+                } else {
+                    QuickCardItem(
+                        title: "In tem QR",
+                        icon: "printer.fill",
+                        color: Color(hex: "#4F46E5"),
+                        bgColor: Color(hex: "#EEF2FF"),
+                        action: { onPrintBarcode?() }
+                    )
+                }
             }
         }
     }
@@ -7367,12 +8219,13 @@ struct QuickCardItem: View {
     let icon: String
     let color: Color
     let bgColor: Color
+    var badgeCount: Int = 0
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                ZStack {
+                ZStack(alignment: .topTrailing) {
                     RoundedRectangle(cornerRadius: 12)
                         .fill(bgColor)
                         .frame(width: 44, height: 44)
@@ -7380,6 +8233,17 @@ struct QuickCardItem: View {
                     Image(systemName: icon)
                         .font(.system(size: 20))
                         .foregroundColor(color)
+                        .frame(width: 44, height: 44)
+
+                    if badgeCount > 0 {
+                        Text(badgeCount > 99 ? "99+" : "\(badgeCount)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.appPrimaryPink))
+                            .offset(x: 6, y: -6)
+                    }
                 }
 
                 Text(title)
@@ -8412,76 +9276,103 @@ struct SettingsInfoRow: View {
     }
 }
 
-// MARK: - 15. APP SIDEBAR DRAWER
+// MARK: - 15. APP SIDEBAR DRAWER (Chuẩn Android 1:1)
 struct AppSidebarDrawer: View {
     @EnvironmentObject var firebase: FirebaseService
 
     let onSelectRoute: (String) -> Void
     let onLogout: () -> Void
+    var onClose: (() -> Void)? = nil
 
     @State private var isDeviceExpanded: Bool = true
     @State private var isPersonnelExpanded: Bool = true
     @State private var isAttendanceExpanded: Bool = true
     @State private var isSystemExpanded: Bool = false
 
+    private var roleBadgeText: String {
+        if firebase.isSuperAdmin { return "👑 Quản trị viên" }
+        if firebase.isAdmin { return "👑 Quản trị viên" }
+        if firebase.isHelpDesk { return "🎧 HelpDesk" }
+        if firebase.isTechnician { return "🛠️ Kỹ thuật viên" }
+        if firebase.isSpecialist { return "💻 Chuyên viên" }
+        if firebase.isManager { return "🏛️ Quản lý phòng" }
+        return "👤 Nhân viên"
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header Công ty & Hồ sơ
+            // Header Công ty & Hồ sơ Cá nhân
             drawerHeader
 
-            // Scrollable Menu
+            // Scrollable Menu Items
             ScrollView {
                 VStack(spacing: 4) {
-                    DrawerItem(title: "Trang chủ", icon: "house.fill", iconColor: Color(hex: "#0284C7"), action: { onSelectRoute("home") })
+                    // --- ĐIỀU HƯỚNG CHÍNH ---
+                    DrawerItem(
+                        title: "Trang chủ",
+                        icon: "house.fill",
+                        iconColor: Color(hex: "#0284C7"),
+                        action: { onSelectRoute("home") }
+                    )
 
                     let openTickets = firebase.userFilteredTickets.filter { $0.status == "OPEN" }.count
-                    DrawerItem(title: "Hỗ trợ kỹ thuật", icon: "headphones", iconColor: Color.appPrimaryPink, badgeCount: openTickets, action: { onSelectRoute("support") })
+                    DrawerItem(
+                        title: "Hỗ trợ kỹ thuật",
+                        icon: "headphones",
+                        iconColor: Color.appPrimaryPink,
+                        badgeCount: openTickets,
+                        action: { onSelectRoute("support") }
+                    )
 
-                    // Section 1: Quản lý thiết bị
+                    // --- QUẢN LÝ THIẾT BỊ ---
                     drawerSectionHeader(title: "QUẢN LÝ THIẾT BỊ", color: Color(hex: "#059669"), isExpanded: $isDeviceExpanded)
                     if isDeviceExpanded {
                         DrawerItem(title: "Danh sách thiết bị", icon: "laptopcomputer", iconColor: Color(hex: "#10B981"), action: { onSelectRoute("devices") })
-                        DrawerItem(title: "Quản lý nâng cao (Gom nhóm)", icon: "square.stack.3d.up.fill", iconColor: Color(hex: "#059669"), action: { onSelectRoute("devices_full") })
                         DrawerItem(title: "Thêm thiết bị mới", icon: "plus.app.fill", iconColor: Color(hex: "#8B5CF6"), action: { onSelectRoute("add_device") })
                         DrawerItem(title: "Danh mục loại thiết bị", icon: "square.grid.2x2.fill", iconColor: Color(hex: "#0EA5E9"), action: { onSelectRoute("device_types") })
                         DrawerItem(title: "In ấn & Tem nhãn QR", icon: "printer.fill", iconColor: Color(hex: "#A855F7"), action: { onSelectRoute("printscreen") })
                         DrawerItem(title: "Thống kê thiết bị", icon: "chart.bar.xaxis", iconColor: Color(hex: "#14B8A6"), action: { onSelectRoute("thongke") })
                     }
 
-                    // Section 2: Quản lý nhân sự & Tổ chức (Admin / Quản lý)
+                    // --- QUẢN LÝ NHÂN SỰ & TỔ CHỨC ---
                     if firebase.isManagerOrAdmin {
                         drawerSectionHeader(title: "QUẢN LÝ NHÂN SỰ & TỔ CHỨC", color: Color(hex: "#6366F1"), isExpanded: $isPersonnelExpanded)
                         if isPersonnelExpanded {
                             DrawerItem(title: "Quản lý người dùng", icon: "person.2.fill", iconColor: Color(hex: "#3B82F6"), action: { onSelectRoute("user_mgmt") })
                             DrawerItem(title: "Duyệt nhân viên mới", icon: "person.crop.circle.badge.checkmark", iconColor: Color(hex: "#10B981"), badgeCount: firebase.pendingStaffList.count, action: { onSelectRoute("approve_staff") })
                             DrawerItem(title: "Quản lý phòng ban", icon: "building.2.fill", iconColor: Color(hex: "#818CF8"), action: { onSelectRoute("department_manager") })
-                            DrawerItem(title: "Quản lý tổ nghiệp vụ", icon: "briefcase.fill", iconColor: Color(hex: "#0D9488"), action: { onSelectRoute("specialist_team_manager") })
                             DrawerItem(title: "Quản lý đơn vị", icon: "building.columns.fill", iconColor: Color(hex: "#6366F1"), action: { onSelectRoute("unit_manager") })
-                            DrawerItem(title: "Quản lý khu vực", icon: "map.fill", iconColor: Color(hex: "#F59E0B"), action: { onSelectRoute("region_manager") })
+                            if firebase.isAdmin || firebase.isHelpDesk {
+                                DrawerItem(title: "Quản lý khu vực", icon: "map.fill", iconColor: Color(hex: "#F59E0B"), action: { onSelectRoute("region_manager") })
+                                DrawerItem(title: "Quản lý tổ nghiệp vụ", icon: "briefcase.fill", iconColor: Color(hex: "#0D9488"), action: { onSelectRoute("specialist_team_manager") })
+                            }
                         }
                     }
 
-                    // Section 3: Chấm công & Điều phối
-                    drawerSectionHeader(title: "CHẤM CÔNG & ĐIỀU PHỐI", color: Color(hex: "#F97316"), isExpanded: $isAttendanceExpanded)
-                    if isAttendanceExpanded {
-                        DrawerItem(title: "Điểm danh Chấm công GPS", icon: "location.circle.fill", iconColor: Color(hex: "#06B6D4"), action: { onSelectRoute("attendance_checkin") })
-                        DrawerItem(title: "Báo cáo công & OSRM", icon: "doc.text.magnifyingglass", iconColor: Color(hex: "#FB923C"), action: { onSelectRoute("attendance_report") })
-                        DrawerItem(title: "Lịch trực & Phân ca", icon: "calendar.badge.clock", iconColor: Color(hex: "#8B5CF6"), action: { onSelectRoute("shift_schedule") })
-                        DrawerItem(title: "Theo dõi KTV Online", icon: "antenna.radiowaves.left.and.right", iconColor: Color(hex: "#10B981"), action: { onSelectRoute("online_ktv_monitor") })
-                        DrawerItem(title: "Đánh giá chất lượng CSAT & SLA", icon: "star.bubble.fill", iconColor: Color(hex: "#F59E0B"), action: { onSelectRoute("support_rating_report") })
+                    // --- CHẤM CÔNG & ĐIỀU PHỐI (KTV, CHUYÊN VIÊN, QUẢN LÝ, ADMIN) ---
+                    if firebase.isManagerOrAdmin || firebase.isTechnician || firebase.isSpecialist {
+                        drawerSectionHeader(title: "CHẤM CÔNG & ĐIỀU PHỐI", color: Color(hex: "#F97316"), isExpanded: $isAttendanceExpanded)
+                        if isAttendanceExpanded {
+                            DrawerItem(title: "Điểm danh Chấm công GPS", icon: "location.circle.fill", iconColor: Color(hex: "#06B6D4"), action: { onSelectRoute("attendance_checkin") })
+                            let attendanceTitle = ((firebase.isTechnician || firebase.isSpecialist) && !firebase.isManagerOrAdmin) ? "Báo cáo chấm công của tôi" : "Báo cáo công & OSRM"
+                            DrawerItem(title: attendanceTitle, icon: "doc.text.magnifyingglass", iconColor: Color(hex: "#FB923C"), action: { onSelectRoute("attendance_report") })
+                            DrawerItem(title: "Lịch trực & Phân ca", icon: "calendar.badge.clock", iconColor: Color(hex: "#8B5CF6"), action: { onSelectRoute("shift_schedule") })
+                            DrawerItem(title: "Theo dõi KTV Online", icon: "antenna.radiowaves.left.and.right", iconColor: Color(hex: "#10B981"), action: { onSelectRoute("online_ktv_monitor") })
+                            DrawerItem(title: "Đánh giá chất lượng CSAT & SLA", icon: "star.bubble.fill", iconColor: Color(hex: "#F59E0B"), action: { onSelectRoute("support_rating_report") })
+                        }
                     }
 
-                    // Section 4: Hệ thống & Cài đặt
+                    // --- HỆ THỐNG & BẢN QUYỀN ---
                     drawerSectionHeader(title: "HỆ THỐNG & BẢN QUYỀN", color: Color(hex: "#64748B"), isExpanded: $isSystemExpanded)
                     if isSystemExpanded {
                         DrawerItem(title: "Cài đặt máy in / máy quét", icon: "gearshape.2.fill", iconColor: Color(hex: "#64748B"), action: { onSelectRoute("cai_dat_scanner") })
-                        DrawerItem(title: "Thông báo hệ thống", icon: "bell.badge.fill", iconColor: Color(hex: "#475569"), action: { onSelectRoute("system_notifications") })
+                        DrawerItem(title: "Thông báo hệ thống", icon: "bell.badge.fill", iconColor: Color(hex: "#475569"), badgeCount: firebase.systemNotificationsList.count, action: { onSelectRoute("system_notifications") })
                         if firebase.isAdmin || firebase.isSuperAdmin {
-                            DrawerItem(title: "Cài đặt hệ thống", icon: "slider.horizontal.3", iconColor: Color(hex: "#0284C7"), action: { onSelectRoute("system_settings") })
+                            DrawerItem(title: "Cấu hình hệ thống", icon: "slider.horizontal.3", iconColor: Color(hex: "#0284C7"), action: { onSelectRoute("system_settings") })
                         }
                         DrawerItem(title: "Gói cước & Bản quyền", icon: "crown.fill", iconColor: Color(hex: "#F59E0B"), action: { onSelectRoute("paywall") })
                         DrawerItem(title: "Cẩm nang trợ giúp", icon: "questionmark.circle.fill", iconColor: Color(hex: "#FBBF24"), action: { onSelectRoute("help") })
-                        DrawerItem(title: "Về ứng dụng", icon: "info.circle.fill", iconColor: Color(hex: "#6366F1"), action: { onSelectRoute("app_info") })
+                        DrawerItem(title: "Thông tin ứng dụng", icon: "info.circle.fill", iconColor: Color(hex: "#64748B"), action: { onSelectRoute("app_info") })
                     }
 
                     Spacer().frame(height: 20)
@@ -8490,7 +9381,7 @@ struct AppSidebarDrawer: View {
                 .padding(.vertical, 8)
             }
 
-            // Footer Đăng xuất
+            // Footer Đăng xuất & Phiên bản
             drawerFooter
         }
         .frame(width: 320)
@@ -8504,14 +9395,26 @@ struct AppSidebarDrawer: View {
                 AppLogoImage(size: 40)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("SAIGON CO.OP")
-                        .font(.system(size: 15, weight: .bold))
+                    let compDisplayName = (!firebase.companyName.isEmpty && firebase.companyName != "Quản lý thiết bị & tài sản doanh nghiệp") ? firebase.companyName : "IT Service & Assets"
+                    Text(compDisplayName)
+                        .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white)
-                    Text("Mã DN: \(firebase.companyId)")
+                        .lineLimit(2)
+                    let compCode = firebase.companyId.isEmpty ? "SYSTEM" : firebase.companyId
+                    Text("Mã DN: \(compCode)")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Color(hex: "#93C5FD"))
                 }
                 Spacer()
+
+                if let closeAction = onClose {
+                    Button(action: closeAction) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(.white.opacity(0.8))
+                            .frame(width: 30, height: 30)
+                    }
+                }
             }
 
             Divider().background(Color.white.opacity(0.15))
@@ -8521,13 +9424,13 @@ struct AppSidebarDrawer: View {
                     Circle()
                         .fill(Color.appPrimaryPink)
                         .frame(width: 42, height: 42)
-                    let initial = String(firebase.userName.trimmingCharacters(in: .whitespaces).prefix(1)).uppercased()
+                    let initial = String((firebase.userName.isEmpty ? firebase.currentUserEmail : firebase.userName).trimmingCharacters(in: .whitespaces).prefix(1)).uppercased()
                     Text(initial.isEmpty ? "U" : initial)
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
                 }
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(firebase.userName)
+                    Text(firebase.userName.isEmpty ? (firebase.currentUserEmail.components(separatedBy: "@").first ?? "Người dùng") : firebase.userName)
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white)
                         .lineLimit(1)
@@ -8535,7 +9438,7 @@ struct AppSidebarDrawer: View {
                         .font(.system(size: 11))
                         .foregroundColor(Color(hex: "#CBD5E1"))
                         .lineLimit(1)
-                    Text(firebase.userRole)
+                    Text(roleBadgeText)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundColor(Color(hex: "#FDE68A"))
                 }
@@ -10166,6 +11069,162 @@ struct EditPhoneModal: View {
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(Color.appPrimaryPink)
                     .disabled(isSaving)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - CHANGE PASSWORD MODAL (Chuẩn Android HomeScreen.kt)
+struct ChangePasswordModal: View {
+    @EnvironmentObject var firebase: FirebaseService
+    @Binding var isPresented: Bool
+
+    @State private var oldPassword = ""
+    @State private var newPassword = ""
+    @State private var confirmPassword = ""
+    @State private var isOldPassVisible = false
+    @State private var isNewPassVisible = false
+    @State private var isConfirmPassVisible = false
+    @State private var isSubmitting = false
+    @State private var errorMessage: String? = nil
+    @State private var showSuccessAlert = false
+
+    var body: some View {
+        NavigationView {
+            Form {
+                if let err = errorMessage {
+                    Section {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(Color(hex: "#DC2626"))
+                            Text(err)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(Color(hex: "#B91C1C"))
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+
+                Section(header: Text("MẬT KHẨU HIỆN TẠI")) {
+                    HStack {
+                        if isOldPassVisible {
+                            TextField("Nhập mật khẩu hiện tại", text: $oldPassword)
+                                .textContentType(.password)
+                        } else {
+                            SecureField("Nhập mật khẩu hiện tại", text: $oldPassword)
+                                .textContentType(.password)
+                        }
+                        Button(action: { isOldPassVisible.toggle() }) {
+                            Image(systemName: isOldPassVisible ? "eye.slash.fill" : "eye.fill")
+                                .foregroundColor(Color.gray)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+
+                Section(header: Text("MẬT KHẨU MỚI (TỐI THIỂU 6 KÝ TỰ)")) {
+                    HStack {
+                        if isNewPassVisible {
+                            TextField("Nhập mật khẩu mới", text: $newPassword)
+                                .textContentType(.newPassword)
+                        } else {
+                            SecureField("Nhập mật khẩu mới", text: $newPassword)
+                                .textContentType(.newPassword)
+                        }
+                        Button(action: { isNewPassVisible.toggle() }) {
+                            Image(systemName: isNewPassVisible ? "eye.slash.fill" : "eye.fill")
+                                .foregroundColor(Color.gray)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+
+                    HStack {
+                        if isConfirmPassVisible {
+                            TextField("Xác nhận lại mật khẩu mới", text: $confirmPassword)
+                                .textContentType(.newPassword)
+                        } else {
+                            SecureField("Xác nhận lại mật khẩu mới", text: $confirmPassword)
+                                .textContentType(.newPassword)
+                        }
+                        Button(action: { isConfirmPassVisible.toggle() }) {
+                            Image(systemName: isConfirmPassVisible ? "eye.slash.fill" : "eye.fill")
+                                .foregroundColor(Color.gray)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+
+                Section {
+                    Button(action: handleChangePassword) {
+                        HStack {
+                            Spacer()
+                            if isSubmitting {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .padding(.trailing, 6)
+                            }
+                            Text(isSubmitting ? "Đang cập nhật..." : "Xác nhận đổi mật khẩu")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(.white)
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                        .background(Color.appPrimaryPink)
+                        .cornerRadius(10)
+                    }
+                    .listRowInsets(EdgeInsets())
+                    .disabled(isSubmitting || oldPassword.isEmpty || newPassword.count < 6 || newPassword != confirmPassword)
+                }
+            }
+            .navigationTitle("Đổi Mật Khẩu")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Hủy") { isPresented = false }
+                        .disabled(isSubmitting)
+                }
+            }
+            .alert(isPresented: $showSuccessAlert) {
+                Alert(
+                    title: Text("Thành công"),
+                    message: Text("✅ Mật khẩu tài khoản của bạn đã được cập nhật thành công!"),
+                    dismissButton: .default(Text("Đóng")) {
+                        isPresented = false
+                    }
+                )
+            }
+        }
+    }
+
+    private func handleChangePassword() {
+        errorMessage = nil
+        let cleanOld = oldPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanNew = newPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanConfirm = confirmPassword.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if cleanOld.isEmpty {
+            errorMessage = "Vui lòng nhập mật khẩu hiện tại!"
+            return
+        }
+        if cleanNew.count < 6 {
+            errorMessage = "Mật khẩu mới phải có ít nhất 6 ký tự!"
+            return
+        }
+        if cleanNew != cleanConfirm {
+            errorMessage = "Mật khẩu xác nhận không khớp với mật khẩu mới!"
+            return
+        }
+
+        isSubmitting = true
+        Task {
+            let res = await firebase.changeUserPassword(oldPassword: cleanOld, newPassword: cleanNew)
+            await MainActor.run {
+                isSubmitting = false
+                if res.success {
+                    showSuccessAlert = true
+                } else {
+                    errorMessage = res.error ?? "Đổi mật khẩu thất bại. Vui lòng thử lại!"
                 }
             }
         }

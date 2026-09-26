@@ -7,6 +7,31 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		220010002C12345600000001 /* MainContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000002C12345600000001 /* MainContainerView.swift */; };
+		220010012C12345600000001 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000012C12345600000001 /* AppColors.swift */; };
+		220010022C12345600000001 /* UserModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000022C12345600000001 /* UserModels.swift */; };
+		220010032C12345600000001 /* DeviceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000032C12345600000001 /* DeviceModels.swift */; };
+		220010042C12345600000001 /* TicketModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000042C12345600000001 /* TicketModels.swift */; };
+		220010052C12345600000001 /* AttendanceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000052C12345600000001 /* AttendanceModels.swift */; };
+		220010062C12345600000001 /* ShiftModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000062C12345600000001 /* ShiftModels.swift */; };
+		220010072C12345600000001 /* OrganizationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000072C12345600000001 /* OrganizationModels.swift */; };
+		220010082C12345600000001 /* FirebaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000082C12345600000001 /* FirebaseConfig.swift */; };
+		220010092C12345600000001 /* FirestoreHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000092C12345600000001 /* FirestoreHelper.swift */; };
+		220010102C12345600000001 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000102C12345600000001 /* AuthService.swift */; };
+		220010112C12345600000001 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000112C12345600000001 /* AuthViewModel.swift */; };
+		220010122C12345600000001 /* HomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000122C12345600000001 /* HomeViewModel.swift */; };
+		220010132C12345600000001 /* DeviceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000132C12345600000001 /* DeviceViewModel.swift */; };
+		220010142C12345600000001 /* SupportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000142C12345600000001 /* SupportViewModel.swift */; };
+		220010152C12345600000001 /* AttendanceViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000152C12345600000001 /* AttendanceViewModel.swift */; };
+		220010162C12345600000001 /* ShiftViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000162C12345600000001 /* ShiftViewModel.swift */; };
+		220010172C12345600000001 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000172C12345600000001 /* LoginView.swift */; };
+		220010182C12345600000001 /* AppSidebarDrawer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000182C12345600000001 /* AppSidebarDrawer.swift */; };
+		220010192C12345600000001 /* HomeScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000192C12345600000001 /* HomeScreenView.swift */; };
+		220010202C12345600000001 /* DeviceListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000202C12345600000001 /* DeviceListView.swift */; };
+		220010212C12345600000001 /* SupportHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000212C12345600000001 /* SupportHubView.swift */; };
+		220010222C12345600000001 /* TicketChatDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000222C12345600000001 /* TicketChatDetailView.swift */; };
+		220010232C12345600000001 /* AttendanceCheckInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000232C12345600000001 /* AttendanceCheckInView.swift */; };
+		220010242C12345600000001 /* ShiftScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000242C12345600000001 /* ShiftScheduleView.swift */; };
 		110000152C12345600000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 110000162C12345600000001 /* Assets.xcassets */; };
 		110000012C12345600000001 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000022C12345600000001 /* iOSApp.swift */; };
 		110000032C12345600000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000042C12345600000001 /* ContentView.swift */; };
@@ -39,6 +64,31 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		220000002C12345600000001 /* MainContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App/MainContainerView.swift"; sourceTree = "<group>"; };
+		220000012C12345600000001 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Theme/AppColors.swift"; sourceTree = "<group>"; };
+		220000022C12345600000001 /* UserModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Models/UserModels.swift"; sourceTree = "<group>"; };
+		220000032C12345600000001 /* DeviceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Models/DeviceModels.swift"; sourceTree = "<group>"; };
+		220000042C12345600000001 /* TicketModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Models/TicketModels.swift"; sourceTree = "<group>"; };
+		220000052C12345600000001 /* AttendanceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Models/AttendanceModels.swift"; sourceTree = "<group>"; };
+		220000062C12345600000001 /* ShiftModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Models/ShiftModels.swift"; sourceTree = "<group>"; };
+		220000072C12345600000001 /* OrganizationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Models/OrganizationModels.swift"; sourceTree = "<group>"; };
+		220000082C12345600000001 /* FirebaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/FirebaseConfig.swift"; sourceTree = "<group>"; };
+		220000092C12345600000001 /* FirestoreHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/FirestoreHelper.swift"; sourceTree = "<group>"; };
+		220000102C12345600000001 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Services/AuthService.swift"; sourceTree = "<group>"; };
+		220000112C12345600000001 /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewModels/AuthViewModel.swift"; sourceTree = "<group>"; };
+		220000122C12345600000001 /* HomeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewModels/HomeViewModel.swift"; sourceTree = "<group>"; };
+		220000132C12345600000001 /* DeviceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewModels/DeviceViewModel.swift"; sourceTree = "<group>"; };
+		220000142C12345600000001 /* SupportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewModels/SupportViewModel.swift"; sourceTree = "<group>"; };
+		220000152C12345600000001 /* AttendanceViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewModels/AttendanceViewModel.swift"; sourceTree = "<group>"; };
+		220000162C12345600000001 /* ShiftViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ViewModels/ShiftViewModel.swift"; sourceTree = "<group>"; };
+		220000172C12345600000001 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Screens/Auth/LoginView.swift"; sourceTree = "<group>"; };
+		220000182C12345600000001 /* AppSidebarDrawer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Screens/Home/AppSidebarDrawer.swift"; sourceTree = "<group>"; };
+		220000192C12345600000001 /* HomeScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Screens/Home/HomeScreenView.swift"; sourceTree = "<group>"; };
+		220000202C12345600000001 /* DeviceListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Screens/Devices/DeviceListView.swift"; sourceTree = "<group>"; };
+		220000212C12345600000001 /* SupportHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Screens/Support/SupportHubView.swift"; sourceTree = "<group>"; };
+		220000222C12345600000001 /* TicketChatDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Screens/Support/TicketChatDetailView.swift"; sourceTree = "<group>"; };
+		220000232C12345600000001 /* AttendanceCheckInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Screens/Attendance/AttendanceCheckInView.swift"; sourceTree = "<group>"; };
+		220000242C12345600000001 /* ShiftScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Screens/Shift/ShiftScheduleView.swift"; sourceTree = "<group>"; };
 		110000162C12345600000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		110000052C12345600000001 /* QLTB.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QLTB.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		110000022C12345600000001 /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
@@ -94,6 +144,31 @@
 		110000092C12345600000001 /* iosApp */ = {
 			isa = PBXGroup;
 			children = (
+				220000002C12345600000001 /* MainContainerView.swift */,
+				220000012C12345600000001 /* AppColors.swift */,
+				220000022C12345600000001 /* UserModels.swift */,
+				220000032C12345600000001 /* DeviceModels.swift */,
+				220000042C12345600000001 /* TicketModels.swift */,
+				220000052C12345600000001 /* AttendanceModels.swift */,
+				220000062C12345600000001 /* ShiftModels.swift */,
+				220000072C12345600000001 /* OrganizationModels.swift */,
+				220000082C12345600000001 /* FirebaseConfig.swift */,
+				220000092C12345600000001 /* FirestoreHelper.swift */,
+				220000102C12345600000001 /* AuthService.swift */,
+				220000112C12345600000001 /* AuthViewModel.swift */,
+				220000122C12345600000001 /* HomeViewModel.swift */,
+				220000132C12345600000001 /* DeviceViewModel.swift */,
+				220000142C12345600000001 /* SupportViewModel.swift */,
+				220000152C12345600000001 /* AttendanceViewModel.swift */,
+				220000162C12345600000001 /* ShiftViewModel.swift */,
+				220000172C12345600000001 /* LoginView.swift */,
+				220000182C12345600000001 /* AppSidebarDrawer.swift */,
+				220000192C12345600000001 /* HomeScreenView.swift */,
+				220000202C12345600000001 /* DeviceListView.swift */,
+				220000212C12345600000001 /* SupportHubView.swift */,
+				220000222C12345600000001 /* TicketChatDetailView.swift */,
+				220000232C12345600000001 /* AttendanceCheckInView.swift */,
+				220000242C12345600000001 /* ShiftScheduleView.swift */,
 				110001012C12345600000001 /* AddDeviceFullView.swift */,
 				110001022C12345600000001 /* DeviceTypeManagerFullView.swift */,
 				110001032C12345600000001 /* HardwareScannerSettingsFullView.swift */,
@@ -205,6 +280,31 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				220010002C12345600000001 /* MainContainerView.swift in Sources */,
+				220010012C12345600000001 /* AppColors.swift in Sources */,
+				220010022C12345600000001 /* UserModels.swift in Sources */,
+				220010032C12345600000001 /* DeviceModels.swift in Sources */,
+				220010042C12345600000001 /* TicketModels.swift in Sources */,
+				220010052C12345600000001 /* AttendanceModels.swift in Sources */,
+				220010062C12345600000001 /* ShiftModels.swift in Sources */,
+				220010072C12345600000001 /* OrganizationModels.swift in Sources */,
+				220010082C12345600000001 /* FirebaseConfig.swift in Sources */,
+				220010092C12345600000001 /* FirestoreHelper.swift in Sources */,
+				220010102C12345600000001 /* AuthService.swift in Sources */,
+				220010112C12345600000001 /* AuthViewModel.swift in Sources */,
+				220010122C12345600000001 /* HomeViewModel.swift in Sources */,
+				220010132C12345600000001 /* DeviceViewModel.swift in Sources */,
+				220010142C12345600000001 /* SupportViewModel.swift in Sources */,
+				220010152C12345600000001 /* AttendanceViewModel.swift in Sources */,
+				220010162C12345600000001 /* ShiftViewModel.swift in Sources */,
+				220010172C12345600000001 /* LoginView.swift in Sources */,
+				220010182C12345600000001 /* AppSidebarDrawer.swift in Sources */,
+				220010192C12345600000001 /* HomeScreenView.swift in Sources */,
+				220010202C12345600000001 /* DeviceListView.swift in Sources */,
+				220010212C12345600000001 /* SupportHubView.swift in Sources */,
+				220010222C12345600000001 /* TicketChatDetailView.swift in Sources */,
+				220010232C12345600000001 /* AttendanceCheckInView.swift in Sources */,
+				220010242C12345600000001 /* ShiftScheduleView.swift in Sources */,
 				110001112C12345600000001 /* AddDeviceFullView.swift in Sources */,
 				110001122C12345600000001 /* DeviceTypeManagerFullView.swift in Sources */,
 				110001132C12345600000001 /* HardwareScannerSettingsFullView.swift in Sources */,

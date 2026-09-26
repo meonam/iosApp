@@ -34,7 +34,7 @@ struct AppInfoFullView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 20))
                             .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 4)
 
-                        Text("QLTB Pro")
+                        Text("IT Service & Assets")
                             .font(.system(size: 22, weight: .bold))
                             .foregroundColor(.appTextPrimary)
 
@@ -78,7 +78,7 @@ struct AppInfoFullView: View {
 
                     // ── Footer ───────────────────────────────────────────
                     VStack(spacing: 4) {
-                        Text("Hệ thống Quản lý Thiết bị Thông minh")
+                        Text("Hệ thống Dịch vụ IT & Quản lý Tài sản Doanh nghiệp")
                             .font(.footnote)
                             .foregroundColor(.secondary)
                         Text("Dành riêng cho hệ thống Co.opMart")
