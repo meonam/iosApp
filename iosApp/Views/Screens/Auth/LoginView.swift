@@ -75,10 +75,21 @@ public struct LoginView: View {
                                     .foregroundColor(Color.appSecondaryDarkBlue)
                                     .frame(width: 20)
 
-                                TextField("Nhập email hoặc SĐT", text: $viewModel.email)
-                                    .font(.system(size: 14))
-                                    .autocapitalization(.none)
-                                    .disableAutocorrection(true)
+                                ZStack(alignment: .leading) {
+                                    if viewModel.email.isEmpty {
+                                        Text("Nhập email hoặc SĐT")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(Color(hex: "#94A3B8"))
+                                    }
+                                    TextField("", text: $viewModel.email)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Color(hex: "#0F172A"))
+                                        .accentColor(Color.appSecondaryDarkBlue)
+                                        .autocapitalization(.none)
+                                        .disableAutocorrection(true)
+                                        .keyboardType(.emailAddress)
+                                        .textContentType(.username)
+                                }
                             }
                             .padding(12)
                             .background(Color.white)
@@ -108,12 +119,27 @@ public struct LoginView: View {
                                     .foregroundColor(Color.appSecondaryDarkBlue)
                                     .frame(width: 20)
 
-                                if viewModel.isPasswordVisible {
-                                    TextField("Nhập mật khẩu", text: $viewModel.password)
-                                        .font(.system(size: 14))
-                                } else {
-                                    SecureField("Nhập mật khẩu", text: $viewModel.password)
-                                        .font(.system(size: 14))
+                                ZStack(alignment: .leading) {
+                                    if viewModel.password.isEmpty {
+                                        Text("Nhập mật khẩu")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(Color(hex: "#94A3B8"))
+                                    }
+                                    if viewModel.isPasswordVisible {
+                                        TextField("", text: $viewModel.password)
+                                            .font(.system(size: 14))
+                                            .foregroundColor(Color(hex: "#0F172A"))
+                                            .accentColor(Color.appSecondaryDarkBlue)
+                                            .autocapitalization(.none)
+                                            .disableAutocorrection(true)
+                                            .textContentType(.password)
+                                    } else {
+                                        SecureField("", text: $viewModel.password)
+                                            .font(.system(size: 14))
+                                            .foregroundColor(Color(hex: "#0F172A"))
+                                            .accentColor(Color.appSecondaryDarkBlue)
+                                            .textContentType(.password)
+                                    }
                                 }
 
                                 Button(action: { viewModel.isPasswordVisible.toggle() }) {
@@ -218,6 +244,8 @@ public struct LoginView: View {
                 onLoginSuccess()
             }
         }
+        .environment(\.colorScheme, .light)
+        .preferredColorScheme(.light)
     }
 
     private func iconForEmailInput(_ text: String) -> String {
@@ -305,6 +333,8 @@ public struct ForgotPasswordSheet: View {
 
                 TextField("Email tài khoản", text: $email)
                     .font(.system(size: 14))
+                    .foregroundColor(Color(hex: "#0F172A"))
+                    .accentColor(Color.appSecondaryDarkBlue)
                     .padding(12)
                     .background(Color.white)
                     .cornerRadius(10)
@@ -337,6 +367,7 @@ public struct ForgotPasswordSheet: View {
                     Button("Đóng") { presentationMode.wrappedValue.dismiss() }
                 }
             }
+            .environment(\.colorScheme, .light)
         }
     }
 }
@@ -363,12 +394,18 @@ public struct ForceChangePasswordSheet: View {
                     .multilineTextAlignment(.center)
 
                 SecureField("Mật khẩu mới", text: $newPassword)
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(hex: "#0F172A"))
+                    .accentColor(Color.appSecondaryDarkBlue)
                     .padding(12)
                     .background(Color.white)
                     .cornerRadius(10)
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
 
                 SecureField("Xác nhận mật khẩu mới", text: $confirmPassword)
+                    .font(.system(size: 14))
+                    .foregroundColor(Color(hex: "#0F172A"))
+                    .accentColor(Color.appSecondaryDarkBlue)
                     .padding(12)
                     .background(Color.white)
                     .cornerRadius(10)
@@ -405,6 +442,7 @@ public struct ForceChangePasswordSheet: View {
             .padding(20)
             .navigationTitle("Đổi mật khẩu")
             .navigationBarTitleDisplayMode(.inline)
+            .environment(\.colorScheme, .light)
         }
     }
 }
