@@ -658,3 +658,199 @@ public struct HomeScreenView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
 }
+
+// MARK: - MODAL ĐỔI MẬT KHẨU TÀI KHOẢN (CHUẨN 1:1 THEO ANDROID HOMESCREEN.KT)
+public struct ChangePasswordModal: View {
+    var email: String
+    var idToken: String
+    var onDismiss: () -> Void
+
+    @State private var oldPass: String = ""
+    @State private var newPass: String = ""
+    @State private var confirmPass: String = ""
+
+    @State private var isOldPassVisible: Bool = false
+    @State private var isNewPassVisible: Bool = false
+    @State private var isConfirmPassVisible: Bool = false
+
+    @State private var isLoading: Bool = false
+    @State private var errorMessage: String? = nil
+    @State private var successMessage: String? = nil
+
+    public var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Cập nhật mật khẩu đăng nhập an toàn cho tài khoản của bạn:")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color.appTextSecondary)
+
+                    if let err = errorMessage {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(Color(hex: "#EF4444"))
+                            Text(err)
+                                .font(.system(size: 12))
+                                .foregroundColor(Color(hex: "#B91C1C"))
+                        }
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(hex: "#FEF2F2"))
+                        .cornerRadius(8)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#FECACA"), lineWidth: 1))
+                    }
+
+                    if let succ = successMessage {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(Color.appSuccess)
+                            Text(succ)
+                                .font(.system(size: 12))
+                                .foregroundColor(Color.appSuccess)
+                        }
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.appSuccess.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+
+                    // 1. Mật khẩu hiện tại
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Mật khẩu hiện tại *")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color.appTextSecondary)
+
+                        HStack {
+                            if isOldPassVisible {
+                                TextField("Nhập mật khẩu hiện tại", text: $oldPass)
+                            } else {
+                                SecureField("Nhập mật khẩu hiện tại", text: $oldPass)
+                            }
+
+                            Button(action: { isOldPassVisible.toggle() }) {
+                                Image(systemName: isOldPassVisible ? "eye.slash" : "eye")
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        .padding(12)
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                    }
+
+                    // 2. Mật khẩu mới
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Mật khẩu mới (tối thiểu 6 ký tự) *")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color.appTextSecondary)
+
+                        HStack {
+                            if isNewPassVisible {
+                                TextField("Nhập mật khẩu mới", text: $newPass)
+                            } else {
+                                SecureField("Nhập mật khẩu mới", text: $newPass)
+                            }
+
+                            Button(action: { isNewPassVisible.toggle() }) {
+                                Image(systemName: isNewPassVisible ? "eye.slash" : "eye")
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        .padding(12)
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                    }
+
+                    // 3. Xác nhận mật khẩu mới
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Xác nhận mật khẩu mới *")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color.appTextSecondary)
+
+                        HStack {
+                            if isConfirmPassVisible {
+                                TextField("Nhập lại mật khẩu mới", text: $confirmPass)
+                            } else {
+                                SecureField("Nhập lại mật khẩu mới", text: $confirmPass)
+                            }
+
+                            Button(action: { isConfirmPassVisible.toggle() }) {
+                                Image(systemName: isConfirmPassVisible ? "eye.slash" : "eye")
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        .padding(12)
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                    }
+
+                    // Nút xác nhận đổi
+                    Button(action: executeChangePassword) {
+                        HStack {
+                            if isLoading {
+                                ProgressView().colorInvert()
+                            } else {
+                                Text("Xác nhận đổi mật khẩu")
+                            }
+                        }
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 46)
+                        .background(Color.appPrimaryPink)
+                        .cornerRadius(10)
+                    }
+                    .disabled(isLoading)
+                    .padding(.top, 8)
+                }
+                .padding(16)
+            }
+            .navigationTitle("Đổi mật khẩu tài khoản")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Đóng", action: onDismiss)
+                }
+            }
+        }
+    }
+
+    private func executeChangePassword() {
+        let cleanOld = oldPass.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanNew = newPass.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanConfirm = confirmPass.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if cleanOld.isEmpty {
+            errorMessage = "Vui lòng nhập mật khẩu hiện tại!"
+            return
+        }
+        if cleanNew.count < 6 {
+            errorMessage = "Mật khẩu mới phải có ít nhất 6 ký tự!"
+            return
+        }
+        if cleanNew != cleanConfirm {
+            errorMessage = "Mật khẩu xác nhận không khớp với mật khẩu mới!"
+            return
+        }
+
+        isLoading = true
+        errorMessage = nil
+        successMessage = nil
+
+        Task {
+            do {
+                try await AuthService.shared.updatePassword(idToken: idToken, newPassword: cleanNew)
+                self.isLoading = false
+                self.successMessage = "✅ Đổi mật khẩu tài khoản thành công!"
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                    onDismiss()
+                }
+            } catch {
+                self.isLoading = false
+                self.errorMessage = "Lỗi: \(error.localizedDescription)"
+            }
+        }
+    }
+}
