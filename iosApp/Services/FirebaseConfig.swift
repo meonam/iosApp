@@ -1,9 +1,9 @@
 import Foundation
 
-// MARK: - FIREBASE CONFIGURATION
+// MARK: - FIREBASE CONFIGURATION (ĐỒNG BỘ 1:1 VỚI ANDROID QLTB-81F4C)
 public struct FirebaseConfig {
-    public static let projectId = "qltb-77c8e"
-    public static let apiKey = "AIzaSyCgAfxXX-3MzpT0RT5BIDiww6iDwtkADzM"
+    public static let projectId = "qltb-81f4c"
+    public static let apiKey = "AIzaSyAehFfYkaZZnaOw3zXQNxokB21D2XcUG6A"
 
     public static let firestoreBaseUrl = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents"
     public static let authSignInUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=\(apiKey)"

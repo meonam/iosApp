@@ -15,8 +15,22 @@ public struct LoginView: View {
 
     public var body: some View {
         ZStack {
-            // 1. Nền giao diện gradient nhẹ nhàng
-            Color.appBackground.ignoresSafeArea()
+            // 1. Hình nền IT Support Workflow chuẩn 1:1 Android
+            Image("bg_login_workflow")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
+
+            // Lớp phủ Gradient tối tinh tế chuẩn Android (0x440F172A -> 0x771E293B)
+            LinearGradient(
+                colors: [
+                    Color(hex: "#0F172A").opacity(0.35),
+                    Color(hex: "#1E293B").opacity(0.60)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 0) {
@@ -31,17 +45,17 @@ public struct LoginView: View {
                             .frame(width: 90, height: 90)
                             .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
 
-                        // Tiêu đề & Phiên bản
+                        // Tiêu đề & Phiên bản chuẩn 1:1 theo Android
                         VStack(spacing: 6) {
-                            Text("QLTB")
-                                .font(.system(size: 26, weight: .bold))
+                            Text("IT Service & Assets")
+                                .font(.system(size: 24, weight: .bold))
                                 .foregroundColor(Color.appSecondaryDarkBlue)
 
-                            Text("Hệ thống quản trị thiết bị & tài sản")
+                            Text("Dịch vụ IT & Quản lý thiết bị")
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(Color.appTextSecondary)
 
-                            Text("Phiên bản v1.0.0 (Build 1)")
+                            Text("Phiên bản v1.2.0 (Build 120)")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(Color.appTextSecondary)
                                 .padding(.horizontal, 10)
@@ -169,11 +183,11 @@ public struct LoginView: View {
                         .padding(.top, 4)
                     }
                     .padding(24)
-                    .background(Color.white)
-                    .cornerRadius(20)
-                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.appCardBorder, lineWidth: 1))
-                    .shadow(color: Color.black.opacity(0.06), radius: 16, x: 0, y: 8)
-                    .padding(.horizontal, 20)
+                    .background(Color.white.opacity(0.96))
+                    .cornerRadius(24)
+                    .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.appCardBorder, lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.20), radius: 18, x: 0, y: 8)
+                    .padding(.horizontal, 16)
 
                     Spacer(minLength: 40)
                 }
