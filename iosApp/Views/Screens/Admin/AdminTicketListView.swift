@@ -17,8 +17,6 @@ public struct AdminTicketListView: View {
     }
 
     private var filteredAndSortedTickets: [SupportTicket] {
-        let now = Int64(Date().timeIntervalSince1970 * 1000)
-
         // 1. Filter
         var list = viewModel.rawTickets.filter { t in
             // Status
@@ -94,127 +92,16 @@ public struct AdminTicketListView: View {
 
                 VStack(spacing: 0) {
                     // TOP BAR
-                    VStack(spacing: 0) {
-                        Color.clear.frame(height: geometry.safeAreaInsets.top)
-                        
-                        HStack(spacing: 12) {
-                            Button(action: onBack) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-
-                            Text("Quản lý Yêu cầu (\(viewModel.rawTickets.count))")
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundColor(.white)
-
-                            Spacer()
-
-                            Button(action: { viewModel.fetchTickets() }) {
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.white)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                    }
-                    .background(Color.appPrimary)
+                    topBar(geometry: geometry)
 
                     // STATS BAR
                     statsBar
 
                     // SEARCH & FILTERS
-                    VStack(spacing: 10) {
-                        // Search field
-                        HStack {
-                            Image(systemName: "magnifyingglass").foregroundColor(.gray)
-                            TextField("Tìm theo tiêu đề, người tạo...", text: $searchQuery)
-                                .font(.system(size: 14))
-                            if !searchQuery.isEmpty {
-                                Button(action: { searchQuery = "" }) {
-                                    Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
-                                }
-                            }
-                        }
-                        .padding(10)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3), lineWidth: 1))
-                        
-                        // Status Filter
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                filterChip(title: "Tất cả", value: "ALL", current: $filterStatus)
-                                filterChip(title: "Đang mở", value: "OPEN", current: $filterStatus)
-                                filterChip(title: "Chờ phân công", value: "PENDING", current: $filterStatus)
-                                filterChip(title: "Đã phân công", value: "ASSIGNED", current: $filterStatus)
-                                filterChip(title: "Đã đóng", value: "CLOSED", current: $filterStatus)
-                            }
-                        }
-
-                        // Priority & Sort
-                        HStack {
-                            Picker("Độ ưu tiên", selection: $filterPriority) {
-                                Text("Mọi ưu tiên").tag("ALL")
-                                Text("Khẩn cấp").tag("URGENT")
-                                Text("Cao").tag("HIGH")
-                                Text("Bình thường").tag("NORMAL")
-                            }
-                            .pickerStyle(MenuPickerStyle())
-                            .font(.system(size: 13))
-                            .padding(6)
-                            .background(Color.white)
-                            .cornerRadius(6)
-                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.3), lineWidth: 1))
-
-                            Spacer()
-
-                            Picker("Sắp xếp", selection: $sortOption) {
-                                Text("Mới nhất").tag("newest")
-                                Text("Cũ nhất").tag("oldest")
-                                Text("Độ ưu tiên").tag("priority")
-                                Text("Hạn xử lý (SLA)").tag("sla")
-                            }
-                            .pickerStyle(MenuPickerStyle())
-                            .font(.system(size: 13))
-                            .padding(6)
-                            .background(Color.white)
-                            .cornerRadius(6)
-                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.3), lineWidth: 1))
-                        }
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
+                    searchAndFilters
 
                     // LIST
-                    if viewModel.isLoading && viewModel.rawTickets.isEmpty {
-                        Spacer()
-                        ProgressView("Đang tải dữ liệu...")
-                        Spacer()
-                    } else if filteredAndSortedTickets.isEmpty {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Image(systemName: "tray.fill")
-                                .font(.system(size: 40))
-                                .foregroundColor(.gray.opacity(0.5))
-                            Text("Không tìm thấy yêu cầu nào.")
-                                .foregroundColor(.gray)
-                        }
-                        Spacer()
-                    } else {
-                        ScrollView {
-                            LazyVStack(spacing: 12) {
-                                ForEach(filteredAndSortedTickets) { ticket in
-                                    ticketCard(ticket)
-                                        .onTapGesture {
-                                            onTicketClick(ticket.id, ticket.subject)
-                                        }
-                                }
-                            }
-                            .padding(14)
-                        }
-                    }
+                    ticketList
                 }
             }
             .ignoresSafeArea(edges: .top)
@@ -222,6 +109,131 @@ public struct AdminTicketListView: View {
         .onAppear {
             if viewModel.rawTickets.isEmpty {
                 viewModel.fetchTickets()
+            }
+        }
+    }
+
+    private func topBar(geometry: GeometryProxy) -> some View {
+        VStack(spacing: 0) {
+            Color.clear.frame(height: geometry.safeAreaInsets.top)
+            
+            HStack(spacing: 12) {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                }
+
+                Text("Quản lý Yêu cầu (\(viewModel.rawTickets.count))")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.white)
+
+                Spacer()
+
+                Button(action: { viewModel.fetchTickets() }) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 18))
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+        }
+        .background(Color.appPrimary)
+    }
+
+    private var searchAndFilters: some View {
+        VStack(spacing: 10) {
+            // Search field
+            HStack {
+                Image(systemName: "magnifyingglass").foregroundColor(.gray)
+                TextField("Tìm theo tiêu đề, người tạo...", text: $searchQuery)
+                    .font(.system(size: 14))
+                if !searchQuery.isEmpty {
+                    Button(action: { searchQuery = "" }) {
+                        Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
+                    }
+                }
+            }
+            .padding(10)
+            .background(Color.white)
+            .cornerRadius(8)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3), lineWidth: 1))
+            
+            // Status Filter
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    filterChip(title: "Tất cả", value: "ALL", current: $filterStatus)
+                    filterChip(title: "Đang mở", value: "OPEN", current: $filterStatus)
+                    filterChip(title: "Chờ phân công", value: "PENDING", current: $filterStatus)
+                    filterChip(title: "Đã phân công", value: "ASSIGNED", current: $filterStatus)
+                    filterChip(title: "Đã đóng", value: "CLOSED", current: $filterStatus)
+                }
+            }
+
+            // Priority & Sort
+            HStack {
+                Picker("Độ ưu tiên", selection: $filterPriority) {
+                    Text("Mọi ưu tiên").tag("ALL")
+                    Text("Khẩn cấp").tag("URGENT")
+                    Text("Cao").tag("HIGH")
+                    Text("Bình thường").tag("NORMAL")
+                }
+                .pickerStyle(MenuPickerStyle())
+                .font(.system(size: 13))
+                .padding(6)
+                .background(Color.white)
+                .cornerRadius(6)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.3), lineWidth: 1))
+
+                Spacer()
+
+                Picker("Sắp xếp", selection: $sortOption) {
+                    Text("Mới nhất").tag("newest")
+                    Text("Cũ nhất").tag("oldest")
+                    Text("Độ ưu tiên").tag("priority")
+                    Text("Hạn xử lý (SLA)").tag("sla")
+                }
+                .pickerStyle(MenuPickerStyle())
+                .font(.system(size: 13))
+                .padding(6)
+                .background(Color.white)
+                .cornerRadius(6)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.3), lineWidth: 1))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    private var ticketList: some View {
+        Group {
+            if viewModel.isLoading && viewModel.rawTickets.isEmpty {
+                Spacer()
+                ProgressView("Đang tải dữ liệu...")
+                Spacer()
+            } else if filteredAndSortedTickets.isEmpty {
+                Spacer()
+                VStack(spacing: 12) {
+                    Image(systemName: "tray.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.gray.opacity(0.5))
+                    Text("Không tìm thấy yêu cầu nào.")
+                        .foregroundColor(.gray)
+                }
+                Spacer()
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(filteredAndSortedTickets) { ticket in
+                            ticketCard(ticket)
+                                .onTapGesture {
+                                    onTicketClick(ticket.id, ticket.subject)
+                                }
+                        }
+                    }
+                    .padding(14)
+                }
             }
         }
     }

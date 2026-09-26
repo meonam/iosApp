@@ -18,7 +18,7 @@ public struct AttendanceReportView: View {
             _viewModel = StateObject(wrappedValue: AttendanceViewModel(user: user, companyId: authViewModel.currentCompanyId, idToken: authViewModel.currentIdToken))
         } else {
             // Fallback for previews
-            _viewModel = StateObject(wrappedValue: AttendanceViewModel(user: User(id: "", email: "", fullName: ""), companyId: "", idToken: ""))
+            _viewModel = StateObject(wrappedValue: AttendanceViewModel(user: User(email: "", fullName: ""), companyId: "", idToken: ""))
         }
     }
     
@@ -33,37 +33,37 @@ public struct AttendanceReportView: View {
         
         // Filter by department
         if selectedDept != "Tất cả" {
-            records = records.filter { ($0.donVi ?? "") == selectedDept }
+            records = records.filter { $0.donVi == selectedDept }
         }
         
         // Filter by user
         if selectedUser != "Tất cả" {
-            records = records.filter { ($0.userName ?? "") == selectedUser }
+            records = records.filter { $0.userName == selectedUser }
         }
         
         // Search by name
         if !searchQuery.isEmpty {
-            records = records.filter { ($0.userName ?? "").lowercased().contains(searchQuery.lowercased()) }
+            records = records.filter { $0.userName.lowercased().contains(searchQuery.lowercased()) }
         }
         
         return records
     }
     
     private var groupedAttendance: [String: [AttendanceRecord]] {
-        Dictionary(grouping: filteredRecords, by: { $0.userName ?? "Unknown" })
+        Dictionary(grouping: filteredRecords, by: { $0.userName })
     }
     
     private var allDepartments: [String] {
-        let depts = viewModel.attendanceHistory.compactMap { $0.donVi }.filter { !$0.isEmpty }
+        let depts = viewModel.attendanceHistory.map { $0.donVi }.filter { !$0.isEmpty }
         return ["Tất cả"] + Array(Set(depts)).sorted()
     }
     
     private var allUsers: [String] {
         var records = viewModel.attendanceHistory
         if selectedDept != "Tất cả" {
-            records = records.filter { ($0.donVi ?? "") == selectedDept }
+            records = records.filter { $0.donVi == selectedDept }
         }
-        let users = records.compactMap { $0.userName }.filter { !$0.isEmpty }
+        let users = records.map { $0.userName }.filter { !$0.isEmpty }
         return ["Tất cả"] + Array(Set(users)).sorted()
     }
     
@@ -82,8 +82,8 @@ public struct AttendanceReportView: View {
     
     private var totalWorkHours: Double {
         filteredRecords.reduce(0.0) { total, record in
-            let checkIn = record.checkInTime ?? 0
-            let checkOut = record.checkOutTime ?? 0
+            let checkIn = record.checkInTime
+            let checkOut = record.checkOutTime
             if checkIn > 0 && checkOut > checkIn {
                 let ms = checkOut - checkIn
                 return total + Double(ms) / (1000 * 60 * 60)
@@ -283,8 +283,8 @@ public struct AttendanceReportView: View {
         let lCount = records.filter { $0.checkInStatus == "LATE" }.count
         let oCount = records.filter { $0.checkInStatus == "ON_TIME" }.count
         let tHours = records.reduce(0.0) { total, record in
-            let checkIn = record.checkInTime ?? 0
-            let checkOut = record.checkOutTime ?? 0
+            let checkIn = record.checkInTime
+            let checkOut = record.checkOutTime
             if checkIn > 0 && checkOut > checkIn {
                 return total + Double(checkOut - checkIn) / (1000 * 60 * 60)
             }
@@ -294,9 +294,9 @@ public struct AttendanceReportView: View {
         
         return DisclosureGroup {
             VStack(spacing: 0) {
-                ForEach(records.sorted(by: { ($0.date ?? "") > ($1.date ?? "") }), id: \.id) { record in
+                ForEach(records.sorted(by: { $0.date > $1.date }), id: \.id) { record in
                     HStack {
-                        Text(record.date ?? "")
+                        Text(record.date)
                             .font(.system(size: 12))
                             .foregroundColor(.gray)
                         Spacer()

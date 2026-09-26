@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct AttendanceRecord: Identifiable {
+struct AttendanceHistoryItem: Identifiable {
     let id: String
     var checkInTime: Int64
     var checkOutTime: Int64
@@ -12,7 +12,7 @@ public struct AttendanceHistoryView: View {
     @ObservedObject var authViewModel: AuthViewModel
     var onBack: () -> Void
     
-    @State private var records: [AttendanceRecord] = []
+    @State private var records: [AttendanceHistoryItem] = []
     @State private var isLoading = false
     @State private var isListView = true
     
@@ -184,19 +184,19 @@ public struct AttendanceHistoryView: View {
             if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let docs = json["documents"] as? [[String: Any]] {
-                    var loaded: [AttendanceRecord] = []
+                    var loaded: [AttendanceHistoryItem] = []
                     for doc in docs {
                         if let fields = doc["fields"] as? [String: Any] {
-                            let uId = FirestoreHelper.getString(fields, "userId")
+                            let uId = FirestoreHelper.getString(fields["userId"] as? [String: Any])
                             if uId == userId {
                                 let docName = doc["name"] as? String ?? ""
                                 let docId = docName.components(separatedBy: "/").last ?? ""
-                                let rec = AttendanceRecord(
+                                let rec = AttendanceHistoryItem(
                                     id: docId,
-                                    checkInTime: FirestoreHelper.getInt64(fields, "checkInTime"),
-                                    checkOutTime: FirestoreHelper.getInt64(fields, "checkOutTime"),
-                                    status: FirestoreHelper.getString(fields, "status"),
-                                    workDuration: FirestoreHelper.getInt(fields, "workDuration")
+                                    checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
+                                    checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
+                                    status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
+                                    workDuration: FirestoreHelper.getInt(fields["workDuration"] as? [String: Any])
                                 )
                                 loaded.append(rec)
                             }

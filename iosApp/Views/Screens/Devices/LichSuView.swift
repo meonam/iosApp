@@ -1,14 +1,6 @@
 import SwiftUI
 
-public struct LichSuThietBi: Identifiable {
-    public let id: String
-    public let ngay: String
-    public let hanhDong: String
-    public let donVi: String
-    public let moTa: String
-    public let nguoiThucHien: String
-    public let timestamp: Double
-}
+// LichSuThietBi model is defined in DeviceModels.swift
 
 public struct LichSuView: View {
     @ObservedObject var authViewModel: AuthViewModel
@@ -215,23 +207,31 @@ public struct LichSuView: View {
                         var results: [LichSuThietBi] = []
                         for doc in documents {
                             if let fields = doc["fields"] as? [String: Any] {
-                                let docThietBiId = FirestoreHelper.getString(fields, "deviceId")
+                                let docThietBiId = FirestoreHelper.getString(fields["deviceId"] as? [String: Any])
                                 if docThietBiId == thietBiId || docThietBiId.isEmpty {
                                     // Match
                                     let id = (doc["name"] as? String)?.components(separatedBy: "/").last ?? UUID().uuidString
-                                    let ngay = FirestoreHelper.getString(fields, "date")
-                                    let hanhDong = FirestoreHelper.getString(fields, "action")
-                                    let donVi = FirestoreHelper.getString(fields, "department")
-                                    let moTa = FirestoreHelper.getString(fields, "note")
-                                    let nguoiThucHien = FirestoreHelper.getString(fields, "performedBy")
-                                    let timestamp = FirestoreHelper.getDouble(fields, "timestamp")
-                                    let name = FirestoreHelper.getString(fields, "deviceName")
+                                    let ngay = FirestoreHelper.getString(fields["date"] as? [String: Any])
+                                    let hanhDong = FirestoreHelper.getString(fields["action"] as? [String: Any])
+                                    let donVi = FirestoreHelper.getString(fields["department"] as? [String: Any])
+                                    let moTa = FirestoreHelper.getString(fields["note"] as? [String: Any])
+                                    let nguoiThucHien = FirestoreHelper.getString(fields["performedBy"] as? [String: Any])
+                                    let timestamp = FirestoreHelper.getDouble(fields["timestamp"] as? [String: Any])
+                                    let name = FirestoreHelper.getString(fields["deviceName"] as? [String: Any])
                                     
                                     if !name.isEmpty {
                                         self.tenThietBi = name
                                     }
                                     
-                                    results.append(LichSuThietBi(id: id, ngay: ngay, hanhDong: hanhDong, donVi: donVi, moTa: moTa, nguoiThucHien: nguoiThucHien, timestamp: timestamp))
+                                    results.append(LichSuThietBi(
+                                        id: id,
+                                        hanhDong: hanhDong,
+                                        ngay: ngay,
+                                        nguoiThucHien: nguoiThucHien,
+                                        moTa: moTa,
+                                        donVi: donVi,
+                                        timestamp: timestamp
+                                    ))
                                 }
                             }
                         }

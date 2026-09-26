@@ -59,7 +59,7 @@ public struct HelpView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 10)
 
-                        if selectedArticle == null {
+                        if selectedArticle == nil {
                             HStack(spacing: 0) {
                                 TabButton(title: "Tiếng Việt", isSelected: selectedTabIndex == 0) { selectedTabIndex = 0 }
                                 TabButton(title: "English", isSelected: selectedTabIndex == 1) { selectedTabIndex = 1 }
