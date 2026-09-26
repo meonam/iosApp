@@ -1651,7 +1651,7 @@ class FirebaseService: ObservableObject {
         return false
     }
 
-    private func whenSatisfaction(_ stars: Int) -> String {
+    func whenSatisfaction(_ stars: Int) -> String {
         switch stars {
         case 1: return "Rất không hài lòng"
         case 2: return "Không hài lòng"
@@ -9029,7 +9029,6 @@ struct TicketChatDetailView: View {
                 }
             }
         }
-    }
     }
 
     @ViewBuilder
