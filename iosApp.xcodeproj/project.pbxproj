@@ -1,4 +1,4 @@
-﻿// !$*UTF8*$!
+// !$*UTF8*$!
 {
 	archiveVersion = 1;
 	classes = {
@@ -34,6 +34,13 @@
 		220010222C12345600000001 /* TicketChatDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000222C12345600000001 /* TicketChatDetailView.swift */; };
 		220010232C12345600000001 /* AttendanceCheckInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000232C12345600000001 /* AttendanceCheckInView.swift */; };
 		220010242C12345600000001 /* ShiftScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000242C12345600000001 /* ShiftScheduleView.swift */; };
+		220010252C12345600000001 /* PeripheralsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000252C12345600000001 /* PeripheralsView.swift */; };
+		220010262C12345600000001 /* AssetStatisticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000262C12345600000001 /* AssetStatisticsView.swift */; };
+		220010272C12345600000001 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000272C12345600000001 /* QRScannerView.swift */; };
+		220010282C12345600000001 /* AddDeviceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000282C12345600000001 /* AddDeviceView.swift */; };
+		220010292C12345600000001 /* PrintQrLabelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000292C12345600000001 /* PrintQrLabelView.swift */; };
+		220010302C12345600000001 /* SystemNotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000302C12345600000001 /* SystemNotificationsView.swift */; };
+		220010312C12345600000001 /* SystemSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000312C12345600000001 /* SystemSettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -66,6 +73,13 @@
 		220000222C12345600000001 /* TicketChatDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TicketChatDetailView.swift; sourceTree = "<group>"; };
 		220000232C12345600000001 /* AttendanceCheckInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceCheckInView.swift; sourceTree = "<group>"; };
 		220000242C12345600000001 /* ShiftScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftScheduleView.swift; sourceTree = "<group>"; };
+		220000252C12345600000001 /* PeripheralsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeripheralsView.swift; sourceTree = "<group>"; };
+		220000262C12345600000001 /* AssetStatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetStatisticsView.swift; sourceTree = "<group>"; };
+		220000272C12345600000001 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
+		220000282C12345600000001 /* AddDeviceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDeviceView.swift; sourceTree = "<group>"; };
+		220000292C12345600000001 /* PrintQrLabelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintQrLabelView.swift; sourceTree = "<group>"; };
+		220000302C12345600000001 /* SystemNotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemNotificationsView.swift; sourceTree = "<group>"; };
+		220000312C12345600000001 /* SystemSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemSettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -172,6 +186,11 @@
 				220001102C12345600000001 /* Support */,
 				220001112C12345600000001 /* Attendance */,
 				220001122C12345600000001 /* Shift */,
+				220001132C12345600000001 /* Peripherals */,
+				220001142C12345600000001 /* Statistics */,
+				220001152C12345600000001 /* Scanner */,
+				220001162C12345600000001 /* Notifications */,
+				220001172C12345600000001 /* Settings */,
 			);
 			path = Screens;
 			sourceTree = "<group>";
@@ -197,6 +216,8 @@
 			isa = PBXGroup;
 			children = (
 				220000202C12345600000001 /* DeviceListView.swift */,
+				220000282C12345600000001 /* AddDeviceView.swift */,
+				220000292C12345600000001 /* PrintQrLabelView.swift */,
 			);
 			path = Devices;
 			sourceTree = "<group>";
@@ -224,6 +245,46 @@
 				220000242C12345600000001 /* ShiftScheduleView.swift */,
 			);
 			path = Shift;
+			sourceTree = "<group>";
+		};
+		220001132C12345600000001 /* Peripherals */ = {
+			isa = PBXGroup;
+			children = (
+				220000252C12345600000001 /* PeripheralsView.swift */,
+			);
+			path = Peripherals;
+			sourceTree = "<group>";
+		};
+		220001142C12345600000001 /* Statistics */ = {
+			isa = PBXGroup;
+			children = (
+				220000262C12345600000001 /* AssetStatisticsView.swift */,
+			);
+			path = Statistics;
+			sourceTree = "<group>";
+		};
+		220001152C12345600000001 /* Scanner */ = {
+			isa = PBXGroup;
+			children = (
+				220000272C12345600000001 /* QRScannerView.swift */,
+			);
+			path = Scanner;
+			sourceTree = "<group>";
+		};
+		220001162C12345600000001 /* Notifications */ = {
+			isa = PBXGroup;
+			children = (
+				220000302C12345600000001 /* SystemNotificationsView.swift */,
+			);
+			path = Notifications;
+			sourceTree = "<group>";
+		};
+		220001172C12345600000001 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				220000312C12345600000001 /* SystemSettingsView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		1100000A2C12345600000001 /* Products */ = {
@@ -329,6 +390,13 @@
 				220010222C12345600000001 /* TicketChatDetailView.swift in Sources */,
 				220010232C12345600000001 /* AttendanceCheckInView.swift in Sources */,
 				220010242C12345600000001 /* ShiftScheduleView.swift in Sources */,
+				220010252C12345600000001 /* PeripheralsView.swift in Sources */,
+				220010262C12345600000001 /* AssetStatisticsView.swift in Sources */,
+				220010272C12345600000001 /* QRScannerView.swift in Sources */,
+				220010282C12345600000001 /* AddDeviceView.swift in Sources */,
+				220010292C12345600000001 /* PrintQrLabelView.swift in Sources */,
+				220010302C12345600000001 /* SystemNotificationsView.swift in Sources */,
+				220010312C12345600000001 /* SystemSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

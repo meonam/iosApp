@@ -222,4 +222,36 @@ public class DeviceViewModel: ObservableObject {
             self.fetchDevices()
         }
     }
+
+    // Thêm thiết bị mới
+    public func createDevice(device: ThietBi) async throws {
+        let devId = device.id.isEmpty ? UUID().uuidString : device.id
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices?documentId=\(devId)"
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let fields: [String: Any] = [
+            "ten": ["stringValue": device.ten],
+            "tenDonVi": ["stringValue": device.tenDonVi],
+            "trangThai": ["stringValue": device.trangThai],
+            "loai": ["stringValue": device.loai ?? "Laptop"],
+            "phongBan": ["stringValue": device.phongBan ?? ""],
+            "moTa": ["stringValue": device.moTa ?? ""],
+            "createdBy": ["stringValue": device.createdBy ?? user.email],
+            "companyId": ["stringValue": companyId],
+            "createdAt": ["integerValue": "\(device.createdAt)"]
+        ]
+
+        let payload = ["fields": fields]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+            self.fetchDevices()
+        }
+    }
 }

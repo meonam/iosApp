@@ -128,6 +128,15 @@ public struct User: Identifiable, Codable, Hashable {
         return !isSuperAdmin && !isAdmin && !isHelpDesk && !isWarehouse && !isManager && !isTechnician && !isSpecialist
     }
 
+    public var roleTitle: String {
+        if isAdmin { return "Quản trị viên (Admin)" }
+        if isHelpDesk { return "Phòng Helpdesk" }
+        if isManager { return "Quản lý phòng ban" }
+        if isTechnician { return "Kỹ thuật viên" }
+        if isSpecialist { return "Chuyên viên" }
+        return "Nhân viên"
+    }
+
     public var mnvDisplay: String {
         if !maNhanVien.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return maNhanVien.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -22,6 +22,7 @@ public enum DrawerDestination: Identifiable {
     case regionManagement
     case systemSettings
     case paywallLicense
+    case peripherals
 
     public var id: String {
         switch self {
@@ -45,6 +46,7 @@ public enum DrawerDestination: Identifiable {
         case .regionManagement: return "regionManagement"
         case .systemSettings: return "systemSettings"
         case .paywallLicense: return "paywallLicense"
+        case .peripherals: return "peripherals"
         }
     }
 }
@@ -175,6 +177,10 @@ public struct AppSidebarDrawer: View {
                         drawerRow(title: "Cấu hình hệ thống & Bản quyền", icon: "gearshape.fill", color: .statusLiquidated) {
                             onSelect(.systemSettings)
                         }
+                    }
+
+                    drawerRow(title: "Ngoại vi & Máy in / quét", icon: "printer.fill", color: .appInfo) {
+                        onSelect(.peripherals)
                     }
 
                     Spacer(minLength: 20)

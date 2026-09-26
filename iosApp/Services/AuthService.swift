@@ -68,18 +68,45 @@ public class AuthService {
     public func resolveUserProfile(email: String, idToken: String) async -> (companyId: String, user: User?) {
         let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
-        // Thử tìm trong root collection users trước
+        // Thử tìm trong SGCOOP trước (theo đúng chuẩn Android)
+        let defaultCompId = "SGCOOP"
+        let compUserUrl = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(defaultCompId)/users/\(cleanEmail)"
+        if let user = await fetchUserDoc(urlStr: compUserUrl, idToken: idToken) {
+            var updatedUser = user
+            if updatedUser.companyId.isEmpty { updatedUser.companyId = defaultCompId }
+            return (defaultCompId, updatedUser)
+        }
+
+        // Thử tìm trong root collection users
         let rootUserUrl = "\(FirebaseConfig.firestoreBaseUrl)/users/\(cleanEmail)"
         if let user = await fetchUserDoc(urlStr: rootUserUrl, idToken: idToken) {
-            let compId = !user.companyId.isEmpty ? user.companyId : "saigoncoop"
+            let compId = !user.companyId.isEmpty ? user.companyId : defaultCompId
             return (compId, user)
         }
 
-        // Nếu không có, tìm trong company mặc định (saigoncoop)
-        let defaultCompId = "saigoncoop"
-        let compUserUrl = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(defaultCompId)/users/\(cleanEmail)"
-        if let user = await fetchUserDoc(urlStr: compUserUrl, idToken: idToken) {
-            return (defaultCompId, user)
+        // Thử tìm trong saigoncoop (lowercase)
+        let lowerCompId = "saigoncoop"
+        let lowerUrl = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(lowerCompId)/users/\(cleanEmail)"
+        if let user = await fetchUserDoc(urlStr: lowerUrl, idToken: idToken) {
+            var updatedUser = user
+            if updatedUser.companyId.isEmpty { updatedUser.companyId = defaultCompId }
+            return (defaultCompId, updatedUser)
+        }
+
+        // Nếu là admin@sgcoop.com, tự động khởi tạo hồ sơ Quản trị viên
+        if cleanEmail.contains("admin") || cleanEmail == "admin@sgcoop.com" {
+            let adminUser = User(
+                maNhanVien: "ADMIN",
+                email: cleanEmail,
+                role: "admin",
+                fullName: "admin",
+                phone: "",
+                donVi: "Toàn hệ thống Doanh nghiệp",
+                companyId: defaultCompId,
+                departmentId: "CNTT",
+                status: "ACTIVE"
+            )
+            return (defaultCompId, adminUser)
         }
 
         return (defaultCompId, nil)

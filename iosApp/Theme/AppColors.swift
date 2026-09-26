@@ -2,17 +2,28 @@ import SwiftUI
 
 // MARK: - APP THEME COLORS (ĐỒNG BỘ 1:1 VỚI ANDROID THEME & COLOR.KT)
 public extension Color {
-    // 1. Mã màu chủ đạo thương hiệu
-    static let appPrimaryPink = Color(hex: "#E91E63")
-    static let appSecondaryDarkBlue = Color(hex: "#0D47A1")
-    static let appTopBarColor = Color(hex: "#0D47A1")
+    // 1. Mã màu chủ đạo thương hiệu (chuẩn 1:1 theo Color.kt trên Android)
+    static let appPrimaryPink = Color(hex: "#F40266")          // Hồng rực rỡ thương hiệu
+    static let appPrimaryPinkLight = Color(hex: "#FF4081")     // Hồng sáng
+    static let appPrimaryPinkContainer = Color(hex: "#FCE4EC") // Hồng nhạt container
+    static let appSecondaryDarkBlue = Color(hex: "#002A8F")   // Xanh Đậm / Dark Navy Blue
+    static let appDarkBlueContainer = Color(hex: "#E8EAF6")    // Xanh đậm container nhạt
+    static let appTopBarColor = Color(hex: "#002A8F")          // Xanh Đậm (Thanh trên)
 
-    // 2. Màu nền và text hệ thống
+    // 2. Màu thanh điều hướng dưới & Nút nổi FAB
+    static let appBottomBarBackground = Color(hex: "#0A192F")  // Xanh Đậm Đêm (Thanh dưới)
+    static let appBottomBarSelected = Color(hex: "#F40266")    // Hồng Highlight khi chọn
+    static let appBottomBarUnselected = Color(hex: "#94A3B8")  // Slate Muted
+    static let appFabGreen = Color(hex: "#2E7D32")             // Xanh lá nút nổi Hỗ trợ (FAB)
+
+    // 3. Màu nền và text hệ thống
     static let appBackground = Color(hex: "#F8FAFC")
     static let appSurface = Color.white
+    static let appSurfaceVariant = Color(hex: "#F1F5F9")
     static let appCardBorder = Color(hex: "#E2E8F0")
-    static let appTextPrimary = Color(hex: "#1E293B")
-    static let appTextSecondary = Color(hex: "#64748B")
+    static let appTextPrimary = Color(hex: "#0F172A")
+    static let appTextSecondary = Color(hex: "#475569")
+    static let appTextMuted = Color(hex: "#94A3B8")
     static let appDivider = Color(hex: "#CBD5E1")
 
     // 3. Màu trạng thái hệ thống

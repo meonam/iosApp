@@ -90,9 +90,9 @@ public class HomeViewModel: ObservableObject {
         }
     }
 
-    // 2. Tải số lượng Ticket đang mở
+    // 2. Tải số lượng Ticket đang mở (từ collection support_tickets chuẩn Android)
     private func fetchOpenTickets() async {
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets?pageSize=100"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets?pageSize=150"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -108,7 +108,7 @@ public class HomeViewModel: ObservableObject {
         let openCount = documents.filter { doc in
             guard let fields = doc["fields"] as? [String: Any] else { return false }
             let status = FirestoreHelper.getString(fields["status"] as? [String: Any]).uppercased()
-            return status != "CLOSED"
+            return status != "CLOSED" && status != "RESOLVED"
         }.count
 
         self.openTicketsCount = openCount
@@ -131,5 +131,65 @@ public class HomeViewModel: ObservableObject {
         }
 
         self.pendingStaffCount = documents.count
+    }
+
+    // 4. Cập nhật Họ và tên hiển thị (Đổi tên)
+    public func updateUserName(newName: String) async throws {
+        let cleanName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty else { return }
+        let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=fullName"
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload: [String: Any] = [
+            "fields": [
+                "fullName": ["stringValue": cleanName]
+            ]
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+            self.user.fullName = cleanName
+        }
+    }
+
+    // 5. Cập nhật Số điện thoại người dùng
+    public func updateUserPhone(newPhone: String) async throws {
+        let cleanPhone = newPhone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=phone&updateMask.fieldPaths=phoneNumber&updateMask.fieldPaths=sdt"
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload: [String: Any] = [
+            "fields": [
+                "phone": ["stringValue": cleanPhone],
+                "phoneNumber": ["stringValue": cleanPhone],
+                "sdt": ["stringValue": cleanPhone]
+            ]
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+            self.user.phone = cleanPhone
+        }
+    }
+
+    // 6. Đổi mật khẩu tài khoản
+    public func updatePassword(newPassword: String) async throws {
+        try await AuthService.shared.updatePassword(idToken: idToken, newPassword: newPassword)
     }
 }
