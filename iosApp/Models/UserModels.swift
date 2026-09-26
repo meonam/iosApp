@@ -137,6 +137,10 @@ public struct User: Identifiable, Codable, Hashable {
         return "Nhân viên"
     }
 
+    public var roleDisplayName: String {
+        return roleTitle
+    }
+
     public var mnvDisplay: String {
         if !maNhanVien.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return maNhanVien.trimmingCharacters(in: .whitespacesAndNewlines)
