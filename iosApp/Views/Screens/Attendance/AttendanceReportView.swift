@@ -319,7 +319,7 @@ public struct AttendanceReportView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text(userName)
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color.appText)
+                    .foregroundColor(.primary)
                 Text("\(dept) • \(records.count) ngày công")
                     .font(.system(size: 12))
                     .foregroundColor(.gray)
@@ -352,8 +352,8 @@ public struct AttendanceReportView: View {
                 let oCount = records.filter { $0.checkInStatus == "ON_TIME" }.count
                 let lCount = records.filter { $0.checkInStatus == "LATE" }.count
                 let tHours = records.reduce(0.0) { total, record in
-                    let checkIn = record.checkInTime ?? 0
-                    let checkOut = record.checkOutTime ?? 0
+                    let checkIn = record.checkInTime
+                    let checkOut = record.checkOutTime
                     if checkIn > 0 && checkOut > checkIn {
                         return total + Double(checkOut - checkIn) / (1000 * 60 * 60)
                     }

@@ -283,12 +283,24 @@ public struct AdminTicketListView: View {
 
     private func ticketCard(_ t: SupportTicket) -> some View {
         let overdue = isOverdue(t)
+        let prio = t.priority.uppercased()
+        let priorityColor: Color = prio == "URGENT" ? .red : (prio == "HIGH" ? .orange : .green)
+        
+        let creator = t.creatorName.isEmpty ? t.creatorEmail : t.creatorName
+        let assignee = t.assignedToName.isEmpty ? t.assignedToEmail : t.assignedToName
+        let isAssigned = !t.assignedToEmail.isEmpty
+        
+        let statusText = t.isOpen ? (isAssigned ? "ĐANG XỬ LÝ" : "CHỜ PHÂN CÔNG") : "ĐÃ ĐÓNG"
+        let statusColor: Color = t.isOpen ? (isAssigned ? .blue : .orange) : .gray
+        
+        let dateObj = Date(timeIntervalSince1970: TimeInterval(t.createdAt) / 1000.0)
+        let dateStr = dateFormatter.string(from: dateObj)
         
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
                 // Priority Indicator
                 Circle()
-                    .fill(t.priority.uppercased() == "URGENT" ? Color.red : (t.priority.uppercased() == "HIGH" ? Color.orange : Color.green))
+                    .fill(priorityColor)
                     .frame(width: 10, height: 10)
                     .padding(.top, 4)
 
@@ -297,7 +309,7 @@ public struct AdminTicketListView: View {
                         .font(.system(size: 14, weight: .bold))
                         .lineLimit(2)
                     
-                    Text("Người tạo: \(t.creatorName.isEmpty ? t.creatorEmail : t.creatorName)")
+                    Text("Người tạo: \(creator)")
                         .font(.system(size: 12))
                         .foregroundColor(.gray)
                 }
@@ -305,29 +317,26 @@ public struct AdminTicketListView: View {
                 Spacer()
 
                 // Status Badge
-                Text(t.isOpen ? (t.assignedToEmail.isEmpty ? "CHỜ PHÂN CÔNG" : "ĐANG XỬ LÝ") : "ĐÃ ĐÓNG")
+                Text(statusText)
                     .font(.system(size: 9, weight: .bold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 3)
-                    .background(t.isOpen ? (t.assignedToEmail.isEmpty ? Color.orange : Color.blue) : Color.gray)
+                    .background(statusColor)
                     .cornerRadius(4)
             }
 
             Divider()
 
             HStack {
-                // Time
-                let dateStr = dateFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(t.createdAt) / 1000.0))
                 Label(dateStr, systemImage: "clock")
                     .font(.system(size: 11))
                     .foregroundColor(.gray)
 
                 Spacer()
 
-                // Assignee
-                if !t.assignedToEmail.isEmpty {
-                    Label(t.assignedToName.isEmpty ? t.assignedToEmail : t.assignedToName, systemImage: "person.fill")
+                if isAssigned {
+                    Label(assignee, systemImage: "person.fill")
                         .font(.system(size: 11))
                         .foregroundColor(.appPrimary)
                         .lineLimit(1)
