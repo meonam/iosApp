@@ -18,6 +18,10 @@ public class SupportViewModel: ObservableObject {
     @Published public var messages: [SupportMessage] = []
     @Published public var isSendingMessage: Bool = false
 
+    // KTV Online Monitor (đồng bộ OnlineKtvMonitorScreen.kt)
+    @Published public var ktvTechnicians: [KtvOnlineLocation] = []
+    @Published public var isLoadingKtvs: Bool = false
+
     public init(user: User, companyId: String, idToken: String) {
         self.user = user
         self.companyId = companyId
@@ -250,6 +254,130 @@ public class SupportViewModel: ObservableObject {
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
             _ = try? await URLSession.shared.data(for: request)
             self.fetchTickets()
+        }
+    }
+
+    // MARK: - PHÂN CÔNG KTV — Đồng bộ AdminSupportChatScreen.kt dispatchKtv
+    public func assignKtv(ticketId: String, ktvEmail: String, ktvName: String) {
+        Task {
+            let fields = "updateMask.fieldPaths=assignedToEmail&updateMask.fieldPaths=assignedToName&updateMask.fieldPaths=assignedAt&updateMask.fieldPaths=assignedByEmail"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets/\(ticketId)?\(fields)"
+            guard let url = URL(string: urlStr) else { return }
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let body: [String: Any] = ["fields": [
+                "assignedToEmail": ["stringValue": ktvEmail],
+                "assignedToName": ["stringValue": ktvName],
+                "assignedAt": ["integerValue": String(Int64(Date().timeIntervalSince1970 * 1000))],
+                "assignedByEmail": ["stringValue": user.email]
+            ]]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            _ = try? await URLSession.shared.data(for: request)
+            self.fetchTickets()
+        }
+    }
+
+    // MARK: - ĐÁNH GIÁ TICKET — Đồng bộ AdminSupportChatScreen.kt rateTicket
+    public func rateTicket(ticketId: String, rating: Int, comment: String = "") {
+        Task {
+            let fields = "updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets/\(ticketId)?\(fields)"
+            guard let url = URL(string: urlStr) else { return }
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let body: [String: Any] = ["fields": [
+                "rating": ["integerValue": String(rating)],
+                "feedback": ["stringValue": comment],
+                "feedbackAt": ["integerValue": String(Int64(Date().timeIntervalSince1970 * 1000))]
+            ]]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            _ = try? await URLSession.shared.data(for: request)
+            self.fetchTickets()
+        }
+    }
+
+    // MARK: - KTV MONITOR — Đồng bộ OnlineKtvMonitorScreen.kt
+    // Lấy danh sách KTV từ collection companies/{companyId}/users, lọc theo role
+    public func fetchKtvTechnicians() {
+        isLoadingKtvs = true
+        Task {
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users?pageSize=200"
+            guard let url = URL(string: urlStr) else {
+                await MainActor.run { self.isLoadingKtvs = false }
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+
+            guard let (data, response) = try? await URLSession.shared.data(for: request),
+                  let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let docs = json["documents"] as? [[String: Any]] else {
+                await MainActor.run { self.isLoadingKtvs = false }
+                return
+            }
+
+            let ktvRoles: Set<String> = ["KTV", "TECHNICIAN", "KYTHUAT", "HELPDESK", "HELP_DESK"]
+            let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+            let onlineWindowMs: Int64 = 15 * 60 * 1000 // 15 phút
+
+            var result: [KtvOnlineLocation] = []
+            for doc in docs {
+                guard let fields = doc["fields"] as? [String: Any] else { continue }
+                let role = FirestoreHelper.getString(fields["role"] as? [String: Any]).uppercased()
+                guard ktvRoles.contains(role) else { continue }
+
+                let rawOnline = (fields["isOnline"] as? [String: Any])?["booleanValue"] as? Bool ?? false
+                let lastActiveAt = FirestoreHelper.getInt64(fields["lastActiveAt"] as? [String: Any])
+                let isOnline = rawOnline && (lastActiveAt > 0) && ((nowMs - lastActiveAt) < onlineWindowMs)
+
+                let name = FirestoreHelper.getString(fields["fullName"] as? [String: Any]).isEmpty
+                    ? FirestoreHelper.getString(fields["name"] as? [String: Any])
+                    : FirestoreHelper.getString(fields["fullName"] as? [String: Any])
+                let email = FirestoreHelper.getString(fields["email"] as? [String: Any])
+                let phone = FirestoreHelper.getString(fields["phone"] as? [String: Any])
+                let maNhanVien = FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]).isEmpty
+                    ? FirestoreHelper.getString(fields["employeeId"] as? [String: Any])
+                    : FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any])
+                let maKhuVuc = FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any])
+                let unitName = FirestoreHelper.getString(fields["donVi"] as? [String: Any]).isEmpty
+                    ? FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
+                    : FirestoreHelper.getString(fields["donVi"] as? [String: Any])
+
+                // Tính lastSeen string
+                var lastSeen = "Không rõ"
+                if lastActiveAt > 0 {
+                    let diffSeconds = (nowMs - lastActiveAt) / 1000
+                    if diffSeconds < 60 { lastSeen = "Vừa xong" }
+                    else if diffSeconds < 3600 { lastSeen = "\(diffSeconds / 60) phút trước" }
+                    else { lastSeen = "\(diffSeconds / 3600) giờ trước" }
+                }
+
+                result.append(KtvOnlineLocation(
+                    name: name.isEmpty ? email : name,
+                    email: email,
+                    maNhanVien: maNhanVien,
+                    phone: phone,
+                    maKhuVuc: maKhuVuc,
+                    unitName: unitName.isEmpty ? role : unitName,
+                    isOnline: isOnline,
+                    lastSeen: lastSeen,
+                    lastActiveAt: lastActiveAt
+                ))
+            }
+
+            // Sắp xếp: trực tuyến trước, ngoại tuyến sau
+            result.sort { $0.isOnline && !$1.isOnline }
+
+            await MainActor.run {
+                self.ktvTechnicians = result
+                self.isLoadingKtvs = false
+            }
         }
     }
 }

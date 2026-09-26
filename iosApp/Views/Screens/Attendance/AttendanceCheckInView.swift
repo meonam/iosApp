@@ -91,6 +91,53 @@ public struct AttendanceCheckInView: View {
                         .cornerRadius(14)
                         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
 
+                        // Card Khoảng cách Geofence (đồng bộ Android AttendanceCheckInScreen.kt lines 176-271)
+                        if viewModel.travelConfig.targetLatitude != 0 {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: viewModel.isWithinGeofence ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                                        .foregroundColor(viewModel.isWithinGeofence ? Color.appSuccess : Color.appDanger)
+                                    Text("Khoảng cách đến nơi làm việc:")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(Color.appTextPrimary)
+                                }
+
+                                if let dist = viewModel.distanceToWorkMeters {
+                                    HStack {
+                                        Text(String(format: "%.0f m / \(Int(viewModel.travelConfig.geofenceRadiusMeters)) m (bán kính cho phép)", dist))
+                                            .font(.system(size: 12))
+                                            .foregroundColor(viewModel.isWithinGeofence ? Color.appSuccess : Color.appDanger)
+                                        Spacer()
+                                        Text(viewModel.isWithinGeofence ? "Hợp lệ" : "Ngoài vùng")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(viewModel.isWithinGeofence ? Color.appSuccess : Color.appDanger)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 3)
+                                            .background((viewModel.isWithinGeofence ? Color.appSuccess : Color.appDanger).opacity(0.12))
+                                            .cornerRadius(6)
+                                    }
+                                } else {
+                                    Text("Đang tính khoảng cách...")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(Color.appTextMuted)
+                                }
+
+                                if !viewModel.travelConfig.targetAddress.isEmpty {
+                                    Text("📍 \(viewModel.travelConfig.targetAddress)")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(Color.appTextSecondary)
+                                }
+                            }
+                            .padding(14)
+                            .frame(maxWidth: .infinity)
+                            .background(viewModel.isWithinGeofence ? Color.white : Color.appDanger.opacity(0.05))
+                            .cornerRadius(14)
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(
+                                viewModel.isWithinGeofence ? Color.appCardBorder : Color.appDanger.opacity(0.4),
+                                lineWidth: viewModel.isWithinGeofence ? 1 : 1.5
+                            ))
+                        }
+
                         // Bộ chọn Ca làm việc
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Chọn ca làm việc:")
@@ -200,6 +247,7 @@ public struct AttendanceCheckInView: View {
     .onAppear {
             viewModel.startUpdatingLocation()
             viewModel.fetchTodayAttendance()
+            viewModel.fetchTravelExpenseConfig()
         }
     }
 

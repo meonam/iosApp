@@ -299,6 +299,7 @@ public struct MainContainerView: View {
 
         case .ktvMonitor:
             OnlineKtvMonitorView(
+                supportVM: SupportViewModel(user: user, companyId: compId, idToken: token),
                 onBack: { currentDestination = .home }
             )
 
