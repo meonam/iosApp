@@ -14,6 +14,9 @@ public struct QRScannerView: View {
     @State private var manualCode = ""
     @State private var isProcessing = false
     
+    @State private var hasCameraPermission = false
+    @State private var isPermissionDetermined = false
+    
     public init(onScanResult: @escaping (String) -> Void, onDismiss: @escaping () -> Void) {
         self.onScanResult = onScanResult
         self.onDismiss = onDismiss
@@ -32,35 +35,80 @@ public struct QRScannerView: View {
                     }
                     .background(Color.appPrimary)
                     
-                    // Camera View & Overlay
-                    ZStack {
-                        CameraPreviewView(
-                            isFlashOn: $isFlashOn,
-                            cameraPosition: $cameraPosition,
-                            isProcessing: $isProcessing,
-                            onScanResult: handleScannedCode
-                        )
-                        .edgesIgnoringSafeArea(.bottom)
-                        
-                        ScannerOverlayView(isProcessing: isProcessing)
-                        
+                    if isPermissionDetermined {
+                        if hasCameraPermission {
+                            // Camera View & Overlay
+                            ZStack {
+                                CameraPreviewView(
+                                    isFlashOn: $isFlashOn,
+                                    cameraPosition: $cameraPosition,
+                                    isProcessing: $isProcessing,
+                                    onScanResult: handleScannedCode
+                                )
+                                .edgesIgnoringSafeArea(.bottom)
+                                
+                                ScannerOverlayView(isProcessing: isProcessing)
+                                
+                                VStack {
+                                    Spacer()
+                                    Button(action: {
+                                        showManualInput = true
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "keyboard")
+                                            Text("Nhập tay mã")
+                                                .fontWeight(.bold)
+                                        }
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 24)
+                                        .padding(.vertical, 12)
+                                        .background(Color.black.opacity(0.6))
+                                        .cornerRadius(24)
+                                    }
+                                    .padding(.bottom, 40)
+                                }
+                            }
+                        } else {
+                            // Permission Denied View
+                            VStack(spacing: 20) {
+                                Spacer()
+                                Image(systemName: "camera.fill")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 60, height: 60)
+                                    .foregroundColor(.gray)
+                                
+                                Text("Yêu cầu quyền truy cập Camera")
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                
+                                Text("Ứng dụng cần sử dụng máy ảnh để quét mã QR và mã vạch trên thiết bị quản lý.")
+                                    .multilineTextAlignment(.center)
+                                    .foregroundColor(.gray)
+                                    .padding(.horizontal, 32)
+                                
+                                Button(action: {
+                                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }) {
+                                    Text("Mở Cài đặt")
+                                        .fontWeight(.bold)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 32)
+                                        .padding(.vertical, 12)
+                                        .background(Color.appPrimary)
+                                        .cornerRadius(8)
+                                }
+                                Spacer()
+                            }
+                        }
+                    } else {
+                        // Loading state while determining permission
                         VStack {
                             Spacer()
-                            Button(action: {
-                                showManualInput = true
-                            }) {
-                                HStack {
-                                    Image(systemName: "keyboard")
-                                    Text("Nhập tay mã")
-                                        .fontWeight(.bold)
-                                }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 12)
-                                .background(Color.black.opacity(0.6))
-                                .cornerRadius(24)
-                            }
-                            .padding(.bottom, 40)
+                            ProgressView()
+                            Spacer()
                         }
                     }
                 }
@@ -82,6 +130,27 @@ public struct QRScannerView: View {
             }
         }
         .ignoresSafeArea(edges: .top)
+        .onAppear {
+            checkCameraPermission()
+        }
+    }
+    
+    private func checkCameraPermission() {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            hasCameraPermission = true
+            isPermissionDetermined = true
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                DispatchQueue.main.async {
+                    self.hasCameraPermission = granted
+                    self.isPermissionDetermined = true
+                }
+            }
+        default:
+            hasCameraPermission = false
+            isPermissionDetermined = true
+        }
     }
     
     private var topBar: some View {
@@ -98,20 +167,22 @@ public struct QRScannerView: View {
             
             Spacer()
             
-            Button(action: {
-                cameraPosition = (cameraPosition == .back) ? .front : .back
-            }) {
-                Image(systemName: "arrow.triangle.2.circlepath.camera")
-                    .foregroundColor(.white)
-                    .padding()
-            }
-            
-            Button(action: {
-                isFlashOn.toggle()
-            }) {
-                Image(systemName: isFlashOn ? "bolt.fill" : "bolt.slash.fill")
-                    .foregroundColor(isFlashOn ? .yellow : .white)
-                    .padding()
+            if hasCameraPermission {
+                Button(action: {
+                    cameraPosition = (cameraPosition == .back) ? .front : .back
+                }) {
+                    Image(systemName: "arrow.triangle.2.circlepath.camera")
+                        .foregroundColor(.white)
+                        .padding()
+                }
+                
+                Button(action: {
+                    isFlashOn.toggle()
+                }) {
+                    Image(systemName: isFlashOn ? "bolt.fill" : "bolt.slash.fill")
+                        .foregroundColor(isFlashOn ? .yellow : .white)
+                        .padding()
+                }
             }
         }
     }

@@ -397,7 +397,7 @@ public struct MainContainerView: View {
             )
 
         case .paywallLicense:
-            PaywallLicenseView(onBack: { currentDestination = .home })
+            PaywallLicenseView(companyId: compId, token: token, onBack: { currentDestination = .home })
 
         case .adminTicketList:
             AdminTicketListView(

@@ -4,6 +4,7 @@ public struct PeripheralsView: View {
     let onBack: () -> Void
     
     // Scanner Settings
+    @AppStorage("scanner_mode") private var scannerMode = "ALL"
     @AppStorage("scanner_ean13") private var enableEAN13 = true
     @AppStorage("scanner_ean8") private var enableEAN8 = true
     @AppStorage("scanner_code128") private var enableCode128 = true
@@ -22,10 +23,14 @@ public struct PeripheralsView: View {
     @AppStorage("printer_ip") private var printerIp = "192.168.1.100"
     @AppStorage("printer_port") private var printerPort = "9100"
     @AppStorage("printer_paper_size") private var paperSize = "Khổ A4"
+    @AppStorage("printer_bt_device") private var selectedBtDevice = ""
     
     @State private var isScannerExpanded = false
     @State private var isPrinterExpanded = false
     @State private var showingTestAlert = false
+    @State private var isTestingConnection = false
+    @State private var bluetoothDeviceList: [String] = []
+    @State private var isScanningBt = false
     
     public init(onBack: @escaping () -> Void = {}) {
         self.onBack = onBack
@@ -106,6 +111,40 @@ public struct PeripheralsView: View {
             
             if isScannerExpanded {
                 VStack(alignment: .leading, spacing: 16) {
+                    
+                    // Scanner Mode
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Chế độ quét")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.appPrimary)
+                        
+                        let modes: [(String, String)] = [
+                            ("ALL", "Tất cả"),
+                            ("CAMERA", "Camera"),
+                            ("DATALOGIC", "Máy quét cứng")
+                        ]
+                        
+                        HStack(spacing: 8) {
+                            ForEach(modes, id: \.0) { mode in
+                                Button(action: { scannerMode = mode.0 }) {
+                                    HStack {
+                                        Image(systemName: scannerMode == mode.0 ? "largecircle.fill.circle" : "circle")
+                                            .foregroundColor(scannerMode == mode.0 ? .appPrimary : .gray)
+                                        Text(mode.1)
+                                            .font(.caption)
+                                            .foregroundColor(scannerMode == mode.0 ? .appPrimary : .primary)
+                                            .fontWeight(scannerMode == mode.0 ? .bold : .regular)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                    }
+                    
+                    Divider()
                     
                     // Âm báo
                     VStack(alignment: .leading, spacing: 8) {
@@ -279,11 +318,16 @@ public struct PeripheralsView: View {
                             .frame(width: 80)
                         }
                     } else if connectionType == "Bluetooth" {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Button(action: { }) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Button(action: startScanningBluetooth) {
                                 HStack {
-                                    Image(systemName: "dot.radiowaves.left.and.right")
-                                    Text("Dò tìm thiết bị Bluetooth")
+                                    if isScanningBt {
+                                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        Text("Đang dò tìm...")
+                                    } else {
+                                        Image(systemName: "dot.radiowaves.left.and.right")
+                                        Text("Dò tìm thiết bị Bluetooth")
+                                    }
                                 }
                                 .font(.caption)
                                 .foregroundColor(.white)
@@ -293,10 +337,25 @@ public struct PeripheralsView: View {
                                 .cornerRadius(8)
                             }
                             
-                            Text("Chưa có thiết bị nào được ghép đôi.")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                                .padding(.top, 4)
+                            if bluetoothDeviceList.isEmpty {
+                                Text(isScanningBt ? "Đang quét..." : "Chưa có thiết bị nào được ghép đôi.")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            } else {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    ForEach(bluetoothDeviceList, id: \.self) { device in
+                                        Button(action: { selectedBtDevice = device }) {
+                                            HStack {
+                                                Image(systemName: selectedBtDevice == device ? "largecircle.fill.circle" : "circle")
+                                                    .foregroundColor(selectedBtDevice == device ? .appPrimary : .gray)
+                                                Text(device)
+                                                    .font(.caption)
+                                                    .foregroundColor(.primary)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     } else {
                         HStack {
@@ -338,25 +397,51 @@ public struct PeripheralsView: View {
                     
                     // Test button
                     Button(action: {
-                        showingTestAlert = true
+                        isTestingConnection = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            isTestingConnection = false
+                            showingTestAlert = true
+                        }
                     }) {
                         HStack {
-                            Image(systemName: "printer.dotmatrix")
-                            Text("Kiểm tra kết nối máy in")
-                                .fontWeight(.bold)
+                            if isTestingConnection {
+                                ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                Text("Đang kiểm tra...")
+                                    .fontWeight(.bold)
+                            } else {
+                                Image(systemName: "printer.dotmatrix")
+                                Text("Kiểm tra kết nối máy in")
+                                    .fontWeight(.bold)
+                            }
                         }
                         .foregroundColor(.white)
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(Color.green)
+                        .background(isTestingConnection ? Color.gray : Color.green)
                         .cornerRadius(8)
                     }
+                    .disabled(isTestingConnection)
                 }
                 .padding()
                 .background(Color.white)
                 .cornerRadius(16, corners: [.bottomLeft, .bottomRight])
                 .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
             }
+        }
+    }
+    
+    private func startScanningBluetooth() {
+        guard !isScanningBt else { return }
+        isScanningBt = true
+        bluetoothDeviceList = []
+        
+        // Mock Bluetooth scanning
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            bluetoothDeviceList = [
+                "Máy in QLTB (00:11:22:33:FF:EE)",
+                "XPrinter XP-58 (AA:BB:CC:DD:EE:FF)"
+            ]
+            isScanningBt = false
         }
     }
     
