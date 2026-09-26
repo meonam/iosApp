@@ -10,6 +10,7 @@ public struct TicketChatDetailView: View {
     @State private var inputText: String = ""
     @State private var showCloseTicketAlert: Bool = false
     @State private var closeNote: String = ""
+    @State private var showCallView: Bool = false
 
     // Assign KTV
     @State private var showAssignKtvSheet: Bool = false
@@ -73,6 +74,19 @@ public struct TicketChatDetailView: View {
                             Spacer()
 
                             // ── Chip Phân công KTV (Admin/HelpDesk) ──────
+                            if viewModel.user.email.lowercased() != ticket.creatorEmail.lowercased() {
+                                Button(action: {
+                                    WebRtcCallManager.shared.startCall(targetEmail: ticket.creatorEmail, targetName: ticket.creatorName, callerName: viewModel.user.fullName, callerEmail: viewModel.user.email)
+                                    showCallView = true
+                                }) {
+                                    Image(systemName: "phone.fill")
+                                        .font(.system(size: 15))
+                                        .foregroundColor(.green)
+                                        .padding(6)
+                                        .background(Color.white.opacity(0.2))
+                                        .clipShape(Circle())
+                                }
+                            }
                             if ticket.isOpen && (viewModel.user.isAdmin || viewModel.user.isHelpDesk) {
                                 Button(action: {
                                     viewModel.fetchKtvTechnicians()
@@ -311,6 +325,9 @@ public struct TicketChatDetailView: View {
             )
         }
         // ─── Sheet: Chọn KTV phân công ───────────────────────────────────
+        .fullScreenCover(isPresented: $showCallView) {
+            CallView()
+        }
         .sheet(isPresented: $showAssignKtvSheet) {
             NavigationView {
                 Group {
@@ -479,3 +496,4 @@ public struct TicketChatDetailView: View {
         }
     }
 }
+

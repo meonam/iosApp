@@ -229,7 +229,7 @@ public struct OnlineKtvMonitorView: View {
             supportVM.fetchKtvTechnicians()
         }
         .sheet(item: $selectedKtv) { ktv in
-            KtvDetailSheet(ktv: ktv)
+            KtvDetailSheet(ktv: ktv, supportVM: supportVM)
         }
     }
 
@@ -320,6 +320,8 @@ public struct OnlineKtvMonitorView: View {
 struct KtvDetailSheet: View {
     let ktv: KtvOnlineLocation
     @Environment(\.presentationMode) var presentationMode
+    @State private var showCallView: Bool = false
+    @ObservedObject var supportVM: SupportViewModel
 
     var body: some View {
         VStack(spacing: 0) {
@@ -368,7 +370,24 @@ struct KtvDetailSheet: View {
             Spacer()
 
             HStack(spacing: 16) {
-                Button(action: { callKtv() }) {
+                Button(action: { 
+                      WebRtcCallManager.shared.startCall(targetEmail: ktv.email, targetName: ktv.name, callerName: supportVM.user.fullName, callerEmail: supportVM.user.email)
+                      showCallView = true
+                  }) {
+                      HStack {
+                          Image(systemName: "phone.bubble.left.fill")
+                          Text("App Call")
+                      }
+                      .font(.system(size: 16, weight: .bold))
+                      .foregroundColor(.white)
+                      .frame(maxWidth: .infinity)
+                      .padding()
+                      .background(ktv.isOnline ? Color.blue : Color.gray)
+                      .cornerRadius(12)
+                  }
+                  .disabled(!ktv.isOnline)
+                  
+                  Button(action: { callKtv() }) {
                     HStack {
                         Image(systemName: "phone.fill")
                         Text("Gọi điện")
@@ -418,6 +437,11 @@ struct KtvDetailSheet: View {
         }
     }
 
+        .fullScreenCover(isPresented: $showCallView) {
+            CallView()
+        }
+    }
+    
     private func callKtv() {
         if let url = URL(string: "tel://\(ktv.phone)"), UIApplication.shared.canOpenURL(url) {
             UIApplication.shared.open(url)
@@ -431,3 +455,5 @@ struct KtvDetailSheet: View {
         }
     }
 }
+
+

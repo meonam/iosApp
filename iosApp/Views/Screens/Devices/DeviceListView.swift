@@ -11,6 +11,7 @@ public struct DeviceListView: View {
     @State private var showStatusActionSheet: Bool = false
     @State private var showDeleteConfirmAlert: Bool = false
     @State private var deviceToDelete: ThietBi? = nil
+    @State private var selectedDeviceForDetail: String? = nil
 
     public init(
         viewModel: DeviceViewModel,
@@ -152,7 +153,7 @@ public struct DeviceListView: View {
                             if viewModel.groupMode == .flat {
                                 // DANH SÁCH PHẲNG
                                 ForEach(viewModel.filteredDevices) { dev in
-                                    deviceCard(dev)
+                                    Button(action: { selectedDeviceForDetail = dev.id }) { deviceCard(dev) }.buttonStyle(PlainButtonStyle())
                                 }
                             } else {
                                 // DANH SÁCH ACCORDION 2 CẤP
@@ -222,7 +223,7 @@ public struct DeviceListView: View {
                                                     // LEVEL 3: THIẾT BỊ
                                                     if isL2Expanded {
                                                         ForEach(devs) { dev in
-                                                            deviceCard(dev)
+                                                            Button(action: { selectedDeviceForDetail = dev.id }) { deviceCard(dev) }.buttonStyle(PlainButtonStyle())
                                                                 .padding(.leading, 20)
                                                         }
                                                     }
@@ -257,6 +258,14 @@ public struct DeviceListView: View {
                     }
                 } + [.cancel()]
             )
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { selectedDeviceForDetail != nil },
+            set: { if !$0 { selectedDeviceForDetail = nil } }
+        )) {
+            if let deviceId = selectedDeviceForDetail {
+                DeviceDetailView(viewModel: viewModel, deviceId: deviceId, onBack: { selectedDeviceForDetail = nil })
+            }
         }
         .alert(isPresented: $showDeleteConfirmAlert) {
             Alert(
