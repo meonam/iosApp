@@ -1,7 +1,7 @@
 import SwiftUI
 import MapKit
 
-// MARK: - MODEL KTV (ĐỒNG BỘ 1:1 VỚI TECHNICIANSTATUS DATA CLASS TRONG ONLINEKTVMONITORSCREEN.KT)
+// MARK: - MODEL KTV
 public struct KtvOnlineLocation: Identifiable {
     public var id: String { email.isEmpty ? UUID().uuidString : email }
     public var name: String
@@ -14,7 +14,6 @@ public struct KtvOnlineLocation: Identifiable {
     public var lastSeen: String
     public var lastActiveAt: Int64
 
-    // Toạ độ GPS nếu có (có thể bổ sung sau khi có location tracking)
     public var latitude: Double
     public var longitude: Double
 
@@ -44,29 +43,81 @@ public struct KtvOnlineLocation: Identifiable {
         self.longitude = longitude
     }
 
-    public var coordinate: CLLocationCoordinate2D {
-        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    public var displayCoordinate: CLLocationCoordinate2D {
+        if latitude != 0 && longitude != 0 {
+            return CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+        }
+        // Mock coordinate based on email hash around HCMC for demonstration
+        let hash = abs(email.hashValue)
+        let latOffset = (Double(hash % 100) / 100.0 - 0.5) * 0.1
+        let lonOffset = (Double((hash / 100) % 100) / 100.0 - 0.5) * 0.1
+        return CLLocationCoordinate2D(latitude: 10.7769 + latOffset, longitude: 106.7009 + lonOffset)
     }
 }
 
-// MARK: - MÀN HÌNH GIÁM SÁT KTV TRỰC TUYẾN (ĐỒNG BỘ 1:1 VỚI ONLINEKTVMONITORSCREEN.KT TRÊN ANDROID)
+// MARK: - MÀN HÌNH GIÁM SÁT KTV TRỰC TUYẾN
 public struct OnlineKtvMonitorView: View {
     @ObservedObject var supportVM: SupportViewModel
     var onBack: () -> Void
 
-    @State private var region = MKCoordinateRegion(
+    @State private var mapRegion = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 10.7769, longitude: 106.7009),
-        span: MKCoordinateSpan(latitudeDelta: 1.5, longitudeDelta: 1.5)
+        span: MKCoordinateSpan(latitudeDelta: 0.2, longitudeDelta: 0.2)
     )
+
+    @State private var viewMode: Int = 0 // 0: Bản đồ, 1: Danh sách
+    @State private var searchQuery: String = ""
+    @State private var selectedRegion: String = "Tất cả"
+    @State private var selectedStatus: String = "Tất cả"
+    @State private var selectedUnit: String = "Tất cả"
+    
+    @State private var selectedKtv: KtvOnlineLocation? = nil
+    @State private var showBottomSheet: Bool = false
+
+    // Real-time polling
+    let timer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
 
     public init(supportVM: SupportViewModel, onBack: @escaping () -> Void) {
         self.supportVM = supportVM
         self.onBack = onBack
     }
 
-    // Lấy các KTV có toạ độ GPS hợp lệ để hiển thị trên bản đồ
-    private var ktvsWithLocation: [KtvOnlineLocation] {
-        supportVM.ktvTechnicians.filter { $0.latitude != 0 && $0.longitude != 0 }
+    private var regions: [String] {
+        var list = supportVM.ktvTechnicians.map { $0.maKhuVuc.isEmpty ? "Khác" : $0.maKhuVuc }
+        list = Array(Set(list)).sorted()
+        list.insert("Tất cả", at: 0)
+        return list
+    }
+
+    private var units: [String] {
+        var list = supportVM.ktvTechnicians.map { $0.unitName.isEmpty ? "Khác" : $0.unitName }
+        list = Array(Set(list)).sorted()
+        list.insert("Tất cả", at: 0)
+        return list
+    }
+
+    private var filteredKtvs: [KtvOnlineLocation] {
+        supportVM.ktvTechnicians.filter { ktv in
+            let matchSearch = searchQuery.isEmpty || 
+                ktv.name.localizedCaseInsensitiveContains(searchQuery) || 
+                ktv.email.localizedCaseInsensitiveContains(searchQuery) || 
+                ktv.maNhanVien.localizedCaseInsensitiveContains(searchQuery)
+            
+            let kv = ktv.maKhuVuc.isEmpty ? "Khác" : ktv.maKhuVuc
+            let matchRegion = selectedRegion == "Tất cả" || kv == selectedRegion
+            
+            let un = ktv.unitName.isEmpty ? "Khác" : ktv.unitName
+            let matchUnit = selectedUnit == "Tất cả" || un == selectedUnit
+            
+            let matchStatus: Bool
+            switch selectedStatus {
+            case "Online": matchStatus = ktv.isOnline
+            case "Offline": matchStatus = !ktv.isOnline
+            default: matchStatus = true
+            }
+            
+            return matchSearch && matchRegion && matchUnit && matchStatus
+        }
     }
 
     public var body: some View {
@@ -75,7 +126,7 @@ public struct OnlineKtvMonitorView: View {
                 Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // 1. TOP BAR TRÀN TAI THỎ VỚI SAFE AREA
+                    // 1. TOP BAR
                     VStack(spacing: 0) {
                         Color.clear.frame(height: geometry.safeAreaInsets.top)
 
@@ -85,16 +136,18 @@ public struct OnlineKtvMonitorView: View {
                                     .font(.system(size: 18, weight: .bold))
                                     .foregroundColor(.white)
                             }
-
-                            let onlineCount = supportVM.ktvTechnicians.filter { $0.isOnline }.count
-                            let totalCount = supportVM.ktvTechnicians.count
-                            Text("Giám sát KTV trực tuyến (\(onlineCount)/\(totalCount))")
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundColor(.white)
-
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Giám sát KTV Online")
+                                    .font(.system(size: 17, weight: .bold))
+                                    .foregroundColor(.white)
+                                let online = supportVM.ktvTechnicians.filter { $0.isOnline }.count
+                                let total = supportVM.ktvTechnicians.count
+                                Text("Trực tuyến: \(online)/\(total)")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.green)
+                            }
                             Spacer()
-
-                            // Nút refresh
                             Button(action: { supportVM.fetchKtvTechnicians() }) {
                                 Image(systemName: "arrow.clockwise")
                                     .font(.system(size: 16, weight: .semibold))
@@ -104,179 +157,308 @@ public struct OnlineKtvMonitorView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                     }
-                    .background(Color.appTopBarColor)
+                    .background(Color.appPrimary)
 
-                    // 2. BẢN ĐỒ VỊ TRÍ KTV
-                    ZStack(alignment: .bottomTrailing) {
-                        if ktvsWithLocation.isEmpty {
-                            // Bản đồ trống khi chưa có toạ độ
-                            Map(coordinateRegion: $region)
-                                .frame(height: 200)
-                                .overlay(
-                                    VStack(spacing: 6) {
-                                        Image(systemName: "map")
-                                            .font(.system(size: 28))
-                                            .foregroundColor(Color.appTextMuted)
-                                        Text("Chưa có dữ liệu vị trí GPS KTV")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(Color.appTextMuted)
-                                    }
-                                )
-                        } else {
-                            Map(coordinateRegion: $region, annotationItems: ktvsWithLocation) { ktv in
-                                MapAnnotation(coordinate: ktv.coordinate) {
-                                    VStack(spacing: 2) {
-                                        Image(systemName: "person.circle.fill")
-                                            .font(.system(size: 26))
-                                            .foregroundColor(ktv.isOnline ? Color.appSuccess : Color.gray)
-                                            .background(Circle().fill(Color.white))
-
-                                        Text(ktv.name)
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundColor(.black)
-                                            .padding(.horizontal, 4)
-                                            .padding(.vertical, 2)
-                                            .background(Color.white.opacity(0.85))
-                                            .cornerRadius(4)
-                                    }
-                                }
-                            }
-                            .frame(height: 200)
-                        }
-                    }
-
-                    // 3. THỐNG KÊ NHANH
+                    // 2. VIEW MODE TAB (Bản đồ / Danh sách)
                     HStack(spacing: 0) {
-                        let onlineCount = supportVM.ktvTechnicians.filter { $0.isOnline }.count
-                        let offlineCount = supportVM.ktvTechnicians.count - onlineCount
-
-                        statChip(label: "Trực tuyến", count: onlineCount, color: Color.appSuccess)
-                        Divider().frame(height: 30)
-                        statChip(label: "Ngoại tuyến", count: offlineCount, color: Color.gray)
-                        Divider().frame(height: 30)
-                        statChip(label: "Tổng KTV", count: supportVM.ktvTechnicians.count, color: Color.appSecondaryDarkBlue)
+                        Button(action: { viewMode = 0 }) {
+                            Text("Bản đồ")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(viewMode == 0 ? Color.appPrimary : Color.gray)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(
+                                    Rectangle()
+                                        .fill(viewMode == 0 ? Color.appPrimary : Color.clear)
+                                        .frame(height: 2)
+                                        .padding(.horizontal, 20),
+                                    alignment: .bottom
+                                )
+                        }
+                        Button(action: { viewMode = 1 }) {
+                            Text("Danh sách")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(viewMode == 1 ? Color.appPrimary : Color.gray)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(
+                                    Rectangle()
+                                        .fill(viewMode == 1 ? Color.appPrimary : Color.clear)
+                                        .frame(height: 2)
+                                        .padding(.horizontal, 20),
+                                    alignment: .bottom
+                                )
+                        }
                     }
-                    .padding(.vertical, 10)
                     .background(Color.white)
+                    .overlay(Divider(), alignment: .bottom)
 
-                    // 4. DANH SÁCH KTV CUỘN
-                    if supportVM.isLoadingKtvs {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            ProgressView()
-                                .scaleEffect(1.2)
-                            Text("Đang tải danh sách KTV...")
-                                .font(.system(size: 13))
-                                .foregroundColor(Color.appTextSecondary)
-                        }
-                        Spacer()
-                    } else if supportVM.ktvTechnicians.isEmpty {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Image(systemName: "person.2.slash")
-                                .font(.system(size: 44))
-                                .foregroundColor(Color.appTextMuted)
-                            Text("Không tìm thấy KTV nào")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color.appTextSecondary)
-                            Text("Kiểm tra lại kết nối hoặc phân quyền tài khoản")
-                                .font(.system(size: 12))
-                                .foregroundColor(Color.appTextMuted)
-                                .multilineTextAlignment(.center)
-                        }
-                        .padding(24)
-                        Spacer()
-                    } else {
-                        ScrollView {
-                            LazyVStack(spacing: 10) {
-                                ForEach(supportVM.ktvTechnicians) { ktv in
-                                    ktvCard(ktv: ktv)
+                    // 3. FILTER & SEARCH
+                    VStack(spacing: 8) {
+                        HStack {
+                            Image(systemName: "magnifyingglass").foregroundColor(.gray)
+                            TextField("Tìm tên, email, MNV...", text: $searchQuery)
+                                .font(.system(size: 14))
+                            if !searchQuery.isEmpty {
+                                Button(action: { searchQuery = "" }) {
+                                    Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
                                 }
                             }
-                            .padding(14)
+                        }
+                        .padding(8)
+                        .background(Color(UIColor.secondarySystemBackground))
+                        .cornerRadius(8)
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                filterPicker(title: "Trạng thái", selection: $selectedStatus, options: ["Tất cả", "Online", "Offline"])
+                                filterPicker(title: "Khu vực", selection: $selectedRegion, options: regions)
+                                filterPicker(title: "Đơn vị", selection: $selectedUnit, options: units)
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .background(Color.white)
+                    .overlay(Divider(), alignment: .bottom)
+
+                    // 4. MAIN CONTENT
+                    if supportVM.isLoadingKtvs && supportVM.ktvTechnicians.isEmpty {
+                        Spacer()
+                        ProgressView().scaleEffect(1.2)
+                        Spacer()
+                    } else if viewMode == 0 {
+                        // MAP VIEW
+                        ZStack(alignment: .bottom) {
+                            Map(coordinateRegion: $mapRegion, annotationItems: filteredKtvs) { ktv in
+                                MapAnnotation(coordinate: ktv.displayCoordinate) {
+                                    Button(action: {
+                                        selectedKtv = ktv
+                                        showBottomSheet = true
+                                    }) {
+                                        VStack(spacing: 2) {
+                                            Image(systemName: ktv.isOnline ? "person.crop.circle.fill" : "person.crop.circle")
+                                                .font(.system(size: 28))
+                                                .foregroundColor(ktv.isOnline ? .green : .gray)
+                                                .background(Circle().fill(Color.white))
+                                                .shadow(radius: 2)
+                                            
+                                            Text(ktv.name)
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundColor(.black)
+                                                .padding(.horizontal, 4)
+                                                .padding(.vertical, 2)
+                                                .background(Color.white.opacity(0.85))
+                                                .cornerRadius(4)
+                                                .shadow(radius: 1)
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Bottom Sheet
+                            if showBottomSheet, let ktv = selectedKtv {
+                                ktvBottomSheet(ktv: ktv)
+                                    .transition(.move(edge: .bottom))
+                                    .animation(.spring(), value: showBottomSheet)
+                            }
+                        }
+                    } else {
+                        // LIST VIEW
+                        if filteredKtvs.isEmpty {
+                            Spacer()
+                            Text("Không tìm thấy KTV nào").foregroundColor(.gray)
+                            Spacer()
+                        } else {
+                            ScrollView {
+                                LazyVStack(spacing: 12) {
+                                    ForEach(filteredKtvs) { ktv in
+                                        ktvListCard(ktv: ktv)
+                                            .onTapGesture {
+                                                selectedKtv = ktv
+                                                showBottomSheet = true
+                                                viewMode = 0
+                                            }
+                                    }
+                                }
+                                .padding(12)
+                            }
                         }
                     }
                 }
             }
-            .ignoresSafeArea(edges: .top)
         }
+        .ignoresSafeArea(edges: .top)
         .onAppear {
+            supportVM.fetchKtvTechnicians()
+        }
+        .onReceive(timer) { _ in
             supportVM.fetchKtvTechnicians()
         }
     }
 
-    // MARK: - KTV CARD
+    // MARK: - COMPONENT HELPER
+
     @ViewBuilder
-    private func ktvCard(ktv: KtvOnlineLocation) -> some View {
+    private func filterPicker(title: String, selection: Binding<String>, options: [String]) -> some View {
+        Menu {
+            ForEach(options, id: \.self) { opt in
+                Button(action: { selection.wrappedValue = opt }) {
+                    HStack {
+                        Text(opt)
+                        if selection.wrappedValue == opt {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text("\(title): \(selection.wrappedValue)")
+                    .font(.system(size: 12, weight: .semibold))
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 10))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(selection.wrappedValue != "Tất cả" ? Color.appPrimary.opacity(0.1) : Color(UIColor.secondarySystemBackground))
+            .foregroundColor(selection.wrappedValue != "Tất cả" ? Color.appPrimary : .primary)
+            .cornerRadius(16)
+        }
+    }
+
+    @ViewBuilder
+    private func ktvBottomSheet(ktv: KtvOnlineLocation) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 40, height: 6)
+                    .padding(.top, 8)
+                Spacer()
+            }
+            
+            HStack(alignment: .top, spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(ktv.isOnline ? Color.green : Color.gray)
+                        .frame(width: 56, height: 56)
+                    Image(systemName: "wrench.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.white)
+                }
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(ktv.name)
+                        .font(.system(size: 18, weight: .bold))
+                    
+                    HStack {
+                        Text("MNV: \(ktv.maNhanVien.isEmpty ? "N/A" : ktv.maNhanVien)")
+                        Text("•")
+                        Text(ktv.phone.isEmpty ? "N/A" : ktv.phone)
+                    }
+                    .font(.system(size: 13))
+                    .foregroundColor(.gray)
+                    
+                    HStack {
+                        Image(systemName: "mappin.and.ellipse")
+                        Text(ktv.maKhuVuc.isEmpty ? "Không rõ" : ktv.maKhuVuc)
+                        Text("•")
+                        Text(ktv.unitName.isEmpty ? "Không rõ" : ktv.unitName)
+                    }
+                    .font(.system(size: 13))
+                    .foregroundColor(Color.appPrimary)
+                    
+                    HStack {
+                        Circle()
+                            .fill(ktv.isOnline ? Color.green : Color.gray)
+                            .frame(width: 8, height: 8)
+                        Text(ktv.isOnline ? "Đang trực tuyến" : "Ngoại tuyến: \(ktv.lastSeen)")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(ktv.isOnline ? .green : .gray)
+                    }
+                    .padding(.top, 4)
+                }
+                
+                Spacer()
+                
+                Button(action: { showBottomSheet = false }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.gray)
+                }
+            }
+            .padding(20)
+        }
+        .background(Color.white)
+        .cornerRadius(16, corners: [.topLeft, .topRight])
+        .shadow(color: .black.opacity(0.15), radius: 10, y: -2)
+    }
+
+    @ViewBuilder
+    private func ktvListCard(ktv: KtvOnlineLocation) -> some View {
         HStack(spacing: 12) {
-            // Avatar icon
             ZStack {
                 Circle()
-                    .fill(ktv.isOnline ? Color.appSuccess : Color.gray)
-                    .frame(width: 42, height: 42)
+                    .fill(ktv.isOnline ? Color.green : Color.gray)
+                    .frame(width: 48, height: 48)
                 Image(systemName: "wrench.fill")
-                    .font(.system(size: 16))
+                    .font(.system(size: 20))
                     .foregroundColor(.white)
             }
-
-            VStack(alignment: .leading, spacing: 3) {
+            
+            VStack(alignment: .leading, spacing: 4) {
                 Text(ktv.name)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(Color.appTextPrimary)
-
-                if !ktv.unitName.isEmpty {
-                    Text(ktv.unitName)
-                        .font(.system(size: 11))
-                        .foregroundColor(Color.appTextSecondary)
+                    .font(.system(size: 15, weight: .bold))
+                
+                HStack {
+                    Text(ktv.unitName.isEmpty ? "Khác" : ktv.unitName)
+                    Text("•")
+                    Text(ktv.maKhuVuc.isEmpty ? "Khác" : ktv.maKhuVuc)
                 }
-
-                HStack(spacing: 8) {
-                    if !ktv.maNhanVien.isEmpty {
-                        Text("MNV: \(ktv.maNhanVien)")
-                            .font(.system(size: 10))
-                            .foregroundColor(Color.appTextMuted)
-                    }
-                    if !ktv.phone.isEmpty {
-                        Text(ktv.phone)
-                            .font(.system(size: 10))
-                            .foregroundColor(Color.appTextMuted)
-                    }
+                .font(.system(size: 12))
+                .foregroundColor(.gray)
+                
+                if !ktv.phone.isEmpty {
+                    Text(ktv.phone)
+                        .font(.system(size: 12))
+                        .foregroundColor(.gray)
                 }
             }
-
+            
             Spacer()
-
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(ktv.isOnline ? "TRỰC TUYẾN" : "NGOẠI TUYẾN")
-                    .font(.system(size: 9.5, weight: .bold))
-                    .foregroundColor(ktv.isOnline ? Color.appSuccess : Color.gray)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background((ktv.isOnline ? Color.appSuccess : Color.gray).opacity(0.12))
-                    .cornerRadius(6)
-
+            
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(ktv.isOnline ? "ONLINE" : "OFFLINE")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(ktv.isOnline ? .green : .gray)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background((ktv.isOnline ? Color.green : Color.gray).opacity(0.15))
+                    .cornerRadius(8)
+                
                 Text(ktv.lastSeen)
-                    .font(.system(size: 10))
-                    .foregroundColor(Color.appTextMuted)
+                    .font(.system(size: 11))
+                    .foregroundColor(.gray)
             }
         }
         .padding(12)
         .background(Color.white)
         .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
+        .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
     }
-
-    // MARK: - STAT CHIP
-    @ViewBuilder
-    private func statChip(label: String, count: Int, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Text("\(count)")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundColor(color)
-            Text(label)
-                .font(.system(size: 10))
-                .foregroundColor(Color.appTextSecondary)
-        }
-        .frame(maxWidth: .infinity)
+}
+// Helper for corner radius
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape( RoundedCorner(radius: radius, corners: corners) )
+    }
+}
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
     }
 }

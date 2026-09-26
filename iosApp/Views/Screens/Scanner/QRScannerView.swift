@@ -1,128 +1,375 @@
 import SwiftUI
 import AVFoundation
 
-// MARK: - MÀN HÌNH QUÉT MÃ QR / BARCODE (ĐỒNG BỘ 1:1 THEO SCANNER TRÊN ANDROID)
 public struct QRScannerView: View {
-    var onScanResult: (String) -> Void
-    var onDismiss: () -> Void
-
-    @State private var manualInput: String = ""
-    @State private var isFlashOn: Bool = false
-    @State private var hasPermission: Bool = true
-    @State private var scannedCode: String? = nil
-
-    public init(
-        onScanResult: @escaping (String) -> Void,
-        onDismiss: @escaping () -> Void
-    ) {
+    let onScanResult: (String) -> Void
+    let onDismiss: () -> Void
+    
+    @AppStorage("scanner_beep") private var beepOnScan = true
+    @AppStorage("scanner_vibrate") private var vibrateOnScan = true
+    
+    @State private var isFlashOn = false
+    @State private var cameraPosition: AVCaptureDevice.Position = .back
+    @State private var showManualInput = false
+    @State private var manualCode = ""
+    @State private var isProcessing = false
+    
+    public init(onScanResult: @escaping (String) -> Void, onDismiss: @escaping () -> Void) {
         self.onScanResult = onScanResult
         self.onDismiss = onDismiss
     }
-
+    
     public var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-
-            VStack(spacing: 0) {
-                // TopBar
-                HStack {
-                    Button(action: onDismiss) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(10)
-                            .background(Color.black.opacity(0.5))
-                            .clipShape(Circle())
+        GeometryReader { geometry in
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // Top bar với safe area
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+                        topBar
                     }
-
-                    Spacer()
-
-                    Text("Quét mã QR / Barcode")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
-
-                    Spacer()
-
-                    Button(action: toggleFlash) {
-                        Image(systemName: isFlashOn ? "bolt.fill" : "bolt.slash.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(isFlashOn ? .yellow : .white)
-                            .padding(10)
-                            .background(Color.black.opacity(0.5))
-                            .clipShape(Circle())
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 14)
-
-                Spacer()
-
-                // Khung ngắm quét mã
-                VStack(spacing: 16) {
+                    .background(Color.appPrimary)
+                    
+                    // Camera View & Overlay
                     ZStack {
-                        // Khung vuông có 4 góc bo
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.appPrimaryPink, lineWidth: 3)
-                            .frame(width: 250, height: 250)
-                            .background(Color.black.opacity(0.2))
-
-                        // Tia laser đỏ chuyển động
-                        Rectangle()
-                            .fill(Color.appPrimaryPink)
-                            .frame(width: 230, height: 2)
-                    }
-
-                    Text("Hướng camera về phía mã QR hoặc Barcode trên thiết bị")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 30)
-                }
-
-                Spacer()
-
-                // Ô nhập mã thủ công
-                VStack(spacing: 10) {
-                    HStack(spacing: 8) {
-                        TextField("Hoặc nhập mã thiết bị thủ công...", text: $manualInput)
-                            .font(.system(size: 13))
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(10)
-                            .foregroundColor(.black)
-
-                        Button(action: {
-                            let clean = manualInput.trimmingCharacters(in: .whitespacesAndNewlines)
-                            if !clean.isEmpty {
-                                onScanResult(clean)
-                                onDismiss()
-                            }
-                        }) {
-                            Text("Tìm")
-                                .font(.system(size: 14, weight: .bold))
+                        CameraPreviewView(
+                            isFlashOn: $isFlashOn,
+                            cameraPosition: $cameraPosition,
+                            isProcessing: $isProcessing,
+                            onScanResult: handleScannedCode
+                        )
+                        .edgesIgnoringSafeArea(.bottom)
+                        
+                        ScannerOverlayView(isProcessing: isProcessing)
+                        
+                        VStack {
+                            Spacer()
+                            Button(action: {
+                                showManualInput = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "keyboard")
+                                    Text("Nhập tay mã")
+                                        .fontWeight(.bold)
+                                }
                                 .foregroundColor(.white)
-                                .padding(.horizontal, 16)
+                                .padding(.horizontal, 24)
                                 .padding(.vertical, 12)
-                                .background(Color.appPrimaryPink)
-                                .cornerRadius(10)
+                                .background(Color.black.opacity(0.6))
+                                .cornerRadius(24)
+                            }
+                            .padding(.bottom, 40)
                         }
                     }
-                    .padding(.horizontal, 20)
                 }
-                .padding(.bottom, 30)
+            }
+            .alert("Nhập tay mã", isPresented: $showManualInput) {
+                TextField("Nhập mã thiết bị", text: $manualCode)
+                Button("Xác nhận") {
+                    let code = manualCode.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !code.isEmpty {
+                        handleScannedCode(code)
+                    }
+                    manualCode = ""
+                }
+                Button("Hủy", role: .cancel) { 
+                    manualCode = ""
+                }
+            } message: {
+                Text("Vui lòng nhập chính xác mã thiết bị")
+            }
+        }
+        .ignoresSafeArea(edges: .top)
+    }
+    
+    private var topBar: some View {
+        HStack {
+            Button(action: onDismiss) {
+                Image(systemName: "arrow.left")
+                    .foregroundColor(.white)
+                    .padding()
+            }
+            
+            Text("Quét mã QR / Barcode")
+                .font(.headline)
+                .foregroundColor(.white)
+            
+            Spacer()
+            
+            Button(action: {
+                cameraPosition = (cameraPosition == .back) ? .front : .back
+            }) {
+                Image(systemName: "arrow.triangle.2.circlepath.camera")
+                    .foregroundColor(.white)
+                    .padding()
+            }
+            
+            Button(action: {
+                isFlashOn.toggle()
+            }) {
+                Image(systemName: isFlashOn ? "bolt.fill" : "bolt.slash.fill")
+                    .foregroundColor(isFlashOn ? .yellow : .white)
+                    .padding()
             }
         }
     }
+    
+    private func handleScannedCode(_ code: String) {
+        guard !isProcessing else { return }
+        isProcessing = true
+        
+        if beepOnScan {
+            AudioServicesPlaySystemSound(1052)
+        }
+        if vibrateOnScan {
+            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+        }
+        
+        onScanResult(code)
+        
+        // Reset processing after a delay to allow UI to update
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            isProcessing = false
+        }
+    }
+}
 
-    private func toggleFlash() {
-        guard let device = AVCaptureDevice.default(for: .video), device.hasTorch else { return }
+// MARK: - Camera Preview Wrapper
+struct CameraPreviewView: UIViewControllerRepresentable {
+    @Binding var isFlashOn: Bool
+    @Binding var cameraPosition: AVCaptureDevice.Position
+    @Binding var isProcessing: Bool
+    let onScanResult: (String) -> Void
+    
+    func makeUIViewController(context: Context) -> ScannerViewController {
+        let vc = ScannerViewController()
+        vc.onScanResult = onScanResult
+        return vc
+    }
+    
+    func updateUIViewController(_ uiViewController: ScannerViewController, context: Context) {
+        uiViewController.updateFlash(isFlashOn: isFlashOn)
+        uiViewController.updateCameraPosition(position: cameraPosition)
+        uiViewController.isProcessing = isProcessing
+    }
+}
+
+// MARK: - Scanner View Controller
+class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+    var captureSession: AVCaptureSession!
+    var previewLayer: AVCaptureVideoPreviewLayer!
+    var onScanResult: ((String) -> Void)?
+    var isProcessing = false
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        view.backgroundColor = UIColor.black
+        captureSession = AVCaptureSession()
+        
+        setupCamera(position: .back)
+    }
+    
+    func setupCamera(position: AVCaptureDevice.Position) {
+        captureSession.beginConfiguration()
+        
+        // Remove existing inputs
+        captureSession.inputs.forEach { captureSession.removeInput($0) }
+        
+        guard let videoCaptureDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position) else { return }
+        let videoInput: AVCaptureDeviceInput
+        
+        do {
+            videoInput = try AVCaptureDeviceInput(device: videoCaptureDevice)
+        } catch {
+            return
+        }
+        
+        if (captureSession.canAddInput(videoInput)) {
+            captureSession.addInput(videoInput)
+        } else {
+            return
+        }
+        
+        // Only add output if not already added
+        if captureSession.outputs.isEmpty {
+            let metadataOutput = AVCaptureMetadataOutput()
+            if (captureSession.canAddOutput(metadataOutput)) {
+                captureSession.addOutput(metadataOutput)
+                
+                metadataOutput.setMetadataObjectsDelegate(self, queue: DispatchQueue.main)
+                metadataOutput.metadataObjectTypes = [
+                    .qr, .ean8, .ean13, .pdf417, .code128, .code39, .code93, .dataMatrix, .itf14, .upce
+                ]
+            }
+        }
+        
+        captureSession.commitConfiguration()
+        
+        if previewLayer == nil {
+            previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+            previewLayer.frame = view.layer.bounds
+            previewLayer.videoGravity = .resizeAspectFill
+            view.layer.addSublayer(previewLayer)
+        }
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            self.captureSession.startRunning()
+        }
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        if (captureSession?.isRunning == false) {
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.captureSession.startRunning()
+            }
+        }
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        if (captureSession?.isRunning == true) {
+            captureSession.stopRunning()
+        }
+    }
+    
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        previewLayer?.frame = view.layer.bounds
+    }
+    
+    func metadataOutput(_ output: AVCaptureMetadataOutput, didOutput metadataObjects: [AVMetadataObject], from connection: AVCaptureConnection) {
+        guard !isProcessing else { return }
+        
+        if let metadataObject = metadataObjects.first {
+            guard let readableObject = metadataObject as? AVMetadataMachineReadableCodeObject else { return }
+            guard let stringValue = readableObject.stringValue else { return }
+            
+            onScanResult?(stringValue)
+        }
+    }
+    
+    func updateFlash(isFlashOn: Bool) {
+        guard let device = AVCaptureDevice.default(for: AVMediaType.video),
+              device.hasTorch else { return }
         do {
             try device.lockForConfiguration()
-            device.torchMode = isFlashOn ? .off : .on
+            device.torchMode = isFlashOn ? .on : .off
             device.unlockForConfiguration()
-            isFlashOn.toggle()
         } catch {
-            isFlashOn.toggle()
+            print("Torch could not be used")
         }
+    }
+    
+    func updateCameraPosition(position: AVCaptureDevice.Position) {
+        guard let currentInput = captureSession.inputs.first as? AVCaptureDeviceInput else { return }
+        if currentInput.device.position != position {
+            setupCamera(position: position)
+        }
+    }
+}
+
+// MARK: - Scanner Overlay
+struct ScannerOverlayView: View {
+    let isProcessing: Bool
+    @State private var scanLineOffset: CGFloat = -130
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // Dimmed background with clear hole
+                Color.black.opacity(0.5)
+                    .mask(
+                        ZStack {
+                            Rectangle()
+                                .fill(Color.white)
+                            
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.black)
+                                .frame(width: 260, height: 260)
+                                .blendMode(.destinationOut)
+                        }
+                        .compositingGroup()
+                    )
+                
+                // Viewfinder frame
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color.white.opacity(0.3), lineWidth: 1.5)
+                    .frame(width: 260, height: 260)
+                
+                // Corners
+                ScannerCorners()
+                    .stroke(Color.appPrimary, lineWidth: 4)
+                    .frame(width: 260, height: 260)
+                
+                // Scan Line
+                if !isProcessing {
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [.clear, Color.appPrimary, .white, Color.appPrimary, .clear]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: 260, height: 3)
+                        .offset(y: scanLineOffset)
+                        .onAppear {
+                            withAnimation(Animation.linear(duration: 2.0).repeatForever(autoreverses: true)) {
+                                scanLineOffset = 130
+                            }
+                        }
+                } else {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: Color.appPrimary))
+                        .scaleEffect(1.5)
+                }
+                
+                VStack {
+                    Spacer()
+                    Text("Căn chỉnh mã QR hoặc Barcode vào giữa khung")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.black.opacity(0.65))
+                        .cornerRadius(20)
+                        .padding(.bottom, geometry.size.height / 2 - 170)
+                }
+            }
+        }
+    }
+}
+
+struct ScannerCorners: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let length: CGFloat = 28
+        
+        // Top Left
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY + length))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.minX + length, y: rect.minY))
+        
+        // Top Right
+        path.move(to: CGPoint(x: rect.maxX - length, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + length))
+        
+        // Bottom Left
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY - length))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + length, y: rect.maxY))
+        
+        // Bottom Right
+        path.move(to: CGPoint(x: rect.maxX - length, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - length))
+        
+        return path
     }
 }

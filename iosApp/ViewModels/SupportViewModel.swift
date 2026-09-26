@@ -561,6 +561,9 @@ public class SupportViewModel: ObservableObject {
                     else { lastSeen = "\(diffSeconds / 3600) giờ trước" }
                 }
 
+                let latitude = FirestoreHelper.getDouble(fields["latitude"] as? [String: Any])
+                let longitude = FirestoreHelper.getDouble(fields["longitude"] as? [String: Any])
+
                 result.append(KtvOnlineLocation(
                     name: name.isEmpty ? email : name,
                     email: email,
@@ -570,7 +573,9 @@ public class SupportViewModel: ObservableObject {
                     unitName: unitName.isEmpty ? role : unitName,
                     isOnline: isOnline,
                     lastSeen: lastSeen,
-                    lastActiveAt: lastActiveAt
+                    lastActiveAt: lastActiveAt,
+                    latitude: latitude,
+                    longitude: longitude
                 ))
             }
 
