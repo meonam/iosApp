@@ -1,152 +1,162 @@
 import SwiftUI
 
-// MARK: - MÀN HÌNH CHỜ PHÊ DUYỆT (ĐỒNG BỘ THEO ANDROID)
 public struct PendingApprovalView: View {
-    @ObservedObject var viewModel: AuthViewModel
-    var onApproved: (String) -> Void
+    @ObservedObject var authViewModel: AuthViewModel
+    var onApproved: () -> Void
     var onLogout: () -> Void
-
-    @State private var isChecking: Bool = false
-    @State private var checkTimer: Timer? = nil
-
-    public init(viewModel: AuthViewModel, onApproved: @escaping (String) -> Void, onLogout: @escaping () -> Void) {
-        self.viewModel = viewModel
+    
+    @State private var isChecking = false
+    let timer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
+    
+    public init(authViewModel: AuthViewModel, onApproved: @escaping () -> Void, onLogout: @escaping () -> Void) {
+        self.authViewModel = authViewModel
         self.onApproved = onApproved
         self.onLogout = onLogout
     }
-
+    
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
                 Color.appBackground.ignoresSafeArea()
-
-                VStack(spacing: 24) {
+                VStack(spacing: 0) {
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+                        topBar
+                    }
+                    .background(Color.appPrimary)
+                    
                     Spacer()
-
-                    VStack(spacing: 16) {
-                        Image(systemName: "hourglass.circle.fill")
-                            .font(.system(size: 72))
-                            .foregroundColor(.appPrimaryPink)
-                            .padding(.bottom, 8)
-
-                        Text("Tài khoản đang chờ phê duyệt")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.appSecondaryDarkBlue)
+                    
+                    VStack(spacing: 24) {
+                        Image(systemName: "clock.badge.exclamationmark")
+                            .font(.system(size: 64))
+                            .foregroundColor(.orange)
+                        
+                        Text("Đang chờ phê duyệt")
+                            .font(.title2)
+                            .bold()
+                        
+                        Text("Tài khoản của bạn đã được ghi nhận và đang chờ quản trị viên phê duyệt. Quá trình này có thể mất một khoảng thời gian.")
                             .multilineTextAlignment(.center)
-
-                        Text("Admin của \(viewModel.currentCompanyId.isEmpty ? "công ty" : viewModel.currentCompanyId) sẽ xem xét yêu cầu của bạn. Vui lòng chờ thông báo.")
-                            .font(.system(size: 14))
-                            .foregroundColor(.appTextSecondary)
-                            .multilineTextAlignment(.center)
+                            .foregroundColor(.gray)
                             .padding(.horizontal, 32)
                         
-                        if let email = viewModel.currentUser?.email {
-                            Text("Email đăng ký: \(email)")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(.appTextPrimary)
-                                .padding(.top, 8)
+                        VStack(spacing: 12) {
+                            HStack {
+                                Text("Họ tên:")
+                                    .foregroundColor(.gray)
+                                Spacer()
+                                Text(authViewModel.currentUser?.name ?? "--")
+                                    .bold()
+                            }
+                            HStack {
+                                Text("Email:")
+                                    .foregroundColor(.gray)
+                                Spacer()
+                                Text(authViewModel.currentUser?.email ?? "--")
+                                    .bold()
+                            }
+                        }
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .padding(.horizontal, 32)
+                        
+                        Text("Liên hệ admin: admin@sgcoop.com")
+                            .font(.footnote)
+                            .foregroundColor(.blue)
+                        
+                        if isChecking {
+                            ProgressView("Đang kiểm tra trạng thái...")
+                                .padding()
                         }
                     }
-                    .padding(24)
-                    .background(Color.white)
-                    .cornerRadius(20)
-                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
-                    .padding(.horizontal, 24)
-
+                    
+                    Spacer()
+                    
                     VStack(spacing: 16) {
-                        Button(action: checkStatus) {
-                            HStack {
-                                if isChecking {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Image(systemName: "arrow.clockwise")
-                                    Text("Kiểm tra trạng thái")
-                                        .font(.system(size: 16, weight: .bold))
-                                }
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Color.appPrimaryPink)
-                            .cornerRadius(12)
+                        Button(action: checkApprovalStatus) {
+                            Text("Làm mới")
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.appPrimary)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
                         }
-                        .disabled(isChecking)
-
+                        
                         Button(action: onLogout) {
                             Text("Đăng xuất")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.appDanger)
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 50)
+                                .padding()
                                 .background(Color.white)
-                                .cornerRadius(12)
+                                .foregroundColor(.red)
+                                .cornerRadius(8)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(Color.appDanger, lineWidth: 1)
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color.red, lineWidth: 1)
                                 )
                         }
                     }
-                    .padding(.horizontal, 24)
-
-                    Spacer()
+                    .padding()
+                    .padding(.bottom, geometry.safeAreaInsets.bottom)
                 }
             }
         }
+        .ignoresSafeArea(edges: .top)
         .onAppear {
-            startTimer()
+            checkApprovalStatus()
         }
-        .onDisappear {
-            stopTimer()
-        }
-    }
-
-    private func startTimer() {
-        checkTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { _ in
-            checkStatus()
+        .onReceive(timer) { _ in
+            checkApprovalStatus()
         }
     }
-
-    private func stopTimer() {
-        checkTimer?.invalidate()
-        checkTimer = nil
+    
+    private var topBar: some View {
+        HStack {
+            Spacer()
+            Text("Chờ duyệt")
+                .font(.headline)
+                .foregroundColor(.white)
+            Spacer()
+        }
+        .padding()
     }
-
-    private func checkStatus() {
-        guard !isChecking, let user = viewModel.currentUser else { return }
+    
+    private func checkApprovalStatus() {
+        let companyId = authViewModel.currentUser?.companyId ?? ""
+        let userId = authViewModel.currentUser?.id ?? ""
+        let token = authViewModel.currentIdToken ?? ""
+        
+        guard !companyId.isEmpty, !userId.isEmpty, !token.isEmpty else { return }
+        
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(userId)"
+        guard let url = URL(string: urlStr) else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
         isChecking = true
-
+        
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.currentCompanyId)/users/\(user.email)"
-            guard let url = URL(string: urlStr) else {
-                await MainActor.run { isChecking = false }
-                return
-            }
-
-            var request = URLRequest(url: url)
-            request.setValue("Bearer \(viewModel.currentIdToken)", forHTTPHeaderField: "Authorization")
-
             do {
                 let (data, response) = try await URLSession.shared.data(for: request)
-                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-                   let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let fields = json["fields"] as? [String: Any] {
-                    
-                    let status = FirestoreHelper.getString(fields["status"] as? [String: Any])
-                    let role = FirestoreHelper.getString(fields["role"] as? [String: Any])
-
-                    await MainActor.run {
-                        isChecking = false
-                        if status == "APPROVED" || status == "ACTIVE" {
-                            stopTimer()
-                            onApproved(role)
+                DispatchQueue.main.async {
+                    self.isChecking = false
+                    if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
+                        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                           let fields = json["fields"] as? [String: Any] {
+                            let isApproved = FirestoreHelper.getBool(fields, "isApproved")
+                            if isApproved {
+                                self.onApproved()
+                            }
                         }
                     }
-                } else {
-                    await MainActor.run { isChecking = false }
                 }
             } catch {
-                await MainActor.run { isChecking = false }
+                DispatchQueue.main.async {
+                    self.isChecking = false
+                }
             }
         }
     }

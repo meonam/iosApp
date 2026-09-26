@@ -1,312 +1,343 @@
 import SwiftUI
 
-// MARK: - MÀN HÌNH YÊU CẦU HỖ TRỢ CHO NHÂN VIÊN (ĐỒNG BỘ THEO STAFFSUPPORTSCREEN.KT TRÊN ANDROID)
+struct StaffTicket: Identifiable {
+    let id: String
+    var title: String
+    var description: String
+    var status: String
+    var priority: String
+    var category: String
+    var creatorId: String
+    var createdAt: Int64
+}
+
 public struct StaffSupportView: View {
-    @ObservedObject var viewModel: AuthViewModel
-    @ObservedObject var supportVM: SupportViewModel
+    @ObservedObject var authViewModel: AuthViewModel
     var onBack: () -> Void
-    var onSelectTicket: (SupportTicket) -> Void
-    var onOpenRatingReport: () -> Void
-
-    @State private var currentTab: Int = 0 // 0: Ticket của tôi, 1: Tạo mới
-
-    // Form fields for create
-    @State private var subject: String = ""
-    @State private var description: String = ""
-    @State private var priority: String = "NORMAL"
-    @State private var deviceId: String = ""
-    @State private var isSubmitting: Bool = false
-    @State private var showSuccessAlert: Bool = false
-
-    public init(
-        viewModel: AuthViewModel,
-        supportVM: SupportViewModel,
-        onBack: @escaping () -> Void,
-        onSelectTicket: @escaping (SupportTicket) -> Void,
-        onOpenRatingReport: @escaping () -> Void
-    ) {
-        self.viewModel = viewModel
-        self.supportVM = supportVM
+    
+    @State private var tickets: [StaffTicket] = []
+    @State private var isLoading = false
+    @State private var showingCreateSheet = false
+    @State private var selectedStatus: String = "ALL"
+    let statuses = ["ALL", "OPEN", "IN_PROGRESS", "CLOSED"]
+    
+    public init(authViewModel: AuthViewModel, onBack: @escaping () -> Void) {
+        self.authViewModel = authViewModel
         self.onBack = onBack
-        self.onSelectTicket = onSelectTicket
-        self.onOpenRatingReport = onOpenRatingReport
     }
-
+    
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
                 Color.appBackground.ignoresSafeArea()
-
                 VStack(spacing: 0) {
-                    // 1. TOP BAR VỚI SAFE AREA
                     VStack(spacing: 0) {
                         Color.clear.frame(height: geometry.safeAreaInsets.top)
-                        HStack(spacing: 12) {
-                            Button(action: onBack) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-                            Text("Hỗ trợ CNTT")
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundColor(.white)
-                            Spacer()
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                        topBar
                     }
-                    .background(Color.appTopBarColor)
-
-                    // 2. TABS
-                    HStack(spacing: 0) {
-                        tabButton(title: "Yêu cầu của tôi", index: 0)
-                        tabButton(title: "Tạo yêu cầu mới", index: 1)
-                    }
-                    .background(Color.white)
-                    .shadow(color: Color.black.opacity(0.05), radius: 3, x: 0, y: 3)
-                    .zIndex(1)
-
-                    // 3. CONTENT
-                    if currentTab == 0 {
-                        myTicketsTab
+                    .background(Color.appPrimary)
+                    
+                    statusPicker
+                        .padding()
+                    
+                    if isLoading && tickets.isEmpty {
+                        Spacer()
+                        ProgressView("Đang tải...")
+                        Spacer()
+                    } else if filteredTickets.isEmpty {
+                        Spacer()
+                        Text("Không có yêu cầu hỗ trợ nào.")
+                            .foregroundColor(.gray)
+                        Spacer()
                     } else {
-                        createTicketTab
+                        List {
+                            ForEach(filteredTickets) { ticket in
+                                ticketRow(ticket)
+                                    .listRowBackground(Color.clear)
+                                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
+                            }
+                        }
+                        .listStyle(.plain)
+                        .refreshable {
+                            await fetchTicketsAsync()
+                        }
                     }
                 }
             }
         }
         .ignoresSafeArea(edges: .top)
         .onAppear {
-            if supportVM.myTickets.isEmpty {
-                Task {
-                    await supportVM.fetchMyTickets()
-                }
+            fetchTickets()
+        }
+        .sheet(isPresented: $showingCreateSheet) {
+            CreateTicketView(authViewModel: authViewModel) {
+                fetchTickets()
+                showingCreateSheet = false
+            } onCancel: {
+                showingCreateSheet = false
             }
         }
-        .alert(isPresented: $showSuccessAlert) {
-            Alert(
-                title: Text("Thành công"),
-                message: Text("Đã gửi yêu cầu hỗ trợ thành công. Kỹ thuật viên sẽ liên hệ với bạn trong thời gian sớm nhất."),
-                dismissButton: .default(Text("OK")) {
-                    currentTab = 0
-                    Task {
-                        await supportVM.fetchMyTickets()
-                    }
-                }
-            )
-        }
     }
-
-    // MARK: - MY TICKETS TAB
-    private var myTicketsTab: some View {
-        VStack {
-            if supportVM.isLoading {
+    
+    private var topBar: some View {
+        HStack {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .foregroundColor(.white)
+                    .font(.title2)
+            }
+            Spacer()
+            Text("Hỗ trợ (Staff)")
+                .font(.headline)
+                .foregroundColor(.white)
+            Spacer()
+            Button(action: { showingCreateSheet = true }) {
+                Image(systemName: "plus")
+                    .foregroundColor(.white)
+                    .font(.title2)
+            }
+        }
+        .padding()
+    }
+    
+    private var statusPicker: some View {
+        Picker("Trạng thái", selection: $selectedStatus) {
+            ForEach(statuses, id: \.self) { status in
+                Text(status == "ALL" ? "Tất cả" : (status == "OPEN" ? "Mở" : (status == "IN_PROGRESS" ? "Đang xử lý" : "Đã đóng"))).tag(status)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
+    
+    private var filteredTickets: [StaffTicket] {
+        if selectedStatus == "ALL" { return tickets }
+        return tickets.filter { $0.status == selectedStatus }
+    }
+    
+    private func ticketRow(_ ticket: StaffTicket) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(ticket.title)
+                    .font(.headline)
                 Spacer()
-                ProgressView("Đang tải dữ liệu...")
+                Text(ticket.status)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(statusColor(ticket.status).opacity(0.2))
+                    .foregroundColor(statusColor(ticket.status))
+                    .cornerRadius(8)
+            }
+            Text(ticket.description)
+                .font(.subheadline)
+                .foregroundColor(.gray)
+                .lineLimit(2)
+            HStack {
+                Text(ticket.priority)
+                    .font(.caption2)
+                    .padding(4)
+                    .background(priorityColor(ticket.priority).opacity(0.2))
+                    .foregroundColor(priorityColor(ticket.priority))
+                    .cornerRadius(4)
                 Spacer()
-            } else if supportVM.myTickets.isEmpty {
-                Spacer()
-                Image(systemName: "tray.fill")
-                    .font(.system(size: 48))
-                    .foregroundColor(Color.appTextSecondary.opacity(0.5))
-                Text("Bạn chưa có yêu cầu hỗ trợ nào")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Color.appTextSecondary)
-                    .padding(.top, 8)
-                Spacer()
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(supportVM.myTickets) { ticket in
-                            Button(action: { onSelectTicket(ticket) }) {
-                                ticketCard(ticket)
+                Text(formatDate(ticket.createdAt))
+                    .font(.caption2)
+                    .foregroundColor(.gray)
+            }
+        }
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.05), radius: 2, y: 1)
+    }
+    
+    private func fetchTickets() {
+        Task { await fetchTicketsAsync() }
+    }
+    
+    private func fetchTicketsAsync() async {
+        let companyId = authViewModel.currentUser?.companyId ?? ""
+        let token = authViewModel.currentIdToken ?? ""
+        let userId = authViewModel.currentUser?.id ?? ""
+        guard !companyId.isEmpty, !token.isEmpty, !userId.isEmpty else { return }
+        
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets"
+        guard let url = URL(string: urlStr) else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        DispatchQueue.main.async { isLoading = true }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let docs = json["documents"] as? [[String: Any]] {
+                    var loadedTickets: [StaffTicket] = []
+                    for doc in docs {
+                        if let fields = doc["fields"] as? [String: Any] {
+                            let cId = FirestoreHelper.getString(fields, "creatorId")
+                            if cId == userId {
+                                let docName = doc["name"] as? String ?? ""
+                                let docId = docName.components(separatedBy: "/").last ?? ""
+                                let ticket = StaffTicket(
+                                    id: docId,
+                                    title: FirestoreHelper.getString(fields, "title"),
+                                    description: FirestoreHelper.getString(fields, "description"),
+                                    status: FirestoreHelper.getString(fields, "status"),
+                                    priority: FirestoreHelper.getString(fields, "priority"),
+                                    category: FirestoreHelper.getString(fields, "category"),
+                                    creatorId: cId,
+                                    createdAt: FirestoreHelper.getInt64(fields, "createdAt")
+                                )
+                                loadedTickets.append(ticket)
                             }
                         }
                     }
-                    .padding(16)
+                    DispatchQueue.main.async {
+                        self.tickets = loadedTickets.sorted { $0.createdAt > $1.createdAt }
+                        self.isLoading = false
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        self.tickets = []
+                        self.isLoading = false
+                    }
                 }
+            } else {
+                DispatchQueue.main.async { self.isLoading = false }
             }
+        } catch {
+            DispatchQueue.main.async { self.isLoading = false }
         }
     }
-
-    private func ticketCard(_ ticket: SupportTicket) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(ticket.subject.isEmpty ? "Sự cố thiết bị" : ticket.subject)
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(.appTextPrimary)
-                        .lineLimit(2)
-                    Text("Mã phiếu: #\(ticket.id.prefix(8).uppercased())")
-                        .font(.system(size: 12))
-                        .foregroundColor(.appTextSecondary)
-                }
-                Spacer()
-                priorityBadge(ticket.priority)
-            }
-
-            Divider()
-
-            HStack {
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(ticket.isOpen ? Color.appWarning : Color.appSuccess)
-                        .frame(width: 8, height: 8)
-                    Text(ticket.isOpen ? "Đang xử lý" : "Đã hoàn tất")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(ticket.isOpen ? Color.appWarning : Color.appSuccess)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.appTextSecondary)
-            }
+    
+    private func statusColor(_ status: String) -> Color {
+        switch status {
+        case "OPEN": return .blue
+        case "IN_PROGRESS": return .orange
+        case "CLOSED": return .gray
+        default: return .black
         }
-        .padding(14)
-        .background(Color.white)
-        .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
-
-    private func priorityBadge(_ priority: String) -> some View {
-        let isUrgent = priority.uppercased() == "URGENT"
-        let isHigh = priority.uppercased() == "HIGH"
-        let color = isUrgent ? Color.appDanger : (isHigh ? Color.appWarning : Color.appInfo)
-        let text = isUrgent ? "Khẩn cấp" : (isHigh ? "Ưu tiên cao" : "Thường")
-
-        return Text(text)
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(color)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(color.opacity(0.15))
-            .cornerRadius(6)
+    
+    private func priorityColor(_ priority: String) -> Color {
+        switch priority {
+        case "URGENT": return .red
+        case "HIGH": return .orange
+        case "NORMAL": return .green
+        default: return .gray
+        }
     }
+    
+    private func formatDate(_ ms: Int64) -> String {
+        guard ms > 0 else { return "" }
+        let date = Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
+        let f = DateFormatter()
+        f.dateFormat = "dd/MM/yyyy HH:mm"
+        return f.string(from: date)
+    }
+}
 
-    // MARK: - CREATE TICKET TAB
-    private var createTicketTab: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Mô tả sự cố bạn đang gặp phải để bộ phận IT hỗ trợ kịp thời.")
-                    .font(.system(size: 13))
-                    .foregroundColor(.appTextSecondary)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Tiêu đề sự cố *")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.appTextPrimary)
-                    TextField("VD: Máy tính không lên nguồn", text: $subject)
-                        .font(.system(size: 14))
-                        .padding(12)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
+struct CreateTicketView: View {
+    @ObservedObject var authViewModel: AuthViewModel
+    var onSuccess: () -> Void
+    var onCancel: () -> Void
+    
+    @State private var title = ""
+    @State private var description = ""
+    @State private var priority = "NORMAL"
+    @State private var category = "IT"
+    @State private var isSubmitting = false
+    
+    let priorities = ["NORMAL", "HIGH", "URGENT"]
+    let categories = ["IT", "HR", "ADMIN", "OTHER"]
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Thông tin chung")) {
+                    TextField("Tiêu đề", text: $title)
+                    Picker("Danh mục", selection: $category) {
+                        ForEach(categories, id: \.self) { Text($0).tag($0) }
+                    }
+                    Picker("Mức độ", selection: $priority) {
+                        ForEach(priorities, id: \.self) { Text($0).tag($0) }
+                    }
                 }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Mô tả chi tiết *")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.appTextPrimary)
+                Section(header: Text("Mô tả chi tiết")) {
                     TextEditor(text: $description)
-                        .font(.system(size: 14))
-                        .frame(minHeight: 100)
-                        .padding(8)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
+                        .frame(height: 100)
                 }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Độ ưu tiên")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.appTextPrimary)
-                    Picker("Độ ưu tiên", selection: $priority) {
-                        Text("Bình thường").tag("NORMAL")
-                        Text("Ưu tiên cao").tag("HIGH")
-                        Text("Khẩn cấp").tag("URGENT")
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Mã thiết bị liên quan (Tùy chọn)")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.appTextPrimary)
-                    TextField("Nhập mã thiết bị nếu có", text: $deviceId)
-                        .font(.system(size: 14))
-                        .padding(12)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
-                }
-
-                Spacer().frame(height: 16)
-
-                Button(action: submitTicket) {
-                    HStack {
-                        if isSubmitting {
-                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        } else {
-                            Image(systemName: "paperplane.fill")
-                            Text("Gửi yêu cầu")
-                                .font(.system(size: 15, weight: .bold))
-                        }
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 48)
-                    .background(subject.isEmpty || description.isEmpty || isSubmitting ? Color.gray : Color.appPrimaryPink)
-                    .cornerRadius(10)
-                }
-                .disabled(subject.isEmpty || description.isEmpty || isSubmitting)
             }
-            .padding(16)
+            .navigationTitle("Tạo yêu cầu mới")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Hủy", action: onCancel)
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Lưu") {
+                        submitTicket()
+                    }
+                    .disabled(title.isEmpty || description.isEmpty || isSubmitting)
+                }
+            }
+            .overlay {
+                if isSubmitting {
+                    Color.black.opacity(0.3).ignoresSafeArea()
+                    ProgressView().tint(.white)
+                }
+            }
         }
     }
-
+    
     private func submitTicket() {
-        guard !subject.isEmpty && !description.isEmpty else { return }
+        let companyId = authViewModel.currentUser?.companyId ?? ""
+        let token = authViewModel.currentIdToken ?? ""
+        let userId = authViewModel.currentUser?.id ?? ""
+        let userName = authViewModel.currentUser?.name ?? ""
+        
+        guard !companyId.isEmpty, !token.isEmpty else { return }
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets"
+        guard let url = URL(string: urlStr) else { return }
+        
         isSubmitting = true
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let body: [String: Any] = [
+            "fields": [
+                "title": ["stringValue": title],
+                "description": ["stringValue": description],
+                "status": ["stringValue": "OPEN"],
+                "priority": ["stringValue": priority],
+                "category": ["stringValue": category],
+                "creatorId": ["stringValue": userId],
+                "creatorName": ["stringValue": userName],
+                "createdAt": ["integerValue": "\(now)"],
+                "updatedAt": ["integerValue": "\(now)"]
+            ]
+        ]
+        
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
         Task {
-            let result = await supportVM.createTicket(
-                subject: subject,
-                description: description,
-                priority: priority,
-                deviceId: deviceId.isEmpty ? nil : deviceId
-            )
-            await MainActor.run {
-                isSubmitting = false
-                if result != nil {
-                    // Reset form
-                    subject = ""
-                    description = ""
-                    priority = "NORMAL"
-                    deviceId = ""
-                    showSuccessAlert = true
+            do {
+                let (_, response) = try await URLSession.shared.data(for: request)
+                DispatchQueue.main.async {
+                    self.isSubmitting = false
+                    if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
+                        self.onSuccess()
+                    }
                 }
+            } catch {
+                DispatchQueue.main.async { self.isSubmitting = false }
             }
-        }
-    }
-
-    // MARK: - TAB BUTTON
-    private func tabButton(title: String, index: Int) -> some View {
-        let isSelected = currentTab == index
-        return Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                currentTab = index
-            }
-        }) {
-            VStack(spacing: 8) {
-                Text(title)
-                    .font(.system(size: 14, weight: isSelected ? .bold : .medium))
-                    .foregroundColor(isSelected ? .appPrimaryPink : .appTextSecondary)
-                    .padding(.top, 12)
-                
-                Rectangle()
-                    .fill(isSelected ? Color.appPrimaryPink : Color.clear)
-                    .frame(height: 3)
-            }
-            .frame(maxWidth: .infinity)
         }
     }
 }

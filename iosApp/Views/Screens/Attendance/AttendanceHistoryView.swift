@@ -1,156 +1,61 @@
 import SwiftUI
 
-struct AttendanceHistoryView: View {
-    @ObservedObject var viewModel: AuthViewModel
-    @StateObject private var attendanceVM: AttendanceViewModel
+struct AttendanceRecord: Identifiable {
+    let id: String
+    var checkInTime: Int64
+    var checkOutTime: Int64
+    var status: String
+    var workDuration: Int
+}
+
+public struct AttendanceHistoryView: View {
+    @ObservedObject var authViewModel: AuthViewModel
+    var onBack: () -> Void
     
-    @State private var showingMonthPicker = false
-    @State private var selectedMonthIndex = 0 // 0 = current month, 1 = previous month, etc. up to 11
+    @State private var records: [AttendanceRecord] = []
+    @State private var isLoading = false
+    @State private var isListView = true
     
-    let months: [Date] = {
-        var arr: [Date] = []
-        let cal = Calendar.current
-        let now = Date()
-        for i in 0..<12 {
-            if let d = cal.date(byAdding: .month, value: -i, to: now) {
-                arr.append(d)
-            }
-        }
-        return arr
-    }()
-    
-    init(viewModel: AuthViewModel) {
-        self.viewModel = viewModel
-        // Create AttendanceViewModel instance with current user
-        _attendanceVM = StateObject(wrappedValue: AttendanceViewModel(
-            user: viewModel.user,
-            companyId: viewModel.user.companyId,
-            idToken: viewModel.authToken
-        ))
+    public init(authViewModel: AuthViewModel, onBack: @escaping () -> Void) {
+        self.authViewModel = authViewModel
+        self.onBack = onBack
     }
     
-    var body: some View {
+    public var body: some View {
         GeometryReader { geometry in
             ZStack {
                 Color.appBackground.ignoresSafeArea()
-                
                 VStack(spacing: 0) {
-                    // Top Bar
                     VStack(spacing: 0) {
                         Color.clear.frame(height: geometry.safeAreaInsets.top)
-                        
-                        HStack {
-                            Text("Nhật Ký Chấm Công Cá Nhân")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                attendanceVM.fetchAttendanceHistory(month: attendanceVM.selectedMonth)
-                            }) {
-                                Image(systemName: "arrow.clockwise")
-                                    .foregroundColor(.white)
-                            }
-                        }
-                        .padding()
-                        .background(Color.appPrimary)
+                        topBar
                     }
                     .background(Color.appPrimary)
                     
-                    // Month Picker & Summary
-                    VStack(spacing: 12) {
-                        HStack {
-                            Button(action: {
-                                if selectedMonthIndex < 11 {
-                                    selectedMonthIndex += 1
-                                    updateMonth()
-                                }
-                            }) {
-                                Image(systemName: "chevron.left")
-                                    .foregroundColor(.appPrimary)
-                                    .padding(8)
-                            }
-                            
-                            Spacer()
-                            
-                            Text(monthString(attendanceVM.selectedMonth))
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.appPrimary)
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                if selectedMonthIndex > 0 {
-                                    selectedMonthIndex -= 1
-                                    updateMonth()
-                                }
-                            }) {
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(selectedMonthIndex > 0 ? .appPrimary : .gray.opacity(0.5))
-                                    .padding(8)
-                            }
-                            .disabled(selectedMonthIndex == 0)
-                        }
-                        .padding(.horizontal)
-                        .padding(.top, 16)
-                        
-                        // KPI Stats
-                        VStack(spacing: 10) {
-                            HStack(spacing: 10) {
-                                KpiCard(title: "Tổng Ngày Công", value: "\(attendanceVM.totalDays) ngày", icon: "calendar.badge.clock", iconColor: .blue, bgColor: Color.blue.opacity(0.1))
-                                KpiCard(title: "Tỷ Lệ Đúng Giờ", value: String(format: "%.0f%%", onTimePercentage), icon: "checkmark.circle.fill", iconColor: .green, bgColor: Color.green.opacity(0.1))
-                            }
-                            HStack(spacing: 10) {
-                                KpiCard(title: "Đi Muộn / Sớm", value: "\(attendanceVM.lateDays + attendanceVM.earlyDays) lần", icon: "exclamationmark.triangle.fill", iconColor: .orange, bgColor: Color.orange.opacity(0.1))
-                                KpiCard(title: "Đúng Giờ", value: "\(attendanceVM.onTimeDays) ngày", icon: "clock.fill", iconColor: .purple, bgColor: Color.purple.opacity(0.1))
-                            }
-                        }
-                        .padding(.horizontal)
-                        
-                        Divider().padding(.vertical, 8)
-                        
-                        HStack {
-                            Text("Chi Tiết Từng Ngày (\(attendanceVM.attendanceHistory.count) bản ghi)")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.appPrimary)
-                            Spacer()
-                        }
-                        .padding(.horizontal)
-                    }
-                    .background(Color.white)
-                    .padding(.bottom, 8)
+                    // Summary Stats
+                    summaryStats
+                        .padding()
                     
-                    // List
-                    if attendanceVM.isLoadingHistory {
+                    if isLoading {
                         Spacer()
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .appPrimary))
-                            .scaleEffect(1.5)
+                        ProgressView("Đang tải...")
                         Spacer()
-                    } else if attendanceVM.attendanceHistory.isEmpty {
+                    } else if records.isEmpty {
                         Spacer()
-                        VStack(spacing: 12) {
-                            Image(systemName: "calendar.badge.minus")
-                                .font(.system(size: 40))
-                                .foregroundColor(.gray)
-                            Text("Chưa có dữ liệu chấm công tháng này")
-                                .font(.subheadline)
-                                .foregroundColor(.gray)
-                        }
+                        Text("Không có dữ liệu chấm công.")
+                            .foregroundColor(.gray)
                         Spacer()
                     } else {
-                        ScrollView {
-                            LazyVStack(spacing: 12) {
-                                ForEach(attendanceVM.attendanceHistory, id: \.id) { record in
-                                    AttendanceRecordCard(record: record)
-                                }
+                        List {
+                            ForEach(records) { record in
+                                recordRow(record)
+                                    .listRowBackground(Color.clear)
+                                    .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
                             }
-                            .padding()
-                            .padding(.bottom, 80)
                         }
+                        .listStyle(.plain)
                         .refreshable {
-                            attendanceVM.fetchAttendanceHistory(month: attendanceVM.selectedMonth)
+                            await fetchHistoryAsync()
                         }
                     }
                 }
@@ -158,248 +63,176 @@ struct AttendanceHistoryView: View {
         }
         .ignoresSafeArea(edges: .top)
         .onAppear {
-            attendanceVM.selectedMonth = months[selectedMonthIndex]
-            attendanceVM.fetchAttendanceHistory(month: attendanceVM.selectedMonth)
+            fetchHistory()
         }
     }
     
-    private var onTimePercentage: Double {
-        let total = attendanceVM.totalDays
-        if total == 0 { return 100.0 }
-        return Double(attendanceVM.onTimeDays) / Double(total) * 100.0
-    }
-    
-    private func updateMonth() {
-        attendanceVM.selectedMonth = months[selectedMonthIndex]
-        attendanceVM.fetchAttendanceHistory(month: attendanceVM.selectedMonth)
-    }
-    
-    private func monthString(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM/yyyy"
-        return "Tháng \(formatter.string(from: date))"
-    }
-}
-
-struct KpiCard: View {
-    let title: String
-    let value: String
-    let icon: String
-    let iconColor: Color
-    let bgColor: Color
-    
-    var body: some View {
-        HStack(spacing: 10) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(bgColor)
-                    .frame(width: 38, height: 38)
-                Image(systemName: icon)
-                    .foregroundColor(iconColor)
-            }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 11))
-                    .foregroundColor(.gray)
-                Text(value)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(Color.appPrimary)
+    private var topBar: some View {
+        HStack {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .foregroundColor(.white)
+                    .font(.title2)
             }
             Spacer()
+            Text("Lịch sử chấm công")
+                .font(.headline)
+                .foregroundColor(.white)
+            Spacer()
+            Button(action: { isListView.toggle() }) {
+                Image(systemName: isListView ? "calendar" : "list.bullet")
+                    .foregroundColor(.white)
+                    .font(.title2)
+            }
         }
-        .padding(12)
+        .padding()
+    }
+    
+    private var summaryStats: some View {
+        let total = records.count
+        let onTime = records.filter { $0.status == "on_time" }.count
+        let late = records.filter { $0.status == "late" }.count
+        
+        return HStack {
+            VStack {
+                Text("\(total)")
+                    .font(.title3).bold()
+                Text("Tổng ngày")
+                    .font(.caption).foregroundColor(.gray)
+            }
+            Spacer()
+            VStack {
+                Text("\(onTime)")
+                    .font(.title3).bold().foregroundColor(.green)
+                Text("Đúng giờ")
+                    .font(.caption).foregroundColor(.gray)
+            }
+            Spacer()
+            VStack {
+                Text("\(late)")
+                    .font(.title3).bold().foregroundColor(.orange)
+                Text("Trễ")
+                    .font(.caption).foregroundColor(.gray)
+            }
+        }
+        .padding()
         .background(Color.white)
         .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-        )
+        .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
     }
-}
-
-struct AttendanceRecordCard: View {
-    let record: AttendanceRecord
     
-    var body: some View {
-        VStack(spacing: 0) {
-            // Header: Date
-            HStack {
-                Image(systemName: "calendar")
-                    .font(.system(size: 12))
-                    .foregroundColor(.white)
-                Text(formatDate(record.date))
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
-                Spacer()
-                Text(record.shiftDisplayName)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white)
+    private func recordRow(_ record: AttendanceRecord) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(formatDateOnly(record.checkInTime))
+                    .font(.headline)
+                HStack {
+                    Image(systemName: "arrow.down.right.circle")
+                        .foregroundColor(.green)
+                    Text(formatTimeOnly(record.checkInTime))
+                    Spacer()
+                    Image(systemName: "arrow.up.right.circle")
+                        .foregroundColor(.red)
+                    Text(record.checkOutTime > 0 ? formatTimeOnly(record.checkOutTime) : "--:--")
+                }
+                .font(.subheadline)
+                .foregroundColor(.gray)
+            }
+            Spacer()
+            VStack(alignment: .trailing) {
+                Text(record.status == "on_time" ? "Đúng giờ" : (record.status == "late" ? "Trễ" : "Vắng"))
+                    .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(Color.white.opacity(0.2))
+                    .background((record.status == "on_time" ? Color.green : Color.orange).opacity(0.2))
+                    .foregroundColor(record.status == "on_time" ? .green : .orange)
                     .cornerRadius(8)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color.appPrimary)
-            
-            // Body
-            VStack(spacing: 12) {
-                HStack(alignment: .top) {
-                    // Check In
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 4) {
-                            Circle().fill(Color.green).frame(width: 8, height: 8)
-                            Text("Vào ca")
-                                .font(.system(size: 11))
-                                .foregroundColor(.gray)
-                        }
-                        Text(formatTime(record.checkInTime))
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.green)
-                        
-                        StatusBadge(status: record.checkInStatus, isCheckIn: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    // Check Out
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 4) {
-                            Circle().fill(Color.blue).frame(width: 8, height: 8)
-                            Text("Tan ca")
-                                .font(.system(size: 11))
-                                .foregroundColor(.gray)
-                        }
-                        Text(formatTime(record.checkOutTime))
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.blue)
-                        
-                        StatusBadge(status: record.checkOutStatus, isCheckIn: false)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
                 
-                // Location info
-                if !record.checkInAddress.isEmpty || !record.checkOutAddress.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
-                        if !record.checkInAddress.isEmpty {
-                            HStack(alignment: .top, spacing: 6) {
-                                Image(systemName: "mappin.and.ellipse")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.green)
-                                    .padding(.top, 2)
-                                Text("Vào: \(record.checkInAddress)")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.gray)
-                                    .lineLimit(2)
-                            }
-                        }
-                        if !record.checkOutAddress.isEmpty {
-                            HStack(alignment: .top, spacing: 6) {
-                                Image(systemName: "mappin.and.ellipse")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.blue)
-                                    .padding(.top, 2)
-                                Text("Ra: \(record.checkOutAddress)")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.gray)
-                                    .lineLimit(2)
-                            }
-                        }
-                    }
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.gray.opacity(0.05))
-                    .cornerRadius(8)
-                }
-                
-                if !record.note.isEmpty {
-                    HStack(spacing: 6) {
-                        Image(systemName: "note.text")
-                            .font(.system(size: 12))
-                            .foregroundColor(.orange)
-                        Text(record.note)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.orange)
-                            .italic()
-                        Spacer()
-                    }
+                if record.workDuration > 0 {
+                    Text("\(record.workDuration / 60)h \(record.workDuration % 60)m")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
                 }
             }
-            .padding(12)
         }
+        .padding()
         .background(Color.white)
         .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
-        )
+        .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
     }
     
-    private func formatDate(_ dateString: String) -> String {
-        // Assume format "yyyy-MM-dd"
-        let parts = dateString.split(separator: "-")
-        if parts.count == 3 {
-            return "\(parts[2])/\(parts[1])/\(parts[0])"
+    private func fetchHistory() {
+        Task { await fetchHistoryAsync() }
+    }
+    
+    private func fetchHistoryAsync() async {
+        let companyId = authViewModel.currentUser?.companyId ?? ""
+        let token = authViewModel.currentIdToken ?? ""
+        let userId = authViewModel.currentUser?.id ?? ""
+        guard !companyId.isEmpty, !token.isEmpty, !userId.isEmpty else { return }
+        
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendance"
+        guard let url = URL(string: urlStr) else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        DispatchQueue.main.async { isLoading = true }
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let docs = json["documents"] as? [[String: Any]] {
+                    var loaded: [AttendanceRecord] = []
+                    for doc in docs {
+                        if let fields = doc["fields"] as? [String: Any] {
+                            let uId = FirestoreHelper.getString(fields, "userId")
+                            if uId == userId {
+                                let docName = doc["name"] as? String ?? ""
+                                let docId = docName.components(separatedBy: "/").last ?? ""
+                                let rec = AttendanceRecord(
+                                    id: docId,
+                                    checkInTime: FirestoreHelper.getInt64(fields, "checkInTime"),
+                                    checkOutTime: FirestoreHelper.getInt64(fields, "checkOutTime"),
+                                    status: FirestoreHelper.getString(fields, "status"),
+                                    workDuration: FirestoreHelper.getInt(fields, "workDuration")
+                                )
+                                loaded.append(rec)
+                            }
+                        }
+                    }
+                    DispatchQueue.main.async {
+                        self.records = loaded.sorted { $0.checkInTime > $1.checkInTime }
+                        self.isLoading = false
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        self.records = []
+                        self.isLoading = false
+                    }
+                }
+            } else {
+                DispatchQueue.main.async { self.isLoading = false }
+            }
+        } catch {
+            DispatchQueue.main.async { self.isLoading = false }
         }
-        return dateString
     }
     
-    private func formatTime(_ timestamp: Int64) -> String {
-        if timestamp <= 0 { return "--:--" }
-        let date = Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000.0)
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
-    }
-}
-
-struct StatusBadge: View {
-    let status: String
-    let isCheckIn: Bool
-    
-    var body: some View {
-        Text(statusText)
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(statusColor)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(statusColor.opacity(0.1))
-            .cornerRadius(4)
+    private func formatDateOnly(_ ms: Int64) -> String {
+        guard ms > 0 else { return "" }
+        let date = Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
+        let f = DateFormatter()
+        f.dateFormat = "dd/MM/yyyy"
+        return f.string(from: date)
     }
     
-    private var statusText: String {
-        if isCheckIn {
-            switch status {
-            case "ON_TIME": return "ĐÚNG GIỜ"
-            case "LATE": return "ĐI TRỄ"
-            default: return status.isEmpty ? "CHƯA RÕ" : status
-            }
-        } else {
-            switch status {
-            case "NORMAL", "ON_TIME": return "ĐÚNG GIỜ"
-            case "EARLY": return "VỀ SỚM"
-            case "OVERTIME": return "TĂNG CA"
-            default: return status.isEmpty ? "CHƯA RÕ" : status
-            }
-        }
-    }
-    
-    private var statusColor: Color {
-        if isCheckIn {
-            switch status {
-            case "ON_TIME": return .green
-            case "LATE": return .red
-            default: return .gray
-            }
-        } else {
-            switch status {
-            case "NORMAL", "ON_TIME": return .blue
-            case "EARLY": return .orange
-            case "OVERTIME": return .purple
-            default: return .gray
-            }
-        }
+    private func formatTimeOnly(_ ms: Int64) -> String {
+        guard ms > 0 else { return "" }
+        let date = Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f.string(from: date)
     }
 }

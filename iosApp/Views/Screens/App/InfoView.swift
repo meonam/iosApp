@@ -1,270 +1,207 @@
 import SwiftUI
 
-struct InfoView: View {
-    @ObservedObject var viewModel: AuthViewModel
+public struct InfoView: View {
+    @ObservedObject var authViewModel: AuthViewModel
+    var onBack: () -> Void
+    var onLogout: () -> Void
     
-    var body: some View {
+    @State private var showingLogoutConfirm = false
+    
+    public init(authViewModel: AuthViewModel, onBack: @escaping () -> Void, onLogout: @escaping () -> Void) {
+        self.authViewModel = authViewModel
+        self.onBack = onBack
+        self.onLogout = onLogout
+    }
+    
+    public var body: some View {
         GeometryReader { geometry in
             ZStack {
                 Color.appBackground.ignoresSafeArea()
-                
                 VStack(spacing: 0) {
-                    // Top Bar
                     VStack(spacing: 0) {
                         Color.clear.frame(height: geometry.safeAreaInsets.top)
-                        
-                        HStack {
-                            Text("Thông Tin & Cài Đặt")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                            Spacer()
-                        }
-                        .padding()
-                        .background(Color.appPrimary)
+                        topBar
                     }
                     .background(Color.appPrimary)
                     
                     ScrollView {
-                        VStack(spacing: 16) {
-                            
-                            // 1. App Info Section
-                            VStack(spacing: 12) {
-                                Image("Logo") // Assuming "Logo" exists in Assets.xcassets, or use a placeholder
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 80, height: 80)
-                                    .cornerRadius(16)
-                                    .shadow(radius: 2)
-                                
-                                Text("IT Service & Assets")
-                                    .font(.title3)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.appPrimary)
-                                
-                                HStack {
-                                    Text("Phiên bản \(appVersion) (\(appBuild))")
-                                        .font(.subheadline)
-                                        .foregroundColor(.appPrimary)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(Color.appPrimary.opacity(0.1))
-                                        .cornerRadius(12)
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 24)
-                            .background(Color.white)
-                            .cornerRadius(16)
-                            .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-                            
-                            // 2. Account Info Section
-                            InfoSection(title: "Thông tin tài khoản", icon: "person.crop.circle.fill", iconColor: .blue) {
-                                InfoRow(title: "Họ và tên", value: viewModel.user.fullName)
-                                InfoRow(title: "Email", value: viewModel.user.email)
-                                InfoRow(title: "Đơn vị", value: viewModel.user.donVi.isEmpty ? "Chưa cập nhật" : viewModel.user.donVi)
-                                InfoRow(title: "Công ty", value: viewModel.user.companyId)
-                            }
-                            
-                            // 3. Developer & Support Section
-                            InfoSection(title: "Hỗ trợ & Phát triển", icon: "headphones.circle.fill", iconColor: .green) {
-                                InfoRow(title: "Phát triển bởi", value: "Saigon Co.op")
-                                InfoButtonRow(title: "Website", icon: "globe", color: .blue) {
-                                    openURL(urlString: "https://saigonco-op.com.vn")
-                                }
-                                InfoButtonRow(title: "Email hỗ trợ", icon: "envelope.fill", color: .orange) {
-                                    openURL(urlString: "mailto:support@saigonco-op.com.vn")
-                                }
-                                InfoButtonRow(title: "Hotline", icon: "phone.fill", color: .green) {
-                                    openURL(urlString: "tel://1900555568")
-                                }
-                            }
-                            
-                            // 4. Legal Section
-                            InfoSection(title: "Pháp lý", icon: "doc.text.fill", iconColor: .gray) {
-                                InfoButtonRow(title: "Chính sách bảo mật", icon: "shield.fill", color: .purple) {
-                                    openURL(urlString: "https://saigonco-op.com.vn/privacy")
-                                }
-                                InfoButtonRow(title: "Điều khoản sử dụng", icon: "doc.plaintext.fill", color: .gray) {
-                                    openURL(urlString: "https://saigonco-op.com.vn/terms")
-                                }
-                            }
-                            
-                            // 5. Actions
-                            VStack(spacing: 12) {
-                                Button(action: {
-                                    shareApp()
-                                }) {
-                                    HStack {
-                                        Image(systemName: "square.and.arrow.up")
-                                        Text("Chia sẻ ứng dụng")
-                                            .fontWeight(.bold)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.white)
-                                    .foregroundColor(.appPrimary)
-                                    .cornerRadius(12)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.appPrimary, lineWidth: 1)
-                                    )
-                                }
-                                
-                                Button(action: {
-                                    viewModel.signOut()
-                                }) {
-                                    HStack {
-                                        Image(systemName: "rectangle.portrait.and.arrow.right")
-                                        Text("Đăng xuất")
-                                            .fontWeight(.bold)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color.red)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(12)
-                                }
-                            }
-                            
-                            Text("© 2026 Saigon Co.op. All rights reserved.")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                                .padding(.top, 16)
-                                .padding(.bottom, 32)
+                        VStack(spacing: 20) {
+                            userProfileSection
+                            appInfoSection
+                            actionsSection
                         }
-                        .padding()
+                        .padding(.vertical)
                     }
                 }
             }
         }
         .ignoresSafeArea(edges: .top)
-    }
-    
-    // MARK: - Helpers
-    
-    private var appVersion: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-    }
-    
-    private var appBuild: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
-    }
-    
-    private func openURL(urlString: String) {
-        if let url = URL(string: urlString) {
-            UIApplication.shared.open(url)
+        .alert(isPresented: $showingLogoutConfirm) {
+            Alert(
+                title: Text("Đăng xuất"),
+                message: Text("Bạn có chắc chắn muốn đăng xuất không?"),
+                primaryButton: .destructive(Text("Đăng xuất")) {
+                    onLogout()
+                },
+                secondaryButton: .cancel(Text("Hủy"))
+            )
         }
     }
     
-    private func shareApp() {
-        let textToShare = "Trải nghiệm ứng dụng IT Service & Assets của Saigon Co.op!"
-        let activityVC = UIActivityViewController(activityItems: [textToShare], applicationActivities: nil)
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
-            
-            // For iPad compatibility
-            if let popover = activityVC.popoverPresentationController {
-                popover.sourceView = rootVC.view
-                popover.sourceRect = CGRect(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2, width: 0, height: 0)
-                popover.permittedArrowDirections = []
+    private var topBar: some View {
+        HStack {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+                    .foregroundColor(.white)
+                    .font(.title2)
+            }
+            Spacer()
+            Text("Thông tin")
+                .font(.headline)
+                .foregroundColor(.white)
+            Spacer()
+            Color.clear.frame(width: 24, height: 24)
+        }
+        .padding()
+    }
+    
+    private var userProfileSection: some View {
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color.appPrimary.opacity(0.1))
+                    .frame(width: 80, height: 80)
+                Text(getInitials(authViewModel.currentUser?.name))
+                    .font(.title)
+                    .foregroundColor(Color.appPrimary)
+                    .bold()
             }
             
-            rootVC.present(activityVC, animated: true, completion: nil)
+            VStack(spacing: 4) {
+                Text(authViewModel.currentUser?.name ?? "N/A")
+                    .font(.title3)
+                    .bold()
+                Text(authViewModel.currentUser?.email ?? "N/A")
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
+                
+                Text(authViewModel.currentUser?.role ?? "User")
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .background(Color.appPrimary.opacity(0.1))
+                    .foregroundColor(Color.appPrimary)
+                    .cornerRadius(12)
+                    .padding(.top, 4)
+            }
         }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(Color.white)
+        .cornerRadius(12)
+        .padding(.horizontal)
     }
-}
-
-// MARK: - Reusable Views
-
-struct InfoSection<Content: View>: View {
-    let title: String
-    let icon: String
-    let iconColor: Color
-    @ViewBuilder let content: Content
     
-    var body: some View {
+    private var appInfoSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                Image(systemName: icon)
-                    .foregroundColor(iconColor)
-                    .font(.system(size: 18))
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(.appPrimary)
-                Spacer()
-            }
-            .padding()
-            .background(Color.white)
-            
-            Divider()
-                .padding(.leading, 40)
+            Text("THÔNG TIN ỨNG DỤNG")
+                .font(.caption)
+                .foregroundColor(.gray)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
             
             VStack(spacing: 0) {
-                content
+                infoRow(title: "Tên ứng dụng", value: "IT Service & Assets")
+                Divider().padding(.leading, 16)
+                infoRow(title: "Phiên bản", value: getAppVersion())
+                Divider().padding(.leading, 16)
+                infoRow(title: "Mã công ty", value: authViewModel.currentUser?.companyId ?? "SGCOOP")
             }
             .background(Color.white)
-        }
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
-    }
-}
-
-struct InfoRow: View {
-    let title: String
-    let value: String
-    
-    var body: some View {
-        HStack {
-            Text(title)
-                .font(.subheadline)
-                .foregroundColor(.gray)
-            Spacer()
-            Text(value)
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.black)
-                .multilineTextAlignment(.trailing)
+            .cornerRadius(12)
         }
         .padding(.horizontal)
-        .padding(.vertical, 12)
-        Divider()
-            .padding(.leading, 16)
     }
-}
-
-struct InfoButtonRow: View {
-    let title: String
-    let icon: String
-    let color: Color
-    let action: () -> Void
     
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(color.opacity(0.1))
-                        .frame(width: 30, height: 30)
-                    Image(systemName: icon)
-                        .foregroundColor(color)
-                        .font(.system(size: 14))
+    private var actionsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(spacing: 0) {
+                actionRow(icon: "lock", title: "Đổi mật khẩu") {
+                    // TBD
                 }
-                
-                Text(title)
-                    .font(.subheadline)
-                    .foregroundColor(.black)
-                
-                Spacer()
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12))
-                    .foregroundColor(.gray)
+                Divider().padding(.leading, 48)
+                actionRow(icon: "doc.text", title: "Điều khoản sử dụng") {
+                    // TBD
+                }
+                Divider().padding(.leading, 48)
+                actionRow(icon: "shield", title: "Chính sách bảo mật") {
+                    // TBD
+                }
+                Divider().padding(.leading, 48)
+                actionRow(icon: "star", title: "Đánh giá ứng dụng") {
+                    // TBD
+                }
+                Divider().padding(.leading, 48)
+                Button(action: { showingLogoutConfirm = true }) {
+                    HStack {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .foregroundColor(.red)
+                            .frame(width: 24)
+                        Text("Đăng xuất")
+                            .foregroundColor(.red)
+                        Spacer()
+                    }
+                    .padding()
+                }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
+            .background(Color.white)
+            .cornerRadius(12)
         }
-        Divider()
-            .padding(.leading, 50)
+        .padding(.horizontal)
+    }
+    
+    private func infoRow(title: String, value: String) -> some View {
+        HStack {
+            Text(title)
+                .foregroundColor(.primary)
+            Spacer()
+            Text(value)
+                .foregroundColor(.gray)
+        }
+        .padding()
+    }
+    
+    private func actionRow(icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(.gray)
+                    .frame(width: 24)
+                Text(title)
+                    .foregroundColor(.primary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.gray)
+                    .font(.caption)
+            }
+            .padding()
+        }
+    }
+    
+    private func getInitials(_ name: String?) -> String {
+        guard let name = name, !name.isEmpty else { return "U" }
+        let parts = name.components(separatedBy: " ")
+        if parts.count > 1 {
+            let first = parts.first?.prefix(1) ?? ""
+            let last = parts.last?.prefix(1) ?? ""
+            return String(first + last).uppercased()
+        }
+        return String(name.prefix(1)).uppercased()
+    }
+    
+    private func getAppVersion() -> String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(version) (\(build))"
     }
 }

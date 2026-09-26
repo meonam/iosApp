@@ -1,38 +1,38 @@
 import SwiftUI
 
-// MARK: - MÀN HÌNH QUẢN LÝ ĐỘI CHUYÊN VIÊN (ĐỒNG BỘ 1:1 THEO SPECIALISTTEAMMANAGERSCREEN.KT TRÊN ANDROID)
-public struct SpecialistTeamItem: Identifiable, Hashable {
-    public var id: String
-    public var name: String
-    public var description: String
-    public var leaderName: String
-    public var memberCount: Int
-    public var icon: String
-
-    public init(id: String, name: String, description: String, leaderName: String, memberCount: Int, icon: String = "person.3.fill") {
-        self.id = id
-        self.name = name
-        self.description = description
-        self.leaderName = leaderName
-        self.memberCount = memberCount
-        self.icon = icon
-    }
-}
-
 public struct SpecialistTeamManagerView: View {
     @ObservedObject var viewModel: AdminViewModel
     var onBack: () -> Void
 
-    @State private var teams: [SpecialistTeamItem] = [
-        SpecialistTeamItem(id: "team_pos", name: "Tổ Chuyên viên POS & Thu ngân", description: "Xử lý lỗi máy POS, máy quét tính tiền và két tiền siêu thị", leaderName: "Trần Văn An", memberCount: 5, icon: "cart.fill"),
-        SpecialistTeamItem(id: "team_network", name: "Tổ Chuyên viên Mạng & Hạ tầng", description: "Quản trị Router, Switch Cisco, cáp quang và mạng nội bộ", leaderName: "Lê Quốc Bảo", memberCount: 4, icon: "network"),
-        SpecialistTeamItem(id: "team_software", name: "Tổ Chuyên viên Phần mềm ERP", description: "Hỗ trợ phần mềm bán hàng, kế toán SAP và phân quyền", leaderName: "Nguyễn Minh Cường", memberCount: 6, icon: "laptopcomputer"),
-        SpecialistTeamItem(id: "team_hardware", name: "Tổ Kỹ thuật Sửa chữa Phần cứng", description: "Bảo trì máy in nhiệt, camera giám sát và máy chủ cục bộ", leaderName: "Hoàng Văn Dũng", memberCount: 8, icon: "wrench.and.screwdriver.fill")
-    ]
+    @State private var searchQuery: String = ""
+    @State private var showFormSheet: Bool = false
+    @State private var isEditing: Bool = false
+    @State private var editingId: String = ""
+    
+    // Form states
+    @State private var teamName: String = ""
+    @State private var teamId: String = ""
+    @State private var teamApps: String = ""
+    @State private var teamDesc: String = ""
+    @State private var leaderName: String = ""
+    @State private var phone: String = ""
 
     public init(viewModel: AdminViewModel, onBack: @escaping () -> Void) {
         self.viewModel = viewModel
         self.onBack = onBack
+    }
+    
+    private var filteredTeams: [SpecialistTeam] {
+        viewModel.specialistTeams.filter { t in
+            searchQuery.isEmpty ||
+            t.teamName.localizedCaseInsensitiveContains(searchQuery) ||
+            t.teamId.localizedCaseInsensitiveContains(searchQuery) ||
+            t.description.localizedCaseInsensitiveContains(searchQuery)
+        }
+    }
+    
+    private func getMemberCount(for teamId: String) -> Int {
+        return viewModel.allUsers.filter { $0.toNghiepVu.caseInsensitiveCompare(teamId) == .orderedSame || $0.departmentId.caseInsensitiveCompare(teamId) == .orderedSame }.count
     }
 
     public var body: some View {
@@ -41,7 +41,6 @@ public struct SpecialistTeamManagerView: View {
                 Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // 1. TOP BAR TRÀN TAI THỎ VỚI SAFE AREA
                     VStack(spacing: 0) {
                         Color.clear.frame(height: geometry.safeAreaInsets.top)
 
@@ -52,55 +51,97 @@ public struct SpecialistTeamManagerView: View {
                                     .foregroundColor(.white)
                             }
 
-                            Text("Quản lý Đội Chuyên viên (\(teams.count))")
+                            Text("Quản lý Tổ nghiệp vụ (\(viewModel.specialistTeams.count))")
                                 .font(.system(size: 17, weight: .bold))
                                 .foregroundColor(.white)
 
                             Spacer()
+
+                            Button(action: { resetForm(); showFormSheet = true }) {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                     }
-                    .background(Color.appTopBarColor)
+                    .background(Color.appPrimary)
 
-                    // 2. DANH SÁCH ĐỘI CHUYÊN VIÊN
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(teams) { team in
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(Color.appTextSecondary)
+                        TextField("Tìm kiếm tổ, mã tổ, ứng dụng...", text: $searchQuery)
+                            .font(.system(size: 14))
+                    }
+                    .padding(10)
+                    .background(Color.white)
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                    .padding(12)
+
+                    if filteredTeams.isEmpty {
+                        Spacer()
+                        Text("Không có tổ nghiệp vụ nào").foregroundColor(.gray)
+                        Spacer()
+                    } else {
+                        List {
+                            ForEach(filteredTeams, id: \.id) { team in
                                 teamCard(team)
+                                    .onTapGesture { openEdit(team) }
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                        Button(role: .destructive) { deleteTeam(id: team.id) } label: { Label("Xóa", systemImage: "trash") }
+                                    }
                             }
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                         }
-                        .padding(14)
+                        .listStyle(PlainListStyle())
+                        .refreshable {
+                            await viewModel.fetchSpecialistTeams()
+                            viewModel.fetchUsers()
+                        }
                     }
                 }
             }
             .ignoresSafeArea(edges: .top)
         }
+        .onAppear {
+            Task {
+                await viewModel.fetchSpecialistTeams()
+            }
+            if viewModel.allUsers.isEmpty {
+                viewModel.fetchUsers()
+            }
+        }
+        .sheet(isPresented: $showFormSheet) {
+            formSheet
+        }
     }
 
-    private func teamCard(_ team: SpecialistTeamItem) -> some View {
+    private func teamCard(_ team: SpecialistTeam) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                Image(systemName: team.icon)
+                Image(systemName: "laptopcomputer.and.iphone")
                     .font(.system(size: 20))
-                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .foregroundColor(Color.appPrimary)
                     .frame(width: 42, height: 42)
-                    .background(Color.appSecondaryDarkBlue.opacity(0.1))
+                    .background(Color.appPrimary.opacity(0.1))
                     .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(team.name)
+                    Text(team.teamName)
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(Color.appTextPrimary)
 
-                    Text("Trưởng tổ: \(team.leaderName)")
+                    Text("Trưởng tổ: \(team.truongTo.isEmpty ? "Chưa có" : team.truongTo)")
                         .font(.system(size: 12))
                         .foregroundColor(Color.appTextSecondary)
                 }
 
                 Spacer()
 
-                Text("\(team.memberCount) NV")
+                Text("\(getMemberCount(for: team.teamId)) NV")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(Color.appPrimaryPink)
                     .padding(.horizontal, 8)
@@ -108,15 +149,170 @@ public struct SpecialistTeamManagerView: View {
                     .background(Color.appPrimaryPink.opacity(0.12))
                     .cornerRadius(6)
             }
+            
+            HStack {
+                Text(team.teamId)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(Color.appPrimary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.appPrimary.opacity(0.1))
+                    .cornerRadius(4)
+                
+                if !team.sdtLienHe.isEmpty {
+                    Text("📞 \(team.sdtLienHe)")
+                        .font(.system(size: 11))
+                        .foregroundColor(.green)
+                }
+            }
 
-            Text(team.description)
-                .font(.system(size: 12))
-                .foregroundColor(Color.appTextSecondary)
-                .lineSpacing(2)
+            let desc = team.description.isEmpty ? team.moTa : team.description
+            if !desc.isEmpty {
+                Text(desc)
+                    .font(.system(size: 12))
+                    .foregroundColor(Color.appTextSecondary)
+                    .lineSpacing(2)
+            }
+            
+            if !team.applications.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack {
+                        ForEach(team.applications, id: \.self) { app in
+                            Text(app)
+                                .font(.system(size: 10))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.teal.opacity(0.1))
+                                .foregroundColor(.teal)
+                                .cornerRadius(4)
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.teal.opacity(0.3), lineWidth: 1))
+                        }
+                    }
+                }
+            }
         }
         .padding(14)
         .background(Color.white)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
+    }
+    
+    private var formSheet: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Thông tin tổ nghiệp vụ")) {
+                    TextField("Tên tổ (*)", text: $teamName)
+                        .onChange(of: teamName) { newValue in
+                            if !isEditing && (teamId.isEmpty || teamId.starts(with: "TO_")) {
+                                let slug = newValue.uppercased().replacingOccurrences(of: " ", with: "_").filter { $0.isLetter || $0.isNumber || $0 == "_" }
+                                teamId = "TO_" + String(slug.prefix(15))
+                            }
+                        }
+                    TextField("Mã tổ (*)", text: $teamId)
+                        .disabled(isEditing)
+                }
+                
+                Section(header: Text("Trách nhiệm & Quản lý")) {
+                    TextField("Ứng dụng hỗ trợ (cách nhau bởi dấu phẩy)", text: $teamApps)
+                    TextField("Mô tả / Phạm vi hỗ trợ", text: $teamDesc)
+                    TextField("Trưởng tổ (Họ tên)", text: $leaderName)
+                    TextField("SĐT liên hệ", text: $phone)
+                        .keyboardType(.phonePad)
+                }
+            }
+            .navigationTitle(isEditing ? "Cập nhật tổ nghiệp vụ" : "Thêm tổ nghiệp vụ")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Hủy") { showFormSheet = false }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Lưu") {
+                        if !teamName.isEmpty && !teamId.isEmpty {
+                            saveTeam()
+                            showFormSheet = false
+                        }
+                    }
+                    .font(.headline)
+                    .foregroundColor(.appPrimary)
+                }
+            }
+        }
+    }
+    
+    private func resetForm() {
+        isEditing = false
+        editingId = ""
+        teamName = ""
+        teamId = ""
+        teamApps = ""
+        teamDesc = ""
+        leaderName = ""
+        phone = ""
+    }
+    
+    private func openEdit(_ team: SpecialistTeam) {
+        isEditing = true
+        editingId = team.id
+        teamName = team.teamName
+        teamId = team.teamId
+        teamApps = team.applications.joined(separator: ", ")
+        teamDesc = team.description.isEmpty ? team.moTa : team.description
+        leaderName = team.truongTo
+        phone = team.sdtLienHe
+        showFormSheet = true
+    }
+    
+    // REST API Helpers
+    private func saveTeam() {
+        let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
+        let did = teamId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let urlStr = isEditing ? 
+            "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/specialist_teams/\(editingId)?updateMask.fieldPaths=teamName&updateMask.fieldPaths=applications&updateMask.fieldPaths=description&updateMask.fieldPaths=moTa&updateMask.fieldPaths=truongTo&updateMask.fieldPaths=sdtLienHe" :
+            "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/specialist_teams?documentId=\(did)"
+        
+        guard let url = URL(string: urlStr) else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = isEditing ? "PATCH" : "POST"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !viewModel.idToken.isEmpty { request.addValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization") }
+        
+        let appsArray = teamApps.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+        var appsFields: [[String: Any]] = []
+        for app in appsArray {
+            appsFields.append(["stringValue": app])
+        }
+        
+        let body: [String: Any] = [
+            "fields": [
+                "teamId": ["stringValue": did],
+                "teamName": ["stringValue": teamName.trimmingCharacters(in: .whitespacesAndNewlines)],
+                "applications": ["arrayValue": ["values": appsFields]],
+                "description": ["stringValue": teamDesc.trimmingCharacters(in: .whitespacesAndNewlines)],
+                "moTa": ["stringValue": teamDesc.trimmingCharacters(in: .whitespacesAndNewlines)],
+                "truongTo": ["stringValue": leaderName.trimmingCharacters(in: .whitespacesAndNewlines)],
+                "sdtLienHe": ["stringValue": phone.trimmingCharacters(in: .whitespacesAndNewlines)],
+                "companyId": ["stringValue": comp],
+                "updatedAt": ["integerValue": String(Int64(Date().timeIntervalSince1970 * 1000))]
+            ]
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        Task {
+            let _ = try? await URLSession.shared.data(for: request)
+            await viewModel.fetchSpecialistTeams()
+        }
+    }
+    
+    private func deleteTeam(id: String) {
+        let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
+        let urlStr = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/specialist_teams/\(id)"
+        guard let url = URL(string: urlStr) else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        if !viewModel.idToken.isEmpty { request.addValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization") }
+        Task {
+            let _ = try? await URLSession.shared.data(for: request)
+            await viewModel.fetchSpecialistTeams()
+        }
     }
 }

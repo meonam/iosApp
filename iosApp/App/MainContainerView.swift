@@ -294,23 +294,9 @@ public struct MainContainerView: View {
 
         case .staffSupport:
             StaffSupportView(
-                viewModel: authViewModel,
-                supportVM: SupportViewModel(user: user, companyId: compId, idToken: token),
-                onBack: { currentDestination = .home },
-                onSelectTicket: { ticket in
-                    selectedTicketForChat = ticket
-                },
-                onOpenRatingReport: {
-                    currentDestination = .supportRating
-                }
+                authViewModel: authViewModel,
+                onBack: { currentDestination = .home }
             )
-            .sheet(item: $selectedTicketForChat) { ticket in
-                TicketChatDetailView(
-                    viewModel: SupportViewModel(user: user, companyId: compId, idToken: token),
-                    ticket: ticket,
-                    onBack: { selectedTicketForChat = nil }
-                )
-            }
 
         case .supportHub:
             SupportHubView(
@@ -353,7 +339,7 @@ public struct MainContainerView: View {
             PeripheralsView(onBack: { currentDestination = .home })
 
         case .attendanceHistory:
-            AttendanceHistoryView(viewModel: authViewModel)
+            AttendanceHistoryView(authViewModel: authViewModel, onBack: { currentDestination = .home })
 
         case .attendance, .attendanceReport:
             AttendanceCheckInView(
@@ -392,10 +378,17 @@ public struct MainContainerView: View {
             )
 
         case .systemSettings:
-            SystemSettingsView(onBack: { currentDestination = .home })
+            SystemSettingsView(
+                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .home }
+            )
 
         case .appInfo:
-            InfoView(viewModel: authViewModel)
+            InfoView(
+                authViewModel: authViewModel,
+                onBack: { currentDestination = .home },
+                onLogout: { authViewModel.logout() }
+            )
 
         case .paywallLicense:
             PaywallLicenseView(onBack: { currentDestination = .home })
