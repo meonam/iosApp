@@ -99,9 +99,10 @@ public struct PeripheralsView: View {
                     .padding(14)
                 }
             }
-            .ignoresSafeArea(edges: .top)
         }
-        .alert(isPresented: $showTestPrintSuccess) {
+        .ignoresSafeArea(edges: .top)
+    }
+    .alert(isPresented: $showTestPrintSuccess) {
             Alert(
                 title: Text("In thử nghiệm thành công!"),
                 message: Text("Đã gửi lệnh in ESC/POS mẫu tới máy in: \(selectedPrinterName). Khổ giấy: \(paperSize)."),

@@ -112,9 +112,10 @@ public struct SupportHubView: View {
                     }
                 }
             }
-            .ignoresSafeArea(edges: .top)
         }
-        .onAppear {
+        .ignoresSafeArea(edges: .top)
+    }
+    .onAppear {
             if viewModel.rawTickets.isEmpty {
                 viewModel.fetchTickets()
             }

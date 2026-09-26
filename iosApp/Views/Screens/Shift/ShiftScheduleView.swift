@@ -163,9 +163,10 @@ public struct ShiftScheduleView: View {
                     }
                 }
             }
-            .ignoresSafeArea(edges: .top)
         }
-        .onAppear {
+        .ignoresSafeArea(edges: .top)
+    }
+    .onAppear {
             viewModel.fetchShiftSchedule()
         }
         .actionSheet(isPresented: $showShiftPickerSheet) {

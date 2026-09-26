@@ -178,9 +178,10 @@ public struct TicketChatDetailView: View {
                     .background(Color.white)
                 }
             }
-            .ignoresSafeArea(edges: .top)
         }
-        .onAppear {
+        .ignoresSafeArea(edges: .top)
+    }
+    .onAppear {
             viewModel.fetchMessages(for: ticket.id)
         }
         .alert(isPresented: $showCloseTicketAlert) {

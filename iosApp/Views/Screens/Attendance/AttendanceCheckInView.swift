@@ -194,9 +194,10 @@ public struct AttendanceCheckInView: View {
                     .padding(14)
                 }
             }
-            .ignoresSafeArea(edges: .top)
         }
-        .onAppear {
+        .ignoresSafeArea(edges: .top)
+    }
+    .onAppear {
             viewModel.startUpdatingLocation()
             viewModel.fetchTodayAttendance()
         }

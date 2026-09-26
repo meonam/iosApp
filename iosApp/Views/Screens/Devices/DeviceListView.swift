@@ -237,9 +237,10 @@ public struct DeviceListView: View {
                     }
                 }
             }
-            .ignoresSafeArea(edges: .top)
         }
-        .onAppear {
+        .ignoresSafeArea(edges: .top)
+    }
+    .onAppear {
             if viewModel.rawDevices.isEmpty {
                 viewModel.fetchDevices()
             }

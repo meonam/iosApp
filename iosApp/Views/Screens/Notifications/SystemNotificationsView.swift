@@ -147,7 +147,8 @@ public struct SystemNotificationsView: View {
                     .padding(14)
                 }
             }
-            .ignoresSafeArea(edges: .top)
         }
+        .ignoresSafeArea(edges: .top)
     }
+}
 }

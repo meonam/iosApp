@@ -158,9 +158,10 @@ public struct SystemSettingsView: View {
                     .padding(14)
                 }
             }
-            .ignoresSafeArea(edges: .top)
         }
-        .alert(isPresented: $showSavedAlert) {
+        .ignoresSafeArea(edges: .top)
+    }
+    .alert(isPresented: $showSavedAlert) {
             Alert(
                 title: Text("Thành công"),
                 message: Text("Đã lưu toàn bộ cấu hình hệ thống máy chủ."),
