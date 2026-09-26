@@ -233,6 +233,58 @@ public class AdminViewModel: ObservableObject {
         }
     }
 
+    // MARK: - DISABLE / ENABLE USER
+    public func disableUser(email: String, disable: Bool) {
+        isLoading = true
+        Task {
+            let newStatus = disable ? "DISABLED" : "ACTIVE"
+            let patchFields: [String: Any] = [
+                "status": FirestoreHelper.valueToFirestore(newStatus)
+            ]
+            let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? email
+            let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/users/\(encodedEmail)?updateMask.fieldPaths=status"
+            
+            if let url = URL(string: urlString) {
+                var request = URLRequest(url: url)
+                request.httpMethod = "PATCH"
+                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+                if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": patchFields])
+                _ = try? await URLSession.shared.data(for: request)
+            }
+
+            if let idx = allUsers.firstIndex(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame }) {
+                allUsers[idx].status = newStatus
+            }
+            self.isLoading = false
+            self.successMessage = disable ? "Đã khóa tài khoản: \(email)" : "Đã mở khóa tài khoản: \(email)"
+        }
+    }
+
+    // MARK: - RESET PASSWORD
+    public func resetUserPassword(email: String) {
+        isLoading = true
+        Task {
+            let patchFields: [String: Any] = [
+                "mustChangePassword": FirestoreHelper.valueToFirestore(true)
+            ]
+            let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? email
+            let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/users/\(encodedEmail)?updateMask.fieldPaths=mustChangePassword"
+            
+            if let url = URL(string: urlString) {
+                var request = URLRequest(url: url)
+                request.httpMethod = "PATCH"
+                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+                if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": patchFields])
+                _ = try? await URLSession.shared.data(for: request)
+            }
+
+            self.isLoading = false
+            self.successMessage = "Đã yêu cầu đổi mật khẩu cho: \(email)"
+        }
+    }
+
     // MARK: - FETCH DEPARTMENTS
     public func fetchDepartments() {
         Task {

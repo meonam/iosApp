@@ -1,4 +1,4 @@
-﻿// !$*UTF8*$!
+// !$*UTF8*$!
 {
 	archiveVersion = 1;
 	classes = {
@@ -56,6 +56,10 @@
 		220010442C12345600000001 /* PendingApprovalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000442C12345600000001 /* PendingApprovalView.swift */; };
 		220010452C12345600000001 /* AttendanceHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000452C12345600000001 /* AttendanceHistoryView.swift */; };
 		220010462C12345600000001 /* InfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000462C12345600000001 /* InfoView.swift */; };
+		220010472C12345600000001 /* AttendanceReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000472C12345600000001 /* AttendanceReportView.swift */; };
+		220010482C12345600000001 /* AdminTicketListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000482C12345600000001 /* AdminTicketListView.swift */; };
+		220010492C12345600000001 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000492C12345600000001 /* HelpView.swift */; };
+		2200104A2C12345600000001 /* LichSuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200004A2C12345600000001 /* LichSuView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -110,6 +114,10 @@
 		220000442C12345600000001 /* PendingApprovalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingApprovalView.swift; sourceTree = "<group>"; };
 		220000452C12345600000001 /* AttendanceHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceHistoryView.swift; sourceTree = "<group>"; };
 		220000462C12345600000001 /* InfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoView.swift; sourceTree = "<group>"; };
+		220000472C12345600000001 /* AttendanceReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceReportView.swift; sourceTree = "<group>"; };
+		220000482C12345600000001 /* AdminTicketListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminTicketListView.swift; sourceTree = "<group>"; };
+		220000492C12345600000001 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
+		2200004A2C12345600000001 /* LichSuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LichSuView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -152,6 +160,7 @@
 			children = (
 				220000002C12345600000001 /* MainContainerView.swift */,
 				220000462C12345600000001 /* InfoView.swift */,
+				220000492C12345600000001 /* HelpView.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -245,6 +254,7 @@
 				220000362C12345600000001 /* DepartmentManagerView.swift */,
 				220000372C12345600000001 /* UnitRegionManagerView.swift */,
 				220000382C12345600000001 /* PaywallLicenseView.swift */,
+				220000482C12345600000001 /* AdminTicketListView.swift */,
 			);
 			path = Admin;
 			sourceTree = "<group>";
@@ -274,6 +284,7 @@
 				220000282C12345600000001 /* AddDeviceView.swift */,
 				220000292C12345600000001 /* PrintQrLabelView.swift */,
 				220000392C12345600000001 /* DeviceTypeManagerView.swift */,
+				2200004A2C12345600000001 /* LichSuView.swift */,
 			);
 			path = Devices;
 			sourceTree = "<group>";
@@ -296,6 +307,7 @@
 			children = (
 				220000232C12345600000001 /* AttendanceCheckInView.swift */,
 				220000452C12345600000001 /* AttendanceHistoryView.swift */,
+				220000472C12345600000001 /* AttendanceReportView.swift */,
 			);
 			path = Attendance;
 			sourceTree = "<group>";
@@ -473,6 +485,10 @@
 				220010442C12345600000001 /* PendingApprovalView.swift in Sources */,
 				220010452C12345600000001 /* AttendanceHistoryView.swift in Sources */,
 				220010462C12345600000001 /* InfoView.swift in Sources */,
+				220010472C12345600000001 /* AttendanceReportView.swift in Sources */,
+				220010482C12345600000001 /* AdminTicketListView.swift in Sources */,
+				220010492C12345600000001 /* HelpView.swift in Sources */,
+				2200104A2C12345600000001 /* LichSuView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,4 +1,4 @@
-﻿import SwiftUI
+import SwiftUI
 import CoreLocation
 
 // MARK: - Cáº¤U HÃŒNH GEOFENCE (Ä‘á»“ng bá»™ AttendanceCheckInScreen.kt)
@@ -23,6 +23,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     @Published public var selectedShiftType: String = "HC" // tá»± Ä‘á»™ng tá»« giá» hiá»‡n táº¡i
     @Published public var isLocating: Bool = false
     @Published public var isSubmitting: Bool = false
+    @Published public var selfieImageBase64: String? = nil
     @Published public var successMessage: String? = nil
     @Published public var errorMessage: String? = nil
 
@@ -292,7 +293,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         isSubmitting = true
         errorMessage = nil
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances/\(todayDocId)?updateMask.fieldPaths=checkOutTime&updateMask.fieldPaths=checkOutLat&updateMask.fieldPaths=checkOutLng&updateMask.fieldPaths=checkOutAddress&updateMask.fieldPaths=checkOutStatus"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances/\(todayDocId)?updateMask.fieldPaths=checkOutTime&updateMask.fieldPaths=checkOutLat&updateMask.fieldPaths=checkOutLng&updateMask.fieldPaths=checkOutAddress&updateMask.fieldPaths=checkOutStatus&updateMask.fieldPaths=selfieUrl"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -412,4 +413,85 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             }
         }
     }
+
+    // MARK: - FETCH ALL ATTENDANCE HISTORY
+    public func fetchAllAttendanceHistory(month: Date) {
+        Task {
+            await MainActor.run { self.isLoadingHistory = true }
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM"
+            let monthStr = formatter.string(from: month)
+
+            let queryUrl = "\(FirebaseConfig.firestoreBaseUrl):runQuery"
+            guard let qUrl = URL(string: queryUrl) else { return }
+            var qRequest = URLRequest(url: qUrl)
+            qRequest.httpMethod = "POST"
+            qRequest.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            qRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let body: [String: Any] = [
+                "structuredQuery": [
+                    "from": [["collectionId": "attendances"]],
+                    "orderBy": [
+                        [
+                            "field": ["fieldPath": "date"],
+                            "direction": "DESCENDING"
+                        ]
+                    ]
+                ],
+                "parent": "projects/\(FirebaseConfig.projectId)/databases/(default)/documents/companies/\(companyId)"
+            ]
+            
+            qRequest.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            
+            guard let (data, response) = try? await URLSession.shared.data(for: qRequest),
+                  let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+                  let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+                
+                await MainActor.run {
+                    self.isLoadingHistory = false
+                    self.attendanceHistory = []
+                }
+                return
+            }
+            
+            var records: [AttendanceRecord] = []
+            for docResult in jsonArray {
+                if let doc = docResult["document"] as? [String: Any],
+                   let fields = doc["fields"] as? [String: Any],
+                   let docName = doc["name"] as? String {
+                    
+                    let dateVal = FirestoreHelper.getString(fields["date"] as? [String: Any])
+                    if dateVal.hasPrefix(monthStr) {
+                        let docId = docName.components(separatedBy: "/").last ?? ""
+                        let record = AttendanceRecord(
+                            id: docId,
+                            userEmail: FirestoreHelper.getString(fields["userEmail"] as? [String: Any]),
+                            userName: FirestoreHelper.getString(fields["userName"] as? [String: Any]),
+                            donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
+                            date: dateVal,
+                            checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
+                            checkInLat: FirestoreHelper.getDouble(fields["checkInLat"] as? [String: Any]),
+                            checkInLng: FirestoreHelper.getDouble(fields["checkInLng"] as? [String: Any]),
+                            checkInAddress: FirestoreHelper.getString(fields["checkInAddress"] as? [String: Any]),
+                            checkInStatus: FirestoreHelper.getString(fields["checkInStatus"] as? [String: Any]),
+                            checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
+                            checkOutLat: FirestoreHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
+                            checkOutLng: FirestoreHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
+                            checkOutAddress: FirestoreHelper.getString(fields["checkOutAddress"] as? [String: Any]),
+                            checkOutStatus: FirestoreHelper.getString(fields["checkOutStatus"] as? [String: Any]),
+                            shiftType: FirestoreHelper.getString(fields["shiftType"] as? [String: Any])
+                        )
+                        records.append(record)
+                    }
+                }
+            }
+            
+            await MainActor.run {
+                self.attendanceHistory = records
+                self.isLoadingHistory = false
+            }
+        }
+    }
 }
+

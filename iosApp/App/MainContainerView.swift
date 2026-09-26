@@ -399,6 +399,21 @@ public struct MainContainerView: View {
 
         case .paywallLicense:
             PaywallLicenseView(onBack: { currentDestination = .home })
+
+        case .adminTicketList:
+            AdminTicketListView(
+                viewModel: SupportViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .home },
+                onTicketClick: { ticketId, subject in
+                    currentDestination = .supportHub
+                }
+            )
+
+        case .help:
+            HelpView(authViewModel: authViewModel, onBack: { currentDestination = .home })
+
+        case .lichSu:
+            LichSuView(authViewModel: authViewModel, thietBiId: "", onBack: { currentDestination = .home })
         }
     }
 }

@@ -26,6 +26,9 @@ public enum DrawerDestination: Identifiable {
     case appInfo
     case peripherals
     case staffSupport
+    case adminTicketList
+    case help
+    case lichSu
 
     public var id: String {
         switch self {
@@ -53,6 +56,9 @@ public enum DrawerDestination: Identifiable {
         case .appInfo: return "appInfo"
         case .peripherals: return "peripherals"
         case .staffSupport: return "staffSupport"
+        case .adminTicketList: return "adminTicketList"
+        case .help: return "help"
+        case .lichSu: return "lichSu"
         }
     }
 }
@@ -300,7 +306,14 @@ public struct AppSidebarDrawer: View {
                                     drawerItemRow(title: "Cáº¥u hÃ¬nh há»‡ thá»‘ng & Báº£n quyá»n", icon: "gearshape.fill", color: Color(hex: "#64748B")) {
                                         onSelect(.systemSettings)
                                     }
-                                }
+                                    drawerItemRow(
+                                        title: "Danh sach Ticket (Admin)",
+                                        icon: "ticket.fill",
+                                        color: Color(hex: "#DC2626"),
+                                        badge: openTicketsCount > 0 ? "\(openTicketsCount)" : nil
+                                    ) {
+                                        onSelect(.adminTicketList)
+                                    }                                }
                                 .padding(.leading, 6)
                             }
                         }
@@ -309,11 +322,17 @@ public struct AppSidebarDrawer: View {
                         drawerItemRow(title: "Ngoáº¡i vi & CÃ i Ä‘áº·t mÃ¡y in / quÃ©t", icon: "printer.dotmatrix.fill", color: Color(hex: "#0284C7")) {
                             onSelect(.peripherals)
                         }
+                        drawerItemRow(title: "Nhat ky thiet bi", icon: "clock.arrow.circlepath", color: Color(hex: "#8B5CF6")) {
+                            onSelect(.lichSu)
+                        }
 
                         Spacer(minLength: 16)
 
                         // NÃºt ÄÄƒng xuáº¥t mÃ u Ä‘á»
                         Divider().padding(.vertical, 4)
+                        drawerItemRow(title: "Tro giup & FAQ", icon: "questionmark.circle.fill", color: Color(hex: "#0284C7")) {
+                            onSelect(.help)
+                        }
                         drawerItemRow(title: "ÄÄƒng xuáº¥t", icon: "rectangle.portrait.and.arrow.right", color: Color(hex: "#DC2626")) {
                             onLogout()
                         }
