@@ -11,33 +11,38 @@ public struct AttendanceCheckInView: View {
     }
 
     public var body: some View {
-        ZStack {
-            Color.appBackground.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // 1. TOP BAR
-                HStack(spacing: 12) {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
+                VStack(spacing: 0) {
+                    // 1. TOP BAR TRÀN TAI THỎ VỚI SAFE AREA
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+
+                        HStack(spacing: 12) {
+                            Button(action: onBack) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+
+                            Text("Điểm danh chấm công")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(.white)
+
+                            Spacer()
+
+                            Button(action: { viewModel.startUpdatingLocation() }) {
+                                Image(systemName: "location.circle.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                     }
-
-                    Text("Điểm danh chấm công")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
-
-                    Spacer()
-
-                    Button(action: { viewModel.startUpdatingLocation() }) {
-                        Image(systemName: "location.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(.white)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.appTopBarColor)
+                    .background(Color.appTopBarColor)
 
                 // 2. NỘI DUNG CHÍNH
                 ScrollView {
@@ -189,6 +194,7 @@ public struct AttendanceCheckInView: View {
                     .padding(14)
                 }
             }
+            .ignoresSafeArea(edges: .top)
         }
         .onAppear {
             viewModel.startUpdatingLocation()

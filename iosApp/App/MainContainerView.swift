@@ -10,6 +10,7 @@ public struct MainContainerView: View {
     // Sheets mở từ khắp nơi
     @State private var showAddDeviceSheet: Bool = false
     @State private var showPrintSheet: Bool = false
+    @State private var showRatingReportSheet: Bool = false
 
     public init() {}
 
@@ -24,76 +25,83 @@ public struct MainContainerView: View {
     }
 
     public var body: some View {
-        Group {
-            if !authViewModel.isAuthenticated {
-                LoginView(viewModel: authViewModel) {
-                    currentDestination = .home
-                }
-            } else if let user = authViewModel.currentUser {
-                let compId = authViewModel.currentCompanyId
-                let token = authViewModel.currentIdToken
-
-                ZStack(alignment: .leading) {
-                    // MÀN HÌNH CHÍNH THEO DESTINATION + BOTTOM BAR + FAB
-                    ZStack(alignment: .bottomTrailing) {
-                        VStack(spacing: 0) {
-                            // Nội dung màn hình
-                            destinationView(for: currentDestination, user: user, compId: compId, token: token)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                            // 1. THANH ĐIỀU HƯỚNG DƯỚI (PRO BOTTOM NAVIGATION BAR - 4 TABS)
-                            if isMainTab {
-                                proBottomBar
-                            }
-                        }
-                        .disabled(isDrawerOpen)
-
-                        // 2. NÚT NỔI HỖ TRỢ KỸ THUẬT (FAB - GREEN SUPPORT BUTTON WITH BADGE 99+)
-                        if isMainTab && currentDestination != .supportHub {
-                            floatingSupportButton
-                                .padding(.trailing, 16)
-                                .padding(.bottom, 72)
-                                .zIndex(10)
-                        }
+        GeometryReader { geometry in
+            Group {
+                if !authViewModel.isAuthenticated {
+                    LoginView(viewModel: authViewModel) {
+                        currentDestination = .home
                     }
+                } else if let user = authViewModel.currentUser {
+                    let compId = authViewModel.currentCompanyId
+                    let token = authViewModel.currentIdToken
 
-                    // 3. NỀN MỜ VÀ THANH BÊN DRAWER TRƯỢT TỪ BÊN TRÁI
-                    if isDrawerOpen {
-                        Color.black.opacity(0.45)
-                            .ignoresSafeArea()
-                            .onTapGesture {
-                                withAnimation(.easeInOut(duration: 0.25)) {
-                                    isDrawerOpen = false
+                    ZStack(alignment: .leading) {
+                        // MÀN HÌNH CHÍNH THEO DESTINATION + BOTTOM BAR + FAB
+                        ZStack(alignment: .bottomTrailing) {
+                            VStack(spacing: 0) {
+                                // Nội dung màn hình
+                                destinationView(for: currentDestination, user: user, compId: compId, token: token)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                                // 1. THANH ĐIỀU HƯỚNG DƯỚI (PRO BOTTOM NAVIGATION BAR - 4 TABS)
+                                if isMainTab {
+                                    proBottomBar(bottomInset: geometry.safeAreaInsets.bottom)
                                 }
                             }
-                            .zIndex(20)
+                            .disabled(isDrawerOpen)
 
-                        AppSidebarDrawer(
-                            user: user,
-                            pendingStaffCount: 0,
-                            onSelect: { dest in
-                                withAnimation(.easeInOut(duration: 0.25)) {
-                                    isDrawerOpen = false
-                                    currentDestination = dest
-                                }
-                            },
-                            onLogout: {
-                                withAnimation {
-                                    isDrawerOpen = false
-                                    authViewModel.logout()
-                                }
+                            // 2. NÚT NỔI HỖ TRỢ KỸ THUẬT (FAB - GREEN SUPPORT BUTTON WITH BADGE 99+)
+                            if isMainTab && currentDestination != .supportHub {
+                                floatingSupportButton
+                                    .padding(.trailing, 16)
+                                    .padding(.bottom, geometry.safeAreaInsets.bottom > 0 ? geometry.safeAreaInsets.bottom + 58 : 68)
+                                    .zIndex(10)
                             }
-                        )
-                        .transition(.move(edge: .leading))
-                        .zIndex(30)
+                        }
+
+                        // 3. NỀN MỜ VÀ THANH BÊN DRAWER TRƯỢT TỪ BÊN TRÁI
+                        if isDrawerOpen {
+                            Color.black.opacity(0.45)
+                                .ignoresSafeArea()
+                                .onTapGesture {
+                                    withAnimation(.easeInOut(duration: 0.25)) {
+                                        isDrawerOpen = false
+                                    }
+                                }
+                                .zIndex(20)
+
+                            AppSidebarDrawer(
+                                user: user,
+                                pendingStaffCount: 0,
+                                onSelect: { dest in
+                                    withAnimation(.easeInOut(duration: 0.25)) {
+                                        isDrawerOpen = false
+                                        currentDestination = dest
+                                    }
+                                },
+                                onLogout: {
+                                    withAnimation {
+                                        isDrawerOpen = false
+                                        authViewModel.logout()
+                                    }
+                                },
+                                onCloseDrawer: {
+                                    withAnimation(.easeInOut(duration: 0.25)) {
+                                        isDrawerOpen = false
+                                    }
+                                }
+                            )
+                            .transition(.move(edge: .leading))
+                            .zIndex(30)
+                        }
                     }
                 }
             }
         }
     }
 
-    // MARK: - PRO BOTTOM BAR (4 TABS CHUẨN ANDROID)
-    private var proBottomBar: some View {
+    // MARK: - PRO BOTTOM BAR (4 TABS CHUẨN ANDROID VỚI SAFE AREA BOTTOM)
+    private func proBottomBar(bottomInset: CGFloat) -> some View {
         HStack(spacing: 0) {
             bottomNavItem(
                 title: "Trang chủ",
@@ -128,7 +136,8 @@ public struct MainContainerView: View {
                 currentDestination = .peripherals
             }
         }
-        .padding(.vertical, 8)
+        .padding(.top, 8)
+        .padding(.bottom, max(bottomInset - 4, 8))
         .padding(.horizontal, 6)
         .background(Color.appBottomBarBackground)
         .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: -2)
@@ -179,27 +188,26 @@ public struct MainContainerView: View {
                 Circle()
                     .fill(Color.appFabGreen)
                     .frame(width: 56, height: 56)
-                    .shadow(color: Color.black.opacity(0.3), radius: 6, x: 0, y: 3)
+                    .shadow(color: Color.appFabGreen.opacity(0.4), radius: 8, x: 0, y: 4)
 
                 Image(systemName: "headphones")
                     .font(.system(size: 24, weight: .bold))
                     .foregroundColor(.white)
                     .frame(width: 56, height: 56)
 
-                // Huy hiệu 99+
                 Text("99+")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 9.5, weight: .bold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 2)
                     .background(Color(hex: "#E11D48"))
                     .clipShape(Capsule())
-                    .offset(x: 4, y: -4)
+                    .offset(x: 4, y: -2)
             }
         }
     }
 
-    // MARK: - ĐIỀU HƯỚNG VIEW CON THEO DESTINATION
+    // MARK: - ROUTER ĐIỀU HƯỚNG MÀN HÌNH (TOÀN BỘ CHỨC NĂNG 1:1 THEO ANDROID)
     @ViewBuilder
     private func destinationView(for dest: DrawerDestination, user: User, compId: String, token: String) -> some View {
         switch dest {
@@ -218,6 +226,7 @@ public struct MainContainerView: View {
                     authViewModel.logout()
                 }
             )
+
         case .deviceList:
             DeviceListView(
                 viewModel: DeviceViewModel(user: user, companyId: compId, idToken: token),
@@ -231,6 +240,32 @@ public struct MainContainerView: View {
                     onDismiss: { showAddDeviceSheet = false }
                 )
             }
+
+        case .addDevice:
+            AddDeviceView(
+                viewModel: DeviceViewModel(user: user, companyId: compId, idToken: token),
+                onDismiss: { currentDestination = .deviceList }
+            )
+
+        case .printBarcode:
+            PrintQrLabelView(
+                viewModel: DeviceViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .home }
+            )
+
+        case .deviceTypes:
+            DeviceTypeManagerView(
+                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .home }
+            )
+
+        case .statistics:
+            AssetStatisticsView(
+                viewModel: HomeViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .home },
+                onNavigateToPrint: { currentDestination = .printBarcode }
+            )
+
         case .supportHub:
             SupportHubView(
                 viewModel: SupportViewModel(user: user, companyId: compId, idToken: token),
@@ -238,7 +273,9 @@ public struct MainContainerView: View {
                 onSelectTicket: { ticket in
                     selectedTicketForChat = ticket
                 },
-                onOpenRatingReport: { /* Mở báo cáo SLA */ }
+                onOpenRatingReport: {
+                    currentDestination = .supportRating
+                }
             )
             .sheet(item: $selectedTicketForChat) { ticket in
                 TicketChatDetailView(
@@ -247,63 +284,68 @@ public struct MainContainerView: View {
                     onBack: { selectedTicketForChat = nil }
                 )
             }
+
+        case .supportRating:
+            SupportRatingReportView(
+                viewModel: SupportViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .supportHub }
+            )
+
+        case .specialistTeams:
+            SpecialistTeamManagerView(
+                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .home }
+            )
+
+        case .ktvMonitor:
+            OnlineKtvMonitorView(
+                onBack: { currentDestination = .home }
+            )
+
         case .peripherals:
             PeripheralsView(onBack: { currentDestination = .home })
 
-        case .attendance:
+        case .attendance, .attendanceReport:
             AttendanceCheckInView(
                 viewModel: AttendanceViewModel(user: user, companyId: compId, idToken: token),
                 onBack: { currentDestination = .home }
             )
+
         case .shiftSchedule:
             ShiftScheduleView(
                 viewModel: ShiftViewModel(user: user, companyId: compId, idToken: token),
                 onBack: { currentDestination = .home }
             )
-        case .statistics:
-            AssetStatisticsView(
-                viewModel: HomeViewModel(user: user, companyId: compId, idToken: token),
-                onBack: { currentDestination = .home },
-                onNavigateToPrint: { currentDestination = .printBarcode }
-            )
-        case .printBarcode:
-            PrintQrLabelView(
-                viewModel: DeviceViewModel(user: user, companyId: compId, idToken: token),
+
+        case .userManagement:
+            UserManagementView(
+                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
                 onBack: { currentDestination = .home }
             )
-        case .addDevice:
-            AddDeviceView(
-                viewModel: DeviceViewModel(user: user, companyId: compId, idToken: token),
-                onDismiss: { currentDestination = .deviceList }
+
+        case .approveStaff:
+            ApproveStaffView(
+                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .home }
             )
+
+        case .departmentManagement:
+            DepartmentManagerView(
+                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .home }
+            )
+
+        case .unitManagement, .regionManagement:
+            UnitRegionManagerView(
+                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .home }
+            )
+
         case .systemSettings:
             SystemSettingsView(onBack: { currentDestination = .home })
 
-        default:
-            VStack(spacing: 16) {
-                HStack {
-                    Button(action: { currentDestination = .home }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                    Text("Đang đồng bộ...")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
-                    Spacer()
-                }
-                .padding(14)
-                .background(Color.appTopBarColor)
-
-                Spacer()
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 48))
-                    .foregroundColor(Color.appSecondaryDarkBlue)
-                Text("Tính năng đã được cấu hình sẵn sàng")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(Color.appTextSecondary)
-                Spacer()
-            }
+        case .paywallLicense:
+            PaywallLicenseView(onBack: { currentDestination = .home })
         }
     }
 }

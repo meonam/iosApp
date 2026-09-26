@@ -41,6 +41,17 @@
 		220010292C12345600000001 /* PrintQrLabelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000292C12345600000001 /* PrintQrLabelView.swift */; };
 		220010302C12345600000001 /* SystemNotificationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000302C12345600000001 /* SystemNotificationsView.swift */; };
 		220010312C12345600000001 /* SystemSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000312C12345600000001 /* SystemSettingsView.swift */; };
+		220010322C12345600000001 /* CompanyBannerTickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000322C12345600000001 /* CompanyBannerTickerView.swift */; };
+		220010332C12345600000001 /* AdminViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000332C12345600000001 /* AdminViewModel.swift */; };
+		220010342C12345600000001 /* UserManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000342C12345600000001 /* UserManagementView.swift */; };
+		220010352C12345600000001 /* ApproveStaffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000352C12345600000001 /* ApproveStaffView.swift */; };
+		220010362C12345600000001 /* DepartmentManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000362C12345600000001 /* DepartmentManagerView.swift */; };
+		220010372C12345600000001 /* UnitRegionManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000372C12345600000001 /* UnitRegionManagerView.swift */; };
+		220010382C12345600000001 /* PaywallLicenseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000382C12345600000001 /* PaywallLicenseView.swift */; };
+		220010392C12345600000001 /* DeviceTypeManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000392C12345600000001 /* DeviceTypeManagerView.swift */; };
+		220010402C12345600000001 /* SpecialistTeamManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000402C12345600000001 /* SpecialistTeamManagerView.swift */; };
+		220010412C12345600000001 /* SupportRatingReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000412C12345600000001 /* SupportRatingReportView.swift */; };
+		220010422C12345600000001 /* OnlineKtvMonitorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000422C12345600000001 /* OnlineKtvMonitorView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -80,6 +91,17 @@
 		220000292C12345600000001 /* PrintQrLabelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintQrLabelView.swift; sourceTree = "<group>"; };
 		220000302C12345600000001 /* SystemNotificationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemNotificationsView.swift; sourceTree = "<group>"; };
 		220000312C12345600000001 /* SystemSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemSettingsView.swift; sourceTree = "<group>"; };
+		220000322C12345600000001 /* CompanyBannerTickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanyBannerTickerView.swift; sourceTree = "<group>"; };
+		220000332C12345600000001 /* AdminViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminViewModel.swift; sourceTree = "<group>"; };
+		220000342C12345600000001 /* UserManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserManagementView.swift; sourceTree = "<group>"; };
+		220000352C12345600000001 /* ApproveStaffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApproveStaffView.swift; sourceTree = "<group>"; };
+		220000362C12345600000001 /* DepartmentManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepartmentManagerView.swift; sourceTree = "<group>"; };
+		220000372C12345600000001 /* UnitRegionManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitRegionManagerView.swift; sourceTree = "<group>"; };
+		220000382C12345600000001 /* PaywallLicenseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallLicenseView.swift; sourceTree = "<group>"; };
+		220000392C12345600000001 /* DeviceTypeManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceTypeManagerView.swift; sourceTree = "<group>"; };
+		220000402C12345600000001 /* SpecialistTeamManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpecialistTeamManagerView.swift; sourceTree = "<group>"; };
+		220000412C12345600000001 /* SupportRatingReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportRatingReportView.swift; sourceTree = "<group>"; };
+		220000422C12345600000001 /* OnlineKtvMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineKtvMonitorView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -165,6 +187,7 @@
 				220000142C12345600000001 /* SupportViewModel.swift */,
 				220000152C12345600000001 /* AttendanceViewModel.swift */,
 				220000162C12345600000001 /* ShiftViewModel.swift */,
+				220000332C12345600000001 /* AdminViewModel.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -172,9 +195,18 @@
 		220001052C12345600000001 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				220001192C12345600000001 /* Components */,
 				220001062C12345600000001 /* Screens */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		220001192C12345600000001 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				220000322C12345600000001 /* CompanyBannerTickerView.swift */,
+			);
+			path = Components;
 			sourceTree = "<group>";
 		};
 		220001062C12345600000001 /* Screens */ = {
@@ -191,8 +223,21 @@
 				220001152C12345600000001 /* Scanner */,
 				220001162C12345600000001 /* Notifications */,
 				220001172C12345600000001 /* Settings */,
+				220001182C12345600000001 /* Admin */,
 			);
 			path = Screens;
+			sourceTree = "<group>";
+		};
+		220001182C12345600000001 /* Admin */ = {
+			isa = PBXGroup;
+			children = (
+				220000342C12345600000001 /* UserManagementView.swift */,
+				220000352C12345600000001 /* ApproveStaffView.swift */,
+				220000362C12345600000001 /* DepartmentManagerView.swift */,
+				220000372C12345600000001 /* UnitRegionManagerView.swift */,
+				220000382C12345600000001 /* PaywallLicenseView.swift */,
+			);
+			path = Admin;
 			sourceTree = "<group>";
 		};
 		220001072C12345600000001 /* Auth */ = {
@@ -218,6 +263,7 @@
 				220000202C12345600000001 /* DeviceListView.swift */,
 				220000282C12345600000001 /* AddDeviceView.swift */,
 				220000292C12345600000001 /* PrintQrLabelView.swift */,
+				220000392C12345600000001 /* DeviceTypeManagerView.swift */,
 			);
 			path = Devices;
 			sourceTree = "<group>";
@@ -227,6 +273,9 @@
 			children = (
 				220000212C12345600000001 /* SupportHubView.swift */,
 				220000222C12345600000001 /* TicketChatDetailView.swift */,
+				220000402C12345600000001 /* SpecialistTeamManagerView.swift */,
+				220000412C12345600000001 /* SupportRatingReportView.swift */,
+				220000422C12345600000001 /* OnlineKtvMonitorView.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -397,6 +446,17 @@
 				220010292C12345600000001 /* PrintQrLabelView.swift in Sources */,
 				220010302C12345600000001 /* SystemNotificationsView.swift in Sources */,
 				220010312C12345600000001 /* SystemSettingsView.swift in Sources */,
+				220010322C12345600000001 /* CompanyBannerTickerView.swift in Sources */,
+				220010332C12345600000001 /* AdminViewModel.swift in Sources */,
+				220010342C12345600000001 /* UserManagementView.swift in Sources */,
+				220010352C12345600000001 /* ApproveStaffView.swift in Sources */,
+				220010362C12345600000001 /* DepartmentManagerView.swift in Sources */,
+				220010372C12345600000001 /* UnitRegionManagerView.swift in Sources */,
+				220010382C12345600000001 /* PaywallLicenseView.swift in Sources */,
+				220010392C12345600000001 /* DeviceTypeManagerView.swift in Sources */,
+				220010402C12345600000001 /* SpecialistTeamManagerView.swift in Sources */,
+				220010412C12345600000001 /* SupportRatingReportView.swift in Sources */,
+				220010422C12345600000001 /* OnlineKtvMonitorView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

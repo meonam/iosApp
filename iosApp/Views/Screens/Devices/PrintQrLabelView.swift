@@ -31,27 +31,32 @@ public struct PrintQrLabelView: View {
     }
 
     public var body: some View {
-        ZStack {
-            Color.appBackground.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // TopBar
-                HStack(spacing: 12) {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
+                VStack(spacing: 0) {
+                    // TopBar tràn tai thỏ với Safe Area
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+
+                        HStack(spacing: 12) {
+                            Button(action: onBack) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+
+                            Text("In tem nhãn QR / Barcode")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(.white)
+
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                     }
-
-                    Text("In tem nhãn QR / Barcode")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
-
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.appTopBarColor)
+                    .background(Color.appTopBarColor)
 
                 // Nội dung
                 ScrollView {
@@ -125,6 +130,7 @@ public struct PrintQrLabelView: View {
                     .padding(14)
                 }
             }
+            .ignoresSafeArea(edges: .top)
         }
         .onAppear {
             if viewModel.rawDevices.isEmpty {

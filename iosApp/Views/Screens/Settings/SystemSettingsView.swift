@@ -17,37 +17,42 @@ public struct SystemSettingsView: View {
     }
 
     public var body: some View {
-        ZStack {
-            Color.appBackground.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // TopBar
-                HStack(spacing: 12) {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
+                VStack(spacing: 0) {
+                    // TopBar tràn tai thỏ với Safe Area
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+
+                        HStack(spacing: 12) {
+                            Button(action: onBack) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+
+                            Text("Cấu hình hệ thống Doanh nghiệp")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(.white)
+
+                            Spacer()
+
+                            Button(action: { showSavedAlert = true }) {
+                                Text("Lưu")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 5)
+                                    .background(Color.appPrimaryPink)
+                                    .cornerRadius(8)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                     }
-
-                    Text("Cấu hình hệ thống Doanh nghiệp")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
-
-                    Spacer()
-
-                    Button(action: { showSavedAlert = true }) {
-                        Text("Lưu")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 5)
-                            .background(Color.appPrimaryPink)
-                            .cornerRadius(8)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.appTopBarColor)
+                    .background(Color.appTopBarColor)
 
                 // Nội dung cấu hình
                 ScrollView {
@@ -153,6 +158,7 @@ public struct SystemSettingsView: View {
                     .padding(14)
                 }
             }
+            .ignoresSafeArea(edges: .top)
         }
         .alert(isPresented: $showSavedAlert) {
             Alert(

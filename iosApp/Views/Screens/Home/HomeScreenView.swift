@@ -40,110 +40,121 @@ public struct HomeScreenView: View {
     }
 
     public var body: some View {
-        ZStack {
-            Color.appBackground.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // 1. TOP BAR CHUẨN ANDROID (Màu #002A8F)
-                HStack(spacing: 12) {
-                    // Nút Menu Hamburger mở Drawer
-                    Button(action: onOpenDrawer) {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(.white)
-                    }
+                VStack(spacing: 0) {
+                    // 1. TOP BAR CHUẨN ANDROID (Màu #002A8F) TRÀN TAI THỎ VỚI SAFE AREA
+                    VStack(spacing: 0) {
+                        // Khoảng đệm an toàn tránh Notch tai thỏ / Dynamic Island
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
 
-                    // Logo & Tiêu đề "Trang chủ"
-                    HStack(spacing: 8) {
-                        Image("logo_app")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 26, height: 26)
-                            .cornerRadius(6)
+                        HStack(spacing: 12) {
+                            // Nút Menu Hamburger mở Drawer
+                            Button(action: onOpenDrawer) {
+                                Image(systemName: "line.3.horizontal")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
 
-                        Text("Trang chủ")
-                            .font(.system(size: 18, weight: .heavy))
-                            .foregroundColor(.white)
-                    }
+                            // Logo & Tiêu đề "Trang chủ"
+                            HStack(spacing: 8) {
+                                Image("logo_app")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 26, height: 26)
+                                    .cornerRadius(6)
 
-                    Spacer()
+                                Text("Trang chủ")
+                                    .font(.system(size: 18, weight: .heavy))
+                                    .foregroundColor(.white)
+                            }
 
-                    // Nút 1: Bóng đèn Hướng dẫn (Màu vàng #FBBF24)
-                    Button(action: { showGuideDialog = true }) {
-                        Image(systemName: "lightbulb.fill")
-                            .font(.system(size: 19))
-                            .foregroundColor(Color(hex: "#FBBF24"))
-                    }
+                            Spacer()
 
-                    // Nút 2: Chuông thông báo (Kèm Badge đỏ)
-                    Button(action: { showNotificationsSheet = true }) {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: "bell.fill")
-                                .font(.system(size: 18))
-                                .foregroundColor(.white)
+                            // Nút 1: Bóng đèn Hướng dẫn (Màu vàng #FBBF24)
+                            Button(action: { showGuideDialog = true }) {
+                                Image(systemName: "lightbulb.fill")
+                                    .font(.system(size: 19))
+                                    .foregroundColor(Color(hex: "#FBBF24"))
+                            }
 
-                            if viewModel.unreadNotificationCount > 0 {
-                                Circle()
-                                    .fill(Color.appPrimaryPink)
-                                    .frame(width: 8, height: 8)
-                                    .offset(x: 2, y: -2)
+                            // Nút 2: Chuông thông báo (Kèm Badge đỏ)
+                            Button(action: { showNotificationsSheet = true }) {
+                                ZStack(alignment: .topTrailing) {
+                                    Image(systemName: "bell.fill")
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.white)
+
+                                    if viewModel.unreadNotificationCount > 0 {
+                                        Circle()
+                                            .fill(Color.appPrimaryPink)
+                                            .frame(width: 8, height: 8)
+                                            .offset(x: 2, y: -2)
+                                    }
+                                }
+                            }
+
+                            // Nút 3: Menu 3 chấm (Overflow Menu)
+                            Menu {
+                                if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
+                                    Button(action: { onNavigate(.systemSettings) }) {
+                                        Label("Cấu hình hệ thống", systemImage: "gearshape.fill")
+                                    }
+                                }
+
+                                Button(action: { viewModel.showChangePasswordModal = true }) {
+                                    Label("Đổi mật khẩu tài khoản", systemImage: "lock.fill")
+                                }
+
+                                Button(action: { showGuideDialog = true }) {
+                                    Label("Trợ giúp & Hướng dẫn", systemImage: "questionmark.circle.fill")
+                                }
+
+                                Button(action: { showAboutDialog = true }) {
+                                    Label("Thông tin ứng dụng", systemImage: "info.circle.fill")
+                                }
+
+                                Divider()
+
+                                Button(role: .destructive, action: { showLogoutConfirmDialog = true }) {
+                                    Label("Đăng xuất", systemImage: "rectangle.portrait.and.arrow.right")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .rotationEffect(.degrees(90))
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
                             }
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+
+                        // Dòng chữ chạy thông báo doanh nghiệp gắn liền dưới TopBar
+                        CompanyBannerTickerView()
                     }
+                    .background(Color.appTopBarColor)
 
-                    // Nút 3: Menu 3 chấm (Overflow Menu)
-                    Menu {
-                        if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
-                            Button(action: { onNavigate(.systemSettings) }) {
-                                Label("Cấu hình hệ thống", systemImage: "gearshape.fill")
-                            }
+                    // 2. NỘI DUNG CUỘN (SCROLLABLE CONTENT)
+                    ScrollView {
+                        VStack(spacing: 14) {
+                            // Thẻ Hồ sơ Người dùng (User Profile Card)
+                            userProfileCard
+
+                            // Thống kê 3 Thẻ ngang (Thiết bị | Sự cố mở | Điểm danh)
+                            dashboardStatsRow
+
+                            // Truy cập nhanh chức năng (8 lối tắt chính)
+                            quickAccessSection
+
+                            Spacer(minLength: 80)
                         }
-
-                        Button(action: { viewModel.showChangePasswordModal = true }) {
-                            Label("Đổi mật khẩu tài khoản", systemImage: "lock.fill")
-                        }
-
-                        Button(action: { showGuideDialog = true }) {
-                            Label("Trợ giúp & Hướng dẫn", systemImage: "questionmark.circle.fill")
-                        }
-
-                        Button(action: { showAboutDialog = true }) {
-                            Label("Thông tin ứng dụng", systemImage: "info.circle.fill")
-                        }
-
-                        Divider()
-
-                        Button(role: .destructive, action: { showLogoutConfirmDialog = true }) {
-                            Label("Đăng xuất", systemImage: "rectangle.portrait.and.arrow.right")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .rotationEffect(.degrees(90))
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
+                        .padding(14)
                     }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.appTopBarColor)
-
-                // 2. NỘI DUNG CUỘN (SCROLLABLE CONTENT)
-                ScrollView {
-                    VStack(spacing: 14) {
-                        // Thẻ Hồ sơ Người dùng (User Profile Card)
-                        userProfileCard
-
-                        // Thống kê 3 Thẻ ngang (Thiết bị | Sự cố mở | Điểm danh)
-                        dashboardStatsRow
-
-                        // Truy cập nhanh chức năng (8 lối tắt chính)
-                        quickAccessSection
-
-                        Spacer(minLength: 80)
-                    }
-                    .padding(14)
                 }
             }
+            .ignoresSafeArea(edges: .top)
         }
         .onAppear {
             viewModel.loadDashboardData()

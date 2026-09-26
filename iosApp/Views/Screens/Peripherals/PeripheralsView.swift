@@ -38,44 +38,49 @@ public struct PeripheralsView: View {
     }
 
     public var body: some View {
-        ZStack {
-            Color.appBackground.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // TopBar
-                HStack(spacing: 12) {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                    }
+                VStack(spacing: 0) {
+                    // TopBar tràn tai thỏ với Safe Area
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
 
-                    Text("Ngoại vi & Cài đặt máy in / quét")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
+                        HStack(spacing: 12) {
+                            Button(action: onBack) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
 
-                    Spacer()
+                            Text("Ngoại vi & Cài đặt máy in / quét")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(.white)
+                                .lineLimit(1)
 
-                    Button(action: {
-                        showTestPrintSuccess = true
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "printer.fill")
-                                .font(.system(size: 13))
-                            Text("In test")
-                                .font(.system(size: 12, weight: .bold))
+                            Spacer()
+
+                            Button(action: {
+                                showTestPrintSuccess = true
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "printer.fill")
+                                        .font(.system(size: 13))
+                                    Text("In test")
+                                        .font(.system(size: 12, weight: .bold))
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.appPrimaryPink)
+                                .cornerRadius(8)
+                            }
                         }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color.appPrimaryPink)
-                        .cornerRadius(8)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                     }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.appTopBarColor)
+                    .background(Color.appTopBarColor)
 
                 // Danh sách cấu hình cuộn
                 ScrollView {
@@ -94,6 +99,7 @@ public struct PeripheralsView: View {
                     .padding(14)
                 }
             }
+            .ignoresSafeArea(edges: .top)
         }
         .alert(isPresented: $showTestPrintSuccess) {
             Alert(

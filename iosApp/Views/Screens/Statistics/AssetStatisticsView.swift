@@ -78,57 +78,64 @@ public struct AssetStatisticsView: View {
     }
 
     public var body: some View {
-        ZStack {
-            Color.appBackground.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // TopBar
-                HStack(spacing: 12) {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
+                VStack(spacing: 0) {
+                    // TopBar tràn tai thỏ với Safe Area
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+
+                        HStack(spacing: 12) {
+                            Button(action: onBack) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+
+                            Text("Thống kê tài sản & thiết bị")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(.white)
+
+                            Spacer()
+
+                            Button(action: onNavigateToPrint) {
+                                Image(systemName: "printer.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.white)
+                                    .padding(8)
+                                    .background(Color.appPrimaryPink)
+                                    .clipShape(Circle())
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                     }
+                    .background(Color.appTopBarColor)
 
-                    Text("Thống kê tài sản & thiết bị")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
+                    // Nội dung
+                    ScrollView {
+                        VStack(spacing: 14) {
+                            // Thẻ Tổng quan màu Navy
+                            totalSummaryCard
 
-                    Spacer()
+                            // Bộ lọc trạng thái (Chips)
+                            filterChipsRow
 
-                    Button(action: onNavigateToPrint) {
-                        Image(systemName: "printer.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(.white)
-                            .padding(8)
-                            .background(Color.appPrimaryPink)
-                            .clipShape(Circle())
+                            // Ô tìm kiếm nhanh
+                            searchBarView
+
+                            // Thống kê phân bổ theo Đơn vị
+                            unitBreakdownSection
+
+                            Spacer(minLength: 40)
+                        }
+                        .padding(14)
                     }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.appTopBarColor)
-
-                // Nội dung
-                ScrollView {
-                    VStack(spacing: 14) {
-                        // Thẻ Tổng quan màu Navy
-                        totalSummaryCard
-
-                        // Bộ lọc trạng thái (Chips)
-                        filterChipsRow
-
-                        // Ô tìm kiếm nhanh
-                        searchBarView
-
-                        // Thống kê phân bổ theo Đơn vị
-                        unitBreakdownSection
-
-                        Spacer(minLength: 40)
-                    }
-                    .padding(14)
                 }
             }
+            .ignoresSafeArea(edges: .top)
         }
     }
 

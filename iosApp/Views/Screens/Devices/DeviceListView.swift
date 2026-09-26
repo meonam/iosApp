@@ -25,55 +25,60 @@ public struct DeviceListView: View {
     }
 
     public var body: some View {
-        ZStack {
-            Color.appBackground.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // 1. TOP BAR
-                HStack(spacing: 12) {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                    }
+                VStack(spacing: 0) {
+                    // 1. TOP BAR TRÀN TAI THỎ VỚI SAFE AREA
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
 
-                    Text("Quản lý thiết bị (\(viewModel.filteredDevices.count))")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
+                        HStack(spacing: 12) {
+                            Button(action: onBack) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
 
-                    Spacer()
+                            Text("Quản lý thiết bị (\(viewModel.filteredDevices.count))")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(.white)
 
-                    // Nút Chọn nhiều (Batch)
-                    Button(action: {
-                        withAnimation {
-                            viewModel.isBatchModeEnabled.toggle()
-                            if !viewModel.isBatchModeEnabled {
-                                viewModel.selectedBatchDeviceIds.removeAll()
+                            Spacer()
+
+                            // Nút Chọn nhiều (Batch)
+                            Button(action: {
+                                withAnimation {
+                                    viewModel.isBatchModeEnabled.toggle()
+                                    if !viewModel.isBatchModeEnabled {
+                                        viewModel.selectedBatchDeviceIds.removeAll()
+                                    }
+                                }
+                            }) {
+                                Image(systemName: viewModel.isBatchModeEnabled ? "checkmark.circle.fill" : "checklist")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(viewModel.isBatchModeEnabled ? Color.appPrimaryPink : .white)
+                            }
+
+                            // Nút In tem
+                            Button(action: onNavigateToPrint) {
+                                Image(systemName: "printer.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white)
+                            }
+
+                            // Nút Thêm mới
+                            Button(action: onNavigateToAdd) {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
                             }
                         }
-                    }) {
-                        Image(systemName: viewModel.isBatchModeEnabled ? "checkmark.circle.fill" : "checklist")
-                            .font(.system(size: 18))
-                            .foregroundColor(viewModel.isBatchModeEnabled ? Color.appPrimaryPink : .white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                     }
-
-                    // Nút In tem
-                    Button(action: onNavigateToPrint) {
-                        Image(systemName: "printer.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(.white)
-                    }
-
-                    // Nút Thêm mới
-                    Button(action: onNavigateToAdd) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.appTopBarColor)
+                    .background(Color.appTopBarColor)
 
                 // 2. SEARCH BAR & TOOLBAR
                 VStack(spacing: 8) {
@@ -232,6 +237,7 @@ public struct DeviceListView: View {
                     }
                 }
             }
+            .ignoresSafeArea(edges: .top)
         }
         .onAppear {
             if viewModel.rawDevices.isEmpty {

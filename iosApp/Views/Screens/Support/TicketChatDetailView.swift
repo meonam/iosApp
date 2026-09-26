@@ -17,48 +17,53 @@ public struct TicketChatDetailView: View {
     }
 
     public var body: some View {
-        ZStack {
-            Color.appBackground.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // 1. TOP BAR
-                HStack(spacing: 12) {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                    }
+                VStack(spacing: 0) {
+                    // 1. TOP BAR TRÀN TAI THỎ VỚI SAFE AREA
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(ticket.subject.isEmpty ? "Chi tiết sự cố" : ticket.subject)
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.white)
-                            .lineLimit(1)
+                        HStack(spacing: 12) {
+                            Button(action: onBack) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
 
-                        Text("#\(ticket.id.prefix(8).uppercased()) • \(ticket.creatorName)")
-                            .font(.system(size: 11))
-                            .foregroundColor(Color.white.opacity(0.85))
-                            .lineLimit(1)
-                    }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(ticket.subject.isEmpty ? "Chi tiết sự cố" : ticket.subject)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .lineLimit(1)
 
-                    Spacer()
+                                Text("#\(ticket.id.prefix(8).uppercased()) • \(ticket.creatorName)")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Color.white.opacity(0.85))
+                                    .lineLimit(1)
+                            }
 
-                    // Nút Đóng / Hoàn tất ticket
-                    if ticket.isOpen && (viewModel.user.isAdmin || viewModel.user.isHelpDesk || viewModel.user.isTechnician) {
-                        Button(action: { showCloseTicketAlert = true }) {
-                            Text("Hoàn tất")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.appSuccess)
-                                .cornerRadius(8)
+                            Spacer()
+
+                            // Nút Đóng / Hoàn tất ticket
+                            if ticket.isOpen && (viewModel.user.isAdmin || viewModel.user.isHelpDesk || viewModel.user.isTechnician) {
+                                Button(action: { showCloseTicketAlert = true }) {
+                                    Text("Hoàn tất")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.appSuccess)
+                                        .cornerRadius(8)
+                                }
+                            }
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                     }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.appTopBarColor)
+                    .background(Color.appTopBarColor)
 
                 // 2. THÔNG TIN SỰ CỐ TÓM TẮT & NÚT TIẾP NHẬN
                 VStack(spacing: 8) {
@@ -173,6 +178,7 @@ public struct TicketChatDetailView: View {
                     .background(Color.white)
                 }
             }
+            .ignoresSafeArea(edges: .top)
         }
         .onAppear {
             viewModel.fetchMessages(for: ticket.id)

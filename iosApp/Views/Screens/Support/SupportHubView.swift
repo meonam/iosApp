@@ -20,34 +20,39 @@ public struct SupportHubView: View {
     }
 
     public var body: some View {
-        ZStack {
-            Color.appBackground.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // 1. TOP BAR
-                HStack(spacing: 12) {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
+                VStack(spacing: 0) {
+                    // 1. TOP BAR TRÀN TAI THỎ VỚI SAFE AREA
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+
+                        HStack(spacing: 12) {
+                            Button(action: onBack) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+
+                            Text("Trung tâm hỗ trợ")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(.white)
+
+                            Spacer()
+
+                            // Nút Báo cáo SLA / Đánh giá
+                            Button(action: onOpenRatingReport) {
+                                Image(systemName: "chart.bar.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                     }
-
-                    Text("Trung tâm hỗ trợ")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
-
-                    Spacer()
-
-                    // Nút Báo cáo SLA / Đánh giá
-                    Button(action: onOpenRatingReport) {
-                        Image(systemName: "chart.bar.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(.white)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.appTopBarColor)
+                    .background(Color.appTopBarColor)
 
                 // 2. TABS & SEARCH
                 VStack(spacing: 10) {
@@ -107,6 +112,7 @@ public struct SupportHubView: View {
                     }
                 }
             }
+            .ignoresSafeArea(edges: .top)
         }
         .onAppear {
             if viewModel.rawTickets.isEmpty {

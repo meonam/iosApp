@@ -59,37 +59,42 @@ public struct SystemNotificationsView: View {
     }
 
     public var body: some View {
-        ZStack {
-            Color.appBackground.ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // TopBar
-                HStack(spacing: 12) {
-                    Button(action: onBack) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                    }
+                VStack(spacing: 0) {
+                    // TopBar tràn tai thỏ với Safe Area
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
 
-                    Text("Thông báo hệ thống")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
+                        HStack(spacing: 12) {
+                            Button(action: onBack) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
 
-                    Spacer()
+                            Text("Thông báo hệ thống")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(.white)
 
-                    Button(action: {
-                        for i in 0..<notifications.count {
-                            notifications[i].isRead = true
+                            Spacer()
+
+                            Button(action: {
+                                for i in 0..<notifications.count {
+                                    notifications[i].isRead = true
+                                }
+                            }) {
+                                Text("Đọc tất cả")
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(.white)
+                            }
                         }
-                    }) {
-                        Text("Đọc tất cả")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                     }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(Color.appTopBarColor)
+                    .background(Color.appTopBarColor)
 
                 // Danh sách thông báo
                 ScrollView {
@@ -142,6 +147,7 @@ public struct SystemNotificationsView: View {
                     .padding(14)
                 }
             }
+            .ignoresSafeArea(edges: .top)
         }
     }
 }
