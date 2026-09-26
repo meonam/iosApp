@@ -1,4 +1,4 @@
-import SwiftUI
+﻿import SwiftUI
 
 // MARK: - MAIN CONTAINER VIEW (ĐỒNG BỘ 1:1 THEO MAINACTIVITY.KT TRÊN ANDROID)
 public struct MainContainerView: View {
@@ -17,7 +17,7 @@ public struct MainContainerView: View {
     // Các tab chính hiển thị Bottom Navigation Bar & FAB
     private var isMainTab: Bool {
         switch currentDestination {
-        case .home, .deviceList, .supportHub, .peripherals:
+        case .home, .deviceList, .supportHub, .staffSupport, .peripherals:
             return true
         default:
             return false
@@ -35,12 +35,24 @@ public struct MainContainerView: View {
                     let compId = authViewModel.currentCompanyId
                     let token = authViewModel.currentIdToken
 
-                    ZStack(alignment: .leading) {
-                        // MÀN HÌNH CHÍNH THEO DESTINATION + BOTTOM BAR + FAB
-                        ZStack(alignment: .bottomTrailing) {
-                            VStack(spacing: 0) {
-                                // Nội dung màn hình
-                                destinationView(for: currentDestination, user: user, compId: compId, token: token)
+                    if user.status == "PENDING" {
+                        PendingApprovalView(
+                            viewModel: authViewModel,
+                            onApproved: { role in
+                                authViewModel.currentUser?.status = "APPROVED"
+                                authViewModel.currentUser?.role = role
+                            },
+                            onLogout: {
+                                authViewModel.logout()
+                            }
+                        )
+                    } else {
+                        ZStack(alignment: .leading) {
+                            // MÀN HÌNH CHÍNH THEO DESTINATION + BOTTOM BAR + FAB
+                            ZStack(alignment: .bottomTrailing) {
+                                VStack(spacing: 0) {
+                                    // Nội dung màn hình
+                                    destinationView(for: currentDestination, user: user, compId: compId, token: token)
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                                 // 1. THANH ĐIỀU HƯỚNG DƯỚI (PRO BOTTOM NAVIGATION BAR - 4 TABS)
@@ -51,7 +63,7 @@ public struct MainContainerView: View {
                             .disabled(isDrawerOpen)
 
                             // 2. NÚT NỔI HỖ TRỢ KỸ THUẬT (FAB - GREEN SUPPORT BUTTON WITH BADGE 99+)
-                            if isMainTab && currentDestination != .supportHub {
+                            if isMainTab && currentDestination != .supportHub && currentDestination != .staffSupport {
                                 floatingSupportButton
                                     .padding(.trailing, 16)
                                     .padding(.bottom, geometry.safeAreaInsets.bottom > 0 ? geometry.safeAreaInsets.bottom + 58 : 68)
@@ -95,6 +107,7 @@ public struct MainContainerView: View {
                             .zIndex(30)
                         }
                     }
+                    }
                 }
             }
         }
@@ -119,13 +132,20 @@ public struct MainContainerView: View {
                 currentDestination = .deviceList
             }
 
+            let isSupportSelected = currentDestination == .supportHub || currentDestination == .staffSupport
             bottomNavItem(
                 title: "Hỗ trợ",
                 icon: "headphones",
                 badgeText: "99+",
-                isSelected: currentDestination == .supportHub
+                isSelected: isSupportSelected
             ) {
-                currentDestination = .supportHub
+                if let u = authViewModel.currentUser {
+                    if u.isAdmin || u.isSuperAdmin || u.isHelpDesk || u.isTechnician {
+                        currentDestination = .supportHub
+                    } else {
+                        currentDestination = .staffSupport
+                    }
+                }
             }
 
             bottomNavItem(
@@ -182,7 +202,13 @@ public struct MainContainerView: View {
     // MARK: - FLOATING ACTION BUTTON (GREEN SUPPORT FAB WITH 99+ BADGE)
     private var floatingSupportButton: some View {
         Button(action: {
-            currentDestination = .supportHub
+            if let u = authViewModel.currentUser {
+                if u.isAdmin || u.isSuperAdmin || u.isHelpDesk || u.isTechnician {
+                    currentDestination = .supportHub
+                } else {
+                    currentDestination = .staffSupport
+                }
+            }
         }) {
             ZStack(alignment: .topTrailing) {
                 Circle()
@@ -266,6 +292,26 @@ public struct MainContainerView: View {
                 onNavigateToPrint: { currentDestination = .printBarcode }
             )
 
+        case .staffSupport:
+            StaffSupportView(
+                viewModel: authViewModel,
+                supportVM: SupportViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .home },
+                onSelectTicket: { ticket in
+                    selectedTicketForChat = ticket
+                },
+                onOpenRatingReport: {
+                    currentDestination = .supportRating
+                }
+            )
+            .sheet(item: $selectedTicketForChat) { ticket in
+                TicketChatDetailView(
+                    viewModel: SupportViewModel(user: user, companyId: compId, idToken: token),
+                    ticket: ticket,
+                    onBack: { selectedTicketForChat = nil }
+                )
+            }
+
         case .supportHub:
             SupportHubView(
                 viewModel: SupportViewModel(user: user, companyId: compId, idToken: token),
@@ -306,6 +352,9 @@ public struct MainContainerView: View {
         case .peripherals:
             PeripheralsView(onBack: { currentDestination = .home })
 
+        case .attendanceHistory:
+            AttendanceHistoryView(viewModel: authViewModel)
+
         case .attendance, .attendanceReport:
             AttendanceCheckInView(
                 viewModel: AttendanceViewModel(user: user, companyId: compId, idToken: token),
@@ -345,8 +394,12 @@ public struct MainContainerView: View {
         case .systemSettings:
             SystemSettingsView(onBack: { currentDestination = .home })
 
+        case .appInfo:
+            InfoView(viewModel: authViewModel)
+
         case .paywallLicense:
             PaywallLicenseView(onBack: { currentDestination = .home })
         }
     }
 }
+

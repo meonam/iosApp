@@ -1,23 +1,24 @@
 import SwiftUI
 
-public struct DepartmentManagerView: View {
+public struct SpecialistTeamManagerView: View {
     @ObservedObject var viewModel: AdminViewModel
     var onBack: () -> Void
 
     @State private var searchQuery: String = ""
     @State private var showAddSheet: Bool = false
-    @State private var newDeptName: String = ""
+    @State private var newTeamName: String = ""
+    @State private var newTeamDesc: String = ""
 
     public init(viewModel: AdminViewModel, onBack: @escaping () -> Void) {
         self.viewModel = viewModel
         self.onBack = onBack
     }
 
-    private var filteredDepts: [Department] {
-        viewModel.departments.filter { d in
+    private var filteredTeams: [SpecialistTeam] {
+        viewModel.specialistTeams.filter { t in
             searchQuery.isEmpty ||
-            d.departmentName.localizedCaseInsensitiveContains(searchQuery) ||
-            d.hotline.contains(searchQuery)
+            t.teamName.localizedCaseInsensitiveContains(searchQuery) ||
+            t.description.localizedCaseInsensitiveContains(searchQuery)
         }
     }
 
@@ -37,11 +38,19 @@ public struct DepartmentManagerView: View {
                                     .foregroundColor(.white)
                             }
 
-                            Text("Quản lý phòng ban (\(viewModel.departments.count))")
+                            Text("Quản lý Tổ nghiệp vụ (\(viewModel.specialistTeams.count))")
                                 .font(.system(size: 17, weight: .bold))
                                 .foregroundColor(.white)
 
                             Spacer()
+                            
+                            Button(action: {
+                                Task { await viewModel.fetchSpecialistTeams() }
+                            }) {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white)
+                            }
 
                             Button(action: { showAddSheet = true }) {
                                 Image(systemName: "plus")
@@ -57,7 +66,7 @@ public struct DepartmentManagerView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(Color.appTextSecondary)
-                        TextField("Tìm kiếm phòng ban...", text: $searchQuery)
+                        TextField("Tìm kiếm tổ nghiệp vụ...", text: $searchQuery)
                             .font(.system(size: 14))
                     }
                     .padding(10)
@@ -67,11 +76,11 @@ public struct DepartmentManagerView: View {
                     .padding(12)
 
                     List {
-                        ForEach(filteredDepts) { dept in
-                            deptCard(dept)
+                        ForEach(filteredTeams) { team in
+                            teamCard(team)
                                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                     Button(role: .destructive) {
-                                        Task { await viewModel.deleteDepartment(deptId: dept.id) }
+                                        Task { await viewModel.deleteSpecialistTeam(teamId: team.id) }
                                     } label: {
                                         Label("Xóa", systemImage: "trash")
                                     }
@@ -86,31 +95,38 @@ public struct DepartmentManagerView: View {
             .ignoresSafeArea(edges: .top)
         }
         .onAppear {
-            if viewModel.departments.isEmpty {
-                viewModel.fetchDepartments()
-            }
+            Task { await viewModel.fetchSpecialistTeams() }
         }
         .sheet(isPresented: $showAddSheet) {
-            addDeptSheetView
+            addTeamSheetView
         }
     }
 
-    private func deptCard(_ dept: Department) -> some View {
+    private func teamCard(_ team: SpecialistTeam) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: "folder.fill")
+                Image(systemName: "briefcase.fill")
                     .foregroundColor(Color.appSecondaryDarkBlue)
-                Text(dept.departmentName)
+                Text(team.teamName)
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(Color.appTextPrimary)
-
+                
                 Spacer()
+                
+                Text("\(team.applications.count) thành viên")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.appPrimaryPink)
+                    .cornerRadius(6)
             }
-            Divider()
-            HStack {
-                Text("Mã: \(dept.departmentId)")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color.appSecondaryDarkBlue)
+            
+            if !team.description.isEmpty {
+                Text(team.description)
+                    .font(.system(size: 13))
+                    .foregroundColor(Color.appTextSecondary)
+                    .lineLimit(2)
             }
         }
         .padding(14)
@@ -119,14 +135,15 @@ public struct DepartmentManagerView: View {
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
-    private var addDeptSheetView: some View {
+    private var addTeamSheetView: some View {
         NavigationView {
             Form {
-                Section(header: Text("Thông tin phòng ban")) {
-                    TextField("Tên phòng ban", text: $newDeptName)
+                Section(header: Text("Thông tin tổ nghiệp vụ")) {
+                    TextField("Tên tổ nghiệp vụ", text: $newTeamName)
+                    TextField("Mô tả", text: $newTeamDesc)
                 }
             }
-            .navigationTitle("Thêm phòng ban mới")
+            .navigationTitle("Thêm tổ nghiệp vụ")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -134,9 +151,9 @@ public struct DepartmentManagerView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Lưu") {
-                        if !newDeptName.isEmpty {
+                        if !newTeamName.isEmpty {
                             Task {
-                                await viewModel.addDepartment(name: newDeptName)
+                                await viewModel.addSpecialistTeam(name: newTeamName, description: newTeamDesc)
                             }
                         }
                         showAddSheet = false

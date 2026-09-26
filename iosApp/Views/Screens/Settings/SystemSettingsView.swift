@@ -1,18 +1,20 @@
 import SwiftUI
 
-// MARK: - MÀN HÌNH CẤU HÌNH HỆ THỐNG CHO ADMIN (ĐỒNG BỘ 1:1 THEO SYSTEM_SETTINGS TRÊN ANDROID)
 public struct SystemSettingsView: View {
+    @ObservedObject var viewModel: AdminViewModel
     var onBack: () -> Void
 
-    @AppStorage("maintenanceMode") private var maintenanceMode: Bool = false
-    @AppStorage("enablePushNotif") private var enablePushNotif: Bool = true
-    @AppStorage("slaThresholdHours") private var slaThresholdHours: Int = 8
-    @AppStorage("gpsCheckInRadius") private var gpsCheckInRadius: Int = 150
-    @AppStorage("autoAssignTicket") private var autoAssignTicket: Bool = true
+    @State private var companyName: String = ""
+    @State private var gpsRadius: Int = 150
+    @State private var slaUrgentHours: Int = 2
+    @State private var slaHighHours: Int = 4
+    @State private var slaNormalHours: Int = 8
+    @State private var allowRemoteCheckin: Bool = false
 
     @State private var showSavedAlert: Bool = false
 
-    public init(onBack: @escaping () -> Void) {
+    public init(viewModel: AdminViewModel, onBack: @escaping () -> Void) {
+        self.viewModel = viewModel
         self.onBack = onBack
     }
 
@@ -33,139 +35,176 @@ public struct SystemSettingsView: View {
                                     .foregroundColor(.white)
                             }
 
-                            Text("Cấu hình hệ thống Doanh nghiệp")
+                            Text("Cấu hình hệ thống")
                                 .font(.system(size: 17, weight: .bold))
                                 .foregroundColor(.white)
 
                             Spacer()
 
-                            Button(action: { showSavedAlert = true }) {
-                                Text("Lưu")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 5)
-                                    .background(Color.appPrimaryPink)
-                                    .cornerRadius(8)
+                            if viewModel.currentUser.role == "ADMIN" || viewModel.currentUser.role == "SUPER_ADMIN" {
+                                Button(action: saveConfig) {
+                                    if viewModel.isLoadingConfig {
+                                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    } else {
+                                        Text("Lưu")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 5)
+                                            .background(Color.appPrimary)
+                                            .cornerRadius(8)
+                                    }
+                                }
+                                .disabled(viewModel.isLoadingConfig)
                             }
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                     }
-                    .background(Color.appTopBarColor)
+                    .background(Color.appPrimary)
 
-                // Nội dung cấu hình
-                ScrollView {
-                    VStack(spacing: 16) {
-                        // Thẻ Thông tin Doanh nghiệp
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("DOANH NGHIỆP TRỰC THUỘC")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(Color.appTextSecondary)
+                    if viewModel.isLoadingConfig && viewModel.systemConfig == nil {
+                        Spacer()
+                        ProgressView("Đang tải cấu hình...")
+                        Spacer()
+                    } else {
+                        ScrollView {
+                            VStack(spacing: 16) {
+                                // Thẻ Thông tin Doanh nghiệp
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("CẤU HÌNH CHUNG")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(Color.gray)
 
-                            HStack {
-                                Image("logo_app")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 36, height: 36)
-                                    .cornerRadius(6)
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Saigon Co.op")
-                                        .font(.system(size: 15, weight: .bold))
-                                        .foregroundColor(Color.appSecondaryDarkBlue)
-                                    Text("Mã công ty: SGCOOP • Gói: Enterprise Không giới hạn")
-                                        .font(.system(size: 11))
-                                        .foregroundColor(Color.appTextSecondary)
-                                }
-                            }
-                        }
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white)
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
-
-                        // Thẻ Cài đặt Vận hành & SLA
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("QUY CHUẨN XỬ LÝ SỰ CỐ & SLA KTV")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(Color.appTextSecondary)
-
-                            VStack(spacing: 12) {
-                                HStack {
-                                    Text("Thời hạn cam kết xử lý sự cố (SLA):")
-                                        .font(.system(size: 13))
-                                    Spacer()
-                                    Picker("SLA", selection: $slaThresholdHours) {
-                                        Text("4 giờ").tag(4)
-                                        Text("8 giờ").tag(8)
-                                        Text("24 giờ").tag(24)
-                                        Text("48 giờ").tag(48)
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        Text("Tên công ty")
+                                            .font(.system(size: 13))
+                                        TextField("Nhập tên công ty", text: $companyName)
+                                            .textFieldStyle(RoundedBorderTextFieldStyle())
                                     }
-                                    .pickerStyle(MenuPickerStyle())
                                 }
+                                .padding(14)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.white)
+                                .cornerRadius(12)
 
-                                Divider()
+                                // Thẻ Cài đặt Vận hành & SLA
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("SLA (CAM KẾT DỊCH VỤ)")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(Color.gray)
 
-                                Toggle("Tự động phân bổ Ticket cho KTV gần nhất", isOn: $autoAssignTicket)
-                                    .font(.system(size: 13))
+                                    VStack(spacing: 12) {
+                                        HStack {
+                                            Text("SLA Khẩn cấp (giờ):")
+                                                .font(.system(size: 13))
+                                            Spacer()
+                                            TextField("", value: $slaUrgentHours, formatter: NumberFormatter())
+                                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                                .frame(width: 80)
+                                                .keyboardType(.numberPad)
+                                        }
 
-                                Divider()
+                                        Divider()
+                                        
+                                        HStack {
+                                            Text("SLA Cao (giờ):")
+                                                .font(.system(size: 13))
+                                            Spacer()
+                                            TextField("", value: $slaHighHours, formatter: NumberFormatter())
+                                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                                .frame(width: 80)
+                                                .keyboardType(.numberPad)
+                                        }
 
-                                HStack {
-                                    Text("Bán kính GPS chấm công hợp lệ:")
-                                        .font(.system(size: 13))
-                                    Spacer()
-                                    Picker("Bán kính", selection: $gpsCheckInRadius) {
-                                        Text("50 mét").tag(50)
-                                        Text("100 mét").tag(100)
-                                        Text("150 mét").tag(150)
-                                        Text("300 mét").tag(300)
+                                        Divider()
+
+                                        HStack {
+                                            Text("SLA Thường (giờ):")
+                                                .font(.system(size: 13))
+                                            Spacer()
+                                            TextField("", value: $slaNormalHours, formatter: NumberFormatter())
+                                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                                .frame(width: 80)
+                                                .keyboardType(.numberPad)
+                                        }
                                     }
-                                    .pickerStyle(MenuPickerStyle())
                                 }
+                                .padding(14)
+                                .background(Color.white)
+                                .cornerRadius(12)
+
+                                // Thẻ Chấm công
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("CHẤM CÔNG")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(Color.gray)
+
+                                    VStack(spacing: 12) {
+                                        Toggle("Cho phép chấm công từ xa", isOn: $allowRemoteCheckin)
+                                            .font(.system(size: 13))
+                                            
+                                        Divider()
+                                        
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Text("Bán kính GPS hợp lệ: \(gpsRadius)m")
+                                                .font(.system(size: 13))
+                                            Slider(value: Binding(
+                                                get: { Double(gpsRadius) },
+                                                set: { gpsRadius = Int($0) }
+                                            ), in: 50...500, step: 10)
+                                        }
+                                    }
+                                }
+                                .padding(14)
+                                .background(Color.white)
+                                .cornerRadius(12)
+
+                                Spacer(minLength: 40)
                             }
+                            .padding(14)
                         }
-                        .padding(14)
-                        .background(Color.white)
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
-
-                        // Thẻ Bảo trì & An toàn hệ thống
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("AN TOÀN & BẢO TRÌ MÁY CHỦ")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(Color.appTextSecondary)
-
-                            VStack(spacing: 12) {
-                                Toggle("Chế độ bảo trì hệ thống (Maintenance)", isOn: $maintenanceMode)
-                                    .font(.system(size: 13, weight: .medium))
-
-                                Divider()
-
-                                Toggle("Gửi thông báo đẩy (Push Notifications) sự cố", isOn: $enablePushNotif)
-                                    .font(.system(size: 13))
-                            }
-                        }
-                        .padding(14)
-                        .background(Color.white)
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
-
-                        Spacer(minLength: 40)
                     }
-                    .padding(14)
                 }
             }
         }
         .ignoresSafeArea(edges: .top)
-    }
-    .alert(isPresented: $showSavedAlert) {
+        .onAppear {
+            Task {
+                await viewModel.fetchSystemConfig()
+                if let config = viewModel.systemConfig {
+                    self.companyName = config.companyName
+                    self.gpsRadius = config.gpsRadiusMeters
+                    self.slaUrgentHours = config.slaUrgentHours
+                    self.slaHighHours = config.slaHighHours
+                    self.slaNormalHours = config.slaNormalHours
+                    self.allowRemoteCheckin = config.allowRemoteCheckin
+                }
+            }
+        }
+        .onChange(of: viewModel.successMessage) { _ in
+            if viewModel.successMessage != nil {
+                showSavedAlert = true
+            }
+        }
+        .alert(isPresented: $showSavedAlert) {
             Alert(
                 title: Text("Thành công"),
-                message: Text("Đã lưu toàn bộ cấu hình hệ thống máy chủ."),
-                dismissButton: .default(Text("OK"))
+                message: Text(viewModel.successMessage ?? "Đã lưu thành công."),
+                dismissButton: .default(Text("OK")) {
+                    viewModel.successMessage = nil
+                }
+            )
+        }
+    }
+    
+    private func saveConfig() {
+        Task {
+            await viewModel.saveSystemConfig(
+                companyName: companyName,
+                gpsRadius: gpsRadius,
+                slaUrgentHours: slaUrgentHours,
+                slaNormalHours: slaNormalHours
             )
         }
     }

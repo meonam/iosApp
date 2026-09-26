@@ -22,6 +22,129 @@ public class SupportViewModel: ObservableObject {
     @Published public var ktvTechnicians: [KtvOnlineLocation] = []
     @Published public var isLoadingKtvs: Bool = false
 
+    // MARK: - Rating Report KPIs
+    @Published public var ktvStats: [KtvStat] = []
+    @Published public var isLoadingStats: Bool = false
+
+    public struct KtvStat: Identifiable {
+        public var id: String { email }
+        public var email: String
+        public var name: String
+        public var totalTickets: Int
+        public var closedTickets: Int
+        public var avgRating: Double
+        public var avgResolutionHours: Double
+        public var slaComplianceRate: Double
+        
+        public init(email: String, name: String, totalTickets: Int, closedTickets: Int, avgRating: Double, avgResolutionHours: Double, slaComplianceRate: Double) {
+            self.email = email
+            self.name = name
+            self.totalTickets = totalTickets
+            self.closedTickets = closedTickets
+            self.avgRating = avgRating
+            self.avgResolutionHours = avgResolutionHours
+            self.slaComplianceRate = slaComplianceRate
+        }
+    }
+
+    public func fetchKtvStats() async {
+        await MainActor.run { isLoadingStats = true }
+        
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets?pageSize=200"
+        guard let url = URL(string: urlStr) else {
+            await MainActor.run { isLoadingStats = false }
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let documents = json["documents"] as? [[String: Any]] else {
+            await MainActor.run { isLoadingStats = false }
+            return
+        }
+
+        var ticketsByKtv: [String: [SupportTicket]] = [:]
+        
+        for doc in documents {
+            guard let fields = doc["fields"] as? [String: Any] else { continue }
+            let status = FirestoreHelper.getString(fields["status"] as? [String: Any])
+            guard status.uppercased() == "CLOSED" else { continue }
+            
+            let assignedEmail = FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any])
+            guard !assignedEmail.isEmpty else { continue }
+            
+            let name = doc["name"] as? String ?? ""
+            let id = name.components(separatedBy: "/").last ?? ""
+            
+            let t = SupportTicket(
+                id: id,
+                createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
+                priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
+                rating: FirestoreHelper.getInt(fields["rating"] as? [String: Any]),
+                assignedToEmail: assignedEmail,
+                assignedToName: FirestoreHelper.getString(fields["assignedToName"] as? [String: Any]),
+                closedAt: FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any]),
+                isAutoRated: FirestoreHelper.getBool(fields["isAutoRated"] as? [String: Any]),
+                isInvalid: FirestoreHelper.getBool(fields["isInvalid"] as? [String: Any])
+            )
+            
+            ticketsByKtv[assignedEmail, default: []].append(t)
+        }
+        
+        var stats: [KtvStat] = []
+        for (email, tickets) in ticketsByKtv {
+            let total = tickets.count
+            let closed = tickets.count
+            var name = tickets.first?.assignedToName ?? ""
+            if name.isEmpty { name = email }
+            
+            var totalRating = 0.0
+            var ratedCount = 0
+            
+            var totalHours = 0.0
+            var resolvedCount = 0
+            var withinSlaCount = 0
+            
+            for t in tickets {
+                let rating = t.effectiveRating
+                if rating > 0 {
+                    totalRating += Double(rating)
+                    ratedCount += 1
+                }
+                
+                if t.closedAt > t.createdAt && t.createdAt > 0 {
+                    let hours = Double(t.closedAt - t.createdAt) / (1000.0 * 60.0 * 60.0)
+                    totalHours += hours
+                    resolvedCount += 1
+                    
+                    let priority = t.priority.uppercased()
+                    let slaLimit = (priority == "URGENT") ? 1.0 : (priority == "HIGH" ? 4.0 : 24.0)
+                    if hours <= slaLimit {
+                        withinSlaCount += 1
+                    }
+                }
+            }
+            
+            let avgRating = ratedCount > 0 ? totalRating / Double(ratedCount) : 0.0
+            let avgRes = resolvedCount > 0 ? totalHours / Double(resolvedCount) : 0.0
+            let slaRate = total > 0 ? (Double(withinSlaCount) / Double(total)) * 100.0 : 0.0
+            
+            stats.append(KtvStat(email: email, name: name, totalTickets: total, closedTickets: closed, avgRating: avgRating, avgResolutionHours: avgRes, slaComplianceRate: slaRate))
+        }
+        
+        let finalStats = stats.sorted { $0.avgRating > $1.avgRating }
+        await MainActor.run {
+            self.ktvStats = finalStats
+            self.isLoadingStats = false
+        }
+    }
+
+    @Published var myTickets: [SupportTicket] = []
+    
     public init(user: User, companyId: String, idToken: String) {
         self.user = user
         self.companyId = companyId
@@ -73,6 +196,86 @@ public class SupportViewModel: ObservableObject {
 
     public var closedCount: Int {
         rawTickets.filter { !$0.isOpen }.count
+    }
+
+    // Staff ticket creation
+    public func createTicket(subject: String, description: String, priority: String, deviceId: String?) async -> String? {
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets"
+        guard let url = URL(string: urlStr) else { return nil }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        var fields: [String: Any] = [
+            "subject": ["stringValue": subject],
+            "initialMessage": ["stringValue": description],
+            "priority": ["stringValue": priority],
+            "status": ["stringValue": "OPEN"],
+            "creatorEmail": ["stringValue": user.email],
+            "creatorName": ["stringValue": user.fullName.isEmpty ? user.email : user.fullName],
+            "createdAt": ["integerValue": String(now)],
+            "companyId": ["stringValue": companyId]
+        ]
+        if let deviceId = deviceId, !deviceId.isEmpty {
+            fields["assetId"] = ["stringValue": deviceId]
+        }
+
+        let body: [String: Any] = ["fields": fields]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let name = json["name"] as? String else { return nil }
+
+        let id = name.components(separatedBy: "/").last ?? ""
+        return id
+    }
+
+    // Staff xem ticket của mình
+    public func fetchMyTickets() async {
+        await MainActor.run { isLoading = true }
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets?pageSize=100" // Should filter via structuredQuery, but for now fetch and filter
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let documents = json["documents"] as? [[String: Any]] else {
+            await MainActor.run { self.isLoading = false }
+            return
+        }
+
+        let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let list: [SupportTicket] = documents.compactMap { doc in
+            guard let name = doc["name"] as? String,
+                  let fields = doc["fields"] as? [String: Any] else { return nil }
+            let creatorEmail = FirestoreHelper.getString(fields["creatorEmail"] as? [String: Any]).lowercased()
+            if creatorEmail != cleanEmail { return nil }
+            
+            let id = name.components(separatedBy: "/").last ?? ""
+            return SupportTicket(
+                id: id,
+                creatorEmail: creatorEmail,
+                creatorName: FirestoreHelper.getString(fields["creatorName"] as? [String: Any]),
+                subject: FirestoreHelper.getString(fields["subject"] as? [String: Any]),
+                status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
+                priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
+                createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
+                companyId: FirestoreHelper.getString(fields["companyId"] as? [String: Any])
+            )
+        }
+
+        await MainActor.run {
+            self.myTickets = list.sorted { $0.createdAt > $1.createdAt }
+            self.isLoading = false
+        }
     }
 
     // Tải danh sách tickets từ Firestore

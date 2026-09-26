@@ -1,60 +1,16 @@
 import SwiftUI
 
-// MARK: - MÀN HÌNH THÔNG BÁO HỆ THỐNG (ĐỒNG BỘ 1:1 THEO ANDROID SYSTEM_NOTIFICATIONS)
-public struct SystemNotificationItem: Identifiable, Hashable {
-    public var id: String
-    public var title: String
-    public var message: String
-    public var senderName: String
-    public var timestamp: Int64
-    public var isRead: Bool
-    public var type: String // INFO, WARNING, URGENT
-
-    public init(id: String, title: String, message: String, senderName: String, timestamp: Int64, isRead: Bool = false, type: String = "INFO") {
-        self.id = id
-        self.title = title
-        self.message = message
-        self.senderName = senderName
-        self.timestamp = timestamp
-        self.isRead = isRead
-        self.type = type
-    }
-}
-
 public struct SystemNotificationsView: View {
+    @ObservedObject var viewModel: AdminViewModel
     var onBack: () -> Void
 
-    @State private var notifications: [SystemNotificationItem] = [
-        SystemNotificationItem(
-            id: "1",
-            title: "Hệ thống bảo trì định kỳ",
-            message: "Hệ thống máy chủ QLTB sẽ bảo trì nâng cấp hiệu năng vào lúc 23:00 tối thứ Bảy.",
-            senderName: "Ban Quản trị CNTT",
-            timestamp: Int64(Date().timeIntervalSince1970 * 1000 - 3600000 * 2),
-            isRead: false,
-            type: "INFO"
-        ),
-        SystemNotificationItem(
-            id: "2",
-            title: "Nhắc nhở kiểm kê tài sản Quý 3",
-            message: "Các đơn vị và phòng ban vui lòng hoàn tất quét mã kiểm kê thiết bị trước ngày 30 hàng tháng.",
-            senderName: "Phòng Quản lý Tài sản",
-            timestamp: Int64(Date().timeIntervalSince1970 * 1000 - 3600000 * 24),
-            isRead: true,
-            type: "WARNING"
-        ),
-        SystemNotificationItem(
-            id: "3",
-            title: "Phiên bản ứng dụng mới v1.2.0",
-            message: "Ứng dụng IT Service & Assets đã cập nhật giao diện mới đồng bộ hoàn chỉnh giữa Android và iOS.",
-            senderName: "Hệ thống tự động",
-            timestamp: Int64(Date().timeIntervalSince1970 * 1000 - 3600000 * 48),
-            isRead: true,
-            type: "INFO"
-        )
-    ]
-
-    public init(onBack: @escaping () -> Void) {
+    @State private var showCreateSheet: Bool = false
+    @State private var newNotifTitle: String = ""
+    @State private var newNotifBody: String = ""
+    @State private var newNotifTargetRole: String = "ALL"
+    
+    public init(viewModel: AdminViewModel, onBack: @escaping () -> Void) {
+        self.viewModel = viewModel
         self.onBack = onBack
     }
 
@@ -81,74 +37,129 @@ public struct SystemNotificationsView: View {
 
                             Spacer()
 
-                            Button(action: {
-                                for i in 0..<notifications.count {
-                                    notifications[i].isRead = true
+                            if viewModel.currentUser.role == "ADMIN" || viewModel.currentUser.role == "SUPER_ADMIN" {
+                                Button(action: { showCreateSheet = true }) {
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundColor(.white)
                                 }
-                            }) {
-                                Text("Đọc tất cả")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(.white)
                             }
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                     }
-                    .background(Color.appTopBarColor)
+                    .background(Color.appPrimary)
 
-                // Danh sách thông báo
-                ScrollView {
-                    VStack(spacing: 10) {
-                        ForEach(notifications) { notif in
-                            HStack(alignment: .top, spacing: 12) {
-                                Image(systemName: notif.type == "WARNING" ? "exclamationmark.triangle.fill" : "bell.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(notif.type == "WARNING" ? Color.appWarning : Color.appSecondaryDarkBlue)
-                                    .frame(width: 36, height: 36)
-                                    .background(notif.type == "WARNING" ? Color.appWarning.opacity(0.12) : Color.appSecondaryDarkBlue.opacity(0.1))
-                                    .clipShape(Circle())
-
+                    if viewModel.isLoadingNotifications && viewModel.notifications.isEmpty {
+                        Spacer()
+                        ProgressView("Đang tải thông báo...")
+                        Spacer()
+                    } else if viewModel.notifications.isEmpty {
+                        Spacer()
+                        Text("Không có thông báo nào")
+                            .foregroundColor(.gray)
+                        Spacer()
+                    } else {
+                        List {
+                            ForEach(viewModel.notifications) { notif in
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack {
                                         Text(notif.title)
-                                            .font(.system(size: 14, weight: notif.isRead ? .medium : .bold))
-                                            .foregroundColor(Color.appTextPrimary)
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.primary)
                                         Spacer()
-                                        if !notif.isRead {
-                                            Circle()
-                                                .fill(Color.appPrimaryPink)
-                                                .frame(width: 8, height: 8)
-                                        }
+                                        Text(notif.targetRole)
+                                            .font(.system(size: 10, weight: .bold))
+                                            .padding(4)
+                                            .background(Color.blue.opacity(0.1))
+                                            .foregroundColor(.blue)
+                                            .cornerRadius(4)
                                     }
-
-                                    Text(notif.message)
+                                    
+                                    Text(notif.body)
                                         .font(.system(size: 12.5))
-                                        .foregroundColor(Color.appTextSecondary)
-                                        .lineSpacing(2)
-
+                                        .foregroundColor(.gray)
+                                        .lineLimit(2)
+                                        
                                     HStack {
-                                        Text(notif.senderName)
+                                        Text(notif.createdByEmail)
                                             .font(.system(size: 11, weight: .medium))
-                                            .foregroundColor(Color.appSecondaryDarkBlue)
+                                            .foregroundColor(Color.appPrimary)
                                         Spacer()
-                                        Text("Vừa xong")
+                                        Text(notif.createdAt, style: .time)
                                             .font(.system(size: 10.5))
-                                            .foregroundColor(Color.appTextMuted)
+                                            .foregroundColor(.gray)
                                     }
                                     .padding(.top, 2)
                                 }
+                                .padding(.vertical, 4)
                             }
-                            .padding(14)
-                            .background(Color.white)
-                            .cornerRadius(12)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
+                            .onDelete(perform: deleteNotification)
                         }
+                        .listStyle(PlainListStyle())
                     }
-                    .padding(14)
                 }
             }
         }
         .ignoresSafeArea(edges: .top)
+        .onAppear {
+            Task {
+                await viewModel.fetchNotifications()
+            }
+        }
+        .sheet(isPresented: $showCreateSheet) {
+            NavigationView {
+                Form {
+                    Section(header: Text("Nội dung")) {
+                        TextField("Tiêu đề", text: $newNotifTitle)
+                        TextEditor(text: $newNotifBody)
+                            .frame(height: 100)
+                    }
+                    
+                    Section(header: Text("Đối tượng nhận")) {
+                        Picker("Gửi đến", selection: $newNotifTargetRole) {
+                            Text("Tất cả").tag("ALL")
+                            Text("Kỹ thuật viên").tag("KTV")
+                            Text("Nhân viên").tag("STAFF")
+                            Text("Quản trị viên").tag("ADMIN")
+                        }
+                    }
+                    
+                    Button(action: sendNotification) {
+                        if viewModel.isLoadingNotifications {
+                            ProgressView()
+                        } else {
+                            Text("Gửi thông báo")
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .foregroundColor(.white)
+                                .padding()
+                                .background(Color.appPrimary)
+                                .cornerRadius(8)
+                        }
+                    }
+                    .disabled(newNotifTitle.isEmpty || newNotifBody.isEmpty || viewModel.isLoadingNotifications)
+                }
+                .navigationTitle("Tạo thông báo")
+                .navigationBarItems(leading: Button("Hủy") { showCreateSheet = false })
+            }
+        }
     }
-}
+    
+    private func deleteNotification(at offsets: IndexSet) {
+        for index in offsets {
+            let notif = viewModel.notifications[index]
+            Task {
+                await viewModel.deleteNotification(notifId: notif.id)
+            }
+        }
+    }
+    
+    private func sendNotification() {
+        Task {
+            await viewModel.sendNotification(title: newNotifTitle, body: newNotifBody, targetRole: newNotifTargetRole)
+            showCreateSheet = false
+            newNotifTitle = ""
+            newNotifBody = ""
+        }
+    }
 }

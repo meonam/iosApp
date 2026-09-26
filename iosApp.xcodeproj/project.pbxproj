@@ -1,4 +1,4 @@
-// !$*UTF8*$!
+﻿// !$*UTF8*$!
 {
 	archiveVersion = 1;
 	classes = {
@@ -52,6 +52,10 @@
 		220010402C12345600000001 /* SpecialistTeamManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000402C12345600000001 /* SpecialistTeamManagerView.swift */; };
 		220010412C12345600000001 /* SupportRatingReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000412C12345600000001 /* SupportRatingReportView.swift */; };
 		220010422C12345600000001 /* OnlineKtvMonitorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000422C12345600000001 /* OnlineKtvMonitorView.swift */; };
+		220010432C12345600000001 /* StaffSupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000432C12345600000001 /* StaffSupportView.swift */; };
+		220010442C12345600000001 /* PendingApprovalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000442C12345600000001 /* PendingApprovalView.swift */; };
+		220010452C12345600000001 /* AttendanceHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000452C12345600000001 /* AttendanceHistoryView.swift */; };
+		220010462C12345600000001 /* InfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000462C12345600000001 /* InfoView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -102,6 +106,10 @@
 		220000402C12345600000001 /* SpecialistTeamManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpecialistTeamManagerView.swift; sourceTree = "<group>"; };
 		220000412C12345600000001 /* SupportRatingReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportRatingReportView.swift; sourceTree = "<group>"; };
 		220000422C12345600000001 /* OnlineKtvMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineKtvMonitorView.swift; sourceTree = "<group>"; };
+		220000432C12345600000001 /* StaffSupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffSupportView.swift; sourceTree = "<group>"; };
+		220000442C12345600000001 /* PendingApprovalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingApprovalView.swift; sourceTree = "<group>"; };
+		220000452C12345600000001 /* AttendanceHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceHistoryView.swift; sourceTree = "<group>"; };
+		220000462C12345600000001 /* InfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -143,6 +151,7 @@
 			isa = PBXGroup;
 			children = (
 				220000002C12345600000001 /* MainContainerView.swift */,
+				220000462C12345600000001 /* InfoView.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -244,6 +253,7 @@
 			isa = PBXGroup;
 			children = (
 				220000172C12345600000001 /* LoginView.swift */,
+				220000442C12345600000001 /* PendingApprovalView.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -276,6 +286,7 @@
 				220000402C12345600000001 /* SpecialistTeamManagerView.swift */,
 				220000412C12345600000001 /* SupportRatingReportView.swift */,
 				220000422C12345600000001 /* OnlineKtvMonitorView.swift */,
+				220000432C12345600000001 /* StaffSupportView.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -284,6 +295,7 @@
 			isa = PBXGroup;
 			children = (
 				220000232C12345600000001 /* AttendanceCheckInView.swift */,
+				220000452C12345600000001 /* AttendanceHistoryView.swift */,
 			);
 			path = Attendance;
 			sourceTree = "<group>";
@@ -457,6 +469,10 @@
 				220010402C12345600000001 /* SpecialistTeamManagerView.swift in Sources */,
 				220010412C12345600000001 /* SupportRatingReportView.swift in Sources */,
 				220010422C12345600000001 /* OnlineKtvMonitorView.swift in Sources */,
+				220010432C12345600000001 /* StaffSupportView.swift in Sources */,
+				220010442C12345600000001 /* PendingApprovalView.swift in Sources */,
+				220010452C12345600000001 /* AttendanceHistoryView.swift in Sources */,
+				220010462C12345600000001 /* InfoView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -661,3 +677,5 @@
 	};
 	rootObject = 1100000F2C12345600000001 /* Project object */;
 }
+
+

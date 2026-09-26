@@ -1,6 +1,5 @@
 import SwiftUI
 
-// MARK: - MÀN HÌNH QUẢN LÝ ĐƠN VỊ & KHU VỰC (ĐỒNG BỘ 1:1 THEO UNITREGIONMANAGERSCREEN.KT TRÊN ANDROID)
 public struct UnitRegionManagerView: View {
     @ObservedObject var viewModel: AdminViewModel
     var onBack: () -> Void
@@ -9,7 +8,7 @@ public struct UnitRegionManagerView: View {
     @State private var searchQuery: String = ""
     @State private var showAddUnitSheet: Bool = false
     @State private var newUnitName: String = ""
-    @State private var newUnitRegion: String = "KV_TPHCM"
+    @State private var newUnitRegion: String = ""
 
     public init(viewModel: AdminViewModel, onBack: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -30,7 +29,6 @@ public struct UnitRegionManagerView: View {
                 Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // 1. TOP BAR TRÀN TAI THỎ VỚI SAFE AREA
                     VStack(spacing: 0) {
                         Color.clear.frame(height: geometry.safeAreaInsets.top)
 
@@ -58,7 +56,6 @@ public struct UnitRegionManagerView: View {
                     }
                     .background(Color.appTopBarColor)
 
-                    // 2. SEGMENTED TABS
                     Picker("Phân hệ", selection: $selectedTab) {
                         Text("Đơn vị / Siêu thị (\(viewModel.units.count))").tag(0)
                         Text("Cụm / Khu vực (\(viewModel.regions.count))").tag(1)
@@ -68,7 +65,6 @@ public struct UnitRegionManagerView: View {
                     .padding(.vertical, 10)
                     .background(Color.white)
 
-                    // 3. SEARCH
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(Color.appTextSecondary)
@@ -80,22 +76,31 @@ public struct UnitRegionManagerView: View {
                     .cornerRadius(10)
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                     .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
 
-                    // 4. DANH SÁCH
-                    ScrollView {
-                        LazyVStack(spacing: 10) {
-                            if selectedTab == 0 {
-                                ForEach(filteredUnits) { unit in
-                                    unitCard(unit)
-                                }
-                            } else {
-                                ForEach(viewModel.regions) { region in
-                                    regionCard(region)
-                                }
+                    List {
+                        if selectedTab == 0 {
+                            ForEach(filteredUnits) { unit in
+                                unitCard(unit)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            Task { await viewModel.deleteUnit(unitId: unit.id) }
+                                        } label: {
+                                            Label("Xóa", systemImage: "trash")
+                                        }
+                                    }
                             }
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                        } else {
+                            ForEach(viewModel.regions) { region in
+                                regionCard(region)
+                            }
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
                         }
-                        .padding(14)
                     }
+                    .listStyle(PlainListStyle())
                 }
             }
             .ignoresSafeArea(edges: .top)
@@ -128,14 +133,6 @@ public struct UnitRegionManagerView: View {
             }
 
             Spacer()
-
-            Text("HOẠT ĐỘNG")
-                .font(.system(size: 9.5, weight: .bold))
-                .foregroundColor(Color.appSuccess)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .background(Color.appSuccess.opacity(0.12))
-                .cornerRadius(6)
         }
         .padding(12)
         .background(Color.white)
@@ -194,17 +191,19 @@ public struct UnitRegionManagerView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Lưu") {
                         if !newUnitName.isEmpty {
-                            let newU = DonVi(
-                                id: UUID().uuidString.prefix(8).lowercased(),
-                                tenDonVi: newUnitName,
-                                maKhuVuc: newUnitRegion
-                            )
-                            viewModel.units.append(newU)
+                            Task {
+                                await viewModel.addUnit(name: newUnitName, region: newUnitRegion)
+                            }
                         }
                         showAddUnitSheet = false
                     }
                     .font(.headline)
                     .foregroundColor(.appPrimaryPink)
+                }
+            }
+            .onAppear {
+                if newUnitRegion.isEmpty && !viewModel.regions.isEmpty {
+                    newUnitRegion = viewModel.regions[0].maKhuVuc
                 }
             }
         }

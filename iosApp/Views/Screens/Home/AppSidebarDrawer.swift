@@ -1,4 +1,4 @@
-import SwiftUI
+﻿import SwiftUI
 
 // MARK: - DRAWER ITEM DEFINITION
 public enum DrawerDestination: Identifiable {
@@ -14,6 +14,7 @@ public enum DrawerDestination: Identifiable {
     case ktvMonitor
     case attendance
     case attendanceReport
+    case attendanceHistory
     case shiftSchedule
     case userManagement
     case approveStaff
@@ -22,7 +23,9 @@ public enum DrawerDestination: Identifiable {
     case regionManagement
     case systemSettings
     case paywallLicense
+    case appInfo
     case peripherals
+    case staffSupport
 
     public var id: String {
         switch self {
@@ -38,6 +41,7 @@ public enum DrawerDestination: Identifiable {
         case .ktvMonitor: return "ktvMonitor"
         case .attendance: return "attendance"
         case .attendanceReport: return "attendanceReport"
+        case .attendanceHistory: return "attendanceHistory"
         case .shiftSchedule: return "shiftSchedule"
         case .userManagement: return "userManagement"
         case .approveStaff: return "approveStaff"
@@ -46,12 +50,14 @@ public enum DrawerDestination: Identifiable {
         case .regionManagement: return "regionManagement"
         case .systemSettings: return "systemSettings"
         case .paywallLicense: return "paywallLicense"
+        case .appInfo: return "appInfo"
         case .peripherals: return "peripherals"
+        case .staffSupport: return "staffSupport"
         }
     }
 }
 
-// MARK: - APP SIDEBAR DRAWER (ĐỒNG BỘ 1:1 THEO APPSIDEBARDRAWER.KT TRÊN ANDROID)
+// MARK: - APP SIDEBAR DRAWER (Äá»’NG Bá»˜ 1:1 THEO APPSIDEBARDRAWER.KT TRÃŠN ANDROID)
 public struct AppSidebarDrawer: View {
     var user: User
     var pendingStaffCount: Int
@@ -84,29 +90,29 @@ public struct AppSidebarDrawer: View {
 
     private var roleDisplayBadge: String {
         if user.isAdmin || user.isSuperAdmin {
-            return "👑 Quản trị viên"
+            return "ðŸ‘‘ Quáº£n trá»‹ viÃªn"
         } else if user.isHelpDesk {
-            return "🎧 HelpDesk"
+            return "ðŸŽ§ HelpDesk"
         } else if user.isTechnician {
-            return "🛠️ Kỹ thuật viên"
+            return "ðŸ› ï¸ Ká»¹ thuáº­t viÃªn"
         } else if user.isSpecialist {
-            return "💻 Chuyên viên"
+            return "ðŸ’» ChuyÃªn viÃªn"
         } else if user.isManager {
-            return "🏛️ Quản lý phòng"
+            return "ðŸ›ï¸ Quáº£n lÃ½ phÃ²ng"
         } else {
-            return "👤 Nhân viên"
+            return "ðŸ‘¤ NhÃ¢n viÃªn"
         }
     }
 
     public var body: some View {
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 0) {
-                // === 1. DRAWER HEADER (2 HÀNG: CÔNG TY & NGƯỜI DÙNG) ===
+                // === 1. DRAWER HEADER (2 HÃ€NG: CÃ”NG TY & NGÆ¯á»œI DÃ™NG) ===
                 VStack(alignment: .leading, spacing: 10) {
-                    // Khoảng đệm tránh Notch tai thỏ / Dynamic Island
+                    // Khoáº£ng Ä‘á»‡m trÃ¡nh Notch tai thá» / Dynamic Island
                     Color.clear.frame(height: max(geometry.safeAreaInsets.top, 24))
 
-                    // HÀNG 1: LOGO + TÊN ỨNG DỤNG / CÔNG TY + MÃ DN + NÚT ĐÓNG (X)
+                    // HÃ€NG 1: LOGO + TÃŠN á»¨NG Dá»¤NG / CÃ”NG TY + MÃƒ DN + NÃšT ÄÃ“NG (X)
                     HStack(alignment: .center, spacing: 10) {
                         Image("logo_app")
                             .resizable()
@@ -115,20 +121,20 @@ public struct AppSidebarDrawer: View {
                             .cornerRadius(8)
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Dịch vụ IT & Quản lý thiết bị")
+                            Text("Dá»‹ch vá»¥ IT & Quáº£n lÃ½ thiáº¿t bá»‹")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(.white)
                                 .lineLimit(2)
 
                             let compCode = user.companyId.isEmpty ? "SGCOOP" : user.companyId
-                            Text("Mã DN: \(compCode)")
+                            Text("MÃ£ DN: \(compCode)")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(Color(hex: "#93C5FD"))
                         }
 
                         Spacer()
 
-                        // Nút Đóng (X)
+                        // NÃºt ÄÃ³ng (X)
                         Button(action: onCloseDrawer) {
                             Image(systemName: "xmark")
                                 .font(.system(size: 13, weight: .bold))
@@ -141,7 +147,7 @@ public struct AppSidebarDrawer: View {
 
                     Divider().background(Color.white.opacity(0.18))
 
-                    // HÀNG 2: THẺ HỒ SƠ NGƯỜI DÙNG (AVATAR + TÊN + EMAIL + VAI TRÒ)
+                    // HÃ€NG 2: THáºº Há»’ SÆ  NGÆ¯á»œI DÃ™NG (AVATAR + TÃŠN + EMAIL + VAI TRÃ’)
                     HStack(alignment: .center, spacing: 10) {
                         ZStack {
                             Circle()
@@ -166,7 +172,7 @@ public struct AppSidebarDrawer: View {
                                 .foregroundColor(Color(hex: "#CBD5E1"))
                                 .lineLimit(1)
 
-                            // Nhãn vai trò màu vàng nổi bật
+                            // NhÃ£n vai trÃ² mÃ u vÃ ng ná»•i báº­t
                             Text(roleDisplayBadge)
                                 .font(.system(size: 10.5, weight: .semibold))
                                 .foregroundColor(Color(hex: "#FDE68A"))
@@ -179,17 +185,17 @@ public struct AppSidebarDrawer: View {
                 .padding(.bottom, 12)
                 .background(Color.appSecondaryDarkBlue)
 
-                // === 2. DANH SÁCH MENU ĐIỀU HƯỚNG CUỘN (ACCORDIONS) ===
+                // === 2. DANH SÃCH MENU ÄIá»€U HÆ¯á»šNG CUá»˜N (ACCORDIONS) ===
                 ScrollView {
                     VStack(alignment: .leading, spacing: 2) {
-                        // Mục chính: Trang chủ
-                        drawerItemRow(title: "Trang chủ", icon: "house.fill", color: Color(hex: "#0284C7")) {
+                        // Má»¥c chÃ­nh: Trang chá»§
+                        drawerItemRow(title: "Trang chá»§", icon: "house.fill", color: Color(hex: "#0284C7")) {
                             onSelect(.home)
                         }
 
-                        // Mục chính: Hỗ trợ kỹ thuật
+                        // Má»¥c chÃ­nh: Há»— trá»£ ká»¹ thuáº­t
                         drawerItemRow(
-                            title: "Hỗ trợ kỹ thuật",
+                            title: "Há»— trá»£ ká»¹ thuáº­t",
                             icon: "headphones",
                             color: Color(hex: "#EC4899"),
                             badge: openTicketsCount > 0 ? "\(openTicketsCount)" : "99+"
@@ -197,92 +203,101 @@ public struct AppSidebarDrawer: View {
                             onSelect(.supportHub)
                         }
 
-                        // --- NHÓM 1: QUẢN LÝ THIẾT BỊ ---
-                        accordionHeader(title: "QUẢN LÝ THIẾT BỊ", color: Color(hex: "#059669"), isExpanded: $isDeviceExpanded)
+                        // --- NHÃ“M 1: QUáº¢N LÃ THIáº¾T Bá»Š ---
+                        accordionHeader(title: "QUáº¢N LÃ THIáº¾T Bá»Š", color: Color(hex: "#059669"), isExpanded: $isDeviceExpanded)
                         if isDeviceExpanded {
                             VStack(spacing: 2) {
-                                drawerItemRow(title: "Danh sách thiết bị", icon: "desktopcomputer", color: Color(hex: "#10B981")) {
+                                drawerItemRow(title: "Danh sÃ¡ch thiáº¿t bá»‹", icon: "desktopcomputer", color: Color(hex: "#10B981")) {
                                     onSelect(.deviceList)
                                 }
-                                drawerItemRow(title: "Thêm thiết bị mới", icon: "plus.circle.fill", color: Color(hex: "#8B5CF6")) {
+                                drawerItemRow(title: "ThÃªm thiáº¿t bá»‹ má»›i", icon: "plus.circle.fill", color: Color(hex: "#8B5CF6")) {
                                     onSelect(.addDevice)
                                 }
-                                drawerItemRow(title: "In tem mã QR / Barcode", icon: "printer.fill", color: Color(hex: "#0284C7")) {
+                                drawerItemRow(title: "In tem mÃ£ QR / Barcode", icon: "printer.fill", color: Color(hex: "#0284C7")) {
                                     onSelect(.printBarcode)
                                 }
-                                drawerItemRow(title: "Quản lý loại thiết bị", icon: "tag.fill", color: Color(hex: "#F59E0B")) {
+                                drawerItemRow(title: "Quáº£n lÃ½ loáº¡i thiáº¿t bá»‹", icon: "tag.fill", color: Color(hex: "#F59E0B")) {
                                     onSelect(.deviceTypes)
                                 }
-                                drawerItemRow(title: "Thống kê & Báo cáo tài sản", icon: "chart.pie.fill", color: Color(hex: "#EC4899")) {
+                                drawerItemRow(title: "Thá»‘ng kÃª & BÃ¡o cÃ¡o tÃ i sáº£n", icon: "chart.pie.fill", color: Color(hex: "#EC4899")) {
                                     onSelect(.statistics)
                                 }
                             }
                             .padding(.leading, 6)
                         }
 
-                        // --- NHÓM 2: TRUNG TÂM HỖ TRỢ (TICKET) ---
-                        accordionHeader(title: "TRUNG TÂM HỖ TRỢ (TICKET)", color: Color(hex: "#F43F5E"), isExpanded: $isSupportExpanded)
+                        // --- NHÃ“M 2: TRUNG TÃ‚M Há»– TRá»¢ (TICKET) ---
+                        accordionHeader(title: "TRUNG TÃ‚M Há»– TRá»¢ (TICKET)", color: Color(hex: "#F43F5E"), isExpanded: $isSupportExpanded)
                         if isSupportExpanded {
                             VStack(spacing: 2) {
-                                drawerItemRow(title: "Yêu cầu hỗ trợ (Ticket)", icon: "headphones", color: Color(hex: "#F43F5E")) {
-                                    onSelect(.supportHub)
-                                }
-                                drawerItemRow(title: "Báo cáo đánh giá SLA KTV", icon: "star.fill", color: Color(hex: "#F59E0B")) {
-                                    onSelect(.supportRating)
-                                }
-                                drawerItemRow(title: "Quản lý đội chuyên viên", icon: "person.3.fill", color: Color(hex: "#0284C7")) {
-                                    onSelect(.specialistTeams)
-                                }
-                                drawerItemRow(title: "Giám sát KTV trực tuyến (Map)", icon: "map.fill", color: Color(hex: "#10B981")) {
-                                    onSelect(.ktvMonitor)
+                                if user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isTechnician {
+                                    drawerItemRow(title: "YÃªu cáº§u há»— trá»£ (Ticket)", icon: "headphones", color: Color(hex: "#F43F5E")) {
+                                        onSelect(.supportHub)
+                                    }
+                                    drawerItemRow(title: "BÃ¡o cÃ¡o Ä‘Ã¡nh giÃ¡ SLA KTV", icon: "star.fill", color: Color(hex: "#F59E0B")) {
+                                        onSelect(.supportRating)
+                                    }
+                                    drawerItemRow(title: "Quáº£n lÃ½ Ä‘á»™i chuyÃªn viÃªn", icon: "person.3.fill", color: Color(hex: "#0284C7")) {
+                                        onSelect(.specialistTeams)
+                                    }
+                                    drawerItemRow(title: "GiÃ¡m sÃ¡t KTV trá»±c tuyáº¿n (Map)", icon: "map.fill", color: Color(hex: "#10B981")) {
+                                        onSelect(.ktvMonitor)
+                                    }
+                                } else {
+                                    drawerItemRow(title: "YÃªu cáº§u há»— trá»£ (IT Support)", icon: "headphones", color: Color(hex: "#F43F5E")) {
+                                        onSelect(.staffSupport)
+                                    }
                                 }
                             }
                             .padding(.leading, 6)
                         }
 
-                        // --- NHÓM 3: CHẤM CÔNG & LỊCH CA ---
-                        accordionHeader(title: "CHẤM CÔNG & LỊCH CA", color: Color(hex: "#0D9488"), isExpanded: $isAttendanceExpanded)
+                        // --- NHÃ“M 3: CHáº¤M CÃ”NG & Lá»ŠCH CA ---
+                        accordionHeader(title: "CHáº¤M CÃ”NG & Lá»ŠCH CA", color: Color(hex: "#0D9488"), isExpanded: $isAttendanceExpanded)
                         if isAttendanceExpanded {
                             VStack(spacing: 2) {
-                                drawerItemRow(title: "Điểm danh chấm công", icon: "person.badge.shield.checkmark.fill", color: Color(hex: "#10B981")) {
+                                drawerItemRow(title: "Äiá»ƒm danh cháº¥m cÃ´ng", icon: "person.badge.shield.checkmark.fill", color: Color(hex: "#10B981")) {
                                     onSelect(.attendance)
                                 }
-                                drawerItemRow(title: "Báo cáo công & Tăng ca", icon: "calendar.badge.clock", color: Color(hex: "#F59E0B")) {
+                                drawerItemRow(title: "BÃ¡o cÃ¡o cÃ´ng & TÄƒng ca", icon: "calendar.badge.clock", color: Color(hex: "#F59E0B")) {
                                     onSelect(.attendanceReport)
                                 }
-                                drawerItemRow(title: "Lịch phân ca tuần", icon: "calendar", color: Color(hex: "#8B5CF6")) {
+                                drawerItemRow(title: "Nhật ký chấm công", icon: "clock.fill", color: Color(hex: "#10B981")) {
+                                    onSelect(.attendanceHistory)
+                                }
+                                drawerItemRow(title: "Lá»‹ch phÃ¢n ca tuáº§n", icon: "calendar", color: Color(hex: "#8B5CF6")) {
                                     onSelect(.shiftSchedule)
                                 }
                             }
                             .padding(.leading, 6)
                         }
 
-                        // --- NHÓM 4: QUẢN TRỊ HỆ THỐNG (ADMIN) ---
+                        // --- NHÃ“M 4: QUáº¢N TRá»Š Há»† THá»NG (ADMIN) ---
                         if user.isAdmin || user.isSuperAdmin {
-                            accordionHeader(title: "QUẢN TRỊ HỆ THỐNG", color: Color(hex: "#002A8F"), isExpanded: $isSystemExpanded)
+                            accordionHeader(title: "QUáº¢N TRá»Š Há»† THá»NG", color: Color(hex: "#002A8F"), isExpanded: $isSystemExpanded)
                             if isSystemExpanded {
                                 VStack(spacing: 2) {
-                                    drawerItemRow(title: "Quản lý tài khoản người dùng", icon: "person.2.fill", color: Color(hex: "#002A8F")) {
+                                    drawerItemRow(title: "Quáº£n lÃ½ tÃ i khoáº£n ngÆ°á»i dÃ¹ng", icon: "person.2.fill", color: Color(hex: "#002A8F")) {
                                         onSelect(.userManagement)
                                     }
                                     drawerItemRow(
-                                        title: "Duyệt nhân viên mới",
+                                        title: "Duyá»‡t nhÃ¢n viÃªn má»›i",
                                         icon: "person.badge.plus",
                                         color: Color.appPrimaryPink,
                                         badge: pendingStaffCount > 0 ? "\(pendingStaffCount)" : nil
                                     ) {
                                         onSelect(.approveStaff)
                                     }
-                                    drawerItemRow(title: "Quản lý phòng ban", icon: "folder.fill", color: Color(hex: "#8B5CF6")) {
+                                    drawerItemRow(title: "Quáº£n lÃ½ phÃ²ng ban", icon: "folder.fill", color: Color(hex: "#8B5CF6")) {
                                         onSelect(.departmentManagement)
                                     }
-                                    drawerItemRow(title: "Quản lý đơn vị / Chi nhánh", icon: "building.2.fill", color: Color(hex: "#10B981")) {
+                                    drawerItemRow(title: "Quáº£n lÃ½ Ä‘Æ¡n vá»‹ / Chi nhÃ¡nh", icon: "building.2.fill", color: Color(hex: "#10B981")) {
                                         onSelect(.unitManagement)
                                     }
-                                    drawerItemRow(title: "Quản lý khu vực / Cụm", icon: "map.circle.fill", color: Color(hex: "#0284C7")) {
+                                    drawerItemRow(title: "Quáº£n lÃ½ khu vá»±c / Cá»¥m", icon: "map.circle.fill", color: Color(hex: "#0284C7")) {
                                         onSelect(.regionManagement)
                                     }
-                                    drawerItemRow(title: "Cấu hình hệ thống & Bản quyền", icon: "gearshape.fill", color: Color(hex: "#64748B")) {
+                                    drawerItemRow(title: "Cáº¥u hÃ¬nh há»‡ thá»‘ng & Báº£n quyá»n", icon: "gearshape.fill", color: Color(hex: "#64748B")) {
                                         onSelect(.systemSettings)
                                     }
                                 }
@@ -290,20 +305,20 @@ public struct AppSidebarDrawer: View {
                             }
                         }
 
-                        // --- NHÓM 5: NGOẠI VI & CÀI ĐẶT ---
-                        drawerItemRow(title: "Ngoại vi & Cài đặt máy in / quét", icon: "printer.dotmatrix.fill", color: Color(hex: "#0284C7")) {
+                        // --- NHÃ“M 5: NGOáº I VI & CÃ€I Äáº¶T ---
+                        drawerItemRow(title: "Ngoáº¡i vi & CÃ i Ä‘áº·t mÃ¡y in / quÃ©t", icon: "printer.dotmatrix.fill", color: Color(hex: "#0284C7")) {
                             onSelect(.peripherals)
                         }
 
                         Spacer(minLength: 16)
 
-                        // Nút Đăng xuất màu đỏ
+                        // NÃºt ÄÄƒng xuáº¥t mÃ u Ä‘á»
                         Divider().padding(.vertical, 4)
-                        drawerItemRow(title: "Đăng xuất", icon: "rectangle.portrait.and.arrow.right", color: Color(hex: "#DC2626")) {
+                        drawerItemRow(title: "ÄÄƒng xuáº¥t", icon: "rectangle.portrait.and.arrow.right", color: Color(hex: "#DC2626")) {
                             onLogout()
                         }
 
-                        // Khoảng đệm cho Home indicator ở cạnh dưới iPhone
+                        // Khoáº£ng Ä‘á»‡m cho Home indicator á»Ÿ cáº¡nh dÆ°á»›i iPhone
                         Color.clear.frame(height: max(geometry.safeAreaInsets.bottom, 20))
                     }
                     .padding(.horizontal, 10)
@@ -373,3 +388,6 @@ public struct AppSidebarDrawer: View {
         }
     }
 }
+
+
+

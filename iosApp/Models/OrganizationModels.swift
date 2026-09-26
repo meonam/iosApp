@@ -90,3 +90,29 @@ public struct KhuVuc: Identifiable, Codable, Hashable {
         self.tenKhuVuc = tenKhuVuc
     }
 }
+// MARK: - SPECIALIST TEAM
+public struct SpecialistTeam: Identifiable, Codable, Hashable {
+    public var id: String
+    public var teamId: String
+    public var teamName: String
+    public var applications: [String]
+    public var description: String
+    public var moTa: String
+    public var truongTo: String
+    public var sdtLienHe: String
+    public var companyId: String
+    public var updatedAt: Int64
+
+    public init(id: String, teamId: String, teamName: String, applications: [String] = [], description: String = "", moTa: String = "", truongTo: String = "", sdtLienHe: String = "", companyId: String = "", updatedAt: Int64 = 0) {
+        self.id = id
+        self.teamId = teamId
+        self.teamName = teamName
+        self.applications = applications
+        self.description = description
+        self.moTa = moTa
+        self.truongTo = truongTo
+        self.sdtLienHe = sdtLienHe
+        self.companyId = companyId
+        self.updatedAt = updatedAt
+    }
+}
