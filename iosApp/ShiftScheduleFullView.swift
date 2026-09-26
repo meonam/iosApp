@@ -3,14 +3,16 @@ import UIKit
 
 // MARK: - Shift Code Enums & Colors (Khớp 100% Android ShiftCode.kt)
 public enum KtvShiftCode: String, CaseIterable, Identifiable {
-    case sang = "SANG"
-    case chieu = "CHIEU"
-    case hanhChanh = "HANH_CHANH"
-    case nghiCa = "NGHI_CA"
-    case phep = "PHEP"
-    case congTac = "CONG_TAC"
-    case truc = "TRUC"
-    case hop = "HOP"
+    case sang = "S"           // Sáng
+    case chieu = "C"          // Chiều
+    case hanhChanh = "HC"     // Hành chính
+    case truc = "TR"          // Trực 24/7
+    case congTac = "CT"       // Công tác
+    case nghiCa = "NC"        // Nghỉ ca
+    case phep = "P"           // Nghỉ phép
+    case hop = "H"            // Họp
+    case nghiMat = "NM"       // Nghỉ mát (Android: NM)
+    case nghiLe = "NL"        // Nghỉ lễ (Android: NL)
 
     public var id: String { rawValue }
 
@@ -24,19 +26,23 @@ public enum KtvShiftCode: String, CaseIterable, Identifiable {
         case .congTac: return "Công tác"
         case .truc: return "Trực 24/7"
         case .hop: return "Họp"
+        case .nghiMat: return "Nghỉ mát"
+        case .nghiLe: return "Nghỉ lễ"
         }
     }
 
     public var shortName: String {
         switch self {
-        case .sang: return "Sáng"
-        case .chieu: return "Chiều"
+        case .sang: return "S"
+        case .chieu: return "C"
         case .hanhChanh: return "HC"
-        case .nghiCa: return "Nghỉ"
-        case .phep: return "Phép"
-        case .congTac: return "C.Tác"
-        case .truc: return "Trực"
-        case .hop: return "Họp"
+        case .nghiCa: return "NC"
+        case .phep: return "P"
+        case .congTac: return "CT"
+        case .truc: return "TR"
+        case .hop: return "H"
+        case .nghiMat: return "NM"
+        case .nghiLe: return "NL"
         }
     }
 
@@ -50,6 +56,8 @@ public enum KtvShiftCode: String, CaseIterable, Identifiable {
         case .congTac: return Color(hex: "#6A1B9A")    // Purple
         case .truc: return Color(hex: "#C62828")       // Red
         case .hop: return Color(hex: "#F9A825")        // Amber
+        case .nghiMat: return Color(hex: "#00838F")    // Cyan (rest/vacation)
+        case .nghiLe: return Color(hex: "#558B2F")     // Light green (holiday)
         }
     }
 }
@@ -80,6 +88,10 @@ public struct ShiftScheduleFullView: View {
 
     let dayKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
     let dayHeaders = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]
+
+    private var canEditShift: Bool {
+        firebase.isAdmin || firebase.isHelpDesk
+    }
 
     public init(onDismiss: @escaping () -> Void) {
         self.onDismiss = onDismiss
@@ -316,14 +328,24 @@ public struct ShiftScheduleFullView: View {
                             let shift = KtvShiftCode(rawValue: shiftRaw) ?? .hanhChanh
 
                             Button(action: {
-                                editingCell = (ktvEmail: ktv.email, dayKey: dKey, ktvName: ktv.name, currentShift: shiftRaw)
+                                if canEditShift {
+                                    editingCell = (ktvEmail: ktv.email, dayKey: dKey, ktvName: ktv.name, currentShift: shiftRaw)
+                                }
                             }) {
-                                Text(shift.shortName)
-                                    .font(.system(size: 10.5, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .frame(width: 46, height: 28)
-                                    .background(shift.color)
-                                    .cornerRadius(6)
+                                ZStack(alignment: .topTrailing) {
+                                    Text(shift.shortName)
+                                        .font(.system(size: 10.5, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .frame(width: 46, height: 28)
+                                        .background(shift.color)
+                                        .cornerRadius(6)
+                                    if !canEditShift {
+                                        Image(systemName: "lock.fill")
+                                            .font(.system(size: 7))
+                                            .foregroundColor(.white.opacity(0.75))
+                                            .padding(2)
+                                    }
+                                }
                             }
                             .frame(width: 52, alignment: .center)
                         }
@@ -405,14 +427,14 @@ public struct ShiftScheduleFullView: View {
         localScheduleData[email] = current
 
         Task {
-            let weekId = "week_\(weekOffset)"
+            let weekId = isoWeekId(offset: weekOffset)
             _ = await firebase.saveShiftSchedule(weekId: weekId, ktvEmail: email, dayKey: dayKey, shiftCode: newShift)
         }
     }
 
     private func loadWeekData() {
         Task {
-            let weekId = "week_\(weekOffset)"
+            let weekId = isoWeekId(offset: weekOffset)
             let data = await firebase.fetchShiftSchedules(weekId: weekId)
             if !data.isEmpty {
                 localScheduleData = data
@@ -421,13 +443,25 @@ public struct ShiftScheduleFullView: View {
     }
 
     private func weekDateRangeString() -> String {
-        let cal = Calendar.current
-        var comp = DateComponents()
-        comp.weekOfYear = weekOffset
-        let date = cal.date(byAdding: comp, to: Date()) ?? Date()
+        var cal = Calendar(identifier: .iso8601)
+        cal.firstWeekday = 2 // Monday
+        let target = cal.date(byAdding: .weekOfYear, value: weekOffset, to: Date()) ?? Date()
+        let weekday = cal.component(.weekday, from: target)
+        let daysToMonday = (weekday == 1 ? -6 : 2 - weekday)
+        guard let monday = cal.date(byAdding: .day, value: daysToMonday, to: target),
+              let sunday = cal.date(byAdding: .day, value: 6, to: monday) else { return "" }
         let df = DateFormatter()
         df.dateFormat = "dd/MM"
-        return "Áp dụng toàn hệ thống Saigon Co.op"
+        return "\(df.string(from: monday)) - \(df.string(from: sunday))"
+    }
+
+    private func isoWeekId(offset: Int) -> String {
+        var cal = Calendar(identifier: .iso8601)
+        cal.firstWeekday = 2 // Monday
+        let target = cal.date(byAdding: .weekOfYear, value: offset, to: Date()) ?? Date()
+        let week = cal.component(.weekOfYear, from: target)
+        let year = cal.component(.yearForWeekOfYear, from: target)
+        return String(format: "%04d-W%02d", year, week)
     }
 }
 

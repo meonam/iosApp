@@ -2497,7 +2497,7 @@ class FirebaseService: ObservableObject {
     }
 
     // --- T. CHẤM CÔNG GPS & ĐIỀU PHỐI (ATTENDANCE & SHIFTS) ---
-    func checkInAttendance(isCheckIn: Bool, lat: Double, lng: Double, address: String) async -> Bool {
+    func checkInAttendance(isCheckIn: Bool, lat: Double, lng: Double, address: String, shiftType: String = "HC", note: String = "") async -> Bool {
         let df = DateFormatter()
         df.dateFormat = "yyyy-MM-dd"
         let dateStr = df.string(from: Date())
@@ -2517,7 +2517,9 @@ class FirebaseService: ObservableObject {
             "donVi": ["stringValue": userDonVi],
             "departmentId": ["stringValue": userDept],
             "companyId": ["stringValue": companyId],
-            "date": ["stringValue": dateStr]
+            "date": ["stringValue": dateStr],
+            "shiftType": ["stringValue": shiftType],
+            "note": ["stringValue": note]
         ]
         if isCheckIn {
             fields["checkInTime"] = ["integerValue": "\(nowMs)"]

@@ -286,7 +286,9 @@ public struct AttendanceCheckInFullView: View {
                 isCheckIn: isCheckIn,
                 lat: lat,
                 lng: lng,
-                address: address
+                address: address,
+                shiftType: selectedShift.rawValue,
+                note: noteInput
             )
             isSubmitting = false
             withAnimation {
