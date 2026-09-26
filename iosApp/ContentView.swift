@@ -59,6 +59,7 @@ struct DeviceItem: Identifiable, Hashable, Sendable {
     var status: String
     var department: String
     var iconName: String
+    var createdBy: String = ""
 }
 
 struct SupportTicket: Identifiable, Hashable, Sendable {
@@ -72,6 +73,30 @@ struct SupportTicket: Identifiable, Hashable, Sendable {
     var creatorEmail: String
     var createdAt: String
     var lastMessage: String
+
+    // Android v1.2.0 Parity
+    var creatorName: String = ""
+    var creatorPhone: String = ""
+    var creatorUserId: String = ""
+    var departmentId: String = ""
+    var assignedTo: String = ""
+    var assignedToEmail: String = ""
+    var assignedToName: String = ""
+    var assignedDepartmentId: String = ""
+    var assignedDepartmentName: String = ""
+    var assignedCluster: String = ""
+    var assignedRole: String = "TECH"
+    var toNghiepVu: String = ""
+    var source: String = "APP" // APP, EMAIL, ZALO, WEB, PHONE
+    var rating: Int = 0 // 0 = Chưa đánh giá, 1..5 sao
+    var feedback: String = ""
+    var ratingRequested: Bool = false
+    var isAcknowledged: Bool = false
+    var resolutionNote: String = ""
+    var resolvedBy: String = ""
+    var resolvedByName: String = ""
+    var closedByEmail: String = ""
+    var closedByName: String = ""
 }
 
 struct ChatMessage: Identifiable, Hashable, Sendable {
@@ -296,6 +321,98 @@ class FirebaseService: ObservableObject {
 
     var isManagerOrAdmin: Bool {
         isAdmin || isHelpDesk || isManager
+    }
+
+    // MARK: - FILTERING LOGIC CHUẨN ANDROID v1.2.0 (AdminSupportViewModel.isTicketVisible)
+    var userFilteredTickets: [SupportTicket] {
+        let cleanEmail = currentUserEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if cleanEmail.isEmpty { return [] }
+
+        // 1. Admin và Helpdesk luôn thấy toàn bộ ticket
+        if isAdmin || isHelpDesk {
+            return tickets
+        }
+
+        func isSameUser(_ a: String, _ b: String) -> Bool {
+            let c1 = a.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let c2 = b.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if c1.isEmpty || c2.isEmpty { return false }
+            if c1 == c2 { return true }
+            let p1 = c1.components(separatedBy: "@").first ?? ""
+            let p2 = c2.components(separatedBy: "@").first ?? ""
+            return !p1.isEmpty && p1 == p2
+        }
+
+        return tickets.filter { ticket in
+            let tAssignedTech = ticket.assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let tAssignedTo = ticket.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let isAssignedToMe = isSameUser(tAssignedTech, cleanEmail) ||
+                                 isSameUser(tAssignedTo, cleanEmail) ||
+                                 isSameUser(ticket.assignedKtv, userName)
+
+            // 2. Người tạo Ticket luôn thấy
+            let tCreator = ticket.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let tCreatorUserId = ticket.creatorUserId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if isSameUser(tCreator, cleanEmail) || isSameUser(tCreatorUserId, cleanEmail) {
+                return true
+            }
+
+            // 2b. Khớp đơn vị
+            let myDonVi = userDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let tDonVi = ticket.unit.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !myDonVi.isEmpty && (tDonVi == myDonVi || tDonVi.contains(myDonVi) || myDonVi.contains(tDonVi)) {
+                return true
+            }
+
+            if isAssignedToMe {
+                return true
+            }
+
+            // 3. Kỹ thuật viên: thấy ticket được gán hoặc ticket OPEN chưa ai nhận
+            if isTechnician {
+                if ticket.status == "OPEN" && tAssignedTech.isEmpty && tAssignedTo.isEmpty {
+                    return true
+                }
+            }
+
+            // 4. Quản lý phòng ban: thấy ticket phòng ban mình
+            if isManager {
+                let myDept = userDept.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let tDept = ticket.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let tDeptName = ticket.assignedDepartmentName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                if (!myDept.isEmpty && (tDept.contains(myDept) || myDept.contains(tDept) || tDeptName.contains(myDept) || myDept.contains(tDeptName))) {
+                    return true
+                }
+            }
+
+            return false
+        }
+    }
+
+    var userFilteredDevices: [DeviceItem] {
+        let cleanEmail = currentUserEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if cleanEmail.isEmpty { return devices }
+
+        // Admin, Helpdesk, Manager, Technician thấy toàn bộ thiết bị công ty
+        if isAdmin || isHelpDesk || isManager || isTechnician {
+            return devices
+        }
+
+        // Staff thông thường: thiết bị do mình tạo hoặc cùng đơn vị/phòng ban
+        let myDept = userDept.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let myDonVi = userDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        let filtered = devices.filter { dev in
+            let c = dev.createdBy.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !c.isEmpty && c == cleanEmail { return true }
+            let d = dev.department.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !myDept.isEmpty && (d == myDept || d.contains(myDept) || myDept.contains(d)) { return true }
+            let u = dev.unit.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !myDonVi.isEmpty && (u == myDonVi || u.contains(myDonVi) || myDonVi.contains(u)) { return true }
+            return false
+        }
+
+        return filtered.isEmpty ? devices : filtered
     }
 
     // Bộ đệm thời gian tạo ticket chống spam (1 phút cooldown theo Android)
@@ -775,6 +892,7 @@ class FirebaseService: ObservableObject {
                         let donVi = parseString(f, "tenDonVi")
                         let phongBan = parseString(f, "phongBan")
                         let idStr = parseString(f, "id")
+                        let createdBy = parseString(f, "createdBy")
 
                         let category = !loai.isEmpty ? loai : "Thiết bị"
                         let item = DeviceItem(
@@ -786,7 +904,8 @@ class FirebaseService: ObservableObject {
                             unit: !donVi.isEmpty ? donVi : "Co.opmart",
                             status: self.standardizeStatus(trangThai),
                             department: phongBan,
-                            iconName: self.iconForCategory(category)
+                            iconName: self.iconForCategory(category),
+                            createdBy: createdBy
                         )
                         parsedList.append(item)
                     }
@@ -913,17 +1032,66 @@ class FirebaseService: ObservableObject {
                         let creator = parseString(f, "creatorEmail")
                         let lastMsg = parseString(f, "lastMessage")
 
+                        let creatorName = parseString(f, "creatorName")
+                        let creatorPhone = parseString(f, "creatorPhone")
+                        let creatorUserId = parseString(f, "creatorUserId")
+                        let deptId = parseString(f, "departmentId")
+                        let assignedTo = parseString(f, "assignedTo")
+                        let assignedToEmail = parseString(f, "assignedToEmail")
+                        let assignedToName = parseString(f, "assignedToName")
+                        let assignedDeptId = parseString(f, "assignedDepartmentId")
+                        let assignedDeptName = parseString(f, "assignedDepartmentName")
+                        let assignedCluster = parseString(f, "assignedCluster")
+                        let assignedRole = parseString(f, "assignedRole")
+                        let toNghiepVu = parseString(f, "toNghiepVu")
+                        let source = parseString(f, "source")
+                        let rating = Int(parseInteger(f, "rating"))
+                        let feedback = parseString(f, "feedback")
+                        let ratingRequested = parseBoolean(f, "ratingRequested")
+                        let isAcknowledged = parseBoolean(f, "isAcknowledged")
+                        let resolutionNote = parseString(f, "resolutionNote")
+                        let resolvedBy = parseString(f, "resolvedBy")
+                        let resolvedByName = parseString(f, "resolvedByName")
+                        let closedByEmail = parseString(f, "closedByEmail")
+                        let closedByName = parseString(f, "closedByName")
+
+                        let finalAssignedKtv = !assignedToName.isEmpty ? assignedToName : (!ktv.isEmpty ? ktv : "Chưa tiếp nhận")
+                        let finalStatus = !status.isEmpty ? status.uppercased() : "OPEN"
+                        let finalSlaRemaining = (finalStatus == "CLOSED" || finalStatus == "RESOLVED") ? "Đã xử lý xong" : "Đang xử lý SLA"
+
                         let t = SupportTicket(
                             id: docId,
                             title: !subject.isEmpty ? subject : "Sự cố kỹ thuật",
                             unit: !donVi.isEmpty ? donVi : "Co.opmart",
                             priority: self.formatPriority(priority),
-                            status: !status.isEmpty ? status.uppercased() : "OPEN",
-                            slaRemaining: status == "CLOSED" ? "Đã đóng" : "Đang xử lý SLA",
-                            assignedKtv: !ktv.isEmpty ? ktv : "Chưa tiếp nhận",
+                            status: finalStatus,
+                            slaRemaining: finalSlaRemaining,
+                            assignedKtv: finalAssignedKtv,
                             creatorEmail: creator,
                             createdAt: "Vừa xong",
-                            lastMessage: lastMsg
+                            lastMessage: lastMsg,
+                            creatorName: creatorName,
+                            creatorPhone: creatorPhone,
+                            creatorUserId: creatorUserId,
+                            departmentId: deptId,
+                            assignedTo: assignedTo,
+                            assignedToEmail: assignedToEmail,
+                            assignedToName: assignedToName,
+                            assignedDepartmentId: assignedDeptId,
+                            assignedDepartmentName: assignedDeptName,
+                            assignedCluster: assignedCluster,
+                            assignedRole: !assignedRole.isEmpty ? assignedRole : "TECH",
+                            toNghiepVu: toNghiepVu,
+                            source: !source.isEmpty ? source.uppercased() : "APP",
+                            rating: rating,
+                            feedback: feedback,
+                            ratingRequested: ratingRequested,
+                            isAcknowledged: isAcknowledged,
+                            resolutionNote: resolutionNote,
+                            resolvedBy: resolvedBy,
+                            resolvedByName: resolvedByName,
+                            closedByEmail: closedByEmail,
+                            closedByName: closedByName
                         )
                         parsedTickets.append(t)
                     }
@@ -1243,6 +1411,254 @@ class FirebaseService: ObservableObject {
             return num
         }
         return 0
+    }
+
+    private func parseBoolean(_ f: [String: Any], _ key: String) -> Bool {
+        if let obj = f[key] as? [String: Any], let val = obj["booleanValue"] as? Bool {
+            return val
+        }
+        return false
+    }
+
+    // MARK: - TICKET LIFECYCLE OPERATIONS (Parity với Android AdminSupportViewModel.kt)
+
+    // 1. TIẾP NHẬN TICKET (KTV / HELPDESK)
+    func acceptTicket(ticketId: String) async -> Bool {
+        let cleanId = ticketId.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanId.isEmpty { return false }
+
+        let endpoint = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/support_tickets/\(cleanId)?updateMask.fieldPaths=status&updateMask.fieldPaths=assignedToEmail&updateMask.fieldPaths=assignedToName&updateMask.fieldPaths=assignedTo&updateMask.fieldPaths=isAcknowledged&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
+        guard let url = URL(string: endpoint) else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let sysMsg = "🛠️ KTV \(userName) đã tiếp nhận yêu cầu hỗ trợ và đang xử lý."
+
+        let body: [String: Any] = [
+            "fields": [
+                "status": ["stringValue": "IN_PROGRESS"],
+                "assignedToEmail": ["stringValue": currentUserEmail],
+                "assignedToName": ["stringValue": userName],
+                "assignedTo": ["stringValue": currentUserEmail],
+                "isAcknowledged": ["booleanValue": true],
+                "lastMessage": ["stringValue": sysMsg],
+                "lastMessageAt": ["integerValue": "\(nowMs)"]
+            ]
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+                _ = await sendMessage(ticketId: cleanId, text: sysMsg)
+                await self.loadTickets()
+                return true
+            }
+        } catch {}
+        return false
+    }
+
+    // 2. BÁO XỬ LÝ XONG (RESOLVED)
+    func resolveTicket(ticketId: String, note: String) async -> Bool {
+        let cleanId = ticketId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanId.isEmpty { return false }
+
+        let endpoint = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/support_tickets/\(cleanId)?updateMask.fieldPaths=status&updateMask.fieldPaths=resolvedAt&updateMask.fieldPaths=resolvedBy&updateMask.fieldPaths=resolvedByName&updateMask.fieldPaths=resolutionNote&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
+        guard let url = URL(string: endpoint) else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let noteDesc = cleanNote.isEmpty ? "Hoàn tất xử lý sự cố." : cleanNote
+        let sysMsg = "🛠️ KTV \(userName) báo xong! Đã xử lý xong: \(noteDesc). Chờ nghiệm thu và đánh giá."
+
+        let body: [String: Any] = [
+            "fields": [
+                "status": ["stringValue": "RESOLVED"],
+                "resolvedAt": ["integerValue": "\(nowMs)"],
+                "resolvedBy": ["stringValue": currentUserEmail],
+                "resolvedByName": ["stringValue": userName],
+                "resolutionNote": ["stringValue": cleanNote],
+                "lastMessage": ["stringValue": sysMsg],
+                "lastMessageAt": ["integerValue": "\(nowMs)"]
+            ]
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+                _ = await sendMessage(ticketId: cleanId, text: sysMsg)
+                await self.loadTickets()
+                return true
+            }
+        } catch {}
+        return false
+    }
+
+    // 3. ĐÓNG / NGHIỆM THU TICKET
+    func closeTicket(ticketId: String, note: String = "") async -> Bool {
+        let cleanId = ticketId.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanId.isEmpty { return false }
+
+        let endpoint = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/support_tickets/\(cleanId)?updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=closedByEmail&updateMask.fieldPaths=closedByName&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
+        guard let url = URL(string: endpoint) else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let noteDesc = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sysMsg = "✅ [\(userName)] Đã nghiệm thu và hoàn tất đóng yêu cầu hỗ trợ\(noteDesc.isEmpty ? "." : " (\(noteDesc)).")"
+
+        let body: [String: Any] = [
+            "fields": [
+                "status": ["stringValue": "CLOSED"],
+                "closedAt": ["integerValue": "\(nowMs)"],
+                "closedByEmail": ["stringValue": currentUserEmail],
+                "closedByName": ["stringValue": userName],
+                "lastMessage": ["stringValue": sysMsg],
+                "lastMessageAt": ["integerValue": "\(nowMs)"]
+            ]
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+                _ = await sendMessage(ticketId: cleanId, text: sysMsg)
+                await self.loadTickets()
+                return true
+            }
+        } catch {}
+        return false
+    }
+
+    // 4. BÀN GIAO CA (KTV / HELPDESK)
+    func handoverTicket(ticketId: String, toType: String, targetEmail: String, targetName: String, reason: String) async -> Bool {
+        let cleanId = ticketId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanId.isEmpty || cleanReason.isEmpty { return false }
+
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let isTech = toType == "TECHNICIAN"
+
+        let mask = isTech
+            ? "updateMask.fieldPaths=assignedToEmail&updateMask.fieldPaths=assignedToName&updateMask.fieldPaths=assignedByEmail&updateMask.fieldPaths=assignedByName&updateMask.fieldPaths=dispatchNote&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt&updateMask.fieldPaths=isAcknowledged"
+            : "updateMask.fieldPaths=status&updateMask.fieldPaths=assignedToEmail&updateMask.fieldPaths=assignedToName&updateMask.fieldPaths=assignedByEmail&updateMask.fieldPaths=assignedByName&updateMask.fieldPaths=dispatchNote&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt&updateMask.fieldPaths=isAcknowledged"
+
+        let endpoint = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/support_tickets/\(cleanId)?\(mask)"
+        guard let url = URL(string: endpoint) else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
+        let sysMsg = isTech
+            ? "🔄 [Bàn giao ca] KTV \(userName) đã bàn giao yêu cầu cho KTV \(targetName). Lý do: \(cleanReason)"
+            : "↩️ [Chuyển về HelpDesk] KTV \(userName) đã chuyển trả ticket cho HelpDesk. Lý do: \(cleanReason)"
+
+        var fields: [String: Any] = [
+            "assignedByEmail": ["stringValue": currentUserEmail],
+            "assignedByName": ["stringValue": userName],
+            "dispatchNote": ["stringValue": cleanReason],
+            "isAcknowledged": ["booleanValue": false],
+            "lastMessage": ["stringValue": sysMsg],
+            "lastMessageAt": ["integerValue": "\(nowMs)"]
+        ]
+
+        if isTech {
+            fields["assignedToEmail"] = ["stringValue": targetEmail]
+            fields["assignedToName"] = ["stringValue": targetName]
+        } else {
+            fields["status"] = ["stringValue": "OPEN"]
+            fields["assignedToEmail"] = ["stringValue": ""]
+            fields["assignedToName"] = ["stringValue": ""]
+        }
+
+        let body: [String: Any] = ["fields": fields]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+                _ = await sendMessage(ticketId: cleanId, text: sysMsg)
+                await self.loadTickets()
+                return true
+            }
+        } catch {}
+        return false
+    }
+
+    // 5. ĐÁNH GIÁ CHẤT LƯỢNG CSAT 5 SAO (NGƯỜI TẠO TICKET)
+    func submitRating(ticketId: String, stars: Int, comment: String) async -> Bool {
+        let cleanId = ticketId.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanId.isEmpty { return false }
+
+        let endpoint = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/support_tickets/\(cleanId)?updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt&updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=closedByEmail&updateMask.fieldPaths=closedByName&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
+        guard let url = URL(string: endpoint) else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(currentUserIdToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
+
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let cleanComment = comment.trimmingCharacters(in: .whitespacesAndNewlines)
+        let ratingDesc = whenSatisfaction(stars)
+        let finalFeedback = cleanComment.isEmpty ? ratingDesc : cleanComment
+        let sysMsg = "⭐ [Khách hàng đánh giá \(stars)/5★]: \(finalFeedback). Phiếu hỗ trợ đã được đóng tự động."
+
+        let body: [String: Any] = [
+            "fields": [
+                "rating": ["integerValue": "\(stars)"],
+                "feedback": ["stringValue": finalFeedback],
+                "feedbackAt": ["integerValue": "\(nowMs)"],
+                "status": ["stringValue": "CLOSED"],
+                "closedAt": ["integerValue": "\(nowMs)"],
+                "closedByEmail": ["stringValue": currentUserEmail],
+                "closedByName": ["stringValue": userName],
+                "lastMessage": ["stringValue": sysMsg],
+                "lastMessageAt": ["integerValue": "\(nowMs)"]
+            ]
+        ]
+
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+                _ = await sendMessage(ticketId: cleanId, text: sysMsg)
+                await self.loadTickets()
+                return true
+            }
+        } catch {}
+        return false
+    }
+
+    private func whenSatisfaction(_ stars: Int) -> String {
+        switch stars {
+        case 1: return "Rất không hài lòng"
+        case 2: return "Không hài lòng"
+        case 3: return "Bình thường"
+        case 4: return "Hài lòng"
+        default: return "Rất hài lòng"
+        }
     }
 
     private func formatRoleTitle(_ rawRole: String) -> String {
@@ -5696,6 +6112,7 @@ enum ActiveSheet: Identifiable {
     case deviceMgmtFull
     case supportRatingReport
     case scannerSettings
+    case specialistTeam
 
     var id: String {
         switch self {
@@ -5723,6 +6140,7 @@ enum ActiveSheet: Identifiable {
         case .deviceMgmtFull: return "deviceMgmtFull"
         case .supportRatingReport: return "supportRatingReport"
         case .scannerSettings: return "scannerSettings"
+        case .specialistTeam: return "specialistTeam"
         }
     }
 }
@@ -5852,6 +6270,7 @@ struct MainAppView: View {
                             case "approve_staff": activeSheet = .approveStaff
                             case "user_mgmt": activeSheet = .userMgmt
                             case "department_manager": activeSheet = .department
+                            case "specialist_team_manager": activeSheet = .specialistTeam
                             case "unit_manager": activeSheet = .unit
                             case "region_manager": activeSheet = .region
                             case "attendance_checkin": activeSheet = .attendance
@@ -5943,6 +6362,8 @@ struct MainAppView: View {
             QuickSupportModalView(onDismiss: { activeSheet = nil })
         case .ticketDetail(let ticket):
             TicketChatDetailView(ticket: ticket, onDismiss: { activeSheet = nil })
+        case .specialistTeam:
+            SpecialistTeamManagerFullView(onDismiss: { activeSheet = nil })
         }
     }
 }
@@ -6481,7 +6902,7 @@ struct DeviceListView: View {
     let filterOptions = ["Tất cả", "Đang sử dụng", "Mới", "Sửa chữa", "Hỏng"]
 
     var filteredDevices: [DeviceItem] {
-        firebase.devices.filter { item in
+        firebase.userFilteredDevices.filter { item in
             let matchSearch = searchText.isEmpty ||
                 item.name.localizedCaseInsensitiveContains(searchText) ||
                 item.code.localizedCaseInsensitiveContains(searchText) ||
@@ -6700,8 +7121,12 @@ struct SupportHubView: View {
     @State private var selectedStatus: String = "OPEN"
 
     var filteredTickets: [SupportTicket] {
-        if selectedStatus == "ALL" { return firebase.tickets }
-        return firebase.tickets.filter { $0.status == selectedStatus }
+        let base = firebase.userFilteredTickets
+        if selectedStatus == "ALL" { return base }
+        if selectedStatus == "CLOSED" {
+            return base.filter { $0.status == "CLOSED" || $0.status == "RESOLVED" }
+        }
+        return base.filter { $0.status == selectedStatus }
     }
 
     var body: some View {
@@ -6745,14 +7170,15 @@ struct SupportHubView: View {
             .background(Color.appTopBar)
 
             // Status Tabs
+            let baseList = firebase.userFilteredTickets
             HStack(spacing: 0) {
-                TicketTabButton(title: "Chờ tiếp nhận", count: firebase.tickets.filter { $0.status == "OPEN" }.count, isSelected: selectedStatus == "OPEN") {
+                TicketTabButton(title: "Chờ tiếp nhận", count: baseList.filter { $0.status == "OPEN" }.count, isSelected: selectedStatus == "OPEN") {
                     selectedStatus = "OPEN"
                 }
-                TicketTabButton(title: "Đang xử lý", count: firebase.tickets.filter { $0.status == "IN_PROGRESS" }.count, isSelected: selectedStatus == "IN_PROGRESS") {
+                TicketTabButton(title: "Đang xử lý", count: baseList.filter { $0.status == "IN_PROGRESS" }.count, isSelected: selectedStatus == "IN_PROGRESS") {
                     selectedStatus = "IN_PROGRESS"
                 }
-                TicketTabButton(title: "Đã xong", count: firebase.tickets.filter { $0.status == "CLOSED" || $0.status == "RESOLVED" }.count, isSelected: selectedStatus == "CLOSED") {
+                TicketTabButton(title: "Đã xong", count: baseList.filter { $0.status == "CLOSED" || $0.status == "RESOLVED" }.count, isSelected: selectedStatus == "CLOSED") {
                     selectedStatus = "CLOSED"
                 }
             }
@@ -6830,26 +7256,74 @@ struct TicketCardItemView: View {
         return Color(hex: "#2563EB")
     }
 
+    var sourceBadge: (text: String, icon: String, fg: Color, bg: Color) {
+        let src = ticket.source.uppercased()
+        switch src {
+        case "EMAIL":
+            return ("Email M365", "envelope.fill", Color(hex: "#6D28D9"), Color(hex: "#EDE9FE"))
+        case "ZALO":
+            return ("Zalo OA", "bubble.left.and.bubble.right.fill", Color(hex: "#0284C7"), Color(hex: "#E0F2FE"))
+        case "WEB":
+            return ("Web Portal", "globe", Color(hex: "#0D9488"), Color(hex: "#CCFBF1"))
+        case "PHONE":
+            return ("Hotline", "phone.fill", Color(hex: "#16A34A"), Color(hex: "#DCFCE7"))
+        default:
+            return ("App Di động", "iphone", Color.appPrimaryPink, Color(hex: "#FCE7F3"))
+        }
+    }
+
+    var statusBadge: (text: String, fg: Color, bg: Color) {
+        switch ticket.status {
+        case "OPEN":
+            return ("Chờ tiếp nhận", Color(hex: "#D97706"), Color(hex: "#FEF3C7"))
+        case "IN_PROGRESS":
+            return ("Đang xử lý", Color(hex: "#2563EB"), Color(hex: "#DBEAFE"))
+        case "RESOLVED":
+            return ("Đã xử lý xong", Color(hex: "#4F46E5"), Color(hex: "#EEF2FF"))
+        case "CLOSED":
+            return ("Đã đóng", Color(hex: "#16A34A"), Color(hex: "#DCFCE7"))
+        default:
+            return (ticket.status, Color.secondary, Color(hex: "#F1F5F9"))
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
+            // Badges row: Priority, Omni-Channel Source, Status
+            HStack(spacing: 6) {
                 Text(ticket.priority)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 10.5, weight: .bold))
                     .foregroundColor(priorityColor)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
                     .background(priorityColor.opacity(0.12))
                     .cornerRadius(4)
 
+                // Omni-channel badge
+                let src = sourceBadge
+                HStack(spacing: 3) {
+                    Image(systemName: src.icon)
+                        .font(.system(size: 9))
+                    Text(src.text)
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundColor(src.fg)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(src.bg)
+                .cornerRadius(4)
+
                 Spacer()
 
-                HStack(spacing: 4) {
-                    Image(systemName: "timer")
-                        .font(.system(size: 11))
-                    Text(ticket.slaRemaining)
-                        .font(.system(size: 11, weight: .semibold))
-                }
-                .foregroundColor(priorityColor)
+                // Status badge
+                let st = statusBadge
+                Text(st.text)
+                    .font(.system(size: 10.5, weight: .bold))
+                    .foregroundColor(st.fg)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(st.bg)
+                    .cornerRadius(6)
             }
 
             Text(ticket.title)
@@ -6862,6 +7336,28 @@ struct TicketCardItemView: View {
                     .font(.system(size: 12))
                     .foregroundColor(Color.appTextMuted)
                     .lineLimit(1)
+            }
+
+            // Rating Stars Banner if already rated
+            if ticket.rating > 0 {
+                HStack(spacing: 4) {
+                    HStack(spacing: 2) {
+                        ForEach(1...5, id: \.self) { star in
+                            Image(systemName: star <= ticket.rating ? "star.fill" : "star")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(hex: "#F59E0B"))
+                        }
+                    }
+                    Text("(\(ticket.rating)/5★\(ticket.feedback.isEmpty ? "" : " - \(ticket.feedback)"))")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(hex: "#92400E"))
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(hex: "#FFFBEB"))
+                .cornerRadius(6)
             }
 
             Divider().background(Color.appCardBorder)
@@ -7130,7 +7626,7 @@ struct AppSidebarDrawer: View {
                 VStack(spacing: 4) {
                     DrawerItem(title: "Trang chủ", icon: "house.fill", iconColor: Color(hex: "#0284C7"), action: { onSelectRoute("home") })
 
-                    let openTickets = firebase.tickets.filter { $0.status == "OPEN" }.count
+                    let openTickets = firebase.userFilteredTickets.filter { $0.status == "OPEN" }.count
                     DrawerItem(title: "Hỗ trợ kỹ thuật", icon: "headphones", iconColor: Color.appPrimaryPink, badgeCount: openTickets, action: { onSelectRoute("support") })
 
                     // Section 1: Quản lý thiết bị
@@ -7151,6 +7647,7 @@ struct AppSidebarDrawer: View {
                             DrawerItem(title: "Quản lý người dùng", icon: "person.2.fill", iconColor: Color(hex: "#3B82F6"), action: { onSelectRoute("user_mgmt") })
                             DrawerItem(title: "Duyệt nhân viên mới", icon: "person.crop.circle.badge.checkmark", iconColor: Color(hex: "#10B981"), badgeCount: firebase.pendingStaffList.count, action: { onSelectRoute("approve_staff") })
                             DrawerItem(title: "Quản lý phòng ban", icon: "building.2.fill", iconColor: Color(hex: "#818CF8"), action: { onSelectRoute("department_manager") })
+                            DrawerItem(title: "Quản lý tổ nghiệp vụ", icon: "briefcase.fill", iconColor: Color(hex: "#0D9488"), action: { onSelectRoute("specialist_team_manager") })
                             DrawerItem(title: "Quản lý đơn vị", icon: "building.columns.fill", iconColor: Color(hex: "#6366F1"), action: { onSelectRoute("unit_manager") })
                             DrawerItem(title: "Quản lý khu vực", icon: "map.fill", iconColor: Color(hex: "#F59E0B"), action: { onSelectRoute("region_manager") })
                         }
@@ -7257,7 +7754,7 @@ struct AppSidebarDrawer: View {
                     .cornerRadius(8)
                 }
                 Spacer()
-                Text("v1.0.0 (Build 34773809159)")
+                Text("v1.2.0 (Build 120)")
                     .font(.system(size: 11))
                     .foregroundColor(Color.gray)
             }
@@ -7646,6 +8143,11 @@ struct TicketChatDetailView: View {
     let ticket: SupportTicket
     let onDismiss: () -> Void
 
+    @State private var currentStatus: String = "OPEN"
+    @State private var assignedKtvName: String = ""
+    @State private var currentRating: Int = 0
+    @State private var currentFeedback: String = ""
+
     @State private var messageInput: String = ""
     @State private var isSending: Bool = false
     @State private var showLiveTracking: Bool = false
@@ -7658,20 +8160,117 @@ struct TicketChatDetailView: View {
     @State private var selectedViewerImageUrl: String? = nil
     @State private var activeReactionMessageId: String? = nil
 
+    // Ticket Action Dialogs & Sheets
+    @State private var showRatingModal: Bool = false
+    @State private var showHandoverModal: Bool = false
+    @State private var showResolveModal: Bool = false
+    @State private var showCloseConfirmAlert: Bool = false
+    @State private var isSubmittingAction: Bool = false
+
+    // Rating states
+    @State private var ratingStars: Int = 5
+    @State private var ratingComment: String = ""
+
+    // Handover states
+    @State private var handoverToType: String = "TECHNICIAN" // TECHNICIAN or HELPDESK
+    @State private var handoverTargetEmail: String = ""
+    @State private var handoverTargetName: String = ""
+    @State private var handoverReason: String = ""
+    @State private var handoverSearch: String = ""
+
+    // Resolve states
+    @State private var resolveNote: String = ""
+
+    var isCreator: Bool {
+        let cleanMe = firebase.currentUserEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanCreator = ticket.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return !cleanMe.isEmpty && cleanMe == cleanCreator
+    }
+
+    var canManageTicket: Bool {
+        firebase.isAdmin || firebase.isHelpDesk || firebase.isTechnician
+    }
+
+    var canCloseTicket: Bool {
+        firebase.isAdmin || firebase.isHelpDesk
+    }
+
+    var sourceBadge: (text: String, icon: String, fg: Color, bg: Color) {
+        let src = ticket.source.uppercased()
+        switch src {
+        case "EMAIL":
+            return ("Email M365", "envelope.fill", Color(hex: "#6D28D9"), Color(hex: "#EDE9FE"))
+        case "ZALO":
+            return ("Zalo OA", "bubble.left.and.bubble.right.fill", Color(hex: "#0284C7"), Color(hex: "#E0F2FE"))
+        case "WEB":
+            return ("Web Portal", "globe", Color(hex: "#0D9488"), Color(hex: "#CCFBF1"))
+        case "PHONE":
+            return ("Hotline", "phone.fill", Color(hex: "#16A34A"), Color(hex: "#DCFCE7"))
+        default:
+            return ("App Di động", "iphone", Color.appPrimaryPink, Color(hex: "#FCE7F3"))
+        }
+    }
+
+    var statusBadge: (text: String, fg: Color, bg: Color) {
+        switch currentStatus {
+        case "OPEN":
+            return ("Chờ tiếp nhận", Color(hex: "#D97706"), Color(hex: "#FEF3C7"))
+        case "IN_PROGRESS":
+            return ("Đang xử lý", Color(hex: "#2563EB"), Color(hex: "#DBEAFE"))
+        case "RESOLVED":
+            return ("Đã xử lý xong", Color(hex: "#4F46E5"), Color(hex: "#EEF2FF"))
+        case "CLOSED":
+            return ("Đã đóng", Color(hex: "#16A34A"), Color(hex: "#DCFCE7"))
+        default:
+            return (currentStatus, Color.secondary, Color(hex: "#F1F5F9"))
+        }
+    }
+
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
                 // Header Ticket Info
                 VStack(alignment: .leading, spacing: 6) {
                     HStack {
-                        Text(ticket.id)
+                        Text("#\(ticket.id)")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color.appPrimaryPink)
+
+                        // Omni-channel source badge
+                        let src = sourceBadge
+                        HStack(spacing: 3) {
+                            Image(systemName: src.icon)
+                                .font(.system(size: 9))
+                            Text(src.text)
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundColor(src.fg)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(src.bg)
+                        .cornerRadius(4)
+
                         Spacer()
+
+                        // Status badge
+                        let st = statusBadge
+                        Text(st.text)
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(st.fg)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(st.bg)
+                            .cornerRadius(6)
+
                         Text(ticket.priority)
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(Color(hex: "#DC2626"))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color(hex: "#FEE2E2"))
+                            .cornerRadius(4)
                     }
+
                     Text(ticket.title)
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(Color.appTextPrimary)
@@ -7683,7 +8282,20 @@ struct TicketChatDetailView: View {
                         Text(ticket.unit.isEmpty ? "Co.opmart" : ticket.unit)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
+
+                        if !assignedKtvName.isEmpty && assignedKtvName != "Chưa tiếp nhận" {
+                            Text("•")
+                                .foregroundColor(.secondary)
+                            Image(systemName: "person.badge.shield.checkmark.fill")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                            Text(assignedKtvName)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                        }
+
                         Spacer()
+
                         Button(action: { showLiveTracking = true }) {
                             HStack(spacing: 4) {
                                 Image(systemName: "map.fill")
@@ -7701,6 +8313,69 @@ struct TicketChatDetailView: View {
                 .padding(14)
                 .background(Color.white)
                 .overlay(Rectangle().fill(Color.appCardBorder).frame(height: 1), alignment: .bottom)
+
+                // ACTION STRIP (Dành cho KTV, HelpDesk, Admin, Người tạo)
+                actionStripView
+
+                // CSAT RATING BANNER (Khi đã xử lý xong hoặc người tạo chưa đánh giá)
+                if currentStatus == "RESOLVED" && isCreator && currentRating == 0 {
+                    HStack(spacing: 10) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(Color(hex: "#F59E0B"))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("KTV đã xử lý xong sự cố!")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(Color(hex: "#92400E"))
+                            Text("Mời bạn đánh giá chất lượng phục vụ 1-5 sao.")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(hex: "#B45309"))
+                        }
+                        Spacer()
+                        Button(action: { showRatingModal = true }) {
+                            Text("Đánh giá ngay")
+                                .font(.system(size: 11.5, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color(hex: "#F59E0B"))
+                                .cornerRadius(8)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Color(hex: "#FFFBEB"))
+                    .overlay(Rectangle().fill(Color(hex: "#FDE68A")).frame(height: 1), alignment: .bottom)
+                }
+
+                // Rated Summary Banner
+                if currentRating > 0 {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundColor(Color(hex: "#16A34A"))
+                        Text("Khách hàng đã đánh giá:")
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundColor(Color(hex: "#166534"))
+                        HStack(spacing: 1) {
+                            ForEach(1...5, id: \.self) { s in
+                                Image(systemName: s <= currentRating ? "star.fill" : "star")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(Color(hex: "#F59E0B"))
+                            }
+                        }
+                        if !currentFeedback.isEmpty {
+                            Text("• \(currentFeedback)")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(hex: "#15803D"))
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(Color(hex: "#F0FDF4"))
+                    .overlay(Rectangle().fill(Color(hex: "#BBF7D0")).frame(height: 1), alignment: .bottom)
+                }
 
                 // Danh sách tin nhắn thật từ Firestore subcollection
                 ScrollView {
@@ -7753,60 +8428,79 @@ struct TicketChatDetailView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
-                // Input bar
-                HStack(spacing: 8) {
-                    // Attachment button
-                    Button(action: { showAttachmentActionSheet = true }) {
-                        Image(systemName: "camera.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
-                    }
+                // Input bar (nếu ticket chưa đóng hoặc Admin/HelpDesk)
+                if currentStatus != "CLOSED" || firebase.isAdmin || firebase.isHelpDesk {
+                    HStack(spacing: 8) {
+                        // Attachment button
+                        Button(action: { showAttachmentActionSheet = true }) {
+                            Image(systemName: "camera.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                        }
 
-                    // Zalo icon picker button
-                    Button(action: { showIconPicker = true }) {
-                        Image(systemName: "face.smiling.fill")
-                            .font(.system(size: 26))
-                            .foregroundColor(Color.orange)
-                    }
+                        // Zalo icon picker button
+                        Button(action: { showIconPicker = true }) {
+                            Image(systemName: "face.smiling.fill")
+                                .font(.system(size: 26))
+                                .foregroundColor(Color.orange)
+                        }
 
-                    TextField("Nhập nội dung trao đổi sự cố...", text: $messageInput)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(Color.white)
-                        .cornerRadius(20)
-                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.appCardBorder, lineWidth: 1))
+                        TextField("Nhập nội dung trao đổi sự cố...", text: $messageInput)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Color.white)
+                            .cornerRadius(20)
+                            .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.appCardBorder, lineWidth: 1))
 
-                    Button(action: {
-                        let text = messageInput.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !text.isEmpty {
-                            isSending = true
-                            messageInput = ""
-                            Task {
-                                _ = await firebase.sendMessage(ticketId: ticket.id, text: text)
-                                isSending = false
+                        Button(action: {
+                            let text = messageInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !text.isEmpty {
+                                isSending = true
+                                messageInput = ""
+                                Task {
+                                    _ = await firebase.sendMessage(ticketId: ticket.id, text: text)
+                                    isSending = false
+                                }
+                            }
+                        }) {
+                            if isSending {
+                                ProgressView()
+                                    .frame(width: 38, height: 38)
+                            } else {
+                                Image(systemName: "paperplane.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.white)
+                                    .frame(width: 38, height: 38)
+                                    .background(Color.appPrimaryPink)
+                                    .clipShape(Circle())
                             }
                         }
-                    }) {
-                        if isSending {
-                            ProgressView()
-                                .frame(width: 38, height: 38)
-                        } else {
-                            Image(systemName: "paperplane.fill")
-                                .font(.system(size: 16))
-                                .foregroundColor(.white)
-                                .frame(width: 38, height: 38)
-                                .background(Color.appPrimaryPink)
-                                .clipShape(Circle())
-                        }
+                        .disabled(isSending || messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
-                    .disabled(isSending || messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .padding(10)
+                    .background(Color.white)
+                } else {
+                    // Closed Notice
+                    HStack {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color.gray)
+                        Text("Yêu cầu hỗ trợ này đã được đóng hoàn tất.")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color.gray)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color(hex: "#F1F5F9"))
                 }
-                .padding(10)
-                .background(Color.white)
             }
             .navigationTitle("Trao Đổi Sự Cố")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
+                currentStatus = ticket.status
+                assignedKtvName = ticket.assignedKtv
+                currentRating = ticket.rating
+                currentFeedback = ticket.feedback
                 Task {
                     await firebase.loadMessages(for: ticket.id)
                 }
@@ -7833,6 +8527,32 @@ struct TicketChatDetailView: View {
             .sheet(isPresented: $showImagePicker) {
                 ImagePickerModal(selectedImage: $selectedImage, sourceType: pickerSourceType)
             }
+            .sheet(isPresented: $showRatingModal) {
+                csatRatingSheet
+            }
+            .sheet(isPresented: $showHandoverModal) {
+                handoverSheet
+            }
+            .sheet(isPresented: $showResolveModal) {
+                resolveSheet
+            }
+            .alert(isPresented: $showCloseConfirmAlert) {
+                Alert(
+                    title: Text("Nghiệm thu & Đóng phiếu"),
+                    message: Text("Xác nhận sự cố đã được khắc phục hoàn toàn và đóng yêu cầu hỗ trợ?"),
+                    primaryButton: .default(Text("Đóng phiếu")) {
+                        Task {
+                            isSubmittingAction = true
+                            let ok = await firebase.closeTicket(ticketId: ticket.id)
+                            if ok {
+                                currentStatus = "CLOSED"
+                            }
+                            isSubmittingAction = false
+                        }
+                    },
+                    secondaryButton: .cancel(Text("Hủy"))
+                )
+            }
             .sheet(isPresented: Binding(
                 get: { selectedViewerImageUrl != nil },
                 set: { if !$0 { selectedViewerImageUrl = nil } }
@@ -7858,6 +8578,458 @@ struct TicketChatDetailView: View {
                 }
             }
         }
+    }
+
+    // MARK: - ACTION STRIP VIEW
+    @ViewBuilder
+    private var actionStripView: some View {
+        if currentStatus != "CLOSED" && (canManageTicket || canCloseTicket) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    // 1. Nút Tiếp nhận (nếu OPEN)
+                    if currentStatus == "OPEN" && canManageTicket {
+                        Button(action: {
+                            Task {
+                                isSubmittingAction = true
+                                let ok = await firebase.acceptTicket(ticketId: ticket.id)
+                                if ok {
+                                    currentStatus = "IN_PROGRESS"
+                                    assignedKtvName = firebase.userName
+                                }
+                                isSubmittingAction = false
+                            }
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "checkmark.circle.fill")
+                                Text("Tiếp nhận")
+                            }
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color(hex: "#059669"))
+                            .cornerRadius(16)
+                        }
+                        .disabled(isSubmittingAction)
+                    }
+
+                    // 2. Nút Báo xong (nếu IN_PROGRESS)
+                    if currentStatus == "IN_PROGRESS" && canManageTicket {
+                        Button(action: {
+                            resolveNote = ""
+                            showResolveModal = true
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "wrench.and.screwdriver.fill")
+                                Text("Báo xử lý xong")
+                            }
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color(hex: "#4F46E5"))
+                            .cornerRadius(16)
+                        }
+                    }
+
+                    // 3. Nút Bàn giao ca (nếu OPEN hoặc IN_PROGRESS)
+                    if (currentStatus == "OPEN" || currentStatus == "IN_PROGRESS") && canManageTicket {
+                        Button(action: {
+                            handoverReason = ""
+                            handoverTargetEmail = ""
+                            handoverTargetName = ""
+                            handoverSearch = ""
+                            showHandoverModal = true
+                        }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "arrow.triangle.swap")
+                                Text("Bàn giao ca")
+                            }
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color(hex: "#92400E"))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color(hex: "#FEF3C7"))
+                            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "#FDE68A"), lineWidth: 1))
+                            .cornerRadius(16)
+                        }
+                    }
+
+                    // 4. Nút Nghiệm thu & Đóng (Admin / HelpDesk)
+                    if canCloseTicket {
+                        Button(action: { showCloseConfirmAlert = true }) {
+                            HStack(spacing: 5) {
+                                Image(systemName: "checkmark.seal.fill")
+                                Text("Nghiệm thu & Đóng")
+                            }
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color(hex: "#16A34A"))
+                            .cornerRadius(16)
+                        }
+                        .disabled(isSubmittingAction)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+            }
+            .background(Color(hex: "#F8FAFC"))
+            .overlay(Rectangle().fill(Color.appCardBorder).frame(height: 1), alignment: .bottom)
+        }
+    }
+
+    // MARK: - CSAT 5-STAR RATING SHEET
+    private var csatRatingSheet: some View {
+        NavigationView {
+            VStack(spacing: 16) {
+                // Header
+                VStack(spacing: 6) {
+                    Text("ĐÁNH GIÁ CHẤT LƯỢNG PHỤC VỤ")
+                        .font(.system(size: 15, weight: .heavy))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                    Text("Sự hài lòng của bạn giúp nâng cao chất lượng hỗ trợ KTV")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.appTextSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 16)
+
+                // 5 Interactive Stars
+                HStack(spacing: 12) {
+                    ForEach(1...5, id: \.self) { star in
+                        Button(action: { ratingStars = star }) {
+                            Image(systemName: star <= ratingStars ? "star.fill" : "star")
+                                .font(.system(size: 36))
+                                .foregroundColor(star <= ratingStars ? Color(hex: "#F59E0B") : Color(hex: "#CBD5E1"))
+                        }
+                    }
+                }
+                .padding(.vertical, 8)
+
+                // Satisfaction text
+                Text(firebase.whenSatisfaction(ratingStars))
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(ratingStars >= 4 ? Color(hex: "#15803D") : (ratingStars == 3 ? Color(hex: "#D97706") : Color(hex: "#DC2626")))
+
+                // Quick feedback tag chips
+                let quickTags = ["Xử lý rất nhanh", "Nhiệt tình", "Đúng giờ", "Chuyên môn tốt", "Hài lòng"]
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(quickTags, id: \.self) { tag in
+                            Button(action: {
+                                if ratingComment.isEmpty {
+                                    ratingComment = tag
+                                } else if !ratingComment.contains(tag) {
+                                    ratingComment += ", " + tag
+                                }
+                            }) {
+                                Text(tag)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color(hex: "#EFF6FF"))
+                                    .foregroundColor(Color(hex: "#1D4ED8"))
+                                    .cornerRadius(12)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+
+                // Comment field
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Ý kiến đóng góp thêm (tùy chọn):")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Color.appTextSecondary)
+
+                    TextEditor(text: $ratingComment)
+                        .frame(height: 90)
+                        .padding(8)
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                }
+                .padding(.horizontal, 16)
+
+                Spacer()
+
+                // Submit Button
+                Button(action: {
+                    Task {
+                        isSubmittingAction = true
+                        let ok = await firebase.submitRating(ticketId: ticket.id, stars: ratingStars, comment: ratingComment)
+                        isSubmittingAction = false
+                        if ok {
+                            currentRating = ratingStars
+                            currentFeedback = ratingComment.isEmpty ? firebase.whenSatisfaction(ratingStars) : ratingComment
+                            currentStatus = "CLOSED"
+                            showRatingModal = false
+                        }
+                    }
+                }) {
+                    HStack {
+                        if isSubmittingAction {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                            Text("Gửi Đánh Giá & Hoàn Tất")
+                        }
+                    }
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color(hex: "#059669"))
+                    .cornerRadius(12)
+                }
+                .disabled(isSubmittingAction)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 20)
+            }
+            .navigationTitle("Đánh Giá Dịch Vụ")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Hủy") { showRatingModal = false }
+                }
+            }
+        }
+    }
+
+    // MARK: - HANDOVER SHEET
+    private var handoverSheet: some View {
+        NavigationView {
+            VStack(spacing: 14) {
+                Picker("Hình thức bàn giao", selection: $handoverToType) {
+                    Text("Chuyển KTV").tag("TECHNICIAN")
+                    Text("Chuyển về HelpDesk").tag("HELPDESK")
+                }
+                .pickerStyle(SegmentedPickerStyle())
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+
+                if handoverToType == "TECHNICIAN" {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Chọn Kỹ thuật viên tiếp nhận (*):")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(Color.appTextPrimary)
+
+                        TextField("Tìm kiếm tên hoặc email KTV...", text: $handoverSearch)
+                            .padding(10)
+                            .background(Color(hex: "#F1F5F9"))
+                            .cornerRadius(8)
+
+                        let cleanMe = firebase.currentUserEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        let ktvCandidates = firebase.allUsersList.filter { u in
+                            let r = u.role.lowercased()
+                            let isTech = r.contains("kythuat") || r.contains("tech") || r.contains("ktv")
+                            let isNotMe = u.email.lowercased() != cleanMe
+                            let matchSearch = handoverSearch.isEmpty ||
+                                              u.fullName.localizedCaseInsensitiveContains(handoverSearch) ||
+                                              u.email.localizedCaseInsensitiveContains(handoverSearch)
+                            return isTech && isNotMe && matchSearch
+                        }
+
+                        if ktvCandidates.isEmpty {
+                            Text("Không tìm thấy KTV khác trong danh sách công ty.")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color.gray)
+                                .padding(.vertical, 10)
+                        } else {
+                            ScrollView {
+                                LazyVStack(spacing: 6) {
+                                    ForEach(ktvCandidates) { u in
+                                        Button(action: {
+                                            handoverTargetEmail = u.email
+                                            handoverTargetName = u.fullName
+                                        }) {
+                                            HStack {
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text(u.fullName)
+                                                        .font(.system(size: 13, weight: .bold))
+                                                        .foregroundColor(Color.appTextPrimary)
+                                                    Text(u.email)
+                                                        .font(.system(size: 11))
+                                                        .foregroundColor(Color.appTextSecondary)
+                                                }
+                                                Spacer()
+                                                if handoverTargetEmail == u.email {
+                                                    Image(systemName: "checkmark.circle.fill")
+                                                        .foregroundColor(Color(hex: "#059669"))
+                                                }
+                                            }
+                                            .padding(10)
+                                            .background(handoverTargetEmail == u.email ? Color(hex: "#ECFDF5") : Color.white)
+                                            .cornerRadius(8)
+                                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(handoverTargetEmail == u.email ? Color(hex: "#10B981") : Color.appCardBorder, lineWidth: 1))
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                            .frame(maxHeight: 180)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                } else {
+                    // HelpDesk notice
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "headphones")
+                            .font(.system(size: 20))
+                            .foregroundColor(Color(hex: "#D97706"))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Chuyển trả yêu cầu về HelpDesk")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(Color(hex: "#92400E"))
+                            Text("Yêu cầu sẽ được chuyển về trạng thái Chờ tiếp nhận (OPEN). HelpDesk sẽ nhận được thông báo để điều phối người xử lý phù hợp.")
+                                .font(.system(size: 11.5))
+                                .foregroundColor(Color(hex: "#B45309"))
+                                .lineSpacing(2)
+                        }
+                    }
+                    .padding(12)
+                    .background(Color(hex: "#FFFBEB"))
+                    .cornerRadius(10)
+                    .padding(.horizontal, 16)
+                }
+
+                // Mandatory Reason Field
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Lý do bàn giao (* Bắt buộc do KTV nhập):")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color.appTextPrimary)
+
+                    TextField("Ví dụ: Hết ca trực chiều, chuyển giao KTV ca đêm...", text: $handoverReason)
+                        .padding(10)
+                        .background(Color.white)
+                        .cornerRadius(8)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
+                }
+                .padding(.horizontal, 16)
+
+                Spacer()
+
+                // Submit Button
+                Button(action: {
+                    Task {
+                        isSubmittingAction = true
+                        let ok = await firebase.handoverTicket(
+                            ticketId: ticket.id,
+                            toType: handoverToType,
+                            targetEmail: handoverTargetEmail,
+                            targetName: handoverTargetName,
+                            reason: handoverReason
+                        )
+                        isSubmittingAction = false
+                        if ok {
+                            if handoverToType == "TECHNICIAN" {
+                                assignedKtvName = handoverTargetName
+                            } else {
+                                currentStatus = "OPEN"
+                                assignedKtvName = "Chưa tiếp nhận"
+                            }
+                            showHandoverModal = false
+                        }
+                    }
+                }) {
+                    HStack {
+                        if isSubmittingAction {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        } else {
+                            Image(systemName: "arrow.triangle.swap")
+                            Text("Xác nhận Bàn Giao")
+                        }
+                    }
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.appSecondaryDarkBlue)
+                    .cornerRadius(12)
+                }
+                .disabled(isSubmittingAction || handoverReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || (handoverToType == "TECHNICIAN" && handoverTargetEmail.isEmpty))
+                .padding(.horizontal, 16)
+                .padding(.bottom, 20)
+            }
+            .navigationTitle("Bàn Giao Ca / Sự Cố")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Hủy") { showHandoverModal = false }
+                }
+            }
+        }
+    }
+
+    // MARK: - RESOLVE SHEET
+    private var resolveSheet: some View {
+        NavigationView {
+            VStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Ghi chú kết quả xử lý sự cố (*):")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(Color.appTextPrimary)
+
+                    TextEditor(text: $resolveNote)
+                        .frame(height: 120)
+                        .padding(8)
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+
+                    Text("Ví dụ: Đã thay thế dây mạng CAT6, bấm lại đầu RJ45, máy POS kết nối mạng và in bill bình thường.")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color.appTextMuted)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+
+                Spacer()
+
+                Button(action: {
+                    Task {
+                        isSubmittingAction = true
+                        let ok = await firebase.resolveTicket(ticketId: ticket.id, note: resolveNote)
+                        isSubmittingAction = false
+                        if ok {
+                            currentStatus = "RESOLVED"
+                            showResolveModal = false
+                        }
+                    }
+                }) {
+                    HStack {
+                        if isSubmittingAction {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        } else {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("Xác Nhận Báo Xử Lý Xong")
+                        }
+                    }
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color(hex: "#4F46E5"))
+                    .cornerRadius(12)
+                }
+                .disabled(isSubmittingAction || resolveNote.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 20)
+            }
+            .navigationTitle("Báo Xử Lý Xong")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Hủy") { showResolveModal = false }
+                }
+            }
+        }
+    }
     }
 
     @ViewBuilder
