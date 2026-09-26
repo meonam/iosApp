@@ -140,12 +140,12 @@ public struct AttendanceHistoryView: View {
             }
             Spacer()
             VStack(alignment: .trailing) {
-                Text(record.status == "on_time" ? "Đúng giờ" : (record.status == "late" ? "Trễ" : "Vắng"))
+                Text(record.checkInStatus == "ON_TIME" ? "Đúng giờ" : (record.checkInStatus == "LATE" ? "Trễ" : "Vắng"))
                     .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background((record.status == "on_time" ? Color.green : Color.orange).opacity(0.2))
-                    .foregroundColor(record.status == "on_time" ? .green : .orange)
+                    .background((record.checkInStatus == "ON_TIME" ? Color.green : Color.orange).opacity(0.2))
+                    .foregroundColor(record.checkInStatus == "ON_TIME" ? .green : .orange)
                     .cornerRadius(8)
                 
                 if record.workDuration > 0 {
