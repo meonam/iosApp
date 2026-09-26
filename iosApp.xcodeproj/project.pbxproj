@@ -34,6 +34,8 @@
 		110001142C12345600000001 /* AssetStatisticsFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001042C12345600000001 /* AssetStatisticsFullView.swift */; };
 		110001152C12345600000001 /* PaywallLicenseFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001052C12345600000001 /* PaywallLicenseFullView.swift */; };
 		110001162C12345600000001 /* SpecialistTeamManagerFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001062C12345600000001 /* SpecialistTeamManagerFullView.swift */; };
+		110001172C12345600000001 /* AppInfoFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001072C12345600000001 /* AppInfoFullView.swift */; };
+		110001182C12345600000001 /* SystemSettingsFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001082C12345600000001 /* SystemSettingsFullView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -66,6 +68,8 @@
 		110001042C12345600000001 /* AssetStatisticsFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetStatisticsFullView.swift; sourceTree = "<group>"; };
 		110001052C12345600000001 /* PaywallLicenseFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallLicenseFullView.swift; sourceTree = "<group>"; };
 		110001062C12345600000001 /* SpecialistTeamManagerFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpecialistTeamManagerFullView.swift; sourceTree = "<group>"; };
+		110001072C12345600000001 /* AppInfoFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInfoFullView.swift; sourceTree = "<group>"; };
+		110001082C12345600000001 /* SystemSettingsFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemSettingsFullView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +100,8 @@
 				110001042C12345600000001 /* AssetStatisticsFullView.swift */,
 				110001052C12345600000001 /* PaywallLicenseFullView.swift */,
 				110001062C12345600000001 /* SpecialistTeamManagerFullView.swift */,
+				110001072C12345600000001 /* AppInfoFullView.swift */,
+				110001082C12345600000001 /* SystemSettingsFullView.swift */,
 				110000E12C12345600000001 /* ApproveStaffFullView.swift */,
 				110000E22C12345600000001 /* ShiftScheduleFullView.swift */,
 				110000E32C12345600000001 /* OnlineKtvMonitorFullView.swift */,
@@ -205,6 +211,8 @@
 				110001142C12345600000001 /* AssetStatisticsFullView.swift in Sources */,
 				110001152C12345600000001 /* PaywallLicenseFullView.swift in Sources */,
 				110001162C12345600000001 /* SpecialistTeamManagerFullView.swift in Sources */,
+				110001172C12345600000001 /* AppInfoFullView.swift in Sources */,
+				110001182C12345600000001 /* SystemSettingsFullView.swift in Sources */,
 				110000F12C12345600000001 /* ApproveStaffFullView.swift in Sources */,
 				110000F22C12345600000001 /* ShiftScheduleFullView.swift in Sources */,
 				110000F32C12345600000001 /* OnlineKtvMonitorFullView.swift in Sources */,

@@ -70,7 +70,8 @@ public struct AttendanceCheckInFullView: View {
 
     private var isWithinGeofence: Bool {
         guard let dist = distanceToStoreMeters else { return false }
-        return dist <= 300 // Bán kính Geofence chuẩn 300m
+        let radius = Int(firebase.travelExpenseConfig.geofenceRadiusMeters)
+        return dist <= (radius > 0 ? radius : 300)
     }
 
     public var body: some View {
@@ -161,7 +162,8 @@ public struct AttendanceCheckInFullView: View {
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(.secondary)
                             Spacer()
-                            Text(isWithinGeofence ? "HỢP LỆ (≤300m)" : "NGOÀI BÁN KÍNH")
+                            let r = Int(firebase.travelExpenseConfig.geofenceRadiusMeters)
+                            Text(isWithinGeofence ? "HỢP LỆ (≤\(r > 0 ? r : 300)m)" : "NGOÀI BÁN KÍNH")
                                 .font(.system(size: 10, weight: .heavy))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
@@ -335,7 +337,9 @@ public struct AttendanceReportFullView: View {
     }
 
     private var totalAllowanceVnd: Int {
-        Int(totalEstimatedKm * 5000.0) + (firebase.attendanceRecords.count * 50000)
+        let kmCost = totalEstimatedKm * firebase.travelExpenseConfig.pricePerKm
+        let shiftAllowance = Double(firebase.attendanceRecords.count) * firebase.travelExpenseConfig.tripBaseAllowance
+        return Int(kmCost + shiftAllowance)
     }
 
     public var body: some View {
@@ -379,7 +383,10 @@ public struct AttendanceReportFullView: View {
                 }
             }
             .onAppear {
-                Task { await firebase.fetchAttendanceRecords() }
+                Task {
+                    await firebase.fetchAttendanceRecords()
+                    await firebase.fetchTravelExpenseConfig()
+                }
             }
         }
     }
@@ -464,6 +471,8 @@ public struct AttendanceReportFullView: View {
     // TAB 2: QUYẾT TOÁN CÔNG TÁC PHÍ DI CHUYỂN OSRM
     @ViewBuilder
     private var travelExpenseTab: some View {
+        let ratePerKm = firebase.travelExpenseConfig.pricePerKm
+        let baseShift = firebase.travelExpenseConfig.tripBaseAllowance
         VStack(spacing: 14) {
             // Big total card
             VStack(spacing: 8) {
@@ -473,7 +482,7 @@ public struct AttendanceReportFullView: View {
                 Text("\(NumberFormatter.localizedString(from: NSNumber(value: totalAllowanceVnd), number: .decimal)) đ")
                     .font(.system(size: 32, weight: .heavy))
                     .foregroundColor(.white)
-                Text("Định mức: 5.000đ / km đường bộ OSRM + 50.000đ phụ cấp ca")
+                Text("Định mức: \(NumberFormatter.localizedString(from: NSNumber(value: Int(ratePerKm)), number: .decimal))đ / km đường bộ OSRM + \(NumberFormatter.localizedString(from: NSNumber(value: Int(baseShift)), number: .decimal))đ phụ cấp ca")
                     .font(.system(size: 11))
                     .foregroundColor(.white.opacity(0.75))
             }
@@ -492,6 +501,8 @@ public struct AttendanceReportFullView: View {
                     .foregroundColor(.appTextPrimary)
 
                 ForEach(firebase.attendanceRecords) { rec in
+                    let rowKm = 8.5
+                    let rowAllowance = Int(rowKm * ratePerKm + baseShift)
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(rec.date)
@@ -503,10 +514,10 @@ public struct AttendanceReportFullView: View {
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 3) {
-                            Text("~8.5 km")
+                            Text(String(format: "~%.1f km", rowKm))
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(.appSecondaryDarkBlue)
-                            Text("92.500 đ")
+                            Text("\(NumberFormatter.localizedString(from: NSNumber(value: rowAllowance), number: .decimal)) đ")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(.appPrimaryPink)
                         }
@@ -523,15 +534,16 @@ public struct AttendanceReportFullView: View {
     // TAB 3: CẤU HÌNH ĐỊNH MỨC & KHUNG GIỜ
     @ViewBuilder
     private var configRulesTab: some View {
+        let cfg = firebase.travelExpenseConfig
         VStack(spacing: 12) {
-            ruleRow(label: "Bán kính GPS hợp lệ", val: "300 mét (Geofence)")
-            ruleRow(label: "Đơn giá phụ cấp xăng xe", val: "5.000 đ / km")
-            ruleRow(label: "Phụ cấp ca trực / ca đêm", val: "50.000 đ / ca")
-            ruleRow(label: "Cho phép đi trễ tối đa", val: "15 phút")
-            ruleRow(label: "Ca Hành chính", val: "08:00 - 17:00")
-            ruleRow(label: "Ca 1 (Sáng)", val: "06:00 - 14:00")
-            ruleRow(label: "Ca 2 (Chiều)", val: "14:00 - 22:00")
-            ruleRow(label: "Ca 3 (Đêm)", val: "22:00 - 06:00")
+            ruleRow(label: "Bán kính GPS hợp lệ", val: "\(Int(cfg.geofenceRadiusMeters)) mét (Geofence)")
+            ruleRow(label: "Đơn giá phụ cấp xăng xe", val: "\(NumberFormatter.localizedString(from: NSNumber(value: Int(cfg.pricePerKm)), number: .decimal)) đ / km")
+            ruleRow(label: "Phụ cấp ca trực / ca đêm", val: "\(NumberFormatter.localizedString(from: NSNumber(value: Int(cfg.tripBaseAllowance)), number: .decimal)) đ / ca")
+            ruleRow(label: "Cho phép đi trễ tối đa", val: "\(cfg.maxCheckInLateMinutes) phút")
+            ruleRow(label: "Ca Hành chính", val: "\(cfg.standardCheckInTime) - \(cfg.standardCheckOutTime)")
+            ruleRow(label: "Ca 1 (Sáng)", val: "\(cfg.shift1CheckInTime) - \(cfg.shift1CheckOutTime)")
+            ruleRow(label: "Ca 2 (Chiều)", val: "\(cfg.shift2CheckInTime) - \(cfg.shift2CheckOutTime)")
+            ruleRow(label: "Ca 3 (Đêm)", val: "\(cfg.nightCheckInTime) - \(cfg.nightCheckOutTime)")
         }
         .padding(16)
         .background(Color.white)

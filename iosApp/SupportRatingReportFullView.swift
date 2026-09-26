@@ -11,6 +11,10 @@ struct SupportRatingDetailItem: Identifiable, Hashable {
     var feedbackComment: String
     var createdAt: String
     var isSlaMet: Bool
+    var ratingResponse: Int = 5 // ⚡ Phản hồi
+    var ratingResolve: Int = 5  // 🔧 Xử lý đúng hẹn
+    var ratingAttitude: Int = 5 // 🤝 Thái độ & chuyên môn
+    var ratingQuality: Int = 5  // 🛡️ Chất lượng/ổn định
 }
 
 struct KtvLeaderboardItem: Identifiable, Hashable {
@@ -40,12 +44,12 @@ struct SupportRatingReportFullView: View {
     // Default CSAT reviews matching Saigon Co.op support tickets
     private var sampleReviews: [SupportRatingDetailItem] {
         [
-            SupportRatingDetailItem(id: "rv1", ticketCode: "SC-9821", ticketTitle: "Lỗi máy in bill POS quầy thu ngân 03", storeName: "Co.opmart Cần Thơ", technicianName: "Dam Huu Phuc", ratingStars: 5, feedbackComment: "KTV hỗ trợ rất nhanh, thay cáp và in thử hoạt động hoàn hảo!", createdAt: "12/09/2026", isSlaMet: true),
-            SupportRatingDetailItem(id: "rv2", ticketCode: "SC-9818", ticketTitle: "Mất kết nối switch mạng tầng trệt", storeName: "Co.opmart Thốt Nốt", technicianName: "Dinh Quoc Huy", ratingStars: 5, feedbackComment: "Xử lý chuyên nghiệp, thông mạng kịp giờ mở cửa bán hàng.", createdAt: "11/09/2026", isSlaMet: true),
-            SupportRatingDetailItem(id: "rv3", ticketCode: "SC-9805", ticketTitle: "Cân điện tử rau củ không in tem barcode", storeName: "Co.opmart Vị Thanh", technicianName: "Huỳnh Nguyễn Anh Đức", ratingStars: 4, feedbackComment: "Khắc phục tốt, KTV hướng dẫn nhân viên vệ sinh mắt đọc tem.", createdAt: "10/09/2026", isSlaMet: true),
-            SupportRatingDetailItem(id: "rv4", ticketCode: "SC-9799", ticketTitle: "Máy tính thu ngân treo màn hình xanh", storeName: "Co.opmart Bến Tre", technicianName: "Hồ Thân Khánh", ratingStars: 5, feedbackComment: "Thay RAM và khôi phục dữ liệu ca bán hàng cực kỳ an toàn.", createdAt: "09/09/2026", isSlaMet: true),
-            SupportRatingDetailItem(id: "rv5", ticketCode: "SC-9782", ticketTitle: "Máy quét mã vạch không nhận QR Momo/VNPay", storeName: "Co.opmart Sa Đéc", technicianName: "Ngo Duy Linh", ratingStars: 4, feedbackComment: "Cập nhật firmware máy quét thành công.", createdAt: "08/09/2026", isSlaMet: false),
-            SupportRatingDetailItem(id: "rv6", ticketCode: "SC-9770", ticketTitle: "Lỗi kết nối camera an ninh kho đông lạnh", storeName: "Co.opmart Cà Mau", technicianName: "Nguyen Thanh Sang", ratingStars: 5, feedbackComment: "KTV nhiệt tình, đi đường xa nhưng đến đúng hẹn.", createdAt: "07/09/2026", isSlaMet: true)
+            SupportRatingDetailItem(id: "rv1", ticketCode: "SC-9821", ticketTitle: "Lỗi máy in bill POS quầy thu ngân 03", storeName: "Co.opmart Cần Thơ", technicianName: "Dam Huu Phuc", ratingStars: 5, feedbackComment: "KTV hỗ trợ rất nhanh, thay cáp và in thử hoạt động hoàn hảo!", createdAt: "12/09/2026", isSlaMet: true, ratingResponse: 5, ratingResolve: 5, ratingAttitude: 5, ratingQuality: 5),
+            SupportRatingDetailItem(id: "rv2", ticketCode: "SC-9818", ticketTitle: "Mất kết nối switch mạng tầng trệt", storeName: "Co.opmart Thốt Nốt", technicianName: "Dinh Quoc Huy", ratingStars: 5, feedbackComment: "Xử lý chuyên nghiệp, thông mạng kịp giờ mở cửa bán hàng.", createdAt: "11/09/2026", isSlaMet: true, ratingResponse: 5, ratingResolve: 5, ratingAttitude: 5, ratingQuality: 5),
+            SupportRatingDetailItem(id: "rv3", ticketCode: "SC-9805", ticketTitle: "Cân điện tử rau củ không in tem barcode", storeName: "Co.opmart Vị Thanh", technicianName: "Huỳnh Nguyễn Anh Đức", ratingStars: 4, feedbackComment: "Khắc phục tốt, KTV hướng dẫn nhân viên vệ sinh mắt đọc tem.", createdAt: "10/09/2026", isSlaMet: true, ratingResponse: 4, ratingResolve: 4, ratingAttitude: 5, ratingQuality: 4),
+            SupportRatingDetailItem(id: "rv4", ticketCode: "SC-9799", ticketTitle: "Máy tính thu ngân treo màn hình xanh", storeName: "Co.opmart Bến Tre", technicianName: "Hồ Thân Khánh", ratingStars: 5, feedbackComment: "Thay RAM và khôi phục dữ liệu ca bán hàng cực kỳ an toàn.", createdAt: "09/09/2026", isSlaMet: true, ratingResponse: 5, ratingResolve: 5, ratingAttitude: 5, ratingQuality: 5),
+            SupportRatingDetailItem(id: "rv5", ticketCode: "SC-9782", ticketTitle: "Máy quét mã vạch không nhận QR Momo/VNPay", storeName: "Co.opmart Sa Đéc", technicianName: "Ngo Duy Linh", ratingStars: 4, feedbackComment: "Cập nhật firmware máy quét thành công.", createdAt: "08/09/2026", isSlaMet: false, ratingResponse: 4, ratingResolve: 3, ratingAttitude: 5, ratingQuality: 4),
+            SupportRatingDetailItem(id: "rv6", ticketCode: "SC-9770", ticketTitle: "Lỗi kết nối camera an ninh kho đông lạnh", storeName: "Co.opmart Cà Mau", technicianName: "Nguyen Thanh Sang", ratingStars: 5, feedbackComment: "KTV nhiệt tình, đi đường xa nhưng đến đúng hẹn.", createdAt: "07/09/2026", isSlaMet: true, ratingResponse: 5, ratingResolve: 5, ratingAttitude: 5, ratingQuality: 5)
         ]
     }
 
@@ -71,7 +75,11 @@ struct SupportRatingReportFullView: View {
                 ratingStars: max(1, min(5, t.rating)),
                 feedbackComment: !t.feedback.isEmpty ? t.feedback : "Đánh giá chất lượng hỗ trợ kỹ thuật",
                 createdAt: t.createdAt,
-                isSlaMet: t.status == "CLOSED" || t.status == "RESOLVED"
+                isSlaMet: t.status == "CLOSED" || t.status == "RESOLVED",
+                ratingResponse: t.ratingResponse > 0 ? t.ratingResponse : max(1, min(5, t.rating)),
+                ratingResolve: t.ratingResolve > 0 ? t.ratingResolve : max(1, min(5, t.rating)),
+                ratingAttitude: t.ratingAttitude > 0 ? t.ratingAttitude : max(1, min(5, t.rating)),
+                ratingQuality: t.ratingQuality > 0 ? t.ratingQuality : max(1, min(5, t.rating))
             )
         }
         return liveReviews.isEmpty ? sampleReviews : liveReviews + sampleReviews
@@ -89,6 +97,26 @@ struct SupportRatingReportFullView: View {
 
     var averageScore: Double {
         let scores = allReviews.map { Double($0.ratingStars) }
+        return scores.isEmpty ? 5.0 : scores.reduce(0, +) / Double(scores.count)
+    }
+
+    var avgResponse: Double {
+        let scores = allReviews.map { Double($0.ratingResponse) }
+        return scores.isEmpty ? 5.0 : scores.reduce(0, +) / Double(scores.count)
+    }
+
+    var avgResolve: Double {
+        let scores = allReviews.map { Double($0.ratingResolve) }
+        return scores.isEmpty ? 5.0 : scores.reduce(0, +) / Double(scores.count)
+    }
+
+    var avgAttitude: Double {
+        let scores = allReviews.map { Double($0.ratingAttitude) }
+        return scores.isEmpty ? 5.0 : scores.reduce(0, +) / Double(scores.count)
+    }
+
+    var avgQuality: Double {
+        let scores = allReviews.map { Double($0.ratingQuality) }
         return scores.isEmpty ? 5.0 : scores.reduce(0, +) / Double(scores.count)
     }
 
@@ -167,14 +195,49 @@ struct SupportRatingReportFullView: View {
 
     // MARK: - KPI Header Section
     private var kpiHeaderSection: some View {
-        HStack(spacing: 8) {
-            kpiCard(title: "Điểm Sao TB", value: String(format: "%.1f ⭐", averageScore), sub: "\(sampleReviews.count) lượt chấm", color: .orange)
-            kpiCard(title: "Hài Lòng", value: "\(satisfactionPercent)%", sub: "Đánh giá 4-5★", color: .statusInUse)
-            kpiCard(title: "Đạt SLA", value: "\(slaMetPercent)%", sub: "Xử lý đúng hạn", color: .appSecondaryDarkBlue)
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                kpiCard(title: "Điểm Sao TB", value: String(format: "%.1f ⭐", averageScore), sub: "\(sampleReviews.count) lượt chấm", color: .orange)
+                kpiCard(title: "Hài Lòng", value: "\(satisfactionPercent)%", sub: "Đánh giá 4-5★", color: .statusInUse)
+                kpiCard(title: "Đạt SLA", value: "\(slaMetPercent)%", sub: "Xử lý đúng hạn", color: .appSecondaryDarkBlue)
+            }
+
+            // 4 Tiêu chí CSAT (Chuẩn P.CNTT & CĐS)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("📊 4 TIÊU CHÍ CSAT (CHUẨN P.CNTT&CĐS):")
+                    .font(.system(size: 10.5, weight: .bold))
+                    .foregroundColor(.appSecondaryDarkBlue)
+
+                HStack(spacing: 4) {
+                    csatDimensionPill(icon: "⚡", label: "Phản hồi", score: avgResponse, color: Color(red: 0.15, green: 0.39, blue: 0.92))
+                    csatDimensionPill(icon: "🔧", label: "Đúng hẹn", score: avgResolve, color: Color(red: 0.02, green: 0.59, blue: 0.41))
+                    csatDimensionPill(icon: "🤝", label: "Thái độ", score: avgAttitude, color: Color(red: 0.49, green: 0.23, blue: 0.93))
+                    csatDimensionPill(icon: "🛡️", label: "Chất lượng", score: avgQuality, color: Color(red: 0.85, green: 0.47, blue: 0.02))
+                }
+            }
+            .padding(10)
+            .background(Color.white)
+            .cornerRadius(10)
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
         .background(Color(UIColor.secondarySystemBackground))
+    }
+
+    private func csatDimensionPill(icon: String, label: String, score: Double, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text("\(icon) \(label)")
+                .font(.system(size: 9.5))
+                .foregroundColor(.secondary)
+            Text(String(format: "%.1f★", score))
+                .font(.system(size: 12, weight: .heavy))
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+        .background(color.opacity(0.08))
+        .cornerRadius(6)
     }
 
     private func kpiCard(title: String, value: String, sub: String, color: Color) -> some View {
@@ -234,6 +297,32 @@ struct SupportRatingReportFullView: View {
                         .padding(8)
                         .background(Color(UIColor.tertiarySystemFill))
                         .cornerRadius(6)
+
+                    // 4 CSAT Dimensions & SLA badge
+                    HStack(spacing: 8) {
+                        Text("⚡ \(item.ratingResponse)★")
+                            .font(.system(size: 10.5, weight: .bold))
+                            .foregroundColor(Color(red: 0.15, green: 0.39, blue: 0.92))
+                        Text("🔧 \(item.ratingResolve)★")
+                            .font(.system(size: 10.5, weight: .bold))
+                            .foregroundColor(Color(red: 0.02, green: 0.59, blue: 0.41))
+                        Text("🤝 \(item.ratingAttitude)★")
+                            .font(.system(size: 10.5, weight: .bold))
+                            .foregroundColor(Color(red: 0.49, green: 0.23, blue: 0.93))
+                        Text("🛡️ \(item.ratingQuality)★")
+                            .font(.system(size: 10.5, weight: .bold))
+                            .foregroundColor(Color(red: 0.85, green: 0.47, blue: 0.02))
+
+                        Spacer()
+
+                        Text(item.isSlaMet ? "✓ Đúng hẹn" : "⚠️ Trễ SLA")
+                            .font(.system(size: 9.5, weight: .bold))
+                            .foregroundColor(item.isSlaMet ? Color(red: 0.08, green: 0.50, blue: 0.24) : Color(red: 0.86, green: 0.15, blue: 0.15))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(item.isSlaMet ? Color(red: 0.86, green: 0.99, blue: 0.91) : Color(red: 0.99, green: 0.89, blue: 0.89))
+                            .cornerRadius(4)
+                    }
 
                     Divider()
 

@@ -108,7 +108,9 @@ struct LiveTrackingMapView: View {
     let customDestLng: Double?
     let companyId: String
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var firebase: FirebaseService
 
+    @StateObject private var locationManager = LocationManager()
     @State private var technicianCoord: CLLocationCoordinate2D? = nil
     @State private var destinationCoord: CLLocationCoordinate2D = CLLocationCoordinate2D(latitude: 10.764412, longitude: 106.693425)
     @State private var destinationName: String = "Điểm đến"
@@ -280,7 +282,26 @@ struct LiveTrackingMapView: View {
                 }
             }
             .task {
+                if let t = ticket, t.trackingStatus == "EN_ROUTE" {
+                    isTechnicianMoving = true
+                }
                 await resolveDestinationAndRoute()
+            }
+            .onReceive(locationManager.$lastLocation) { newLoc in
+                guard let loc = newLoc else { return }
+                technicianCoord = loc.coordinate
+                if isTechnicianMoving, let ticketId = ticket?.id, !ticketId.isEmpty {
+                    Task {
+                        _ = await firebase.updateTicketTracking(
+                            ticketId: ticketId,
+                            status: "EN_ROUTE",
+                            lat: loc.coordinate.latitude,
+                            lng: loc.coordinate.longitude,
+                            distanceKm: distanceKm,
+                            etaMinutes: durationMinutes
+                        )
+                    }
+                }
             }
         }
     }
@@ -301,9 +322,16 @@ struct LiveTrackingMapView: View {
             destinationCoord = CLLocationCoordinate2D(latitude: geocoded.lat, longitude: geocoded.lng)
         }
 
-        // 2. Mock or get current technician location (from device GPS or office)
-        let startLat = 10.764412 // Trụ sở Saigon Co.op
-        let startLng = 106.693425
+        // 2. Real technician location (from device GPS or fallback to office)
+        var startLat = 10.764412 // Trụ sở Saigon Co.op
+        var startLng = 106.693425
+        if let loc = locationManager.lastLocation, loc.coordinate.latitude != 0, loc.coordinate.longitude != 0 {
+            startLat = loc.coordinate.latitude
+            startLng = loc.coordinate.longitude
+        } else if locationManager.latitude != 0 && locationManager.longitude != 0 {
+            startLat = locationManager.latitude
+            startLng = locationManager.longitude
+        }
         technicianCoord = CLLocationCoordinate2D(latitude: startLat, longitude: startLng)
 
         // 3. Calculate OSRM route
@@ -331,6 +359,24 @@ struct LiveTrackingMapView: View {
     private func toggleMoving() {
         withAnimation {
             isTechnicianMoving.toggle()
+        }
+
+        guard let ticketId = ticket?.id, !ticketId.isEmpty else { return }
+        let currentLat = (locationManager.latitude != 0) ? locationManager.latitude : (technicianCoord?.latitude ?? 10.764412)
+        let currentLng = (locationManager.longitude != 0) ? locationManager.longitude : (technicianCoord?.longitude ?? 106.693425)
+        let status = isTechnicianMoving ? "EN_ROUTE" : "ARRIVED"
+        let dist = isTechnicianMoving ? distanceKm : 0.0
+        let eta = isTechnicianMoving ? durationMinutes : 0
+
+        Task {
+            _ = await firebase.updateTicketTracking(
+                ticketId: ticketId,
+                status: status,
+                lat: currentLat,
+                lng: currentLng,
+                distanceKm: dist,
+                etaMinutes: eta
+            )
         }
     }
 }
