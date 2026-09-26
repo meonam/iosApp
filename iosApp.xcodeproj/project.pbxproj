@@ -1,4 +1,4 @@
-// !$*UTF8*$!
+﻿// !$*UTF8*$!
 {
 	archiveVersion = 1;
 	classes = {
@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		110000012C12345600000001 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000022C12345600000001 /* iOSApp.swift */; };
+		110000152C12345600000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 110000162C12345600000001 /* Assets.xcassets */; };
 		220010002C12345600000001 /* MainContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000002C12345600000001 /* MainContainerView.swift */; };
 		220010012C12345600000001 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000012C12345600000001 /* AppColors.swift */; };
 		220010022C12345600000001 /* UserModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000022C12345600000001 /* UserModels.swift */; };
@@ -32,38 +34,13 @@
 		220010222C12345600000001 /* TicketChatDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000222C12345600000001 /* TicketChatDetailView.swift */; };
 		220010232C12345600000001 /* AttendanceCheckInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000232C12345600000001 /* AttendanceCheckInView.swift */; };
 		220010242C12345600000001 /* ShiftScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000242C12345600000001 /* ShiftScheduleView.swift */; };
-		110000152C12345600000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 110000162C12345600000001 /* Assets.xcassets */; };
-		110000012C12345600000001 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000022C12345600000001 /* iOSApp.swift */; };
-		110000032C12345600000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000042C12345600000001 /* ContentView.swift */; };
-		110000B12C12345600000001 /* CoopmartDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A12C12345600000001 /* CoopmartDirectory.swift */; };
-		110000B22C12345600000001 /* OSRMRoutingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A22C12345600000001 /* OSRMRoutingService.swift */; };
-		110000B32C12345600000001 /* CloudinaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A32C12345600000001 /* CloudinaryService.swift */; };
-		110000B42C12345600000001 /* ZaloAssetConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A42C12345600000001 /* ZaloAssetConstants.swift */; };
-		110000B52C12345600000001 /* MediaViewerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A52C12345600000001 /* MediaViewerSheet.swift */; };
-		110000B62C12345600000001 /* BarcodeQrGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A62C12345600000001 /* BarcodeQrGenerator.swift */; };
-		110000B72C12345600000001 /* BluetoothPrinterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A72C12345600000001 /* BluetoothPrinterService.swift */; };
-		110000B82C12345600000001 /* PrintScreenView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A82C12345600000001 /* PrintScreenView.swift */; };
-		110000B92C12345600000001 /* LiveTrackingMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000A92C12345600000001 /* LiveTrackingMapView.swift */; };
-		110000D12C12345600000001 /* AttendanceManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000C12C12345600000001 /* AttendanceManagementView.swift */; };
-		110000D22C12345600000001 /* UserManagementFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000C22C12345600000001 /* UserManagementFullView.swift */; };
-		110000D32C12345600000001 /* DepartmentManagerFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000C32C12345600000001 /* DepartmentManagerFullView.swift */; };
-		110000D42C12345600000001 /* DeviceManagementFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000C42C12345600000001 /* DeviceManagementFullView.swift */; };
-		110000F12C12345600000001 /* ApproveStaffFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000E12C12345600000001 /* ApproveStaffFullView.swift */; };
-		110000F22C12345600000001 /* ShiftScheduleFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000E22C12345600000001 /* ShiftScheduleFullView.swift */; };
-		110000F32C12345600000001 /* OnlineKtvMonitorFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000E32C12345600000001 /* OnlineKtvMonitorFullView.swift */; };
-		110000F42C12345600000001 /* SupportRatingReportFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000E42C12345600000001 /* SupportRatingReportFullView.swift */; };
-		110000F52C12345600000001 /* UnitRegionManagerFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000E52C12345600000001 /* UnitRegionManagerFullView.swift */; };
-		110001112C12345600000001 /* AddDeviceFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001012C12345600000001 /* AddDeviceFullView.swift */; };
-		110001122C12345600000001 /* DeviceTypeManagerFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001022C12345600000001 /* DeviceTypeManagerFullView.swift */; };
-		110001132C12345600000001 /* HardwareScannerSettingsFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001032C12345600000001 /* HardwareScannerSettingsFullView.swift */; };
-		110001142C12345600000001 /* AssetStatisticsFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001042C12345600000001 /* AssetStatisticsFullView.swift */; };
-		110001152C12345600000001 /* PaywallLicenseFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001052C12345600000001 /* PaywallLicenseFullView.swift */; };
-		110001162C12345600000001 /* SpecialistTeamManagerFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001062C12345600000001 /* SpecialistTeamManagerFullView.swift */; };
-		110001172C12345600000001 /* AppInfoFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001072C12345600000001 /* AppInfoFullView.swift */; };
-		110001182C12345600000001 /* SystemSettingsFullView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110001082C12345600000001 /* SystemSettingsFullView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		110000022C12345600000001 /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
+		110000052C12345600000001 /* QLTB.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QLTB.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		110000062C12345600000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		110000162C12345600000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		220000002C12345600000001 /* MainContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App/MainContainerView.swift"; sourceTree = "<group>"; };
 		220000012C12345600000001 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Theme/AppColors.swift"; sourceTree = "<group>"; };
 		220000022C12345600000001 /* UserModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Models/UserModels.swift"; sourceTree = "<group>"; };
@@ -89,37 +66,6 @@
 		220000222C12345600000001 /* TicketChatDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Screens/Support/TicketChatDetailView.swift"; sourceTree = "<group>"; };
 		220000232C12345600000001 /* AttendanceCheckInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Screens/Attendance/AttendanceCheckInView.swift"; sourceTree = "<group>"; };
 		220000242C12345600000001 /* ShiftScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/Screens/Shift/ShiftScheduleView.swift"; sourceTree = "<group>"; };
-		110000162C12345600000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		110000052C12345600000001 /* QLTB.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QLTB.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		110000022C12345600000001 /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
-		110000042C12345600000001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		110000062C12345600000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		110000A12C12345600000001 /* CoopmartDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoopmartDirectory.swift; sourceTree = "<group>"; };
-		110000A22C12345600000001 /* OSRMRoutingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSRMRoutingService.swift; sourceTree = "<group>"; };
-		110000A32C12345600000001 /* CloudinaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudinaryService.swift; sourceTree = "<group>"; };
-		110000A42C12345600000001 /* ZaloAssetConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZaloAssetConstants.swift; sourceTree = "<group>"; };
-		110000A52C12345600000001 /* MediaViewerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaViewerSheet.swift; sourceTree = "<group>"; };
-		110000A62C12345600000001 /* BarcodeQrGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeQrGenerator.swift; sourceTree = "<group>"; };
-		110000A72C12345600000001 /* BluetoothPrinterService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothPrinterService.swift; sourceTree = "<group>"; };
-		110000A82C12345600000001 /* PrintScreenView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrintScreenView.swift; sourceTree = "<group>"; };
-		110000A92C12345600000001 /* LiveTrackingMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTrackingMapView.swift; sourceTree = "<group>"; };
-		110000C12C12345600000001 /* AttendanceManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceManagementView.swift; sourceTree = "<group>"; };
-		110000C22C12345600000001 /* UserManagementFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserManagementFullView.swift; sourceTree = "<group>"; };
-		110000C32C12345600000001 /* DepartmentManagerFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepartmentManagerFullView.swift; sourceTree = "<group>"; };
-		110000C42C12345600000001 /* DeviceManagementFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceManagementFullView.swift; sourceTree = "<group>"; };
-		110000E12C12345600000001 /* ApproveStaffFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApproveStaffFullView.swift; sourceTree = "<group>"; };
-		110000E22C12345600000001 /* ShiftScheduleFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftScheduleFullView.swift; sourceTree = "<group>"; };
-		110000E32C12345600000001 /* OnlineKtvMonitorFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineKtvMonitorFullView.swift; sourceTree = "<group>"; };
-		110000E42C12345600000001 /* SupportRatingReportFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportRatingReportFullView.swift; sourceTree = "<group>"; };
-		110000E52C12345600000001 /* UnitRegionManagerFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitRegionManagerFullView.swift; sourceTree = "<group>"; };
-		110001012C12345600000001 /* AddDeviceFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddDeviceFullView.swift; sourceTree = "<group>"; };
-		110001022C12345600000001 /* DeviceTypeManagerFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceTypeManagerFullView.swift; sourceTree = "<group>"; };
-		110001032C12345600000001 /* HardwareScannerSettingsFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareScannerSettingsFullView.swift; sourceTree = "<group>"; };
-		110001042C12345600000001 /* AssetStatisticsFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetStatisticsFullView.swift; sourceTree = "<group>"; };
-		110001052C12345600000001 /* PaywallLicenseFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallLicenseFullView.swift; sourceTree = "<group>"; };
-		110001062C12345600000001 /* SpecialistTeamManagerFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpecialistTeamManagerFullView.swift; sourceTree = "<group>"; };
-		110001072C12345600000001 /* AppInfoFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppInfoFullView.swift; sourceTree = "<group>"; };
-		110001082C12345600000001 /* SystemSettingsFullView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemSettingsFullView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -144,63 +90,140 @@
 		110000092C12345600000001 /* iosApp */ = {
 			isa = PBXGroup;
 			children = (
+				220001002C12345600000001 /* App */,
+				220001012C12345600000001 /* Theme */,
+				220001022C12345600000001 /* Models */,
+				220001032C12345600000001 /* Services */,
+				220001042C12345600000001 /* ViewModels */,
+				220001052C12345600000001 /* Views */,
+				110000022C12345600000001 /* iOSApp.swift */,
+				110000062C12345600000001 /* Info.plist */,
+				110000162C12345600000001 /* Assets.xcassets */,
+			);
+			path = iosApp;
+			sourceTree = "<group>";
+		};
+		220001002C12345600000001 /* App */ = {
+			isa = PBXGroup;
+			children = (
 				220000002C12345600000001 /* MainContainerView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		220001012C12345600000001 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
 				220000012C12345600000001 /* AppColors.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		220001022C12345600000001 /* Models */ = {
+			isa = PBXGroup;
+			children = (
 				220000022C12345600000001 /* UserModels.swift */,
 				220000032C12345600000001 /* DeviceModels.swift */,
 				220000042C12345600000001 /* TicketModels.swift */,
 				220000052C12345600000001 /* AttendanceModels.swift */,
 				220000062C12345600000001 /* ShiftModels.swift */,
 				220000072C12345600000001 /* OrganizationModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		220001032C12345600000001 /* Services */ = {
+			isa = PBXGroup;
+			children = (
 				220000082C12345600000001 /* FirebaseConfig.swift */,
 				220000092C12345600000001 /* FirestoreHelper.swift */,
 				220000102C12345600000001 /* AuthService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		220001042C12345600000001 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
 				220000112C12345600000001 /* AuthViewModel.swift */,
 				220000122C12345600000001 /* HomeViewModel.swift */,
 				220000132C12345600000001 /* DeviceViewModel.swift */,
 				220000142C12345600000001 /* SupportViewModel.swift */,
 				220000152C12345600000001 /* AttendanceViewModel.swift */,
 				220000162C12345600000001 /* ShiftViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		220001052C12345600000001 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				220001062C12345600000001 /* Screens */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		220001062C12345600000001 /* Screens */ = {
+			isa = PBXGroup;
+			children = (
+				220001072C12345600000001 /* Auth */,
+				220001082C12345600000001 /* Home */,
+				220001092C12345600000001 /* Devices */,
+				220001102C12345600000001 /* Support */,
+				220001112C12345600000001 /* Attendance */,
+				220001122C12345600000001 /* Shift */,
+			);
+			path = Screens;
+			sourceTree = "<group>";
+		};
+		220001072C12345600000001 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
 				220000172C12345600000001 /* LoginView.swift */,
+			);
+			path = Auth;
+			sourceTree = "<group>";
+		};
+		220001082C12345600000001 /* Home */ = {
+			isa = PBXGroup;
+			children = (
 				220000182C12345600000001 /* AppSidebarDrawer.swift */,
 				220000192C12345600000001 /* HomeScreenView.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		220001092C12345600000001 /* Devices */ = {
+			isa = PBXGroup;
+			children = (
 				220000202C12345600000001 /* DeviceListView.swift */,
+			);
+			path = Devices;
+			sourceTree = "<group>";
+		};
+		220001102C12345600000001 /* Support */ = {
+			isa = PBXGroup;
+			children = (
 				220000212C12345600000001 /* SupportHubView.swift */,
 				220000222C12345600000001 /* TicketChatDetailView.swift */,
-				220000232C12345600000001 /* AttendanceCheckInView.swift */,
-				220000242C12345600000001 /* ShiftScheduleView.swift */,
-				110001012C12345600000001 /* AddDeviceFullView.swift */,
-				110001022C12345600000001 /* DeviceTypeManagerFullView.swift */,
-				110001032C12345600000001 /* HardwareScannerSettingsFullView.swift */,
-				110001042C12345600000001 /* AssetStatisticsFullView.swift */,
-				110001052C12345600000001 /* PaywallLicenseFullView.swift */,
-				110001062C12345600000001 /* SpecialistTeamManagerFullView.swift */,
-				110001072C12345600000001 /* AppInfoFullView.swift */,
-				110001082C12345600000001 /* SystemSettingsFullView.swift */,
-				110000E12C12345600000001 /* ApproveStaffFullView.swift */,
-				110000E22C12345600000001 /* ShiftScheduleFullView.swift */,
-				110000E32C12345600000001 /* OnlineKtvMonitorFullView.swift */,
-				110000E42C12345600000001 /* SupportRatingReportFullView.swift */,
-				110000E52C12345600000001 /* UnitRegionManagerFullView.swift */,
-				110000C12C12345600000001 /* AttendanceManagementView.swift */,
-				110000C22C12345600000001 /* UserManagementFullView.swift */,
-				110000C32C12345600000001 /* DepartmentManagerFullView.swift */,
-				110000C42C12345600000001 /* DeviceManagementFullView.swift */,
-				110000A12C12345600000001 /* CoopmartDirectory.swift */,
-				110000A22C12345600000001 /* OSRMRoutingService.swift */,
-				110000A32C12345600000001 /* CloudinaryService.swift */,
-				110000A42C12345600000001 /* ZaloAssetConstants.swift */,
-				110000A52C12345600000001 /* MediaViewerSheet.swift */,
-				110000A62C12345600000001 /* BarcodeQrGenerator.swift */,
-				110000A72C12345600000001 /* BluetoothPrinterService.swift */,
-				110000A82C12345600000001 /* PrintScreenView.swift */,
-				110000A92C12345600000001 /* LiveTrackingMapView.swift */,
-				110000022C12345600000001 /* iOSApp.swift */,
-				110000042C12345600000001 /* ContentView.swift */,
-				110000062C12345600000001 /* Info.plist */,
-				110000162C12345600000001 /* Assets.xcassets */,
 			);
-			path = iosApp;
+			path = Support;
+			sourceTree = "<group>";
+		};
+		220001112C12345600000001 /* Attendance */ = {
+			isa = PBXGroup;
+			children = (
+				220000232C12345600000001 /* AttendanceCheckInView.swift */,
+			);
+			path = Attendance;
+			sourceTree = "<group>";
+		};
+		220001122C12345600000001 /* Shift */ = {
+			isa = PBXGroup;
+			children = (
+				220000242C12345600000001 /* ShiftScheduleView.swift */,
+			);
+			path = Shift;
 			sourceTree = "<group>";
 		};
 		1100000A2C12345600000001 /* Products */ = {
@@ -280,6 +303,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				110000012C12345600000001 /* iOSApp.swift in Sources */,
 				220010002C12345600000001 /* MainContainerView.swift in Sources */,
 				220010012C12345600000001 /* AppColors.swift in Sources */,
 				220010022C12345600000001 /* UserModels.swift in Sources */,
@@ -305,34 +329,6 @@
 				220010222C12345600000001 /* TicketChatDetailView.swift in Sources */,
 				220010232C12345600000001 /* AttendanceCheckInView.swift in Sources */,
 				220010242C12345600000001 /* ShiftScheduleView.swift in Sources */,
-				110001112C12345600000001 /* AddDeviceFullView.swift in Sources */,
-				110001122C12345600000001 /* DeviceTypeManagerFullView.swift in Sources */,
-				110001132C12345600000001 /* HardwareScannerSettingsFullView.swift in Sources */,
-				110001142C12345600000001 /* AssetStatisticsFullView.swift in Sources */,
-				110001152C12345600000001 /* PaywallLicenseFullView.swift in Sources */,
-				110001162C12345600000001 /* SpecialistTeamManagerFullView.swift in Sources */,
-				110001172C12345600000001 /* AppInfoFullView.swift in Sources */,
-				110001182C12345600000001 /* SystemSettingsFullView.swift in Sources */,
-				110000F12C12345600000001 /* ApproveStaffFullView.swift in Sources */,
-				110000F22C12345600000001 /* ShiftScheduleFullView.swift in Sources */,
-				110000F32C12345600000001 /* OnlineKtvMonitorFullView.swift in Sources */,
-				110000F42C12345600000001 /* SupportRatingReportFullView.swift in Sources */,
-				110000F52C12345600000001 /* UnitRegionManagerFullView.swift in Sources */,
-				110000D12C12345600000001 /* AttendanceManagementView.swift in Sources */,
-				110000D22C12345600000001 /* UserManagementFullView.swift in Sources */,
-				110000D32C12345600000001 /* DepartmentManagerFullView.swift in Sources */,
-				110000D42C12345600000001 /* DeviceManagementFullView.swift in Sources */,
-				110000B12C12345600000001 /* CoopmartDirectory.swift in Sources */,
-				110000B22C12345600000001 /* OSRMRoutingService.swift in Sources */,
-				110000B32C12345600000001 /* CloudinaryService.swift in Sources */,
-				110000B42C12345600000001 /* ZaloAssetConstants.swift in Sources */,
-				110000B52C12345600000001 /* MediaViewerSheet.swift in Sources */,
-				110000B62C12345600000001 /* BarcodeQrGenerator.swift in Sources */,
-				110000B72C12345600000001 /* BluetoothPrinterService.swift in Sources */,
-				110000B82C12345600000001 /* PrintScreenView.swift in Sources */,
-				110000B92C12345600000001 /* LiveTrackingMapView.swift in Sources */,
-				110000012C12345600000001 /* iOSApp.swift in Sources */,
-				110000032C12345600000001 /* ContentView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -450,7 +446,6 @@
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
@@ -461,17 +456,22 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 120;
-				DEVELOPMENT_TEAM = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iosApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Quản Lý Thiết Bị";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.saigoncoop.qltb;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.huyenhan.qltb.iosApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -485,17 +485,22 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 120;
-				DEVELOPMENT_TEAM = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = iosApp/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Quản Lý Thiết Bị";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.saigoncoop.qltb;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.huyenhan.qltb.iosApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

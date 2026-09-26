@@ -26,3 +26,5 @@ xcode_error.txt
 build_output/
 latest_build_log.txt
 new*.txt
+
+legacy_backup/
