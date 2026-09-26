@@ -33,7 +33,7 @@ public struct DeviceManagementFullView: View {
     }
 
     var filteredDevices: [DeviceItem] {
-        firebase.devices.filter { d in
+        firebase.userFilteredDevices.filter { d in
             let matchSearch = searchQuery.isEmpty ||
                 d.name.localizedCaseInsensitiveContains(searchQuery) ||
                 d.code.localizedCaseInsensitiveContains(searchQuery) ||
@@ -168,7 +168,7 @@ public struct DeviceManagementFullView: View {
                 }
             }
             .background(Color.appBackground.ignoresSafeArea())
-            .navigationTitle("Thiết Bị (\(firebase.devices.count))")
+            .navigationTitle("Thiết Bị (\(firebase.userFilteredDevices.count))")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

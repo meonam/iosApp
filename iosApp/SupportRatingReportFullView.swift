@@ -60,8 +60,25 @@ struct SupportRatingReportFullView: View {
         ]
     }
 
+    private var allReviews: [SupportRatingDetailItem] {
+        let liveReviews = firebase.tickets.filter { $0.rating > 0 }.map { t in
+            SupportRatingDetailItem(
+                id: t.id,
+                ticketCode: "SC-\(t.id.prefix(4).uppercased())",
+                ticketTitle: t.title,
+                storeName: t.unit.isEmpty ? "Co.opmart" : t.unit,
+                technicianName: t.assignedKtv.isEmpty ? "KTV Tiếp nhận" : t.assignedKtv,
+                ratingStars: max(1, min(5, t.rating)),
+                feedbackComment: !t.feedback.isEmpty ? t.feedback : "Đánh giá chất lượng hỗ trợ kỹ thuật",
+                createdAt: t.createdAt,
+                isSlaMet: t.status == "CLOSED" || t.status == "RESOLVED"
+            )
+        }
+        return liveReviews.isEmpty ? sampleReviews : liveReviews + sampleReviews
+    }
+
     var filteredReviews: [SupportRatingDetailItem] {
-        sampleReviews.filter { r in
+        allReviews.filter { r in
             searchQuery.isEmpty ||
             r.ticketCode.localizedCaseInsensitiveContains(searchQuery) ||
             r.storeName.localizedCaseInsensitiveContains(searchQuery) ||
@@ -71,22 +88,22 @@ struct SupportRatingReportFullView: View {
     }
 
     var averageScore: Double {
-        let scores = sampleReviews.map { Double($0.ratingStars) }
+        let scores = allReviews.map { Double($0.ratingStars) }
         return scores.isEmpty ? 5.0 : scores.reduce(0, +) / Double(scores.count)
     }
 
     var satisfactionPercent: Int {
-        let count = sampleReviews.count
+        let count = allReviews.count
         if count == 0 { return 100 }
-        let happy = sampleReviews.filter { $0.ratingStars >= 4 }.count
+        let happy = allReviews.filter { $0.ratingStars >= 4 }.count
         let ratio = Double(happy) / Double(count)
         return Int(ratio * 100.0)
     }
 
     var slaMetPercent: Int {
-        let count = sampleReviews.count
+        let count = allReviews.count
         if count == 0 { return 100 }
-        let met = sampleReviews.filter { $0.isSlaMet }.count
+        let met = allReviews.filter { $0.isSlaMet }.count
         let ratio = Double(met) / Double(count)
         return Int(ratio * 100.0)
     }

@@ -124,7 +124,10 @@ public struct UserManagementFullView: View {
                 HStack(spacing: 8) {
                     roleFilterChip("Tất cả", tag: "ALL")
                     roleFilterChip("Admin", tag: "admin")
+                    roleFilterChip("HelpDesk", tag: "helpdesk")
                     roleFilterChip("Kỹ thuật", tag: "kythuat")
+                    roleFilterChip("Chuyên viên", tag: "chuyenvien")
+                    roleFilterChip("Thủ kho", tag: "warehouse")
                     roleFilterChip("Quản lý", tag: "quanly")
                     roleFilterChip("Nhân viên", tag: "nhanvien")
                 }
@@ -167,6 +170,21 @@ public struct UserManagementFullView: View {
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
 
+                        if !u.toNghiepVu.isEmpty || !u.maKhuVuc.isEmpty {
+                            HStack(spacing: 6) {
+                                if !u.toNghiepVu.isEmpty {
+                                    Text("🏷️ \(u.toNghiepVu)")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(Color(hex: "#0284C7"))
+                                }
+                                if !u.maKhuVuc.isEmpty {
+                                    Text("📍 \(u.maKhuVuc)")
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundColor(Color(hex: "#059669"))
+                                }
+                            }
+                        }
+
                         HStack {
                             Text(u.donVi.isEmpty ? "Co.opmart" : u.donVi)
                                 .font(.system(size: 11.5))
@@ -191,7 +209,10 @@ public struct UserManagementFullView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
                 .contextMenu {
                     Button("Đổi quyền -> Admin") { changeRole(u.email, "admin") }
+                    Button("Đổi quyền -> HelpDesk") { changeRole(u.email, "helpdesk") }
                     Button("Đổi quyền -> Kỹ thuật viên") { changeRole(u.email, "kythuat") }
+                    Button("Đổi quyền -> Chuyên viên") { changeRole(u.email, "chuyenvien") }
+                    Button("Đổi quyền -> Thủ kho") { changeRole(u.email, "warehouse") }
                     Button("Đổi quyền -> Quản lý phòng") { changeRole(u.email, "quanly") }
                     Button("Đổi quyền -> Nhân viên") { changeRole(u.email, "nhanvien") }
                     Divider()
@@ -228,6 +249,8 @@ public struct UserManagementFullView: View {
                 Picker("Vai trò", selection: $newRole) {
                     Text("Nhân viên").tag("nhanvien")
                     Text("Kỹ thuật viên").tag("kythuat")
+                    Text("Chuyên viên nghiệp vụ").tag("chuyenvien")
+                    Text("Thủ kho thiết bị").tag("warehouse")
                     Text("Quản lý phòng ban").tag("quanly")
                     Text("HelpDesk").tag("helpdesk")
                     Text("Admin").tag("admin")
@@ -471,8 +494,11 @@ public struct UserManagementFullView: View {
     private func roleColor(_ r: String) -> Color {
         let rl = r.lowercased()
         if rl.contains("admin") { return Color.appPrimaryPink }
+        if rl.contains("helpdesk") || rl == "hd" { return Color(hex: "#0284C7") }
         if rl.contains("kythuat") || rl.contains("tech") { return Color(hex: "#059669") }
-        if rl.contains("quanly") || rl.contains("phong") { return Color(hex: "#7C3AED") }
+        if rl.contains("chuyen") || rl.contains("specialist") { return Color(hex: "#D97706") }
+        if rl.contains("kho") || rl.contains("warehouse") { return Color(hex: "#EA580C") }
+        if rl.contains("quanly") || rl.contains("phong") || rl.contains("manager") { return Color(hex: "#7C3AED") }
         return Color.appSecondaryDarkBlue
     }
 

@@ -123,6 +123,31 @@ struct UserItem: Identifiable, Hashable, Sendable {
     var maNhanVien: String
     var isOnline: Bool
     var createdAt: String
+    var toNghiepVu: String = ""
+    var maKhuVuc: String = ""
+    var avatarUrl: String = ""
+}
+
+func lookupStandardKtvMnv(_ email: String?, _ fullName: String?) -> String {
+    let em = (email ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    let fn = (fullName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    if em.hasPrefix("hieunt") || fn.contains("trung hiếu") || fn.contains("trung hieu") { return "24979" }
+    if em.hasPrefix("tinnh") || fn.contains("hữu tín") || fn.contains("huu tin") { return "02104" }
+    if em.hasPrefix("dungtt") || fn.contains("tiến dũng") || fn.contains("tien dung") { return "00289" }
+    if em.hasPrefix("trinhtm") || fn.contains("minh trình") || fn.contains("minh trinh") { return "8564" }
+    if em.hasPrefix("sangnt") || fn.contains("thanh sang") { return "19842" }
+    if em.hasPrefix("nhat") || fn.contains("minh nhật") || fn.contains("minh nhat") { return "20972" }
+    if em.hasPrefix("phucdh") || fn.contains("hữu phúc") || fn.contains("huu phuc") { return "26063" }
+    if em.hasPrefix("tientb") || fn.contains("bá tiên") || fn.contains("ba tien") { return "28105" }
+    if em.hasPrefix("trongpd") || fn.contains("đình trọng") || fn.contains("dinh trong") { return "31290" }
+    if em.hasPrefix("huydq") || fn.contains("quốc huy") || fn.contains("quoc huy") { return "33430" }
+    if em.hasPrefix("linhnd") || fn.contains("duy linh") { return "43144" }
+    if em.hasPrefix("khanh-ht") || fn.contains("thân khánh") || fn.contains("than khanh") { return "35713" }
+    if em.hasPrefix("duchna") || fn.contains("anh đức") || fn.contains("anh duc") { return "NVDUCHN" }
+    if em.hasPrefix("hungnp") || fn.contains("phước hưng") || fn.contains("phuoc hung") { return "NVHUNGN" }
+    if em.hasPrefix("haph") || fn.contains("hải hà") || fn.contains("hai ha") { return "NVHAPH" }
+    if em.hasPrefix("minh") || fn.contains("huy minh") { return "NVMINH" }
+    return ""
 }
 
 struct PendingStaffItem: Identifiable, Hashable, Sendable {
@@ -270,6 +295,11 @@ class FirebaseService: ObservableObject {
     @Published var userDonVi: String = "Co.opmart Cần Thơ"
     @Published var userDept: String = "Phòng Công nghệ thông tin"
     @Published var userPhone: String = ""
+    @Published var userMaNhanVien: String = ""
+    @Published var userDepartmentId: String = ""
+    @Published var userToNghiepVu: String = ""
+    @Published var userKhuVuc: String = ""
+    @Published var userAvatarUrl: String = ""
 
     // Dữ liệu Realtime từ Firestore
     @Published var devices: [DeviceItem] = []
@@ -283,25 +313,56 @@ class FirebaseService: ObservableObject {
     private var syncCancellable: AnyCancellable?
     private var presenceCancellable: AnyCancellable?
 
-    // MARK: - VAI TRÒ & PHÂN QUYỀN CHUẨN ANDROID (AdminSupportViewModel.kt)
+    // MARK: - VAI TRÒ & PHÂN QUYỀN CHUẨN ANDROID (AdminSupportViewModel.kt / User.kt)
     @Published var rawRole: String = "nhanvien"
 
-    var isAdmin: Bool {
+    var isSuperAdmin: Bool {
+        let clean = currentUserEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let superAdminEmails = [
+            "nammeo0101@gmail.com",
+            "devicemanagement0101@gmail.com",
+            "huyenhan@gmail.com",
+            "developer@qltb.com",
+            "superadmin@qltb.com",
+            "admin@qltb.com",
+            "dev@qltb.com"
+        ]
+        if superAdminEmails.contains(clean) || clean.hasPrefix("dev.") || clean.hasPrefix("superadmin.") {
+            return true
+        }
         let r = rawRole.lowercased().trimmingCharacters(in: .whitespaces)
-        return r == "admin" || r == "superadmin" || r == "super_admin" || r == "developer"
+        return r == "super_admin" || r == "superadmin" || r == "developer"
+    }
+
+    var isAdmin: Bool {
+        if isSuperAdmin { return true }
+        let r = rawRole.lowercased().trimmingCharacters(in: .whitespaces)
+        return r == "admin" || r == "quantri" || r == "quan_tri"
     }
 
     var isHelpDesk: Bool {
         let r = rawRole.lowercased().trimmingCharacters(in: .whitespaces)
-        if r == "helpdesk" || r.contains("helpdesk") { return true }
+        if r == "helpdesk" || r.contains("helpdesk") || r == "hd" { return true }
         let d = userDept.lowercased()
         let dv = userDonVi.lowercased()
         return d.contains("helpdesk") || dv.contains("helpdesk")
     }
 
-    var isManager: Bool {
+    var isWarehouse: Bool {
         let r = rawRole.lowercased().trimmingCharacters(in: .whitespaces)
-        return r == "phongban" || r == "quanly" || r == "manager" || r == "truongphong"
+        return r == "warehouse" || r == "kho" || r == "thukho" || r == "quanlykho"
+    }
+
+    var isManager: Bool {
+        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse { return false }
+        let r = rawRole.lowercased().trimmingCharacters(in: .whitespaces)
+        return r == "phongban" || r == "quanly" || r == "manager" || r == "truongphong" || r == "phophong" || r == "leader"
+    }
+
+    var isSpecialist: Bool {
+        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse || isManager { return false }
+        let r = rawRole.lowercased().trimmingCharacters(in: .whitespaces)
+        return r == "chuyenvien" || r == "specialist" || r == "chuyen_vien" || !userToNghiepVu.isEmpty
     }
 
     var isTechnician: Bool {
@@ -309,7 +370,7 @@ class FirebaseService: ObservableObject {
         if ["kythuat", "technician", "ktv", "ky_thuat", "tech"].contains(r) || r.contains("kythuat") || r.contains("technician") || r.contains("ktv") {
             return true
         }
-        if isAdmin || isHelpDesk || isManager {
+        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse || isManager || isSpecialist {
             return false
         }
         let d = userDept.lowercased()
@@ -320,7 +381,7 @@ class FirebaseService: ObservableObject {
     }
 
     var isManagerOrAdmin: Bool {
-        isAdmin || isHelpDesk || isManager
+        isAdmin || isHelpDesk || isManager || isSpecialist
     }
 
     // MARK: - FILTERING LOGIC CHUẨN ANDROID v1.2.0 (AdminSupportViewModel.isTicketVisible)
@@ -382,6 +443,27 @@ class FirebaseService: ObservableObject {
                 let tDeptName = ticket.assignedDepartmentName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 if (!myDept.isEmpty && (tDept.contains(myDept) || myDept.contains(tDept) || tDeptName.contains(myDept) || myDept.contains(tDeptName))) {
                     return true
+                }
+            }
+
+            // 4b. Chuyên viên nghiệp vụ: thấy ticket gửi về tổ nghiệp vụ của mình (chưa chỉ định KTV khác)
+            let myToNghiepVu = userToNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if isSpecialist && !myToNghiepVu.isEmpty {
+                let tToNghiepVu = ticket.toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let noIndividualAssigned = tAssignedTech.isEmpty && tAssignedTo.isEmpty
+                if noIndividualAssigned && !tToNghiepVu.isEmpty && (tToNghiepVu == myToNghiepVu || tToNghiepVu.contains(myToNghiepVu) || myToNghiepVu.contains(tToNghiepVu)) {
+                    return true
+                }
+            }
+
+            // 4c. Phụ trách Cụm (assignedCluster):
+            let myKhuVuc = userKhuVuc.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if isTechnician && !myKhuVuc.isEmpty && !ticket.assignedCluster.isEmpty {
+                let tCluster = ticket.assignedCluster.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                if tCluster == myKhuVuc || tCluster.contains(myKhuVuc) || myKhuVuc.contains(tCluster) {
+                    if tAssignedTech.isEmpty && tAssignedTo.isEmpty {
+                        return true
+                    }
                 }
             }
 
@@ -844,14 +926,27 @@ class FirebaseService: ObservableObject {
                 let dp = self.parseString(fields, "phongBan")
                 let ph = self.parseString(fields, "phone").isEmpty ? self.parseString(fields, "phoneNumber") : self.parseString(fields, "phone")
                 let st = self.parseString(fields, "status").uppercased()
+                let mnvRaw = self.parseString(fields, "maNhanVien").isEmpty ? self.parseString(fields, "employeeId") : self.parseString(fields, "maNhanVien")
+                let deptId = self.parseString(fields, "departmentId").isEmpty ? self.parseString(fields, "deptId") : self.parseString(fields, "departmentId")
+                let toNv = self.parseString(fields, "toNghiepVu").isEmpty ? self.parseString(fields, "team") : self.parseString(fields, "toNghiepVu")
+                let kv = self.parseString(fields, "maKhuVuc").isEmpty ? (self.parseString(fields, "cluster").isEmpty ? self.parseString(fields, "khuVuc") : self.parseString(fields, "cluster")) : self.parseString(fields, "maKhuVuc")
+                let avt = self.parseString(fields, "avatarUrl").isEmpty ? (self.parseString(fields, "profileImageUrl").isEmpty ? self.parseString(fields, "photoUrl") : self.parseString(fields, "profileImageUrl")) : self.parseString(fields, "avatarUrl")
+
+                let resolvedName = !fn.isEmpty ? fn : (!n.isEmpty ? n : cleanEmail)
+                let resolvedMnv = !mnvRaw.isEmpty ? mnvRaw : lookupStandardKtvMnv(cleanEmail, resolvedName)
 
                 self.rawRole = !r.isEmpty ? r.lowercased() : "nhanvien"
-                self.userName = !fn.isEmpty ? fn : (!n.isEmpty ? n : cleanEmail)
+                self.userName = resolvedName
                 self.userRole = self.formatRoleTitle(r)
                 self.userDonVi = !dv.isEmpty ? dv : "Co.opmart Cần Thơ"
                 self.userDept = !dp.isEmpty ? dp : "Phòng Công nghệ thông tin"
                 self.userPhone = ph
                 self.userAccountStatus = !st.isEmpty ? st : "ACTIVE"
+                self.userMaNhanVien = resolvedMnv
+                self.userDepartmentId = deptId
+                self.userToNghiepVu = toNv
+                self.userKhuVuc = kv
+                self.userAvatarUrl = avt
 
                 UserDefaults.standard.set(self.userName, forKey: "cache_name")
                 UserDefaults.standard.set(self.userRole, forKey: "cache_role")
@@ -860,6 +955,11 @@ class FirebaseService: ObservableObject {
                 UserDefaults.standard.set(self.userDept, forKey: "cache_dept")
                 UserDefaults.standard.set(self.userPhone, forKey: "cache_phone")
                 UserDefaults.standard.set(self.userAccountStatus, forKey: "cache_status")
+                UserDefaults.standard.set(self.userMaNhanVien, forKey: "cache_manhanvien")
+                UserDefaults.standard.set(self.userDepartmentId, forKey: "cache_department_id")
+                UserDefaults.standard.set(self.userToNghiepVu, forKey: "cache_tonghiepvu")
+                UserDefaults.standard.set(self.userKhuVuc, forKey: "cache_khuvuc")
+                UserDefaults.standard.set(self.userAvatarUrl, forKey: "cache_avatar_url")
             }
         }
     }
@@ -1110,7 +1210,17 @@ class FirebaseService: ObservableObject {
     }
 
     // --- G. TẠO TICKET SỰ CỐ MỚI (LƯU LÊN FIRESTORE) ---
-    func createTicketOnFirestore(subject: String, unit: String, priority: String) async -> Bool {
+    func createTicketOnFirestore(
+        subject: String,
+        unit: String,
+        priority: String,
+        category: String = "HARDWARE",
+        initialMessage: String = "",
+        assetId: String = "",
+        assetName: String = "",
+        creatorPhone: String = "",
+        toNghiepVu: String = ""
+    ) async -> Bool {
         let endpoint = "https://firestore.googleapis.com/v1/projects/\(projectId)/databases/(default)/documents/companies/\(companyId)/support_tickets"
         guard let url = URL(string: endpoint) else { return false }
 
@@ -1121,26 +1231,47 @@ class FirebaseService: ObservableObject {
         request.setValue("QLTB-iOS", forHTTPHeaderField: "User-Agent")
 
         let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
-        let body: [String: Any] = [
-            "fields": [
-                "subject": ["stringValue": subject],
-                "donVi": ["stringValue": unit],
-                "priority": ["stringValue": priority],
-                "status": ["stringValue": "OPEN"],
-                "creatorEmail": ["stringValue": currentUserEmail],
-                "creatorName": ["stringValue": userName],
-                "departmentId": ["stringValue": userDept],
-                "createdAt": ["integerValue": "\(nowMs)"],
-                "initialMessage": ["stringValue": subject],
-                "lastMessage": ["stringValue": "Yêu cầu vừa được khởi tạo từ ứng dụng iOS"],
-                "lastMessageAt": ["integerValue": "\(nowMs)"]
-            ]
+        let finalPhone = !creatorPhone.isEmpty ? creatorPhone : userPhone
+        let finalMsg = !initialMessage.isEmpty ? initialMessage : subject
+        let finalUnit = !unit.isEmpty ? unit : userDonVi
+
+        var fieldsDict: [String: Any] = [
+            "subject": ["stringValue": subject],
+            "donVi": ["stringValue": finalUnit],
+            "priority": ["stringValue": priority],
+            "category": ["stringValue": category],
+            "status": ["stringValue": "OPEN"],
+            "creatorEmail": ["stringValue": currentUserEmail],
+            "creatorName": ["stringValue": userName],
+            "creatorPhone": ["stringValue": finalPhone],
+            "creatorUserId": ["stringValue": currentUserEmail],
+            "departmentId": ["stringValue": userDept],
+            "createdAt": ["integerValue": "\(nowMs)"],
+            "initialMessage": ["stringValue": finalMsg],
+            "lastMessage": ["stringValue": "Yêu cầu vừa được khởi tạo từ ứng dụng iOS: \(finalMsg)"],
+            "lastMessageAt": ["integerValue": "\(nowMs)"],
+            "source": ["stringValue": "APP"],
+            "companyId": ["stringValue": companyId],
+            "rating": ["integerValue": "0"]
         ]
+
+        if !assetId.isEmpty {
+            fieldsDict["assetId"] = ["stringValue": assetId]
+        }
+        if !assetName.isEmpty {
+            fieldsDict["assetName"] = ["stringValue": assetName]
+        }
+        if !toNghiepVu.isEmpty {
+            fieldsDict["toNghiepVu"] = ["stringValue": toNghiepVu]
+        }
+
+        let body: [String: Any] = ["fields": fieldsDict]
 
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
             let (_, response) = try await URLSession.shared.data(for: request)
             if let httpRes = response as? HTTPURLResponse, (httpRes.statusCode == 200 || httpRes.statusCode == 201) {
+                self.recordTicketCreated(email: currentUserEmail)
                 await self.loadTickets()
                 return true
             }
@@ -1393,9 +1524,15 @@ class FirebaseService: ObservableObject {
     private func loadLocalCache() {
         self.userName = UserDefaults.standard.string(forKey: "cache_name") ?? "Người dùng SGCOOP"
         self.userRole = UserDefaults.standard.string(forKey: "cache_role") ?? "Nhân viên"
+        self.rawRole = UserDefaults.standard.string(forKey: "cache_raw_role") ?? "nhanvien"
         self.userDonVi = UserDefaults.standard.string(forKey: "cache_donvi") ?? "Co.opmart Cần Thơ"
         self.userDept = UserDefaults.standard.string(forKey: "cache_dept") ?? "Phòng Công nghệ thông tin"
         self.userPhone = UserDefaults.standard.string(forKey: "cache_phone") ?? ""
+        self.userMaNhanVien = UserDefaults.standard.string(forKey: "cache_manhanvien") ?? ""
+        self.userDepartmentId = UserDefaults.standard.string(forKey: "cache_department_id") ?? ""
+        self.userToNghiepVu = UserDefaults.standard.string(forKey: "cache_tonghiepvu") ?? ""
+        self.userKhuVuc = UserDefaults.standard.string(forKey: "cache_khuvuc") ?? ""
+        self.userAvatarUrl = UserDefaults.standard.string(forKey: "cache_avatar_url") ?? ""
     }
 
     // Helper functions
@@ -1661,13 +1798,16 @@ class FirebaseService: ObservableObject {
         }
     }
 
-    private func formatRoleTitle(_ rawRole: String) -> String {
+    func formatRoleTitle(_ rawRole: String) -> String {
         let r = rawRole.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         switch r {
-        case "admin": return "Quản trị viên (Admin)"
-        case "helpdesk": return "Phòng Helpdesk"
-        case "kythuat", "technician": return "Kỹ thuật viên"
-        case "phongban", "quanly": return "Quản lý phòng ban"
+        case "superadmin", "super_admin", "developer": return "Quản trị cấp cao (Super Admin)"
+        case "admin", "quantri", "quan_tri": return "Quản trị viên (Admin)"
+        case "helpdesk", "hd": return "Điều phối HelpDesk"
+        case "warehouse", "kho", "thukho", "quanlykho": return "Thủ kho thiết bị"
+        case "phongban", "quanly", "manager", "truongphong", "phophong", "leader": return "Quản lý phòng ban"
+        case "chuyenvien", "specialist", "chuyen_vien": return "Chuyên viên nghiệp vụ"
+        case "kythuat", "technician", "ktv", "ky_thuat", "tech": return "Kỹ thuật viên (KTV)"
         default: return "Nhân viên"
         }
     }
@@ -6553,14 +6693,18 @@ struct HomeScreenView: View {
                         userPhone: firebase.userPhone,
                         userDept: firebase.userDept,
                         userDonVi: firebase.userDonVi,
+                        maNhanVien: firebase.userMaNhanVien,
+                        toNghiepVu: firebase.userToNghiepVu,
+                        maKhuVuc: firebase.userKhuVuc,
+                        avatarUrl: firebase.userAvatarUrl,
                         onEditName: { showEditNameAlert = true },
                         onEditPhone: { showEditPhoneAlert = true }
                     )
 
                     // 2. Hàng Thống Kê Tổng Quan (Live Firestore)
                     DashboardStatsRowView(
-                        deviceCount: firebase.devices.count,
-                        openTicketCount: firebase.tickets.filter { $0.status == "OPEN" }.count,
+                        deviceCount: firebase.userFilteredDevices.count,
+                        openTicketCount: firebase.userFilteredTickets.filter { $0.status == "OPEN" }.count,
                         onDeviceClick: { onNavigateTab(1) },
                         onTicketClick: { onNavigateTab(2) }
                     )
@@ -6600,6 +6744,10 @@ struct UserProfileCardView: View {
     let userPhone: String
     let userDept: String
     let userDonVi: String
+    var maNhanVien: String = ""
+    var toNghiepVu: String = ""
+    var maKhuVuc: String = ""
+    var avatarUrl: String = ""
     let onEditName: () -> Void
     let onEditPhone: () -> Void
 
@@ -6607,19 +6755,22 @@ struct UserProfileCardView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 14) {
                 ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.appSecondaryDarkBlue, Color.appPrimaryPink],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
+                    if !avatarUrl.isEmpty, let url = URL(string: avatarUrl) {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let img):
+                                img.resizable()
+                                    .aspectRatio(contentMode: .fill)
+                                    .frame(width: 64, height: 64)
+                                    .clipShape(Circle())
+                            default:
+                                defaultAvatarCircle
+                            }
+                        }
                         .frame(width: 64, height: 64)
-
-                    Text(getInitials(name: userName))
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(.white)
+                    } else {
+                        defaultAvatarCircle
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -6646,10 +6797,22 @@ struct UserProfileCardView: View {
                             .cornerRadius(6)
                     }
 
-                    Text(userEmail)
-                        .font(.system(size: 12))
-                        .foregroundColor(Color.appTextSecondary)
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(userEmail)
+                            .font(.system(size: 12))
+                            .foregroundColor(Color.appTextSecondary)
+                            .lineLimit(1)
+
+                        if !maNhanVien.isEmpty {
+                            Text("MNV: \(maNhanVien)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(Color.appPrimaryPink)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color.appPrimaryPink.opacity(0.12))
+                                .cornerRadius(5)
+                        }
+                    }
 
                     HStack(spacing: 4) {
                         Image(systemName: "phone.fill")
@@ -6665,6 +6828,38 @@ struct UserProfileCardView: View {
                                 .font(.system(size: 11))
                                 .foregroundColor(Color.appPrimaryPink)
                         }
+                    }
+                }
+            }
+
+            if !toNghiepVu.isEmpty || !maKhuVuc.isEmpty {
+                HStack(spacing: 6) {
+                    if !toNghiepVu.isEmpty {
+                        HStack(spacing: 3) {
+                            Image(systemName: "tag.fill")
+                                .font(.system(size: 9))
+                            Text(toNghiepVu)
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundColor(Color(hex: "#0284C7"))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color(hex: "#E0F2FE"))
+                        .cornerRadius(6)
+                    }
+
+                    if !maKhuVuc.isEmpty {
+                        HStack(spacing: 3) {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.system(size: 9))
+                            Text("Cụm \(maKhuVuc)")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .foregroundColor(Color(hex: "#059669"))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color(hex: "#D1FAE5"))
+                        .cornerRadius(6)
                     }
                 }
             }
@@ -6699,6 +6894,24 @@ struct UserProfileCardView: View {
                 .stroke(Color.appCardBorder, lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.03), radius: 6, x: 0, y: 2)
+    }
+
+    private var defaultAvatarCircle: some View {
+        ZStack {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.appSecondaryDarkBlue, Color.appPrimaryPink],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: 64, height: 64)
+
+            Text(getInitials(name: userName))
+                .font(.system(size: 22, weight: .bold))
+                .foregroundColor(.white)
+        }
     }
 
     private func getInitials(name: String) -> String {
@@ -8046,31 +8259,80 @@ struct QuickSupportModalView: View {
     let onDismiss: () -> Void
 
     @State private var title: String = ""
+    @State private var detailMessage: String = ""
+    @State private var category: String = "HARDWARE"
     @State private var priority: String = "HIGH"
     @State private var unit: String = ""
+    @State private var phone: String = ""
+    @State private var selectedDeviceId: String = ""
     @State private var isSubmitting: Bool = false
+    @State private var errorMessage: String? = nil
 
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("YÊU CẦU TRỢ GIÚP KHẨN CẤP (LƯU LÊN FIRESTORE)")) {
-                    TextField("Mô tả sự cố (VD: Máy in hóa đơn quầy 03 kẹt giấy)", text: $title)
+                Section(header: Text("THÔNG TIN SỰ CỐ")) {
+                    TextField("Tiêu đề sự cố (VD: Máy in hóa đơn quầy 03 kẹt giấy)", text: $title)
                         .foregroundColor(Color.appTextPrimary)
                         .tint(Color.appSecondaryDarkBlue)
+
+                    Picker("Phân loại sự cố", selection: $category) {
+                        Text("Phần cứng (Hardware)").tag("HARDWARE")
+                        Text("Phần mềm (Software)").tag("SOFTWARE")
+                        Text("Hạ tầng mạng (Network)").tag("NETWORK")
+                        Text("Yêu cầu khác").tag("OTHER")
+                    }
+
                     Picker("Mức độ ưu tiên", selection: $priority) {
                         Text("P1 - Khẩn cấp (SLA 30p)").tag("URGENT")
                         Text("P2 - Cao (SLA 2h)").tag("HIGH")
                         Text("P3 - Bình thường (SLA 8h)").tag("NORMAL")
                     }
-                    TextField("Địa điểm / Quầy xảy ra sự cố", text: $unit)
+                }
+
+                Section(header: Text("THIẾT BỊ LIÊN QUAN (TÙY CHỌN)")) {
+                    Picker("Chọn thiết bị gặp lỗi", selection: $selectedDeviceId) {
+                        Text("Không liên kết thiết bị cụ thể").tag("")
+                        ForEach(firebase.userFilteredDevices) { dev in
+                            Text("\(dev.name) (\(dev.code.isEmpty ? dev.serialNumber : dev.code))").tag(dev.id)
+                        }
+                    }
+                }
+
+                Section(header: Text("MÔ TẢ CHI TIẾT & ĐỊA ĐIỂM")) {
+                    ZStack(alignment: .topLeading) {
+                        if detailMessage.isEmpty {
+                            Text("Mô tả chi tiết triệu chứng, mã lỗi...")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color.appTextMuted)
+                                .padding(.top, 8)
+                                .padding(.leading, 4)
+                        }
+                        TextEditor(text: $detailMessage)
+                            .frame(minHeight: 70)
+                    }
+
+                    TextField("Đơn vị / Chi nhánh Co.opmart", text: $unit)
                         .foregroundColor(Color.appTextPrimary)
-                        .tint(Color.appSecondaryDarkBlue)
+
+                    TextField("Số điện thoại liên hệ trực tiếp", text: $phone)
+                        .keyboardType(.phonePad)
+                        .foregroundColor(Color.appTextPrimary)
+                }
+
+                if let err = errorMessage {
+                    Section {
+                        Text(err)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.red)
+                    }
                 }
             }
             .navigationTitle("Tạo Yêu Cầu Hỗ Trợ")
             .navigationBarTitleDisplayMode(.inline)
             .onAppear {
                 unit = firebase.userDonVi
+                phone = firebase.userPhone
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -8078,20 +8340,50 @@ struct QuickSupportModalView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Gửi Ticket") {
-                        if !title.isEmpty {
-                            isSubmitting = true
-                            Task {
-                                let success = await firebase.createTicketOnFirestore(subject: title, unit: unit, priority: priority)
-                                if success {
-                                    onDismiss()
-                                }
-                                isSubmitting = false
-                            }
-                        }
+                        submitTicket()
                     }
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(Color.appPrimaryPink)
-                    .disabled(isSubmitting || title.isEmpty)
+                    .disabled(isSubmitting || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+
+    private func submitTicket() {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanTitle.isEmpty { return }
+
+        let (canCreate, waitSecs) = firebase.checkTicketCooldown(email: firebase.currentUserEmail)
+        if !canCreate {
+            errorMessage = "Vui lòng đợi \(waitSecs) giây trước khi tạo yêu cầu mới (chống trùng lặp)."
+            return
+        }
+
+        isSubmitting = true
+        errorMessage = nil
+
+        let selectedDev = firebase.devices.first(where: { $0.id == selectedDeviceId })
+        let assetId = (selectedDev?.code.isEmpty == false) ? selectedDev!.code : (selectedDev?.id ?? "")
+        let assetName = selectedDev?.name ?? ""
+
+        Task {
+            let success = await firebase.createTicketOnFirestore(
+                subject: cleanTitle,
+                unit: unit,
+                priority: priority,
+                category: category,
+                initialMessage: detailMessage.isEmpty ? cleanTitle : detailMessage,
+                assetId: assetId,
+                assetName: assetName,
+                creatorPhone: phone
+            )
+            await MainActor.run {
+                isSubmitting = false
+                if success {
+                    onDismiss()
+                } else {
+                    errorMessage = "Không thể gửi yêu cầu hỗ trợ. Vui lòng thử lại!"
                 }
             }
         }
