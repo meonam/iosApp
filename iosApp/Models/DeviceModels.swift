@@ -86,6 +86,7 @@ public struct ThietBi: Identifiable, Codable, Hashable {
     public var nguoiMuon: String?
     public var ngayMuon: String?
     public var ngayHenTra: String?
+    public var timestamp: Double
 
     public init(
         id: String,
@@ -104,7 +105,8 @@ public struct ThietBi: Identifiable, Codable, Hashable {
         phongBanMuon: String? = nil,
         nguoiMuon: String? = nil,
         ngayMuon: String? = nil,
-        ngayHenTra: String? = nil
+        ngayHenTra: String? = nil,
+        timestamp: Double = 0.0
     ) {
         self.id = id
         self.ten = ten
@@ -123,6 +125,7 @@ public struct ThietBi: Identifiable, Codable, Hashable {
         self.nguoiMuon = nguoiMuon
         self.ngayMuon = ngayMuon
         self.ngayHenTra = ngayHenTra
+        self.timestamp = timestamp
     }
 
     public var statusNormalized: String {
@@ -152,6 +155,7 @@ public struct LichSuThietBi: Identifiable, Codable, Hashable {
     public var nguoiMuon: String?
     public var ngayMuon: String?
     public var ngayHenTra: String?
+    public var timestamp: Double
 
     public init(
         id: String = UUID().uuidString,
@@ -169,7 +173,8 @@ public struct LichSuThietBi: Identifiable, Codable, Hashable {
         phongBanMuon: String? = nil,
         nguoiMuon: String? = nil,
         ngayMuon: String? = nil,
-        ngayHenTra: String? = nil
+        ngayHenTra: String? = nil,
+        timestamp: Double = 0.0
     ) {
         self.id = id
         self.thietBiId = thietBiId
@@ -187,5 +192,6 @@ public struct LichSuThietBi: Identifiable, Codable, Hashable {
         self.nguoiMuon = nguoiMuon
         self.ngayMuon = ngayMuon
         self.ngayHenTra = ngayHenTra
+        self.timestamp = timestamp
     }
 }

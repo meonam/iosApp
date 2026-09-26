@@ -9,6 +9,7 @@ public extension Color {
     static let appSecondaryDarkBlue = Color(hex: "#002A8F")   // Xanh Đậm / Dark Navy Blue
     static let appDarkBlueContainer = Color(hex: "#E8EAF6")    // Xanh đậm container nhạt
     static let appTopBarColor = Color(hex: "#002A8F")          // Xanh Đậm (Thanh trên)
+    static let appPrimary = Color(hex: "#002A8F")              // Xanh Đậm Primary
 
     // 2. Màu thanh điều hướng dưới & Nút nổi FAB
     static let appBottomBarBackground = Color(hex: "#0A192F")  // Xanh Đậm Đêm (Thanh dưới)

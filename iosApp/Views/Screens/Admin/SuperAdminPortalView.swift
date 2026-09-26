@@ -441,11 +441,11 @@ class SuperAdminViewModel: ObservableObject {
                           let id = nameField.components(separatedBy: "/").last,
                           let fields = doc["fields"] as? [String: Any] else { return nil }
                     
-                    let companyName = FirestoreHelper.getString(fields, "companyName")
-                    let isMaintenance = FirestoreHelper.getBool(fields, "isMaintenance")
-                    let licenseTier = FirestoreHelper.getString(fields, "licenseTier")
-                    let maxDevices = FirestoreHelper.getInt(fields, "maxDevices")
-                    let createdAt = FirestoreHelper.getInt64(fields, "createdAt")
+                    let companyName = FirestoreHelper.getString(fields["companyName"] as? [String: Any])
+                    let isMaintenance = FirestoreHelper.getBool(fields["isMaintenance"] as? [String: Any])
+                    let licenseTier = FirestoreHelper.getString(fields["licenseTier"] as? [String: Any])
+                    let maxDevices = FirestoreHelper.getInt(fields["maxDevices"] as? [String: Any])
+                    let createdAt = FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
                     
                     return SACompany(id: id, companyName: companyName.isEmpty ? "No Name" : companyName, isMaintenance: isMaintenance, licenseTier: licenseTier.isEmpty ? "PRO" : licenseTier, maxDevices: maxDevices == 0 ? 100 : maxDevices, createdAt: createdAt)
                 }
