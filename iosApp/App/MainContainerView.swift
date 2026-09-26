@@ -341,9 +341,15 @@ public struct MainContainerView: View {
         case .attendanceHistory:
             AttendanceHistoryView(authViewModel: authViewModel, onBack: { currentDestination = .home })
 
-        case .attendance, .attendanceReport:
+        case .attendance:
             AttendanceCheckInView(
                 viewModel: AttendanceViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .home }
+            )
+
+        case .attendanceReport:
+            AttendanceReportView(
+                authViewModel: authViewModel,
                 onBack: { currentDestination = .home }
             )
 

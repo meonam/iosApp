@@ -495,3 +495,4 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     }
 }
 
+

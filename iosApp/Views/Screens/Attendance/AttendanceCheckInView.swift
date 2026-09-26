@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreLocation
 
+// MARK: - ImagePicker
 struct ImagePicker: UIViewControllerRepresentable {
     @Binding var image: UIImage?
     var sourceType: UIImagePickerController.SourceType = .camera
@@ -13,7 +14,7 @@ struct ImagePicker: UIViewControllerRepresentable {
         return picker
     }
     
-    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    func updateUViewController(_ uiViewController: UIImagePickerController, context: Context) {}
     
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -27,7 +28,7 @@ struct ImagePicker: UIViewControllerRepresentable {
         }
         
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let image = info[.originalImage] as? UIImage {
+            if let image = info[.originalImage] as ? UIImage {
                 self.parent.image = image
             }
             picker.dismiss(animated: true)
@@ -35,7 +36,7 @@ struct ImagePicker: UIViewControllerRepresentable {
     }
 }
 
-// MARK: - MÀN HÌNH ĐIỂM DANH CHẤM CÔNG
+// MARK: - View
 public struct AttendanceCheckInView: View {
     @ObservedObject var viewModel: AttendanceViewModel
     var onBack: () -> Void
@@ -54,239 +55,362 @@ public struct AttendanceCheckInView: View {
                 Color.appBackground.ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    // TOP BAR
+                    // TopBar
                     VStack(spacing: 0) {
                         Color.clear.frame(height: geometry.safeAreaInsets.top)
-                        HStack(spacing: 12) {
+                        HStack {
                             Button(action: onBack) {
                                 Image(systemName: "chevron.left")
-                                    .font(.system(size: 18, weight: .bold))
+                                    .font(.system(size: 20, weight: .semibold))
                                     .foregroundColor(.white)
+                                    .padding()
                             }
-                            Text("Điểm danh chấm công")
-                                .font(.system(size: 17, weight: .bold))
+                            Text("Chấm công")
+                                .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()
-                            Button(action: { viewModel.startUpdatingLocation() }) {
-                                Image(systemName: "location.circle.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.white)
-                            }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                        .frame(height: 56)
                     }
                     .background(Color.appPrimary)
                     
                     ScrollView {
                         VStack(spacing: 16) {
-                            // User Info
-                            VStack(spacing: 6) {
-                                Text(viewModel.user.fullName.isEmpty ? viewModel.user.email : viewModel.user.fullName)
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.black)
-                                
-                                Text("Đơn vị: \(viewModel.user.donVi.isEmpty ? "Văn phòng Saigon Co.op" : viewModel.user.donVi)")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(.gray)
-                                
-                                Text("Ngày: \(viewModel.todayDateString)")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color.white)
-                            .cornerRadius(16)
                             
-                            // GPS Info
-                            VStack(alignment: .leading, spacing: 6) {
+                            // 1. Location Info
+                            VStack(alignment: .leading, spacing: 12) {
                                 HStack {
-                                    Image(systemName: "mappin.circle.fill").foregroundColor(.red)
-                                    Text("Vị trí GPS ghi nhận:").font(.system(size: 13, weight: .bold))
+                                    Image(systemName: "mappin.and.ellipse")
+                                        .foregroundColor(Color.appPrimary)
+                                    Text("Vị trí hiện tại")
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundColor(.appText)
                                     Spacer()
-                                    if viewModel.isLocating { ProgressView().scaleEffect(0.8) }
+                                    Button(action: {
+                                        viewModel.requestLocation()
+                                    }) {
+                                        Image(systemName: "arrow.triangle.2.circlepath")
+                                            .foregroundColor(.blue)
+                                    }
                                 }
-                                Text(viewModel.currentAddress).font(.system(size: 12)).foregroundColor(.gray)
+                                
+                                Text(viewModel.currentAddress.isEmpty ? "Đang lầy vị trí..." : viewModel.currentAddress)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.gray)
+                                
+                                if let distance = viewModel.distanceToWorkMeters {
+                                    HStack {
+                                        Text("Cách nơi làm việc:")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.gray)
+                                        Text("\(Int(distance))m")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(viewModel.isWithinGeofence ? .green : .red)
+                                    }
+                                    
+                                    HStack {
+                                        Text("Bán!tính cho phép:")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(.gray)
+                                        Text("\(Int(viewModel.travelConfig.geofenceRadiusMeters))m�")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.black)
+                                    }
+                                }
                             }
                             .padding()
                             .background(Color.white)
-                            .cornerRadius(14)
+                            .cornerRadius(12)
                             
-                            // Geofence Info
-                            if viewModel.travelConfig.targetLatitude != 0 {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: viewModel.isWithinGeofence ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                                            .foregroundColor(viewModel.isWithinGeofence ? .green : .red)
-                                        Text("Khoảng cách đến nơi làm việc:")
-                                            .font(.system(size: 13, weight: .bold))
-                                    }
-                                    if let dist = viewModel.distanceToWorkMeters {
-                                        Text(String(format: "%.0f m / %.0f m", dist, viewModel.travelConfig.geofenceRadiusMeters))
-                                            .font(.system(size: 12))
-                                            .foregroundColor(viewModel.isWithinGeofence ? .green : .red)
-                                    }
-                                }
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.white)
-                                .cornerRadius(14)
-                            }
-                            
-                            // Selfie Capture
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Ảnh chấm công (Bắt buộc):").font(.system(size: 13, weight: .bold))
+                            // 2. Selfie Section
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Ấnh xác thực")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(.appText)
+                                
                                 HStack {
-                                    if let img = selfieImage {
-                                        Image(uiImage: img)
+                                    if let image = selfieImage {
+                                        Image(uiImage: image)
                                             .resizable()
                                             .scaledToFill()
                                             .frame(width: 80, height: 80)
                                             .clipShape(RoundedRectangle(cornerRadius: 8))
-                                            .onTapGesture { showingImagePicker = true }
                                     } else {
-                                        Button(action: { showingImagePicker = true }) {
-                                            VStack {
-                                                Image(systemName: "camera.fill").font(.title2)
-                                                Text("Chụp ảnh").font(.caption)
-                                            }
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(Color.gray.opacity(0.2))
                                             .frame(width: 80, height: 80)
-                                            .background(Color.gray.opacity(0.1))
-                                            .cornerRadius(8)
-                                        }
+                                            .overlay(
+                                                Image(systemName: "person.crop.square.fill")
+                                                    .foregroundColor(.gray)
+                                                    .font(.system(size: 30))
+                                            )
                                     }
+                                    
                                     Spacer()
+                                    
+                                    Button(action: {
+                                        showingImagePicker = true
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "camera.fill")
+                                            Text("Chụp ảnh")
+                                        }
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(Color.appPrimary.opacity(0.1))
+                                        .foregroundColor(Color.appPrimary)
+                                        .cornerRadius(8)
+                                    }
                                 }
                             }
                             .padding()
                             .background(Color.white)
-                            .cornerRadius(14)
+                            .cornerRadius(12)
                             
-                            // Shifts
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Chọn ca làm việc:").font(.system(size: 13, weight: .bold))
+                            // 3. Shift Selection
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Ca làm việc")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(.appText)
+                                
                                 HStack(spacing: 8) {
-                                    shiftButton(title: "Hành chính", tag: "HC")
-                                    shiftButton(title: "Ca 1 (Sáng)", tag: "SHIFT_1")
-                                    shiftButton(title: "Ca 2 (Chiều)", tag: "SHIFT_2")
-                                    shiftButton(title: "Ca 3 (Đêm)", tag: "NIGHT")
+                                    ShiftButton(title: "Hp�nh chính", tag: "HC", selectedTag: $viewModel.selectedShiftType)
+                                    ShiftButton(title: "Ca 2", tag: "SHIFT_2", selectedTag: $viewModel.selectedShiftType)
+                                    ShiftButton(title: "Ca đêm", tag: "NIGHT", selectedTag: $viewModel.selectedShiftType)
                                 }
                             }
                             .padding()
                             .background(Color.white)
-                            .cornerRadius(14)
+                            .cornerRadius(12)
                             
-                            // Time Cards
+                            // 4. Action Cards
                             HStack(spacing: 12) {
-                                timeStatusCard(title: "GIỜ VÀO CA", timeText: formatTime(viewModel.todayRecord?.checkInTime), isDone: viewModel.todayRecord?.isCheckedIn == true, color: .green)
-                                timeStatusCard(title: "GIỜ RA CA", timeText: formatTime(viewModel.todayRecord?.checkOutTime), isDone: viewModel.todayRecord?.isCheckedOut == true, color: .red)
+                                let checkInTime = viewModel.todayRecord?.checkInTime
+                                TimeCardView(
+                                    title: "GIᜐ VÀO",
+                                    time: formatTime(checkInTime),
+                                    isDone: checkInTime != nil && checkInTime! > 0,
+                                    color: .green
+                                )
+                                
+                                let checkOutTime = viewModel.todayRecord?.checkOutTime
+                                TimeCardView(
+                                    title: "GI]Ò RA",
+                                    time: formatTime(checkOutTime),
+                                    isDone: checkOutTime != nil && checkOutTime! > 0,
+                                    color: .orange
+                                )
                             }
                             
-                            // Check In/Out Actions
-                            VStack(spacing: 12) {
-                                if viewModel.todayRecord?.isCheckedIn != true {
-                                    Button(action: {
-                                        if let img = selfieImage, let data = img.jpegData(compressionQuality: 0.5) {
-                                            viewModel.selfieImageBase64 = data.base64EncodedString()
-                                        }
-                                        viewModel.performCheckIn()
-                                    }) {
-                                        VStack(spacing: 6) {
-                                            Image(systemName: "arrow.right.circle.fill").font(.system(size: 36))
-                                            Text("CHẤM CÔNG VÀO CA").font(.system(size: 16, weight: .bold))
-                                        }
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity).frame(height: 90)
-                                        .background(Color.green).cornerRadius(20)
-                                    }
-                                    .disabled(viewModel.isSubmitting || selfieImage == nil)
-                                } else if viewModel.todayRecord?.isCheckedOut != true {
-                                    Button(action: {
-                                        if let img = selfieImage, let data = img.jpegData(compressionQuality: 0.5) {
-                                            viewModel.selfieImageBase64 = data.base64EncodedString()
-                                        }
-                                        viewModel.performCheckOut()
-                                    }) {
-                                        VStack(spacing: 6) {
-                                            Image(systemName: "arrow.left.circle.fill").font(.system(size: 36))
-                                            Text("CHẤM CÔNG RA CA").font(.system(size: 16, weight: .bold))
-                                        }
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity).frame(height: 90)
-                                        .background(Color.red).cornerRadius(20)
-                                    }
-                                    .disabled(viewModel.isSubmitting || selfieImage == nil)
-                                } else {
-                                    Text("Bạn đã hoàn thành đủ lượt chấm công hôm nay!")
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundColor(.green)
+                            // 5. Buttons
+                            VStack(spacing: 16) {
+                                if viewModel.isSubmitting {
+                                    ProgressView("Đang xử lý...")
                                         .padding()
-                                        .frame(maxWidth: .infinity)
-                                        .background(Color.green.opacity(0.1))
-                                        .cornerRadius(14)
+                                } else {
+                                    let hasCheckIn = viewModel.todayRecord?.checkInTime != nil && viewModel.todayRecord!.checkInTime! > 0
+                                    let hasCheckOut = viewModel.todayRecord?.checkOutTime != nil && viewModel.todayRecord!.checkOutTime! > 0
+                                    
+                                    if !hasCheckIn {
+                                        Button(action: {
+                                            processCheckIn()
+                                        }) {
+                                            Text("CHECK IN")
+                                                .font(.system(size: 16, weight: .bold))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .frame(height: 50)
+                                                .background(isCheckInDisabled ? Color.gray : Color.green)
+                                                .cornerRadius(12)
+                                        }
+                                        .disabled(isCheckInDisabled)
+                                        
+                                        if viewModel.travelConfig.strictGeofenceBlocking && !viewModel.isWithinGeofence {
+                                            Text("Bạn đang ở ngoài phạm vi cho phép.")
+                                                .font(.system(size: 13))
+                                                .foregroundColor(.red)
+                                        }
+                                        
+                                    } else if !hasCheckOut {
+                                        Button(action: {
+                                            processCheckOut()
+                                        }) {
+                                            Text("CHECK OUT")
+                                                .font(.system(size: 16, weight: .bold))
+                                                .foregroundColor(.white)
+                                                .frame(maxWidth: .infinity)
+                                                .frame(height: 50)
+                                                .background(Color.orange)
+                                                .cornerRadius(12)
+                                        }
+                                    } else {
+                                        Text("Bạn đã hoàn thành chấm công hôm nay!")
+                                            .font(.system(size: 14, weight: .semibold))
+                                            .foregroundColor(.green)
+                                            .padding()
+                                            .frame(maxWidth: .infinity)
+                                            .background(Color.green.opacity(0.1))
+                                            .cornerRadius(12)
+                                        
+                                        if let checkIn = viewModel.todayRecord?.checkInTime, let checkOut = viewModel.todayRecord?.checkOutTime {
+                                            let duration = (checkOut - checkIn) / 60000
+                                            Text("Tổng thài gian làm việc: \(duration / 60)h \(duration % 60)m")
+                                                .font(.system(size: 14))
+                                                .foregroundColor(.gray)
+                                        }
+                                    }
+                                }
+                                
+                                if let success = viewModel.successMessage {
+                                    Text(success)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.green)
+                                        .multilineTextAlignment(.center)
+                                }
+                                
+                                if let error = viewModel.errorMessage {
+                                    Text(error)
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.red)
+                                        .multilineTextAlignment(.center)
                                 }
                             }
                             
-                            if let success = viewModel.successMessage {
-                                Text(success).foregroundColor(.green).font(.system(size: 13))
+                            // 6. Monthly Stats Card
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Thống kê tháng này")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(.appText)
+                                
+                                HStack(spacing: 12) {
+                                    StatBox(title: "Tổng ngày", value: viewModel.totalDays, color: .blue)
+                                    StatBox(title: "Đúng giờ", value: viewModel.onTimeDays, color: .green)
+                                    StatBox(title: "Trễ giờ", value: viewModel.lateDays, color: .red)
+                                }
                             }
-                            if let err = viewModel.errorMessage {
-                                Text(err).foregroundColor(.red).font(.system(size: 13))
-                            }
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(12)
                             
-                            Spacer(minLength: 20)
+                            Spacer(minLength: 40)
                         }
-                        .padding(14)
+                        .padding(16)
                     }
                 }
             }
         }
         .ignoresSafeArea(edges: .top)
         .onAppear {
-            viewModel.startUpdatingLocation()
-            viewModel.fetchTodayAttendance()
             viewModel.fetchTravelExpenseConfig()
+            viewModel.requestLocation()
+            viewModel.fetchTodayAttendance()
+            viewModel.fetchAttendanceHistory(month: Date())
         }
         .sheet(isPresented: $showingImagePicker) {
             ImagePicker(image: $selfieImage)
         }
     }
     
-    private func shiftButton(title: String, tag: String) -> some View {
-        let isSelected = viewModel.selectedShiftType == tag
-        return Button(action: { viewModel.selectedShiftType = tag }) {
-            Text(title)
-                .font(.system(size: 11, weight: isSelected ? .bold : .medium))
-                .foregroundColor(isSelected ? .white : .black)
-                .frame(maxWidth: .infinity).frame(height: 34)
-                .background(isSelected ? Color.blue : Color.gray.opacity(0.1))
-                .cornerRadius(8)
+    private var isCheckInDisabled: Bool {
+        if viewModel.travelConfig.strictGeofenceBlocking && !viewModel.isWithinGeofence {
+            return true
         }
+        if selfieImage == nil {
+            return true
+        }
+        return false
     }
     
-    private func timeStatusCard(title: String, timeText: String, isDone: Bool, color: Color) -> some View {
-        VStack(spacing: 6) {
-            Text(title).font(.system(size: 11, weight: .bold)).foregroundColor(.gray)
-            Text(timeText).font(.system(size: 20, weight: .bold)).foregroundColor(isDone ? color : .gray)
-            Text(isDone ? "Đã ghi nhận" : "Chưa chấm công")
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundColor(isDone ? color : .gray)
-                .padding(.horizontal, 8).padding(.vertical, 2)
-                .background(isDone ? color.opacity(0.12) : Color.black.opacity(0.05))
-                .cornerRadius(6)
+    private func processCheckIn() {
+        if let img = selfieImage, let data = img.jpegData(compressionQuality: 0.5) {
+            viewModel.selfieImageBase64 = data.base64EncodedString()
         }
-        .frame(maxWidth: .infinity)
-        .padding(14)
-        .background(Color.white)
-        .cornerRadius(14)
+        viewModel.performCheckInV2()
     }
     
-    private func formatTime(_ timestamp: Int64?) -> String {
+    private func processCheckOut() {
+        viewModel.performCheckOutV2()
+    }
+    
+    private func formatTime(\ timestamp: Int64?) -> String {
         guard let t = timestamp, t > 0 else { return "--:--" }
         let date = Date(timeIntervalSince1970: TimeInterval(t) / 1000)
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
+        formatter.dateFormat = "HH:mm"
         return formatter.string(from: date)
+    }
+}
+
+struct ShiftButton: View {
+    var title: String
+    var tag: String
+    @Binding var selectedTag: String
+    
+    var body: some View {
+        let isSelected = selectedTag == tag
+        Button(action: {
+            selectedTag = tag
+        }) {
+            Text(title)
+                .font(.system(size: 13, weight: isSelected ? .bold : .medium))
+                .foregroundColor(isSelected ? .white : .appText)
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+                .background(isSelected ? Color.appPrimary : Color.gray.opacity(0.1))
+                .cornerRadius(8)
+        }
+    }
+}
+
+struct TimeCardView: View {
+    var title: String
+    var time: String
+    var isDone: Bool
+    var color: Color
+    
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.gray)
+            
+            Text(time)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(isDone ? color : .black)
+            
+            Text(isDone ?  Đã ghi nhận" : "Chưa có dữ liệu")
+                .font(.system(size: 11))
+                .foregroundColor(isDone ? color : .gray)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(isDone ? color.opacity(0.1) : Color.gray.opacity(0.1))
+                .cornerRadius(4)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 16)
+        .background(Color.white)
+        .cornerRadius(12)
+    }
+}
+
+struct StatBox: View {
+    var title: String
+    var value: Int
+    var color: Color
+    
+    var body: some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.system(size: 12))
+                .foregroundColor(.gray)
+            Text("\(value)")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(color.opacity(0.1))
+        .cornerRadius(8)
     }
 }
