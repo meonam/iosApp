@@ -58,7 +58,7 @@ struct AppInfoFullView: View {
                     infoSection(title: "THÔNG TIN TÀI KHOẢN") {
                         infoRow(label: "Họ và tên", value: firebase.userName.isEmpty ? "—" : firebase.userName)
                         infoRow(label: "Email", value: firebase.currentUserEmail.isEmpty ? "—" : firebase.currentUserEmail)
-                        infoRow(label: "Vai trò", value: firebase.formatRoleTitle())
+                        infoRow(label: "Vai trò", value: firebase.formatRoleTitle(firebase.rawRole))
                         infoRow(label: "Mã công ty", value: firebase.companyId.isEmpty ? "—" : firebase.companyId)
                     }
 
