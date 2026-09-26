@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		110000012C12345600000001 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000022C12345600000001 /* iOSApp.swift */; };
 		110000152C12345600000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 110000162C12345600000001 /* Assets.xcassets */; };
+		1DDF4886AAFE09765491FCBC /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = F05142899745976FC1D9F3D4 /* WebRTC */; };
 		220010002C12345600000001 /* MainContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000002C12345600000001 /* MainContainerView.swift */; };
 		220010012C12345600000001 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000012C12345600000001 /* AppColors.swift */; };
 		220010022C12345600000001 /* UserModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000022C12345600000001 /* UserModels.swift */; };
@@ -129,6 +130,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1DDF4886AAFE09765491FCBC /* WebRTC in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -157,6 +159,14 @@
 				110000162C12345600000001 /* Assets.xcassets */,
 			);
 			path = iosApp;
+			sourceTree = "<group>";
+		};
+		1100000A2C12345600000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				110000052C12345600000001 /* QLTB.app */,
+			);
+			name = Products;
 			sourceTree = "<group>";
 		};
 		220001002C12345600000001 /* App */ = {
@@ -223,14 +233,6 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
-		220001192C12345600000001 /* Components */ = {
-			isa = PBXGroup;
-			children = (
-				220000322C12345600000001 /* CompanyBannerTickerView.swift */,
-			);
-			path = Components;
-			sourceTree = "<group>";
-		};
 		220001062C12345600000001 /* Screens */ = {
 			isa = PBXGroup;
 			children = (
@@ -248,20 +250,6 @@
 				220001182C12345600000001 /* Admin */,
 			);
 			path = Screens;
-			sourceTree = "<group>";
-		};
-		220001182C12345600000001 /* Admin */ = {
-			isa = PBXGroup;
-			children = (
-				220000342C12345600000001 /* UserManagementView.swift */,
-				220000352C12345600000001 /* ApproveStaffView.swift */,
-				220000362C12345600000001 /* DepartmentManagerView.swift */,
-				220000372C12345600000001 /* UnitRegionManagerView.swift */,
-				220000382C12345600000001 /* PaywallLicenseView.swift */,
-				220000482C12345600000001 /* AdminTicketListView.swift */,
-				2200004B2C12345600000001 /* SuperAdminPortalView.swift */,
-			);
-			path = Admin;
 			sourceTree = "<group>";
 		};
 		220001072C12345600000001 /* Auth */ = {
@@ -366,12 +354,26 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
-		1100000A2C12345600000001 /* Products */ = {
+		220001182C12345600000001 /* Admin */ = {
 			isa = PBXGroup;
 			children = (
-				110000052C12345600000001 /* QLTB.app */,
+				220000342C12345600000001 /* UserManagementView.swift */,
+				220000352C12345600000001 /* ApproveStaffView.swift */,
+				220000362C12345600000001 /* DepartmentManagerView.swift */,
+				220000372C12345600000001 /* UnitRegionManagerView.swift */,
+				220000382C12345600000001 /* PaywallLicenseView.swift */,
+				220000482C12345600000001 /* AdminTicketListView.swift */,
+				2200004B2C12345600000001 /* SuperAdminPortalView.swift */,
 			);
-			name = Products;
+			path = Admin;
+			sourceTree = "<group>";
+		};
+		220001192C12345600000001 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				220000322C12345600000001 /* CompanyBannerTickerView.swift */,
+			);
+			path = Components;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -390,6 +392,9 @@
 			dependencies = (
 			);
 			name = iosApp;
+			packageProductDependencies = (
+				F05142899745976FC1D9F3D4 /* WebRTC */,
+			);
 			productName = iosApp;
 			productReference = 110000052C12345600000001 /* QLTB.app */;
 			productType = "com.apple.product-type.application";
@@ -418,6 +423,9 @@
 				Base,
 			);
 			mainGroup = 110000082C12345600000001;
+			packageReferences = (
+				613A4E82A3EA671B737911DF /* XCRemoteSwiftPackageReference "WebRTC" */,
+			);
 			productRefGroup = 1100000A2C12345600000001 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -698,8 +706,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		613A4E82A3EA671B737911DF /* XCRemoteSwiftPackageReference "WebRTC" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stasel/WebRTC";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 125.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		F05142899745976FC1D9F3D4 /* WebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 613A4E82A3EA671B737911DF /* XCRemoteSwiftPackageReference "WebRTC" */;
+			productName = WebRTC;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 1100000F2C12345600000001 /* Project object */;
 }
-
-
