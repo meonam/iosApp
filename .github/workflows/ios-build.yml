@@ -3,7 +3,11 @@ name: Build iOS App (.IPA) via GitHub Actions
 on:
   push:
     branches: [ "main", "master" ]
+    tags: [ "v*" ]
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build-ios:
@@ -58,3 +62,13 @@ jobs:
           name: QLTB-iOS-App-IPA
           path: build/QLTB_iOS_v1.2.0.ipa
           retention-days: 30
+
+      - name: 7. Tạo GitHub Release đính kèm tệp IPA (khi gắn Tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          files: build/QLTB_iOS_v1.2.0.ipa
+          name: QLTB iOS v1.2.0 (Build 120)
+          draft: false
+          prerelease: false
