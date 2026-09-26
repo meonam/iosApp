@@ -86,21 +86,23 @@ struct SystemSettingsFullView: View {
                         .font(.system(size: 14, weight: .medium))
                     }
                 }
-                if isAdmin {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(action: saveConfig) {
-                            if isSaving {
-                                ProgressView().scaleEffect(0.8)
-                            } else {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "checkmark")
-                                    Text("Lưu")
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Group {
+                        if isAdmin {
+                            Button(action: saveConfig) {
+                                if isSaving {
+                                    ProgressView().scaleEffect(0.8)
+                                } else {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "checkmark")
+                                        Text("Lưu")
+                                    }
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(Color(hex: "EC4899"))
                                 }
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color(hex: "EC4899"))
                             }
+                            .disabled(isSaving)
                         }
-                        .disabled(isSaving)
                     }
                 }
             }
