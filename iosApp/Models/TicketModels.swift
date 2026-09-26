@@ -319,6 +319,17 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         if isAutoRated { return 5 }
         return 0
     }
+
+    public func isUserAssigned(email: String) -> Bool {
+        let clean = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == clean ||
+           assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == clean {
+            return true
+        }
+        return coTechnicians.contains {
+            $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == clean
+        }
+    }
 }
 
 // MARK: - SUPPORT MESSAGE (CHAT REALTIME)
