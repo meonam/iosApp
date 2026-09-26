@@ -297,4 +297,39 @@ public class DeviceViewModel: ObservableObject {
             self.fetchDevices()
         }
     }
+
+    public func addDevice(documentId: String, fields: [String: Any], completion: @escaping (Result<String, Error>) -> Void) {
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices?documentId=\(documentId)"
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: Any] = ["fields": fields]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        Task {
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                    DispatchQueue.main.async {
+                        self.successMessage = "Đã thêm thiết bị \(documentId)"
+                        completion(.success(documentId))
+                    }
+                    self.fetchDevices()
+                } else {
+                    let errMsg = String(data: data, encoding: .utf8) ?? "Unknown error"
+                    DispatchQueue.main.async {
+                        completion(.failure(NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: errMsg])))
+                    }
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
 }

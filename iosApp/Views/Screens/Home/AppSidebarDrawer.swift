@@ -29,6 +29,7 @@ public enum DrawerDestination: Identifiable {
     case adminTicketList
     case help
     case lichSu
+    case superAdmin
 
     public var id: String {
         switch self {
@@ -59,6 +60,7 @@ public enum DrawerDestination: Identifiable {
         case .adminTicketList: return "adminTicketList"
         case .help: return "help"
         case .lichSu: return "lichSu"
+        case .superAdmin: return "superAdmin"
         }
     }
 }
@@ -313,6 +315,15 @@ public struct AppSidebarDrawer: View {
                                         badge: openTicketsCount > 0 ? "\(openTicketsCount)" : nil
                                     ) {
                                         onSelect(.adminTicketList)
+                                    }
+                                    if user.isSuperAdmin {
+                                        drawerItemRow(
+                                            title: "Super Admin Portal",
+                                            icon: "shield.checkered",
+                                            color: Color(hex: "#7C3AED")
+                                        ) {
+                                            onSelect(.superAdmin)
+                                        }
                                     }                                }
                                 .padding(.leading, 6)
                             }

@@ -1,4 +1,4 @@
-﻿import SwiftUI
+import SwiftUI
 
 // MARK: - MAIN CONTAINER VIEW (ĐỒNG BỘ 1:1 THEO MAINACTIVITY.KT TRÊN ANDROID)
 public struct MainContainerView: View {
@@ -414,6 +414,9 @@ public struct MainContainerView: View {
 
         case .lichSu:
             LichSuView(authViewModel: authViewModel, thietBiId: "", onBack: { currentDestination = .home })
+
+        case .superAdmin:
+            SuperAdminPortalView(authViewModel: authViewModel, onBack: { currentDestination = .home })
         }
     }
 }

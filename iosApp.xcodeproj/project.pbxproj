@@ -60,6 +60,8 @@
 		220010482C12345600000001 /* AdminTicketListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000482C12345600000001 /* AdminTicketListView.swift */; };
 		220010492C12345600000001 /* HelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000492C12345600000001 /* HelpView.swift */; };
 		2200104A2C12345600000001 /* LichSuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200004A2C12345600000001 /* LichSuView.swift */; };
+		2200104B2C12345600000001 /* SuperAdminPortalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200004B2C12345600000001 /* SuperAdminPortalView.swift */; };
+		2200104C2C12345600000001 /* ResetPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200004C2C12345600000001 /* ResetPasswordView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -118,6 +120,8 @@
 		220000482C12345600000001 /* AdminTicketListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminTicketListView.swift; sourceTree = "<group>"; };
 		220000492C12345600000001 /* HelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelpView.swift; sourceTree = "<group>"; };
 		2200004A2C12345600000001 /* LichSuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LichSuView.swift; sourceTree = "<group>"; };
+		2200004B2C12345600000001 /* SuperAdminPortalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperAdminPortalView.swift; sourceTree = "<group>"; };
+		2200004C2C12345600000001 /* ResetPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetPasswordView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -255,6 +259,7 @@
 				220000372C12345600000001 /* UnitRegionManagerView.swift */,
 				220000382C12345600000001 /* PaywallLicenseView.swift */,
 				220000482C12345600000001 /* AdminTicketListView.swift */,
+				2200004B2C12345600000001 /* SuperAdminPortalView.swift */,
 			);
 			path = Admin;
 			sourceTree = "<group>";
@@ -264,6 +269,7 @@
 			children = (
 				220000172C12345600000001 /* LoginView.swift */,
 				220000442C12345600000001 /* PendingApprovalView.swift */,
+				2200004C2C12345600000001 /* ResetPasswordView.swift */,
 			);
 			path = Auth;
 			sourceTree = "<group>";
@@ -489,6 +495,8 @@
 				220010482C12345600000001 /* AdminTicketListView.swift in Sources */,
 				220010492C12345600000001 /* HelpView.swift in Sources */,
 				2200104A2C12345600000001 /* LichSuView.swift in Sources */,
+				2200104B2C12345600000001 /* SuperAdminPortalView.swift in Sources */,
+				2200104C2C12345600000001 /* ResetPasswordView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -7,6 +7,7 @@ public struct LoginView: View {
 
     @State private var showHelpSheet: Bool = false
     @State private var forgotEmailInput: String = ""
+    @State private var showResetPasswordSheet: Bool = false
 
     public init(viewModel: AuthViewModel, onLoginSuccess: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -207,6 +208,16 @@ public struct LoginView: View {
                             .foregroundColor(Color.appSecondaryDarkBlue)
                         }
                         .padding(.top, 4)
+
+                        // Dang ky / Quen mat khau
+                        HStack(spacing: 0) {
+                            Button(action: { showResetPasswordSheet = true }) {
+                                Text("Quên mật khẩu?")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                            }
+
+                        }
                     }
                     .padding(24)
                     .background(Color.white.opacity(0.96))
@@ -238,6 +249,9 @@ public struct LoginView: View {
                     viewModel.submitForceChangePassword(newPass: newPass)
                 }
             )
+        }
+        .sheet(isPresented: $showResetPasswordSheet) {
+            ResetPasswordView(viewModel: viewModel, onBack: { showResetPasswordSheet = false })
         }
         .onChange(of: viewModel.isAuthenticated) { authenticated in
             if authenticated {
