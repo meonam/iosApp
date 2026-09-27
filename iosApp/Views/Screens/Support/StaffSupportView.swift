@@ -177,19 +177,19 @@ public struct StaffSupportView: View {
                     var loadedTickets: [StaffTicket] = []
                     for doc in docs {
                         if let fields = doc["fields"] as? [String: Any] {
-                            let cId = FirestoreHelper.getString(fields, "creatorId")
+                            let cId = FirestoreHelper.getString(fields["creatorId"] as? [String: Any])
                             if cId == userId {
                                 let docName = doc["name"] as? String ?? ""
                                 let docId = docName.components(separatedBy: "/").last ?? ""
                                 let ticket = StaffTicket(
                                     id: docId,
-                                    title: FirestoreHelper.getString(fields, "title"),
-                                    description: FirestoreHelper.getString(fields, "description"),
-                                    status: FirestoreHelper.getString(fields, "status"),
-                                    priority: FirestoreHelper.getString(fields, "priority"),
-                                    category: FirestoreHelper.getString(fields, "category"),
+                                    title: FirestoreHelper.getString(fields["title"] as? [String: Any]),
+                                    description: FirestoreHelper.getString(fields["description"] as? [String: Any]),
+                                    status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
+                                    priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
+                                    category: FirestoreHelper.getString(fields["category"] as? [String: Any]),
                                     creatorId: cId,
-                                    createdAt: FirestoreHelper.getInt64(fields, "createdAt")
+                                    createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
                                 )
                                 loadedTickets.append(ticket)
                             }
