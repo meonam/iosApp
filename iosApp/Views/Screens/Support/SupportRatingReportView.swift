@@ -266,7 +266,7 @@ public struct SupportRatingReportView: View {
 
     private func fetchTickets() async {
         await MainActor.run { isLoading = true }
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.companyId)/tickets?pageSize=300"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.companyId)/support_tickets?pageSize=300"
         guard let url = URL(string: urlStr) else { return }
         
         var request = URLRequest(url: url)

@@ -55,24 +55,32 @@ struct AdminSettingsView: View {
     @State private var pickedLogoImage: UIImage? = nil
     
     var body: some View {
-        VStack(spacing: 0) {
-            // Top Bar
-            HStack {
-                Button(action: onBack) {
-                    Image(systemName: "arrow.backward")
-                        .foregroundColor(.white)
-                }
-                Text("Cài đặt hệ thống")
-                    .font(.headline)
-                    .fontWeight(.bold)
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                Spacer()
-            }
-            .padding()
-            .background(Color("TopBarColor", bundle: nil).opacity(0.8)) // Fallback if TopBarColor not defined in Assets
-            
-            ScrollView {
+        GeometryReader { geometry in
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // Top Bar with safe area
+                    VStack(spacing: 0) {
+                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+                        HStack {
+                            Button(action: onBack) {
+                                Image(systemName: "arrow.left")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                            Text("Cài đặt hệ thống")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                            Spacer()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                    }
+                    .background(Color.appTopBarColor)
+                    
+                    ScrollView {
                 VStack(spacing: 16) {
                     // 1. THÔNG TIN DOANH NGHIỆP
                     SettingsSectionView(title: "Thông tin Doanh nghiệp", icon: "building.2.fill") {
@@ -246,9 +254,10 @@ struct AdminSettingsView: View {
                 }
                 .padding(16)
                 .padding(.bottom, bottomPadding)
+                }
             }
         }
-        .background(Color(.systemGroupedBackground))
+        .ignoresSafeArea(edges: .top)
         .alert(isPresented: $showMessage) {
             Alert(title: Text("Thông báo"), message: Text(messageText), dismissButton: .default(Text("OK")))
         }

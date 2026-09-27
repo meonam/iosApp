@@ -161,7 +161,7 @@ public struct StaffSupportView: View {
         let userId = authViewModel.currentUser?.id ?? ""
         guard !companyId.isEmpty, !token.isEmpty, !userId.isEmpty else { return }
         
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets"
         guard let url = URL(string: urlStr) else { return }
         
         var request = URLRequest(url: url)
@@ -296,7 +296,7 @@ struct CreateTicketView: View {
         let userName = authViewModel.currentUser?.fullName ?? ""
         
         guard !companyId.isEmpty, !token.isEmpty else { return }
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets"
         guard let url = URL(string: urlStr) else { return }
         
         isSubmitting = true

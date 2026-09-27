@@ -397,7 +397,7 @@ public struct HomeScreenView: View {
             // Thẻ 1: Tổng thiết bị (Màu xanh dương)
             statsCardItem(
                 title: "Thiết bị",
-                count: "\(viewModel.totalDevicesCount > 0 ? viewModel.totalDevicesCount : 13)",
+                count: "\(viewModel.totalDevicesCount)",
                 subtitle: viewModel.user.isStaff ? "Của tôi" : "Tổng quản lý",
                 icon: "laptopcomputer.and.iphone",
                 accentColor: Color(hex: "#2563EB"),
@@ -407,7 +407,7 @@ public struct HomeScreenView: View {
             }
 
             // Thẻ 2: Sự cố mở (Màu đỏ cảnh báo)
-            let openCount = viewModel.openTicketsCount > 0 ? viewModel.openTicketsCount : 147
+            let openCount = viewModel.openTicketsCount
             statsCardItem(
                 title: "Sự cố mở",
                 count: "\(openCount)",

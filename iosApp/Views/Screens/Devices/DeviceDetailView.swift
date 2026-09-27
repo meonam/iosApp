@@ -184,13 +184,16 @@ public struct DeviceDetailView: View {
         let companyId = viewModel.user.companyId
         
         // Construct the URL Session REST API request
-        guard let url = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/projects/\(FirebaseConfig.projectId)/databases/(default)/documents/companies/\(companyId)/devices/\(deviceId)") else {
+        guard let url = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(deviceId)") else {
             isLoading = false
             return
         }
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        if !viewModel.idToken.isEmpty {
+            request.setValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization")
+        }
         
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {

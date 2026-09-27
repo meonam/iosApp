@@ -50,7 +50,7 @@ public class SupportViewModel: ObservableObject {
     public func fetchKtvStats() async {
         await MainActor.run { isLoadingStats = true }
         
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets?pageSize=200"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets?pageSize=200"
         guard let url = URL(string: urlStr) else {
             await MainActor.run { isLoadingStats = false }
             return
@@ -200,7 +200,7 @@ public class SupportViewModel: ObservableObject {
 
     // Staff ticket creation
     public func createTicket(subject: String, description: String, priority: String, deviceId: String?) async -> String? {
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets"
         guard let url = URL(string: urlStr) else { return nil }
 
         var request = URLRequest(url: url)
@@ -238,7 +238,7 @@ public class SupportViewModel: ObservableObject {
     // Staff xem ticket của mình
     public func fetchMyTickets() async {
         await MainActor.run { isLoading = true }
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets?pageSize=100" // Should filter via structuredQuery, but for now fetch and filter
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets?pageSize=100" // Should filter via structuredQuery, but for now fetch and filter
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -283,7 +283,7 @@ public class SupportViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets?pageSize=100"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets?pageSize=100"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -342,7 +342,7 @@ public class SupportViewModel: ObservableObject {
     // Tải tin nhắn chat của Ticket
     public func fetchMessages(for ticketId: String) {
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets/\(ticketId)/messages?pageSize=100"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)/messages?pageSize=100"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -384,7 +384,7 @@ public class SupportViewModel: ObservableObject {
 
         isSendingMessage = true
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets/\(ticketId)/messages"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)/messages"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -414,7 +414,7 @@ public class SupportViewModel: ObservableObject {
     // KTV Tiếp nhận Ticket
     public func acknowledgeTicket(ticketId: String) {
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets/\(ticketId)?updateMask.fieldPaths=isAcknowledged&updateMask.fieldPaths=acknowledgedAt&updateMask.fieldPaths=acknowledgedBy"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=isAcknowledged&updateMask.fieldPaths=acknowledgedAt&updateMask.fieldPaths=acknowledgedBy"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -438,7 +438,7 @@ public class SupportViewModel: ObservableObject {
     // Hoàn tất / Đóng Ticket
     public func closeTicket(ticketId: String, note: String = "") {
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets/\(ticketId)?updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=closedByEmail&updateMask.fieldPaths=resolutionNote"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=closedByEmail&updateMask.fieldPaths=resolutionNote"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -464,7 +464,7 @@ public class SupportViewModel: ObservableObject {
     public func assignKtv(ticketId: String, ktvEmail: String, ktvName: String) {
         Task {
             let fields = "updateMask.fieldPaths=assignedToEmail&updateMask.fieldPaths=assignedToName&updateMask.fieldPaths=assignedAt&updateMask.fieldPaths=assignedByEmail"
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets/\(ticketId)?\(fields)"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(fields)"
             guard let url = URL(string: urlStr) else { return }
             var request = URLRequest(url: url)
             request.httpMethod = "PATCH"
@@ -486,7 +486,7 @@ public class SupportViewModel: ObservableObject {
     public func rateTicket(ticketId: String, rating: Int, comment: String = "") {
         Task {
             let fields = "updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt"
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets/\(ticketId)?\(fields)"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(fields)"
             guard let url = URL(string: urlStr) else { return }
             var request = URLRequest(url: url)
             request.httpMethod = "PATCH"

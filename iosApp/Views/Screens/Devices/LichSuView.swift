@@ -133,7 +133,7 @@ public struct LichSuView: View {
                                     ForEach(lichSuList) { item in
                                         VStack(alignment: .leading, spacing: 4) {
                                             HStack {
-                                                Text("📅 \(item.ngay)")
+                                                Text("📅 \(item.ngay.isEmpty ? "Ghi nhận" : item.ngay)")
                                                     .font(.system(size: 12, weight: .bold))
                                                     .foregroundColor(Color.appPrimaryPink)
                                                 Spacer()
@@ -141,12 +141,26 @@ public struct LichSuView: View {
                                                     .font(.system(size: 12, weight: .bold))
                                                     .foregroundColor(Color.appSecondaryDarkBlue)
                                             }
-                                            Text("🏢 Đơn vị: \(item.donVi)")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.gray)
-                                            Text("📝 Ghi chú: \(item.moTa)")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.gray)
+                                            if !item.thietBiId.isEmpty {
+                                                Text("🏷️ Mã TB: \(item.thietBiId)")
+                                                    .font(.system(size: 12))
+                                                    .foregroundColor(Color(hex: "#334155"))
+                                            }
+                                            if !item.donVi.isEmpty {
+                                                Text("🏢 Đơn vị: \(item.donVi)")
+                                                    .font(.system(size: 12))
+                                                    .foregroundColor(.gray)
+                                            }
+                                            if !item.nguoiThucHien.isEmpty {
+                                                Text("👤 Thực hiện: \(item.nguoiThucHien)")
+                                                    .font(.system(size: 12))
+                                                    .foregroundColor(.gray)
+                                            }
+                                            if !item.moTa.isEmpty {
+                                                Text("📝 Ghi chú: \(item.moTa)")
+                                                    .font(.system(size: 12))
+                                                    .foregroundColor(.gray)
+                                            }
                                         }
                                         .padding(12)
                                         .background(Color.white)
@@ -176,11 +190,10 @@ public struct LichSuView: View {
     }
 
     private func fetchLichSu(thietBiId: String) {
-        guard !thietBiId.isEmpty else { return }
         self.isLoading = true
         let companyId = authViewModel.currentCompanyId
         
-        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_logs"
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/history?pageSize=300"
         
         guard let url = URL(string: urlString) else {
             self.isLoading = false
@@ -205,26 +218,68 @@ public struct LichSuView: View {
                        let documents = json["documents"] as? [[String: Any]] {
                         
                         var results: [LichSuThietBi] = []
+                        let targetId = thietBiId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        
                         for doc in documents {
                             if let fields = doc["fields"] as? [String: Any] {
-                                let docThietBiId = FirestoreHelper.getString(fields["deviceId"] as? [String: Any])
-                                if docThietBiId == thietBiId || docThietBiId.isEmpty {
-                                    // Match
+                                let docThietBiId = {
+                                    let id1 = FirestoreHelper.getString(fields["thietBiId"] as? [String: Any])
+                                    if !id1.isEmpty { return id1 }
+                                    return FirestoreHelper.getString(fields["deviceId"] as? [String: Any])
+                                }()
+                                
+                                let matchesTarget = targetId.isEmpty ||
+                                    docThietBiId.lowercased().contains(targetId) ||
+                                    targetId.contains(docThietBiId.lowercased())
+                                
+                                if matchesTarget {
                                     let id = (doc["name"] as? String)?.components(separatedBy: "/").last ?? UUID().uuidString
-                                    let ngay = FirestoreHelper.getString(fields["date"] as? [String: Any])
-                                    let hanhDong = FirestoreHelper.getString(fields["action"] as? [String: Any])
-                                    let donVi = FirestoreHelper.getString(fields["department"] as? [String: Any])
-                                    let moTa = FirestoreHelper.getString(fields["note"] as? [String: Any])
-                                    let nguoiThucHien = FirestoreHelper.getString(fields["performedBy"] as? [String: Any])
-                                    let timestamp = FirestoreHelper.getDouble(fields["timestamp"] as? [String: Any])
-                                    let name = FirestoreHelper.getString(fields["deviceName"] as? [String: Any])
+                                    let ngay = {
+                                        let n1 = FirestoreHelper.getString(fields["ngayBaoHanh"] as? [String: Any])
+                                        if !n1.isEmpty { return n1 }
+                                        let n2 = FirestoreHelper.getString(fields["ngay"] as? [String: Any])
+                                        if !n2.isEmpty { return n2 }
+                                        return FirestoreHelper.getString(fields["date"] as? [String: Any])
+                                    }()
+                                    let hanhDong = {
+                                        let h1 = FirestoreHelper.getString(fields["hanhDong"] as? [String: Any])
+                                        if !h1.isEmpty { return h1 }
+                                        let h2 = FirestoreHelper.getString(fields["action"] as? [String: Any])
+                                        return !h2.isEmpty ? h2 : "BẢO HÀNH"
+                                    }()
+                                    let donVi = {
+                                        let d1 = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
+                                        if !d1.isEmpty { return d1 }
+                                        return FirestoreHelper.getString(fields["department"] as? [String: Any])
+                                    }()
+                                    let moTa = {
+                                        let m1 = FirestoreHelper.getString(fields["moTa"] as? [String: Any])
+                                        if !m1.isEmpty { return m1 }
+                                        return FirestoreHelper.getString(fields["note"] as? [String: Any])
+                                    }()
+                                    let nguoiThucHien = {
+                                        let r1 = FirestoreHelper.getString(fields["role"] as? [String: Any])
+                                        let p1 = FirestoreHelper.getString(fields["performedBy"] as? [String: Any])
+                                        if !r1.isEmpty && !p1.isEmpty { return "\(p1) (\(r1))" }
+                                        if !p1.isEmpty { return p1 }
+                                        return r1
+                                    }()
+                                    let created = FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
+                                    let timestamp = created > 0 ? Double(created) : FirestoreHelper.getDouble(fields["timestamp"] as? [String: Any])
+                                    let name = {
+                                        let name1 = FirestoreHelper.getString(fields["tenThietBi"] as? [String: Any])
+                                        if !name1.isEmpty { return name1 }
+                                        return FirestoreHelper.getString(fields["deviceName"] as? [String: Any])
+                                    }()
                                     
-                                    if !name.isEmpty {
+                                    if !name.isEmpty && self.tenThietBi.isEmpty {
                                         self.tenThietBi = name
                                     }
                                     
                                     results.append(LichSuThietBi(
                                         id: id,
+                                        thietBiId: docThietBiId,
+                                        tenThietBi: name,
                                         hanhDong: hanhDong,
                                         ngay: ngay,
                                         nguoiThucHien: nguoiThucHien,
