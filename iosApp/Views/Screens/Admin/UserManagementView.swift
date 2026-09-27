@@ -696,7 +696,7 @@ public struct UserManagementView: View {
     ) -> some View {
         Button(action: action) {
             Text(title)
-                .font(.system(size: 11, weight: isSelected ? .bold : .normal))
+                .font(.system(size: 11, weight: isSelected ? .bold : .regular))
                 .foregroundColor(isSelected ? selectedText : Color(hex: "#475569"))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
