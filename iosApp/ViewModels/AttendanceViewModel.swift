@@ -82,7 +82,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     @Published public var cfgTargetLatitude: String = ""
     @Published public var cfgTargetLongitude: String = ""
     @Published public var cfgArrivalRadius: String = "150"
-    @Published public var cfgPricePerKm: String = "5000"
+    @Published public var cfgPricePerKm: String = "1500"
     @Published public var cfgTripBaseAllowance: String = "50000"
     @Published public var cfgOvertimeMultiplier: String = "0"
     @Published public var isSavingReportConfig: Bool = false
@@ -1273,7 +1273,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         }
 
         // 1. Fetch Travel Expense Config
-        await fetchTravelExpenseConfigAsync()
+        let cfg = await fetchTravelExpenseConfigAsync()
 
         // 2. Fetch attendances
         let fetchedRecords = await fetchMonthlyAttendances(cleanComp: cleanComp, targetMonth: targetMonth)
@@ -1328,7 +1328,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         )
 
         // 3. Fetch Travel Expense Records
-        let fetchedExpenses = await fetchMonthlyExpenses(cleanComp: cleanComp, targetMonth: targetMonth)
+        let fetchedExpenses = await fetchMonthlyExpenses(cleanComp: cleanComp, targetMonth: targetMonth, config: cfg)
 
         let expTotalTrips: Int = fetchedExpenses.count
         let expTotalKm: Double = fetchedExpenses.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.distanceKm }
@@ -1370,7 +1370,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 paidCount: pdCnt,
                 rejectedCount: rCnt
             )
-        }.sorted { $0.totalTrips > $1.totalTrips }
+        }.sorted { $0.totalAmount > $1.totalAmount }
 
         let builtExpenseReport = TravelExpenseReport(
             month: targetMonth,
@@ -1460,7 +1460,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         return fetchedRecords
     }
 
-    private func fetchMonthlyExpenses(cleanComp: String, targetMonth: String) async -> [TravelExpenseRecord] {
+    private func fetchMonthlyExpenses(cleanComp: String, targetMonth: String, config: TravelExpenseConfig) async -> [TravelExpenseRecord] {
         var savedExpenseStatusMap: [String: String] = [:]
         var savedRejectReasonMap: [String: String] = [:]
 
@@ -1476,13 +1476,38 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let body: [String: Any] = [
                 "structuredQuery": [
                     "from": [["collectionId": "travel_expenses"]],
-                    "limit": 500
+                    "limit": 1000
                 ]
             ]
             expReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
+            var expResponseData: Data? = nil
             if let (expData, expResp) = try? await URLSession.shared.data(for: expReq),
-               let httpExp = expResp as? HTTPURLResponse, httpExp.statusCode == 200,
+               let httpExp = expResp as? HTTPURLResponse {
+                if httpExp.statusCode == 200 {
+                    expResponseData = expData
+                } else if httpExp.statusCode == 401 || httpExp.statusCode == 403 {
+                    var retryReq = URLRequest(url: expUrl)
+                    retryReq.httpMethod = "POST"
+                    retryReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    retryReq.httpBody = expReq.httpBody
+                    if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
+                       let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
+                        expResponseData = rData
+                    }
+                }
+            } else {
+                var retryReq = URLRequest(url: expUrl)
+                retryReq.httpMethod = "POST"
+                retryReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                retryReq.httpBody = expReq.httpBody
+                if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
+                   let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
+                    expResponseData = rData
+                }
+            }
+
+            if let expData = expResponseData,
                let expArray = try? JSONSerialization.jsonObject(with: expData) as? [[String: Any]] {
                 for item in expArray {
                     if let doc = item["document"] as? [String: Any],
@@ -1508,8 +1533,20 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 if !idToken.isEmpty {
                     expReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
                 }
+                var expGetData: Data? = nil
                 if let (expData, expResp) = try? await URLSession.shared.data(for: expReq),
-                   let httpExp = expResp as? HTTPURLResponse, httpExp.statusCode == 200,
+                   let httpExp = expResp as? HTTPURLResponse {
+                    if httpExp.statusCode == 200 {
+                        expGetData = expData
+                    } else if httpExp.statusCode == 401 || httpExp.statusCode == 403 {
+                        var retryReq = URLRequest(url: expGetUrl)
+                        if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
+                           let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
+                            expGetData = rData
+                        }
+                    }
+                }
+                if let expData = expGetData,
                    let expJson = try? JSONSerialization.jsonObject(with: expData) as? [String: Any],
                    let expDocs = expJson["documents"] as? [[String: Any]] {
                     for doc in expDocs {
@@ -1544,13 +1581,38 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let body: [String: Any] = [
                 "structuredQuery": [
                     "from": [["collectionId": "support_tickets"]],
-                    "limit": 500
+                    "limit": 1000
                 ]
             ]
             tixReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
+            var tixResponseData: Data? = nil
             if let (tixData, tixResp) = try? await URLSession.shared.data(for: tixReq),
-               let httpTix = tixResp as? HTTPURLResponse, httpTix.statusCode == 200,
+               let httpTix = tixResp as? HTTPURLResponse {
+                if httpTix.statusCode == 200 {
+                    tixResponseData = tixData
+                } else if httpTix.statusCode == 401 || httpTix.statusCode == 403 {
+                    var retryReq = URLRequest(url: tixUrl)
+                    retryReq.httpMethod = "POST"
+                    retryReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    retryReq.httpBody = tixReq.httpBody
+                    if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
+                       let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
+                        tixResponseData = rData
+                    }
+                }
+            } else {
+                var retryReq = URLRequest(url: tixUrl)
+                retryReq.httpMethod = "POST"
+                retryReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                retryReq.httpBody = tixReq.httpBody
+                if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
+                   let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
+                    tixResponseData = rData
+                }
+            }
+
+            if let tixData = tixResponseData,
                let tixArray = try? JSONSerialization.jsonObject(with: tixData) as? [[String: Any]] {
                 for item in tixArray {
                     if let doc = item["document"] as? [String: Any] {
@@ -1568,8 +1630,20 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 if !idToken.isEmpty {
                     tixReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
                 }
+                var tixGetData: Data? = nil
                 if let (tixData, tixResp) = try? await URLSession.shared.data(for: tixReq),
-                   let httpTix = tixResp as? HTTPURLResponse, httpTix.statusCode == 200,
+                   let httpTix = tixResp as? HTTPURLResponse {
+                    if httpTix.statusCode == 200 {
+                        tixGetData = tixData
+                    } else if httpTix.statusCode == 401 || httpTix.statusCode == 403 {
+                        var retryReq = URLRequest(url: tixGetUrl)
+                        if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
+                           let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
+                            tixGetData = rData
+                        }
+                    }
+                }
+                if let tixData = tixGetData,
                    let tixJson = try? JSONSerialization.jsonObject(with: tixData) as? [String: Any],
                    let docs = tixJson["documents"] as? [[String: Any]] {
                     tixDocsList = docs
@@ -1581,9 +1655,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         df.dateFormat = "yyyy-MM-dd"
         df.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
 
-        let cfg = self.travelConfig
-        let pKm = cfg.pricePerKm > 0 ? cfg.pricePerKm : (Double(self.cfgPricePerKm) ?? 5000.0)
-        let tAllow = cfg.tripBaseAllowance > 0 ? cfg.tripBaseAllowance : (Double(self.cfgTripBaseAllowance) ?? 50000.0)
+        let cfg = config
+        let pKm = cfg.pricePerKm > 0 ? cfg.pricePerKm : 1500.0
+        let tAllow = cfg.tripBaseAllowance > 0 ? cfg.tripBaseAllowance : 50000.0
 
         let checkOutParts = cfg.standardCheckOutTime.components(separatedBy: ":")
         let checkOutHour = Int(checkOutParts.first ?? "") ?? 17
@@ -1736,20 +1810,40 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     }
 
     // MARK: - FETCH TRAVEL EXPENSE CONFIG ASYNC HELPER
-    public func fetchTravelExpenseConfigAsync() async {
+    @discardableResult
+    public func fetchTravelExpenseConfigAsync() async -> TravelExpenseConfig {
         let cleanComp = cleanCompanyId
-        guard !cleanComp.isEmpty else { return }
+        guard !cleanComp.isEmpty else { return TravelExpenseConfig() }
 
         let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/travel_expense_config"
-        guard let url = URL(string: urlStr) else { return }
+        guard let url = URL(string: urlStr) else { return TravelExpenseConfig() }
 
         var request = URLRequest(url: url)
         if !idToken.isEmpty {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         }
 
+        var responseData: Data? = nil
         if let (data, response) = try? await URLSession.shared.data(for: request),
-           let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+           let httpResponse = response as? HTTPURLResponse {
+            if httpResponse.statusCode == 200 {
+                responseData = data
+            } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                var retryReq = URLRequest(url: url)
+                if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
+                   let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
+                    responseData = rData
+                }
+            }
+        } else {
+            var retryReq = URLRequest(url: url)
+            if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
+               let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
+                responseData = rData
+            }
+        }
+
+        if let data = responseData,
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let fields = json["fields"] as? [String: Any] {
 
@@ -1781,7 +1875,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             cfg.targetAddress = FirestoreHelper.getString(fields["targetAddress"] as? [String: Any])
 
             let pKm = FirestoreHelper.getDouble(fields["pricePerKm"] as? [String: Any])
-            cfg.pricePerKm = pKm > 0 ? pKm : 5000.0
+            cfg.pricePerKm = pKm > 0 ? pKm : 1500.0
             let tAllow = FirestoreHelper.getDouble(fields["tripBaseAllowance"] as? [String: Any])
             cfg.tripBaseAllowance = tAllow > 0 ? tAllow : 50000.0
             cfg.overtimeMultiplier = FirestoreHelper.getDouble(fields["overtimeMultiplier"] as? [String: Any])
@@ -1818,7 +1912,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 self.cfgTripBaseAllowance = "\(Int(cfg.tripBaseAllowance))"
                 self.cfgOvertimeMultiplier = cfg.overtimeMultiplier > 0 ? "\(cfg.overtimeMultiplier)" : "0"
             }
+            return cfg
         }
+        return self.travelConfig
     }
 
     // MARK: - SAVE TRAVEL EXPENSE CONFIG (ĐỒNG BỘ ANDROID AttendanceReportScreen.kt lines 1438-1600)
@@ -1842,7 +1938,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             }
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            let pKm = Double(cfgPricePerKm) ?? 5000.0
+            let pKm = Double(cfgPricePerKm) ?? 1500.0
             let tAllow = Double(cfgTripBaseAllowance) ?? 50000.0
             let oMulti = Double(cfgOvertimeMultiplier) ?? 0.0
             let maxLate = Int(cfgMaxLateMinutes) ?? 15
@@ -1894,13 +1990,13 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     self.travelConfig.arrivalRadiusMeters = arrRadius
                     self.isSavingReportConfig = false
                     self.successMessage = "Đã lưu cấu hình định mức & khung giờ thành công!"
+                    self.fetchMonthlyReport(monthStr: self.selectedReportMonth)
                 }
             } else {
                 await MainActor.run {
                     self.isSavingReportConfig = false
                     self.errorMessage = "Lỗi lưu cấu hình định mức!"
                 }
-            }
         }
     }
 

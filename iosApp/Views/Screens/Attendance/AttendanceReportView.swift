@@ -211,9 +211,11 @@ public struct AttendanceReportView: View {
                 (!cleanEmail.isEmpty && !tEmail.isEmpty && tEmail.components(separatedBy: "@").first == cleanEmail.components(separatedBy: "@").first)
         }
 
-        let totalAmount = filteredRecs.reduce(0.0) { $0 + $1.totalAmount }
+        let totalAmount = filteredRecs.filter { $0.status != "REJECTED" }.reduce(0.0) { $0 + $1.totalAmount }
+        let pendingAmount = filteredRecs.filter { $0.status == "PENDING" }.reduce(0.0) { $0 + $1.totalAmount }
+        let approvedAmount = filteredRecs.filter { $0.status == "APPROVED" }.reduce(0.0) { $0 + $1.totalAmount }
         let paidAmount = filteredRecs.filter { $0.status == "PAID" }.reduce(0.0) { $0 + $1.totalAmount }
-        let pendingAmount = totalAmount - paidAmount
+        let rejectedAmount = filteredRecs.filter { $0.status == "REJECTED" }.reduce(0.0) { $0 + $1.totalAmount }
         let totalKm = filteredRecs.reduce(0.0) { $0 + $1.distanceKm }
 
         return TravelExpenseReport(
@@ -222,9 +224,9 @@ public struct AttendanceReportView: View {
             totalDistanceKm: totalKm,
             totalExpenseAmount: totalAmount,
             pendingAmount: pendingAmount,
-            approvedAmount: filteredRecs.filter { $0.status == "APPROVED" }.reduce(0.0) { $0 + $1.totalAmount },
+            approvedAmount: approvedAmount,
             paidAmount: paidAmount,
-            rejectedAmount: filteredRecs.filter { $0.status == "REJECTED" }.reduce(0.0) { $0 + $1.totalAmount },
+            rejectedAmount: rejectedAmount,
             records: filteredRecs,
             technicianSummaries: filteredSummaries
         )
@@ -833,8 +835,8 @@ public struct AttendanceReportView: View {
                                 Text("Tùy Chỉnh Định Mức Công Tác Phí")
                                     .font(.system(size: 13, weight: .bold))
                                     .foregroundColor(Color.appSecondaryDarkBlue)
-                                let pKmVal = Double(viewModel.cfgPricePerKm) ?? 5000.0
-                                let tAllowVal = Double(viewModel.cfgTripBaseAllowance) ?? 50000.0
+                                let pKmVal = viewModel.travelConfig.pricePerKm > 0 ? viewModel.travelConfig.pricePerKm : (Double(viewModel.cfgPricePerKm) ?? 1500.0)
+                                let tAllowVal = viewModel.travelConfig.tripBaseAllowance > 0 ? viewModel.travelConfig.tripBaseAllowance : (Double(viewModel.cfgTripBaseAllowance) ?? 50000.0)
                                 Text("Đang áp dụng: \(formatCurrency(pKmVal))/km • \(formatCurrency(tAllowVal))/ca")
                                     .font(.system(size: 11, weight: .semibold))
                                     .foregroundColor(Color(hex: "#2563EB"))
@@ -957,7 +959,7 @@ public struct AttendanceReportView: View {
                                             Text(tech.technicianName)
                                                 .font(.system(size: 13, weight: .bold))
                                                 .foregroundColor(Color.appSecondaryDarkBlue)
-                                            Text("\(tech.totalTrips) chuyến • \(formatDistanceKm(tech.totalDistanceKm))")
+                                            Text("\(tech.totalTrips) • \(formatDistanceKm(tech.totalDistanceKm))")
                                                 .font(.system(size: 11))
                                                 .foregroundColor(.gray)
                                         }

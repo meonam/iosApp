@@ -16,7 +16,7 @@ public struct TravelExpenseConfig: Codable {
     public var targetLatitude: Double = 0.0
     public var targetLongitude: Double = 0.0
     public var targetAddress: String = ""
-    public var pricePerKm: Double = 5000.0
+    public var pricePerKm: Double = 1500.0
     public var tripBaseAllowance: Double = 50000.0
     public var overtimeMultiplier: Double = 0.0
     public var strictGeofenceBlocking: Bool = false
@@ -41,7 +41,7 @@ public struct TravelExpenseConfig: Codable {
         targetLatitude: Double = 0.0,
         targetLongitude: Double = 0.0,
         targetAddress: String = "",
-        pricePerKm: Double = 5000.0,
+        pricePerKm: Double = 1500.0,
         tripBaseAllowance: Double = 50000.0,
         overtimeMultiplier: Double = 0.0,
         strictGeofenceBlocking: Bool = false,
