@@ -254,15 +254,14 @@ public struct AppSidebarDrawer: View {
                         }
 
                         // Mục chính 2: Hỗ trợ kỹ thuật
-                        let supportRoute: DrawerDestination = (isAdmin || isHelpDesk) ? .supportHub : .staffSupport
                         drawerItemRow(
                             title: "Hỗ trợ kỹ thuật",
                             icon: "headphones",
                             color: Color(hex: "#EC4899"),
                             badge: openTicketsCount > 0 ? "\(openTicketsCount)" : nil,
-                            isSelected: currentDestination == .supportHub || currentDestination == .staffSupport
+                            isSelected: currentDestination == .supportHub || currentDestination == .staffSupport || currentDestination == .adminTicketList
                         ) {
-                            onSelect(supportRoute)
+                            onSelect(.supportHub)
                         }
 
                         // --- NHÓM 1: QUẢN LÝ THIẾT BỊ ---

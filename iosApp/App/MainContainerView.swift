@@ -150,7 +150,7 @@ public struct MainContainerView: View {
                 currentDestination = .deviceList
             }
 
-            let isSupportSelected = currentDestination == .supportHub || currentDestination == .staffSupport
+            let isSupportSelected = currentDestination == .supportHub || currentDestination == .staffSupport || currentDestination == .adminTicketList
             let ticketBadge: String? = homeViewModel.openTicketsCount > 0 ? (homeViewModel.openTicketsCount > 99 ? "99+" : "\(homeViewModel.openTicketsCount)") : nil
             bottomNavItem(
                 title: "Hỗ trợ",
@@ -158,13 +158,7 @@ public struct MainContainerView: View {
                 badgeText: ticketBadge,
                 isSelected: isSupportSelected
             ) {
-                if let u = authViewModel.currentUser {
-                    if u.isAdmin || u.isSuperAdmin || u.isHelpDesk || u.isTechnician {
-                        currentDestination = .supportHub
-                    } else {
-                        currentDestination = .staffSupport
-                    }
-                }
+                currentDestination = .supportHub
             }
 
             bottomNavItem(
@@ -221,13 +215,7 @@ public struct MainContainerView: View {
     // MARK: - FLOATING ACTION BUTTON (GREEN SUPPORT FAB WITH BADGE)
     private var floatingSupportButton: some View {
         Button(action: {
-            if let u = authViewModel.currentUser {
-                if u.isAdmin || u.isSuperAdmin || u.isHelpDesk || u.isTechnician {
-                    currentDestination = .supportHub
-                } else {
-                    currentDestination = .staffSupport
-                }
-            }
+            currentDestination = .supportHub
         }) {
             ZStack(alignment: .topTrailing) {
                 Circle()
@@ -322,6 +310,7 @@ public struct MainContainerView: View {
         case .supportHub:
             SupportHubView(
                 viewModel: SupportViewModel(user: user, companyId: compId, idToken: token),
+                authViewModel: authViewModel,
                 onBack: { currentDestination = .home },
                 onSelectTicket: { ticket in
                     selectedTicketForChat = ticket

@@ -504,13 +504,7 @@ public struct HomeScreenView: View {
                 accentColor: ticketColor,
                 bgColor: ticketBg
             ) {
-                if isAdmOrHd {
-                    onNavigate(.adminTicketList)
-                } else if isTech {
-                    onNavigate(.staffSupport)
-                } else {
-                    onNavigate(.supportHub)
-                }
+                onNavigate(.supportHub)
             }
 
             // Thẻ 3: Điểm danh GPS (Màu xanh ngọc teal)
@@ -625,13 +619,7 @@ public struct HomeScreenView: View {
                     iconColor: Color(hex: "#EA580C"),
                     bgColor: Color(hex: "#FFEDD5")
                 ) {
-                    if viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk {
-                        onNavigate(.adminTicketList)
-                    } else if viewModel.user.isTechnician {
-                        onNavigate(.staffSupport)
-                    } else {
-                        onNavigate(.supportHub)
-                    }
+                    onNavigate(.supportHub)
                 }
             }
 

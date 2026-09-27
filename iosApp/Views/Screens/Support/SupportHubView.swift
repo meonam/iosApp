@@ -3,11 +3,13 @@ import SwiftUI
 // MARK: - MÀN HÌNH DANH SÁCH PHIẾU HỖ TRỢ TRỰC TUYẾN & XỬ LÝ SỰ CỐ (ĐỒNG BỘ 1:1 VỚI DESKTOP SUPPORT TICKET LIST)
 public struct SupportHubView: View {
     @ObservedObject var viewModel: SupportViewModel
+    var authViewModel: AuthViewModel?
     var onBack: () -> Void
     var onSelectTicket: (SupportTicket) -> Void
     var onOpenRatingReport: () -> Void
 
     // Dialog & Sheet States
+    @State private var showingCreateTicketSheet: Bool = false
     @State private var showConfirmCleanClosed: Bool = false
     @State private var showGuideAlert: Bool = false
     @State private var showKtvMonitorSheet: Bool = false
@@ -18,11 +20,13 @@ public struct SupportHubView: View {
 
     public init(
         viewModel: SupportViewModel,
+        authViewModel: AuthViewModel? = nil,
         onBack: @escaping () -> Void,
         onSelectTicket: @escaping (SupportTicket) -> Void,
         onOpenRatingReport: @escaping () -> Void
     ) {
         self.viewModel = viewModel
+        self.authViewModel = authViewModel
         self.onBack = onBack
         self.onSelectTicket = onSelectTicket
         self.onOpenRatingReport = onOpenRatingReport
@@ -110,6 +114,22 @@ public struct SupportHubView: View {
             OnlineKtvMonitorView(supportVM: viewModel, onBack: {
                 showKtvMonitorSheet = false
             })
+        }
+        // Sheet Tạo yêu cầu hỗ trợ mới (Dành cho mọi role)
+        .sheet(isPresented: $showingCreateTicketSheet) {
+            if let authVM = authViewModel {
+                CreateTicketSheetView(
+                    supportVM: viewModel,
+                    authViewModel: authVM,
+                    onSuccess: {
+                        showingCreateTicketSheet = false
+                        viewModel.fetchTickets()
+                    },
+                    onCancel: {
+                        showingCreateTicketSheet = false
+                    }
+                )
+            }
         }
         // Alert xác nhận dọn dẹp các yêu cầu đã đóng
         .alert(isPresented: $showConfirmCleanClosed) {
@@ -425,11 +445,20 @@ public struct SupportHubView: View {
                         .foregroundColor(.white)
                 }
 
-                Text("Hỗ trợ kỹ thuật")
+                Text("Hỗ trợ trực tuyến")
                     .font(.system(size: 17, weight: .bold))
                     .foregroundColor(.white)
 
                 Spacer()
+
+                // Nút Tạo yêu cầu hỗ trợ mới (Đồng nhất cho mọi người dùng)
+                if authViewModel != nil {
+                    Button(action: { showingCreateTicketSheet = true }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 19, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                }
 
                 // Nút 1: Hướng dẫn
                 Button(action: { showGuideAlert = true }) {
