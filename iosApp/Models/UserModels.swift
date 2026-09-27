@@ -141,6 +141,14 @@ public struct User: Identifiable, Codable, Hashable {
         return roleTitle
     }
 
+    public var departmentName: String {
+        return !donVi.isEmpty ? donVi : departmentId
+    }
+
+    public var companyName: String {
+        return !companyId.isEmpty ? companyId : "SGCOOP"
+    }
+
     public var mnvDisplay: String {
         if !maNhanVien.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return maNhanVien.trimmingCharacters(in: .whitespacesAndNewlines)
