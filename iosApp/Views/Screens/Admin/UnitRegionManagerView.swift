@@ -1,4 +1,4 @@
-﻿import SwiftUI
+import SwiftUI
 
 public struct UnitRegionManagerView: View {
     @ObservedObject var viewModel: AdminViewModel
@@ -241,7 +241,6 @@ public struct UnitRegionManagerView: View {
                     }
                     .font(.headline)
                     .foregroundColor(.appPrimary)
-                }
             )
             .onAppear {
                 if selectedTab == 0 && regionSelection.isEmpty && !viewModel.regions.isEmpty {

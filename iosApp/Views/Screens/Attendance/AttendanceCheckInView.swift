@@ -1,4 +1,4 @@
-import SwiftUI
+﻿﻿import SwiftUI
 import CoreLocation
 
 // MARK: - ImagePicker
@@ -28,7 +28,7 @@ struct ImagePicker: UIViewControllerRepresentable {
         }
         
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let image = info[.originalImage] as ? UIImage {
+            if let image = info[.originalImage] as? UIImage {
                 self.parent.image = image
             }
             picker.dismiss(animated: true)
@@ -109,10 +109,10 @@ public struct AttendanceCheckInView: View {
                                     }
                                     
                                     HStack {
-                                        Text("Bán!tính cho phép:")
+                                        Text("Ban kinh cho phep:")
                                             .font(.system(size: 14))
                                             .foregroundColor(.gray)
-                                        Text("\(Int(viewModel.travelConfig.geofenceRadiusMeters))m�")
+                                        Text("\(Int(viewModel.travelConfig.geofenceRadiusMeters))m")
                                             .font(.system(size: 14, weight: .bold))
                                             .foregroundColor(.black)
                                     }
@@ -175,7 +175,7 @@ public struct AttendanceCheckInView: View {
                                     .foregroundColor(.appText)
                                 
                                 HStack(spacing: 8) {
-                                    ShiftButton(title: "Hp�nh chính", tag: "HC", selectedTag: $viewModel.selectedShiftType)
+                                    ShiftButton(title: "Hanh chinh", tag: "HC", selectedTag: $viewModel.selectedShiftType)
                                     ShiftButton(title: "Ca 2", tag: "SHIFT_2", selectedTag: $viewModel.selectedShiftType)
                                     ShiftButton(title: "Ca đêm", tag: "NIGHT", selectedTag: $viewModel.selectedShiftType)
                                 }
@@ -379,7 +379,7 @@ struct TimeCardView: View {
                 .font(.system(size: 24, weight: .bold))
                 .foregroundColor(isDone ? color : .black)
             
-            Text(isDone ?  Đã ghi nhận" : "Chưa có dữ liệu")
+            Text(isDone ? "Da ghi nhan" : "Chua co du lieu")
                 .font(.system(size: 11))
                 .foregroundColor(isDone ? color : .gray)
                 .padding(.horizontal, 8)

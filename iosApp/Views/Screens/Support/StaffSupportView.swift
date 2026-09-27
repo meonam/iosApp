@@ -1,4 +1,4 @@
-﻿import SwiftUI
+import SwiftUI
 
 struct StaffTicket: Identifiable {
     let id: String
@@ -276,11 +276,10 @@ struct CreateTicketView: View {
             .navigationBarItems(
                 leading: Button("Hủy", action: onCancel),
                 trailing: Button("Lưu") {
-                        submitTicket()
-                    }
-                    .disabled(title.isEmpty || description.isEmpty || isSubmitting)
+                    submitTicket()
                 }
-            }
+                .disabled(title.isEmpty || description.isEmpty || isSubmitting)
+            )
             .overlay {
                 if isSubmitting {
                     Color.black.opacity(0.3).ignoresSafeArea()
