@@ -90,25 +90,76 @@ public class HomeViewModel: ObservableObject {
         }
     }
 
-    // 2. Tải số lượng Ticket đang mở (từ collection support_tickets chuẩn Android)
+    // 2. Tải số lượng Ticket đang mở (đồng bộ 1:1 với HomeScreen.kt trên Android qua runQuery)
     private func fetchOpenTickets() async {
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets?pageSize=150"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId):runQuery"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
+        request.httpMethod = "POST"
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let queryPayload: [String: Any] = [
+            "structuredQuery": [
+                "from": [["collectionId": "support_tickets"]],
+                "orderBy": [
+                    ["field": ["fieldPath": "createdAt"], "direction": "DESCENDING"]
+                ],
+                "limit": 300
+            ]
+        ]
+
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) else { return }
+        request.httpBody = bodyData
 
         guard let (data, response) = try? await URLSession.shared.data(for: request),
               let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let documents = json["documents"] as? [[String: Any]] else {
+              let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
             return
         }
 
-        let openCount = documents.filter { doc in
-            guard let fields = doc["fields"] as? [String: Any] else { return false }
+        let deletedTicketIds = Set(UserDefaults.standard.stringArray(forKey: "support_prefs_deleted_ids") ?? [])
+        let isFullAdminOrHelpDesk = user.isAdmin || user.isSuperAdmin || user.isHelpDesk
+        let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let emailPrefix = cleanEmail.contains("@") ? String(cleanEmail.split(separator: "@").first ?? "") : cleanEmail
+
+        func isSameUser(_ target: String) -> Bool {
+            let t = target.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if t.isEmpty || cleanEmail.isEmpty { return false }
+            if t == cleanEmail { return true }
+            let p = t.contains("@") ? String(t.split(separator: "@").first ?? "") : t
+            return !p.isEmpty && !emailPrefix.isEmpty && p == emailPrefix
+        }
+
+        let openCount = results.filter { item in
+            guard let doc = item["document"] as? [String: Any],
+                  let fields = doc["fields"] as? [String: Any] else { return false }
+
+            let name = doc["name"] as? String ?? ""
+            let id = name.components(separatedBy: "/").last ?? ""
             let status = FirestoreHelper.getString(fields["status"] as? [String: Any]).uppercased()
-            return status != "CLOSED" && status != "RESOLVED"
+            let closedAt = FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any])
+            let isInvalid = FirestoreHelper.getBool(fields["isInvalid"] as? [String: Any])
+
+            let isClosed = status == "CLOSED" || status == "RESOLVED" || closedAt > 0
+            let isDeleted = deletedTicketIds.contains(id)
+            let isInvalidOrCanceled = isInvalid || status == "CANCELED"
+
+            if isClosed || isDeleted || isInvalidOrCanceled { return false }
+
+            if isFullAdminOrHelpDesk {
+                return true
+            } else {
+                let assignedToEmail = FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any])
+                let assignedTo = FirestoreHelper.getString(fields["assignedTo"] as? [String: Any])
+                let creatorEmail = FirestoreHelper.getString(fields["creatorEmail"] as? [String: Any])
+                let creatorUserId = FirestoreHelper.getString(fields["creatorUserId"] as? [String: Any])
+
+                let isAssigned = isSameUser(assignedToEmail) || isSameUser(assignedTo)
+                let isCreator = isSameUser(creatorEmail) || isSameUser(creatorUserId)
+                return isAssigned || isCreator
+            }
         }.count
 
         self.openTicketsCount = openCount

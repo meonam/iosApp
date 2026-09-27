@@ -143,59 +143,96 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
+    @Published public var deletedTicketIds: Set<String> = []
     @Published var myTickets: [SupportTicket] = []
     
     public init(user: User, companyId: String, idToken: String) {
         self.user = user
         self.companyId = companyId
         self.idToken = idToken
+        let saved = UserDefaults.standard.stringArray(forKey: "support_prefs_deleted_ids") ?? []
+        self.deletedTicketIds = Set(saved)
     }
 
-    public var filteredTickets: [SupportTicket] {
+    public func hideTicket(id: String) {
+        deletedTicketIds.insert(id)
+        UserDefaults.standard.set(Array(deletedTicketIds), forKey: "support_prefs_deleted_ids")
+    }
+
+    public func unhideTicket(id: String) {
+        deletedTicketIds.remove(id)
+        UserDefaults.standard.set(Array(deletedTicketIds), forKey: "support_prefs_deleted_ids")
+    }
+
+    public func cleanClosedTickets() {
+        let closedIds = scopedTickets.filter { !$0.isOpen || $0.closedAt > 0 }.map { $0.id }
+        for id in closedIds {
+            deletedTicketIds.insert(id)
+        }
+        UserDefaults.standard.set(Array(deletedTicketIds), forKey: "support_prefs_deleted_ids")
+    }
+
+    public var scopedTickets: [SupportTicket] {
         let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let isFull = user.isAdmin || user.isSuperAdmin || user.isHelpDesk
 
-        // 1. Phân quyền xem ticket
-        let baseList: [SupportTicket]
         if isFull {
-            baseList = rawTickets
+            return rawTickets
         } else if user.isTechnician || user.isSpecialist {
-            // KTV xem ticket giao cho mình
-            baseList = rawTickets.filter { t in
+            return rawTickets.filter { t in
                 t.isUserAssigned(email: cleanEmail) || t.creatorEmail.lowercased() == cleanEmail
             }
         } else {
-            // Nhân viên thường chỉ xem ticket do mình tạo
-            baseList = rawTickets.filter { t in
-                t.creatorEmail.lowercased() == cleanEmail || t.creatorUserId.lowercased() == cleanEmail
+            return rawTickets.filter { t in
+                let cEmail = t.creatorEmail.lowercased()
+                let cUid = t.creatorUserId.lowercased()
+                return cEmail == cleanEmail || cUid == cleanEmail
             }
         }
+    }
 
-        // 2. Lọc theo Tab trạng thái & Search
-        return baseList.filter { t in
-            let matchTab: Bool
-            switch filterTab {
-            case "OPEN": matchTab = t.isOpen
-            case "CLOSED": matchTab = !t.isOpen
-            default: matchTab = true
-            }
-
-            let matchSearch = searchQuery.isEmpty ||
-                t.subject.localizedCaseInsensitiveContains(searchQuery) ||
-                t.id.localizedCaseInsensitiveContains(searchQuery) ||
-                t.creatorName.localizedCaseInsensitiveContains(searchQuery) ||
-                t.donVi.localizedCaseInsensitiveContains(searchQuery)
-
-            return matchTab && matchSearch
-        }
+    public var allCount: Int {
+        scopedTickets.filter { !deletedTicketIds.contains($0.id) }.count
     }
 
     public var openCount: Int {
-        rawTickets.filter { $0.isOpen }.count
+        scopedTickets.filter { !deletedTicketIds.contains($0.id) && $0.isOpen && $0.closedAt <= 0 }.count
     }
 
     public var closedCount: Int {
-        rawTickets.filter { !$0.isOpen }.count
+        scopedTickets.filter { !deletedTicketIds.contains($0.id) && (!$0.isOpen || $0.closedAt > 0) }.count
+    }
+
+    public var hiddenCount: Int {
+        scopedTickets.filter { deletedTicketIds.contains($0.id) }.count
+    }
+
+    public var filteredTickets: [SupportTicket] {
+        let baseList = scopedTickets
+        return baseList.filter { t in
+            if filterTab == "HIDDEN" {
+                if !deletedTicketIds.contains(t.id) { return false }
+            } else {
+                if deletedTicketIds.contains(t.id) { return false }
+                let isClosed = !t.isOpen || t.closedAt > 0
+                switch filterTab {
+                case "OPEN": if isClosed { return false }
+                case "CLOSED": if !isClosed { return false }
+                default: break // "ALL"
+                }
+            }
+
+            if !searchQuery.isEmpty {
+                let match = t.subject.localizedCaseInsensitiveContains(searchQuery) ||
+                    t.id.localizedCaseInsensitiveContains(searchQuery) ||
+                    t.creatorName.localizedCaseInsensitiveContains(searchQuery) ||
+                    t.creatorEmail.localizedCaseInsensitiveContains(searchQuery) ||
+                    t.donVi.localizedCaseInsensitiveContains(searchQuery) ||
+                    t.assignedToName.localizedCaseInsensitiveContains(searchQuery)
+                if !match { return false }
+            }
+            return true
+        }
     }
 
     // Staff ticket creation
@@ -235,41 +272,88 @@ public class SupportViewModel: ObservableObject {
         return id
     }
 
-    // Staff xem ticket của mình
-    public func fetchMyTickets() async {
-        await MainActor.run { isLoading = true }
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets?pageSize=100" // Should filter via structuredQuery, but for now fetch and filter
-        guard let url = URL(string: urlStr) else { return }
+    // MARK: - RUN QUERY HELPER (ĐỒNG BỘ 1:1 VỚI ANDROID, LOAD ĐỦ TICKETS MỚI NHẤT)
+    private func fetchAllTicketsFromFirestore() async -> [SupportTicket]? {
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId):runQuery"
+        guard let url = URL(string: urlStr) else { return nil }
 
         var request = URLRequest(url: url)
+        request.httpMethod = "POST"
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let queryPayload: [String: Any] = [
+            "structuredQuery": [
+                "from": [["collectionId": "support_tickets"]],
+                "orderBy": [
+                    ["field": ["fieldPath": "createdAt"], "direction": "DESCENDING"]
+                ],
+                "limit": 300
+            ]
+        ]
+
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) else { return nil }
+        request.httpBody = bodyData
 
         guard let (data, response) = try? await URLSession.shared.data(for: request),
               let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let documents = json["documents"] as? [[String: Any]] else {
+              let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            return nil
+        }
+
+        return results.compactMap { item in
+            guard let doc = item["document"] as? [String: Any],
+                  let name = doc["name"] as? String,
+                  let fields = doc["fields"] as? [String: Any] else { return nil }
+            let id = name.components(separatedBy: "/").last ?? ""
+
+            return SupportTicket(
+                id: id,
+                creatorEmail: FirestoreHelper.getString(fields["creatorEmail"] as? [String: Any]),
+                creatorName: FirestoreHelper.getString(fields["creatorName"] as? [String: Any]),
+                creatorPhone: FirestoreHelper.getString(fields["creatorPhone"] as? [String: Any]),
+                creatorUserId: FirestoreHelper.getString(fields["creatorUserId"] as? [String: Any]),
+                subject: FirestoreHelper.getString(fields["subject"] as? [String: Any]),
+                status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
+                category: FirestoreHelper.getString(fields["category"] as? [String: Any]),
+                priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
+                assetId: FirestoreHelper.getString(fields["assetId"] as? [String: Any]),
+                assetName: FirestoreHelper.getString(fields["assetName"] as? [String: Any]),
+                images: FirestoreHelper.getStringArray(fields["images"] as? [String: Any]),
+                createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
+                lastMessage: FirestoreHelper.getString(fields["lastMessage"] as? [String: Any]),
+                lastMessageAt: FirestoreHelper.getInt64(fields["lastMessageAt"] as? [String: Any]),
+                companyId: FirestoreHelper.getString(fields["companyId"] as? [String: Any]),
+                departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
+                donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
+                initialMessage: FirestoreHelper.getString(fields["initialMessage"] as? [String: Any]),
+                rating: FirestoreHelper.getInt(fields["rating"] as? [String: Any]),
+                feedback: FirestoreHelper.getString(fields["feedback"] as? [String: Any]),
+                assignedTo: FirestoreHelper.getString(fields["assignedTo"] as? [String: Any]),
+                assignedToEmail: FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any]),
+                assignedToName: FirestoreHelper.getString(fields["assignedToName"] as? [String: Any]),
+                isAcknowledged: FirestoreHelper.getBool(fields["isAcknowledged"] as? [String: Any]),
+                resolvedAt: FirestoreHelper.getInt64(fields["resolvedAt"] as? [String: Any]),
+                closedAt: FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any]),
+                isAutoRated: FirestoreHelper.getBool(fields["isAutoRated"] as? [String: Any]),
+                isInvalid: FirestoreHelper.getBool(fields["isInvalid"] as? [String: Any])
+            )
+        }
+    }
+
+    // Staff xem ticket của mình
+    public func fetchMyTickets() async {
+        await MainActor.run { isLoading = true }
+        guard let all = await fetchAllTicketsFromFirestore() else {
             await MainActor.run { self.isLoading = false }
             return
         }
 
         let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let list: [SupportTicket] = documents.compactMap { doc in
-            guard let name = doc["name"] as? String,
-                  let fields = doc["fields"] as? [String: Any] else { return nil }
-            let creatorEmail = FirestoreHelper.getString(fields["creatorEmail"] as? [String: Any]).lowercased()
-            if creatorEmail != cleanEmail { return nil }
-            
-            let id = name.components(separatedBy: "/").last ?? ""
-            return SupportTicket(
-                id: id,
-                creatorEmail: creatorEmail,
-                creatorName: FirestoreHelper.getString(fields["creatorName"] as? [String: Any]),
-                subject: FirestoreHelper.getString(fields["subject"] as? [String: Any]),
-                status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
-                priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
-                createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
-                companyId: FirestoreHelper.getString(fields["companyId"] as? [String: Any])
-            )
+        let list = all.filter { t in
+            let cEmail = t.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let cUid = t.creatorUserId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return cEmail == cleanEmail || cUid == cleanEmail
         }
 
         await MainActor.run {
@@ -278,60 +362,15 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
-    // Tải danh sách tickets từ Firestore
+    // Tải danh sách tickets từ Firestore (cho SupportHub)
     public func fetchTickets() {
         isLoading = true
         errorMessage = nil
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets?pageSize=100"
-            guard let url = URL(string: urlStr) else { return }
-
-            var request = URLRequest(url: url)
-            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-
-            guard let (data, response) = try? await URLSession.shared.data(for: request),
-                  let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let documents = json["documents"] as? [[String: Any]] else {
+            guard let list = await fetchAllTicketsFromFirestore() else {
                 self.isLoading = false
                 self.errorMessage = "Không thể tải danh sách yêu cầu hỗ trợ"
                 return
-            }
-
-            let list: [SupportTicket] = documents.compactMap { doc in
-                guard let name = doc["name"] as? String,
-                      let fields = doc["fields"] as? [String: Any] else { return nil }
-                let id = name.components(separatedBy: "/").last ?? ""
-
-                return SupportTicket(
-                    id: id,
-                    creatorEmail: FirestoreHelper.getString(fields["creatorEmail"] as? [String: Any]),
-                    creatorName: FirestoreHelper.getString(fields["creatorName"] as? [String: Any]),
-                    creatorPhone: FirestoreHelper.getString(fields["creatorPhone"] as? [String: Any]),
-                    creatorUserId: FirestoreHelper.getString(fields["creatorUserId"] as? [String: Any]),
-                    subject: FirestoreHelper.getString(fields["subject"] as? [String: Any]),
-                    status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
-                    category: FirestoreHelper.getString(fields["category"] as? [String: Any]),
-                    priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
-                    assetId: FirestoreHelper.getString(fields["assetId"] as? [String: Any]),
-                    assetName: FirestoreHelper.getString(fields["assetName"] as? [String: Any]),
-                    images: FirestoreHelper.getStringArray(fields["images"] as? [String: Any]),
-                    createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
-                    lastMessage: FirestoreHelper.getString(fields["lastMessage"] as? [String: Any]),
-                    lastMessageAt: FirestoreHelper.getInt64(fields["lastMessageAt"] as? [String: Any]),
-                    companyId: FirestoreHelper.getString(fields["companyId"] as? [String: Any]),
-                    departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
-                    donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
-                    initialMessage: FirestoreHelper.getString(fields["initialMessage"] as? [String: Any]),
-                    rating: FirestoreHelper.getInt(fields["rating"] as? [String: Any]),
-                    feedback: FirestoreHelper.getString(fields["feedback"] as? [String: Any]),
-                    assignedTo: FirestoreHelper.getString(fields["assignedTo"] as? [String: Any]),
-                    assignedToEmail: FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any]),
-                    assignedToName: FirestoreHelper.getString(fields["assignedToName"] as? [String: Any]),
-                    isAcknowledged: FirestoreHelper.getBool(fields["isAcknowledged"] as? [String: Any]),
-                    resolvedAt: FirestoreHelper.getInt64(fields["resolvedAt"] as? [String: Any]),
-                    closedAt: FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any])
-                )
             }
 
             self.rawTickets = list.sorted { $0.createdAt > $1.createdAt }

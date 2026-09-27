@@ -406,17 +406,37 @@ public struct HomeScreenView: View {
                 onNavigate(.deviceList)
             }
 
-            // Thẻ 2: Sự cố mở (Màu đỏ cảnh báo)
+            // Thẻ 2: Sự cố kỹ thuật OPEN (Đồng bộ 1:1 với HomeScreen.kt trên Android)
             let openCount = viewModel.openTicketsCount
+            let isAdmOrHd = viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk
+            let isTech = viewModel.user.isTechnician
+
+            let ticketColor = openCount > 0 ? Color(hex: "#DC2626") : Color(hex: "#16A34A")
+            let ticketBg = openCount > 0 ? Color(hex: "#FEF2F2") : Color(hex: "#F0FDF4")
+            let ticketIcon = openCount > 0 ? "exclamationmark.triangle.fill" : "checkmark.circle.fill"
+            let ticketSubtitle: String = {
+                if isAdmOrHd {
+                    return openCount > 0 ? "Tổng cần xử lý" : "Đang ổn định"
+                } else if isTech {
+                    return openCount > 0 ? "Ca của tôi" : "Đã hoàn thành"
+                } else {
+                    return openCount > 0 ? "Yêu cầu của tôi" : "Không có sự cố"
+                }
+            }()
+
             statsCardItem(
                 title: "Sự cố mở",
                 count: "\(openCount)",
-                subtitle: "Tổng cần xử lý",
-                icon: "exclamationmark.triangle.fill",
-                accentColor: Color(hex: "#DC2626"),
-                bgColor: Color(hex: "#FEF2F2")
+                subtitle: ticketSubtitle,
+                icon: ticketIcon,
+                accentColor: ticketColor,
+                bgColor: ticketBg
             ) {
-                onNavigate(.supportHub)
+                if isAdmOrHd || isTech {
+                    onNavigate(.supportHub)
+                } else {
+                    onNavigate(.staffSupport)
+                }
             }
 
             // Thẻ 3: Điểm danh GPS (Màu xanh ngọc teal)

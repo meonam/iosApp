@@ -266,24 +266,40 @@ public struct SupportRatingReportView: View {
 
     private func fetchTickets() async {
         await MainActor.run { isLoading = true }
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.companyId)/support_tickets?pageSize=300"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.companyId):runQuery"
         guard let url = URL(string: urlStr) else { return }
         
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"
+        request.httpMethod = "POST"
         request.setValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let queryPayload: [String: Any] = [
+            "structuredQuery": [
+                "from": [["collectionId": "support_tickets"]],
+                "orderBy": [
+                    ["field": ["fieldPath": "createdAt"], "direction": "DESCENDING"]
+                ],
+                "limit": 300
+            ]
+        ]
+
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) else {
+            await MainActor.run { isLoading = false }
+            return
+        }
+        request.httpBody = bodyData
         
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let documents = json["documents"] as? [[String: Any]] {
-                    
+                if let results = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
                     var loaded: [SupportTicket] = []
                     var ktvs = Set<String>()
                     
-                    for doc in documents {
-                        guard let fields = doc["fields"] as? [String: Any] else { continue }
+                    for item in results {
+                        guard let doc = item["document"] as? [String: Any],
+                              let fields = doc["fields"] as? [String: Any] else { continue }
                         
                         let assignedEmail = FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any])
                         let assignedName = FirestoreHelper.getString(fields["assignedToName"] as? [String: Any])
