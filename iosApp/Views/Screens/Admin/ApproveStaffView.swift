@@ -8,8 +8,8 @@ public struct ApproveStaffView: View {
     @State private var searchQuery: String = ""
     @State private var staffToApprove: User? = nil
     @State private var selectedRole: String = "STAFF"
-    @State private var selectedUnit: String = "Co.opmart Cần Thơ"
-    @State private var selectedDept: String = "Phòng Công nghệ thông tin"
+    @State private var selectedUnit: String = ""
+    @State private var selectedDept: String = ""
     @State private var showApprovalSheet: Bool = false
     @State private var showRejectAlert: Bool = false
     @State private var staffToReject: User? = nil
@@ -185,8 +185,8 @@ public struct ApproveStaffView: View {
 
                 Button(action: {
                     staffToApprove = staff
-                    selectedUnit = staff.donVi.isEmpty ? "Co.opmart Cần Thơ" : staff.donVi
-                    selectedDept = staff.departmentId.isEmpty ? "Phòng Công nghệ thông tin" : staff.departmentId
+                    selectedUnit = staff.donVi.isEmpty ? (viewModel.units.first?.tenDonVi ?? "") : staff.donVi
+                    selectedDept = staff.departmentId.isEmpty ? (viewModel.departments.first?.departmentName ?? "") : staff.departmentId
                     showApprovalSheet = true
                 }) {
                     HStack(spacing: 4) {
@@ -229,9 +229,28 @@ public struct ApproveStaffView: View {
                     }
                 }
 
-                Section(header: Text("Đơn vị & Phòng ban")) {
-                    TextField("Đơn vị", text: $selectedUnit)
-                    TextField("Phòng ban", text: $selectedDept)
+                Section(header: Text("Đơn vị")) {
+                    if !viewModel.units.isEmpty {
+                        Picker("Chọn Đơn vị", selection: $selectedUnit) {
+                            Text("-- Chọn đơn vị --").tag("")
+                            ForEach(viewModel.units) { u in
+                                Text(u.tenDonVi).tag(u.tenDonVi)
+                            }
+                        }
+                    }
+                    TextField("Hoặc nhập tên Đơn vị...", text: $selectedUnit)
+                }
+
+                Section(header: Text("Phòng ban")) {
+                    if !viewModel.departments.isEmpty {
+                        Picker("Chọn Phòng ban", selection: $selectedDept) {
+                            Text("-- Chọn phòng ban --").tag("")
+                            ForEach(viewModel.departments) { d in
+                                Text(d.departmentName).tag(d.departmentName)
+                            }
+                        }
+                    }
+                    TextField("Hoặc nhập tên Phòng ban...", text: $selectedDept)
                 }
             }
             .navigationTitle("Xác nhận phê duyệt")

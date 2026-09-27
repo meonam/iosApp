@@ -290,7 +290,7 @@ public struct DepartmentManagerView: View {
     private func saveNewDept() {
         let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
         let did = deptId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        let urlStr = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/departments?documentId=\(did)"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments?documentId=\(did)"
         
         guard let url = URL(string: urlStr) else { return }
         var request = URLRequest(url: url)
@@ -328,7 +328,7 @@ public struct DepartmentManagerView: View {
     
     private func updateDept() {
         let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
-        let urlStr = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/departments/\(editingDeptId)?updateMask.fieldPaths=departmentName&updateMask.fieldPaths=departmentType&updateMask.fieldPaths=managerName&updateMask.fieldPaths=managerEmail&updateMask.fieldPaths=hotline&updateMask.fieldPaths=location&updateMask.fieldPaths=isActive&updateMask.fieldPaths=isHelpDesk&updateMask.fieldPaths=isIncidentHandler&updateMask.fieldPaths=isWarehouse"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments/\(editingDeptId)?updateMask.fieldPaths=departmentName&updateMask.fieldPaths=departmentType&updateMask.fieldPaths=managerName&updateMask.fieldPaths=managerEmail&updateMask.fieldPaths=hotline&updateMask.fieldPaths=location&updateMask.fieldPaths=isActive&updateMask.fieldPaths=isHelpDesk&updateMask.fieldPaths=isIncidentHandler&updateMask.fieldPaths=isWarehouse"
         
         guard let url = URL(string: urlStr) else { return }
         var request = URLRequest(url: url)
@@ -364,7 +364,7 @@ public struct DepartmentManagerView: View {
     
     private func deleteDept(deptId: String) {
         let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
-        let urlStr = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/departments/\(deptId)"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments/\(deptId)"
         guard let url = URL(string: urlStr) else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"

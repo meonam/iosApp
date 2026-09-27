@@ -169,9 +169,10 @@ public struct AttendanceHistoryView: View {
         let companyId = authViewModel.currentUser?.companyId ?? ""
         let token = authViewModel.currentIdToken ?? ""
         let userId = authViewModel.currentUser?.id ?? ""
-        guard !companyId.isEmpty, !token.isEmpty, !userId.isEmpty else { return }
+        let userEmail = authViewModel.currentUser?.email ?? ""
+        guard !companyId.isEmpty, !token.isEmpty else { return }
         
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendance"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances?pageSize=300"
         guard let url = URL(string: urlStr) else { return }
         
         var request = URLRequest(url: url)
@@ -188,7 +189,10 @@ public struct AttendanceHistoryView: View {
                     for doc in docs {
                         if let fields = doc["fields"] as? [String: Any] {
                             let uId = FirestoreHelper.getString(fields["userId"] as? [String: Any])
-                            if uId == userId {
+                            let uEmail = FirestoreHelper.getString(fields["userEmail"] as? [String: Any])
+                            let isMatch = (!userId.isEmpty && uId == userId) ||
+                                          (!userEmail.isEmpty && uEmail.caseInsensitiveCompare(userEmail) == .orderedSame)
+                            if isMatch {
                                 let docName = doc["name"] as? String ?? ""
                                 let docId = docName.components(separatedBy: "/").last ?? ""
                                 let rec = AttendanceHistoryItem(

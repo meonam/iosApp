@@ -100,7 +100,8 @@ class PaywallLicenseViewModel: ObservableObject {
     }
     
     func activateEnterpriseCode(code: String) {
-        if code.trimmingCharacters(in: .whitespaces).isEmpty {
+        let cleanCode = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        if cleanCode.isEmpty {
             self.errorMessage = "Vui lòng nhập Key kích hoạt!"
             return
         }
@@ -109,22 +110,41 @@ class PaywallLicenseViewModel: ObservableObject {
         self.successMessage = nil
         
         Task {
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            let targetTier = cleanCode == "VIP" ? "TRIAL_VIP" : "ENTERPRISE"
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let expiresAt = now + (365 * 24 * 3600 * 1000) // 1 year
             
-            if code.uppercased() == "VIP" {
-                self.licenseInfo = LicenseInfo(tier: .TRIAL_VIP, companyName: companyId, activationCode: code, maxDevices: 9999, maxAssets: 9999)
-                self.successMessage = "Kích hoạt thành công gói Dùng thử Full VIP!"
-            } else {
-                self.licenseInfo = LicenseInfo(
-                    tier: .ENTERPRISE,
-                    companyName: companyId,
-                    activationCode: code,
-                    maxDevices: 999999,
-                    maxAssets: 999999
-                )
-                self.successMessage = "Kích hoạt thành công Key Doanh nghiệp!"
+            // Lưu lên Firestore companies/{companyId}
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=licenseTier&updateMask.fieldPaths=activationCode&updateMask.fieldPaths=activatedAt&updateMask.fieldPaths=expiresAt"
+            if let url = URL(string: urlStr) {
+                var request = URLRequest(url: url)
+                request.httpMethod = "PATCH"
+                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+                if !token.isEmpty { request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+                
+                let body: [String: Any] = [
+                    "fields": [
+                        "licenseTier": ["stringValue": targetTier],
+                        "activationCode": ["stringValue": cleanCode],
+                        "activatedAt": ["integerValue": String(now)],
+                        "expiresAt": ["integerValue": String(expiresAt)]
+                    ]
+                ]
+                request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+                _ = try? await URLSession.shared.data(for: request)
             }
             
+            let tierEnum = LicenseTier(rawValue: targetTier) ?? .ENTERPRISE
+            self.licenseInfo = LicenseInfo(
+                tier: tierEnum,
+                companyName: companyId,
+                activationCode: cleanCode,
+                activatedAt: now,
+                expiresAt: expiresAt,
+                maxDevices: targetTier == "TRIAL_VIP" ? 9999 : 999999,
+                maxAssets: targetTier == "TRIAL_VIP" ? 9999 : 999999
+            )
+            self.successMessage = cleanCode == "VIP" ? "Kích hoạt thành công gói Dùng thử Full VIP!" : "Kích hoạt thành công Key Doanh nghiệp!"
             self.isActivating = false
         }
     }

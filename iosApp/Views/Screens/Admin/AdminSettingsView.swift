@@ -266,7 +266,7 @@ struct AdminSettingsView: View {
         guard !companyId.isEmpty else { return }
         isLoading = true
         // Assuming FirebaseConfig.firestoreBaseUrl exists or use a generic one
-        let baseUrl = "https://firestore.googleapis.com/v1/projects/YOUR_PROJECT_ID/databases/(default)/documents"
+        let baseUrl = FirebaseConfig.firestoreBaseUrl
         let urlString = "\(baseUrl)/companies/\(companyId)"
         guard let url = URL(string: urlString) else { return }
         
@@ -299,7 +299,7 @@ struct AdminSettingsView: View {
     }
     
     private func updateLogoUrl(_ newUrl: String) async throws {
-        let baseUrl = "https://firestore.googleapis.com/v1/projects/YOUR_PROJECT_ID/databases/(default)/documents"
+        let baseUrl = FirebaseConfig.firestoreBaseUrl
         let urlString = "\(baseUrl)/companies/\(companyId)?updateMask.fieldPaths=logoUrl"
         guard let url = URL(string: urlString) else { return }
         
@@ -320,7 +320,7 @@ struct AdminSettingsView: View {
     }
     
     private func updateMaintenanceConfig(isMaintenance: Bool, message: String) async throws {
-        let baseUrl = "https://firestore.googleapis.com/v1/projects/YOUR_PROJECT_ID/databases/(default)/documents"
+        let baseUrl = FirebaseConfig.firestoreBaseUrl
         let urlString = "\(baseUrl)/companies/\(companyId)?updateMask.fieldPaths=isMaintenance&updateMask.fieldPaths=maintenanceMsg"
         guard let url = URL(string: urlString) else { return }
         var request = URLRequest(url: url)
@@ -359,7 +359,7 @@ struct AdminSettingsView: View {
     private func saveAllSettings() {
         Task {
             isSaving = true
-            let baseUrl = "https://firestore.googleapis.com/v1/projects/YOUR_PROJECT_ID/databases/(default)/documents"
+            let baseUrl = FirebaseConfig.firestoreBaseUrl
             let urlString = "\(baseUrl)/companies/\(companyId)?updateMask.fieldPaths=companyName&updateMask.fieldPaths=taxCode&updateMask.fieldPaths=address&updateMask.fieldPaths=isMaintenance&updateMask.fieldPaths=maintenanceMsg"
             guard let url = URL(string: urlString) else { isSaving = false; return }
             var request = URLRequest(url: url)

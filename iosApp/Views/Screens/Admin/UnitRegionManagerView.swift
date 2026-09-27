@@ -282,8 +282,8 @@ public struct UnitRegionManagerView: View {
         let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
         let did = idInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let urlStr = isEditing ? 
-            "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/units/\(editingId)?updateMask.fieldPaths=unitName&updateMask.fieldPaths=maKhuVuc" :
-            "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/units?documentId=\(did)"
+            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/units/\(editingId)?updateMask.fieldPaths=unitName&updateMask.fieldPaths=maKhuVuc" :
+            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/units?documentId=\(did)"
         
         guard let url = URL(string: urlStr) else { return }
         var request = URLRequest(url: url)
@@ -309,8 +309,8 @@ public struct UnitRegionManagerView: View {
         let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
         let did = idInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let urlStr = isEditing ? 
-            "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/khu_vuc/\(editingId)?updateMask.fieldPaths=tenKhuVuc" :
-            "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/khu_vuc?documentId=\(did)"
+            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/khu_vuc/\(editingId)?updateMask.fieldPaths=tenKhuVuc" :
+            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/khu_vuc?documentId=\(did)"
         
         guard let url = URL(string: urlStr) else { return }
         var request = URLRequest(url: url)
@@ -333,7 +333,7 @@ public struct UnitRegionManagerView: View {
     
     private func deleteUnit(id: String) {
         let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
-        let urlStr = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/units/\(id)"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/units/\(id)"
         guard let url = URL(string: urlStr) else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
@@ -346,7 +346,7 @@ public struct UnitRegionManagerView: View {
     
     private func deleteRegion(id: String) {
         let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
-        let urlStr = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/khu_vuc/\(id)"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/khu_vuc/\(id)"
         guard let url = URL(string: urlStr) else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"

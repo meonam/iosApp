@@ -423,19 +423,45 @@ struct UserDetailSheet: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Đơn vị")
                                 .font(.caption).foregroundColor(.gray)
-                            TextField("Đơn vị", text: $editUnit)
-                                .padding(10)
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(8)
+                            HStack {
+                                TextField("Đơn vị", text: $editUnit)
+                                if !viewModel.units.isEmpty {
+                                    Menu {
+                                        ForEach(viewModel.units) { u in
+                                            Button(u.tenDonVi) { editUnit = u.tenDonVi }
+                                        }
+                                    } label: {
+                                        Image(systemName: "chevron.down.circle.fill")
+                                            .foregroundColor(Color.appPrimaryPink)
+                                            .padding(.trailing, 4)
+                                    }
+                                }
+                            }
+                            .padding(10)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
                         }
 
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Phòng ban")
                                 .font(.caption).foregroundColor(.gray)
-                            TextField("Phòng ban", text: $editDept)
-                                .padding(10)
-                                .background(Color.gray.opacity(0.1))
-                                .cornerRadius(8)
+                            HStack {
+                                TextField("Phòng ban", text: $editDept)
+                                if !viewModel.departments.isEmpty {
+                                    Menu {
+                                        ForEach(viewModel.departments) { d in
+                                            Button(d.departmentName) { editDept = d.departmentName }
+                                        }
+                                    } label: {
+                                        Image(systemName: "chevron.down.circle.fill")
+                                            .foregroundColor(Color.appPrimaryPink)
+                                            .padding(.trailing, 4)
+                                    }
+                                }
+                            }
+                            .padding(10)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(8)
                         }
 
                         if user.status.uppercased() != "PENDING" {

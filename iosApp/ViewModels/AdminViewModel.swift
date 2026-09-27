@@ -42,7 +42,7 @@ public class AdminViewModel: ObservableObject {
 
         Task {
             let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-            let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/users?pageSize=200"
+            let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/users?pageSize=200"
             guard let url = URL(string: urlString) else {
                 self.isLoading = false
                 return
@@ -65,7 +65,7 @@ public class AdminViewModel: ObservableObject {
             }
 
             // Fallback load root users
-            let rootUrl = URL(string: "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/users?pageSize=200")!
+            let rootUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/users?pageSize=200")!
             var rootRequest = URLRequest(url: rootUrl)
             if !idToken.isEmpty {
                 rootRequest.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
@@ -77,13 +77,8 @@ public class AdminViewModel: ObservableObject {
                let documents = json["documents"] as? [[String: Any]] {
                 self.allUsers = parseUsers(from: documents)
             } else {
-                // Mock danh sách mẫu nếu offline/chưa có mạng
-                self.allUsers = [
-                    User(maNhanVien: "NV001", email: "admin@sgcoop.com", role: "ADMIN", fullName: "Quản trị viên Hệ thống", donVi: "Văn phòng SGCOOP", departmentId: "Phòng CNTT", status: "ACTIVE"),
-                    User(maNhanVien: "NV002", email: "ktv01@sgcoop.com", role: "TECHNICIAN", fullName: "Nguyễn Văn Kỹ Thuật", donVi: "Co.opmart Cần Thơ", departmentId: "Tổ Kỹ thuật", status: "ACTIVE"),
-                    User(maNhanVien: "NV003", email: "helpdesk@sgcoop.com", role: "HELPDESK", fullName: "Trần Thị Hỗ Trợ", donVi: "Văn phòng SGCOOP", departmentId: "Trung tâm Hỗ trợ IT", status: "ACTIVE"),
-                    User(maNhanVien: "NV004", email: "staff_new@sgcoop.com", role: "STAFF", fullName: "Lê Văn Đăng Ký", donVi: "Co.opmart Hậu Giang", departmentId: "Bộ phận Thu ngân", status: "PENDING")
-                ]
+                self.allUsers = []
+                self.errorMessage = "Không thể tải danh sách tài khoản từ máy chủ."
             }
             self.isLoading = false
         }
@@ -116,6 +111,27 @@ public class AdminViewModel: ObservableObject {
         }
     }
 
+    private func patchUserDocument(email: String, fields: [String: Any], updateMasks: [String]) async {
+        let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
+        let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? email
+        let maskQuery = updateMasks.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
+        
+        let urls = [
+            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/users/\(encodedEmail)?\(maskQuery)",
+            "\(FirebaseConfig.firestoreBaseUrl)/users/\(encodedEmail)?\(maskQuery)"
+        ]
+        
+        for urlStr in urls {
+            guard let url = URL(string: urlStr) else { continue }
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+            if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+            request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": fields])
+            _ = try? await URLSession.shared.data(for: request)
+        }
+    }
+
     // MARK: - APPROVE USER (DUYỆT NHÂN VIÊN MỚI)
     public func approveUser(email: String, role: String, donVi: String, departmentId: String) {
         isLoading = true
@@ -126,17 +142,7 @@ public class AdminViewModel: ObservableObject {
                 "donVi": FirestoreHelper.valueToFirestore(donVi),
                 "departmentId": FirestoreHelper.valueToFirestore(departmentId)
             ]
-            let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? email
-            let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/users/\(encodedEmail)?updateMask.fieldPaths=status&updateMask.fieldPaths=role&updateMask.fieldPaths=donVi&updateMask.fieldPaths=departmentId"
-            
-            if let url = URL(string: urlString) {
-                var request = URLRequest(url: url)
-                request.httpMethod = "PATCH"
-                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-                if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": patchFields])
-                _ = try? await URLSession.shared.data(for: request)
-            }
+            await patchUserDocument(email: email, fields: patchFields, updateMasks: ["status", "role", "donVi", "departmentId"])
 
             // Cập nhật local state ngay lập tức
             if let idx = allUsers.firstIndex(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame }) {
@@ -157,17 +163,7 @@ public class AdminViewModel: ObservableObject {
             let patchFields: [String: Any] = [
                 "status": FirestoreHelper.valueToFirestore("REJECTED")
             ]
-            let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? email
-            let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/users/\(encodedEmail)?updateMask.fieldPaths=status"
-            
-            if let url = URL(string: urlString) {
-                var request = URLRequest(url: url)
-                request.httpMethod = "PATCH"
-                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-                if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": patchFields])
-                _ = try? await URLSession.shared.data(for: request)
-            }
+            await patchUserDocument(email: email, fields: patchFields, updateMasks: ["status"])
 
             if let idx = allUsers.firstIndex(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame }) {
                 allUsers[idx].status = "REJECTED"
@@ -185,17 +181,7 @@ public class AdminViewModel: ObservableObject {
                 "donVi": FirestoreHelper.valueToFirestore(newUnit),
                 "departmentId": FirestoreHelper.valueToFirestore(newDept)
             ]
-            let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? email
-            let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/users/\(encodedEmail)?updateMask.fieldPaths=donVi&updateMask.fieldPaths=departmentId"
-            
-            if let url = URL(string: urlString) {
-                var request = URLRequest(url: url)
-                request.httpMethod = "PATCH"
-                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-                if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": patchFields])
-                _ = try? await URLSession.shared.data(for: request)
-            }
+            await patchUserDocument(email: email, fields: patchFields, updateMasks: ["donVi", "departmentId"])
 
             if let idx = allUsers.firstIndex(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame }) {
                 allUsers[idx].donVi = newUnit
@@ -213,17 +199,7 @@ public class AdminViewModel: ObservableObject {
             let patchFields: [String: Any] = [
                 "role": FirestoreHelper.valueToFirestore(newRole)
             ]
-            let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? email
-            let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/users/\(encodedEmail)?updateMask.fieldPaths=role"
-            
-            if let url = URL(string: urlString) {
-                var request = URLRequest(url: url)
-                request.httpMethod = "PATCH"
-                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-                if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": patchFields])
-                _ = try? await URLSession.shared.data(for: request)
-            }
+            await patchUserDocument(email: email, fields: patchFields, updateMasks: ["role"])
 
             if let idx = allUsers.firstIndex(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame }) {
                 allUsers[idx].role = newRole
@@ -241,17 +217,7 @@ public class AdminViewModel: ObservableObject {
             let patchFields: [String: Any] = [
                 "status": FirestoreHelper.valueToFirestore(newStatus)
             ]
-            let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? email
-            let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/users/\(encodedEmail)?updateMask.fieldPaths=status"
-            
-            if let url = URL(string: urlString) {
-                var request = URLRequest(url: url)
-                request.httpMethod = "PATCH"
-                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-                if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": patchFields])
-                _ = try? await URLSession.shared.data(for: request)
-            }
+            await patchUserDocument(email: email, fields: patchFields, updateMasks: ["status"])
 
             if let idx = allUsers.firstIndex(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame }) {
                 allUsers[idx].status = newStatus
@@ -268,17 +234,7 @@ public class AdminViewModel: ObservableObject {
             let patchFields: [String: Any] = [
                 "mustChangePassword": FirestoreHelper.valueToFirestore(true)
             ]
-            let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? email
-            let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/users/\(encodedEmail)?updateMask.fieldPaths=mustChangePassword"
-            
-            if let url = URL(string: urlString) {
-                var request = URLRequest(url: url)
-                request.httpMethod = "PATCH"
-                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-                if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": patchFields])
-                _ = try? await URLSession.shared.data(for: request)
-            }
+            await patchUserDocument(email: email, fields: patchFields, updateMasks: ["mustChangePassword"])
 
             self.isLoading = false
             self.successMessage = "Đã yêu cầu đổi mật khẩu cho: \(email)"
@@ -289,7 +245,7 @@ public class AdminViewModel: ObservableObject {
     public func fetchDepartments() {
         Task {
             let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-            let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/departments?pageSize=100"
+            let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments?pageSize=100"
             guard let url = URL(string: urlString) else { return }
 
             var request = URLRequest(url: url)
@@ -326,13 +282,7 @@ public class AdminViewModel: ObservableObject {
                     )
                 }
             } else {
-                // Dữ liệu mẫu mặc định
-                self.departments = [
-                    Department(departmentId: "cntt", companyId: comp, departmentName: "Phòng Công nghệ thông tin", departmentType: "IT", isHelpDesk: true, isIncidentHandler: true, hotline: "19001234"),
-                    Department(departmentId: "thungan", companyId: comp, departmentName: "Bộ phận Thu ngân & POS", departmentType: "UNIT", hotline: "028383838"),
-                    Department(departmentId: "kho", companyId: comp, departmentName: "Bộ phận Kho vận & Logistics", departmentType: "WAREHOUSE"),
-                    Department(departmentId: "hcns", companyId: comp, departmentName: "Phòng Hành chính Nhân sự", departmentType: "GENERAL")
-                ]
+                self.departments = []
             }
         }
     }
@@ -342,7 +292,7 @@ public class AdminViewModel: ObservableObject {
         isLoading = true
         Task {
             let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-            let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/units?pageSize=100"
+            let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/units?pageSize=100"
             guard let url = URL(string: urlString) else { return }
 
             var request = URLRequest(url: url)
@@ -367,7 +317,7 @@ public class AdminViewModel: ObservableObject {
             }
             
             // Regions
-            let regUrlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/khu_vuc?pageSize=100"
+            let regUrlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/khu_vuc?pageSize=100"
             if let regUrl = URL(string: regUrlString) {
                 var regRequest = URLRequest(url: regUrl)
                 if !idToken.isEmpty { regRequest.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
@@ -396,7 +346,7 @@ public class AdminViewModel: ObservableObject {
 
     public func fetchSpecialistTeams() async {
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-        let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/specialist_teams?pageSize=100"
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/specialist_teams?pageSize=100"
         guard let url = URL(string: urlString) else { return }
 
         var request = URLRequest(url: url)
@@ -432,7 +382,7 @@ public class AdminViewModel: ObservableObject {
     public func addSpecialistTeam(name: String, description: String) async {
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
         let teamId = "TO_" + name.uppercased().replacingOccurrences(of: " ", with: "_").prefix(10)
-        let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/specialist_teams?documentId=\(teamId)"
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/specialist_teams?documentId=\(teamId)"
         guard let url = URL(string: urlString) else { return }
 
         var request = URLRequest(url: url)
@@ -460,7 +410,7 @@ public class AdminViewModel: ObservableObject {
 
     public func deleteSpecialistTeam(teamId: String) async {
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-        let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/specialist_teams/\(teamId)"
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/specialist_teams/\(teamId)"
         guard let url = URL(string: urlString) else { return }
 
         var request = URLRequest(url: url)
@@ -477,7 +427,7 @@ public class AdminViewModel: ObservableObject {
     public func addDepartment(name: String) async {
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
         let deptId = "DEPT_" + name.uppercased().replacingOccurrences(of: " ", with: "_").prefix(10)
-        let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/departments?documentId=\(deptId)"
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments?documentId=\(deptId)"
         guard let url = URL(string: urlString) else { return }
 
         var request = URLRequest(url: url)
@@ -503,7 +453,7 @@ public class AdminViewModel: ObservableObject {
 
     public func deleteDepartment(deptId: String) async {
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-        let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/departments/\(deptId)"
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments/\(deptId)"
         guard let url = URL(string: urlString) else { return }
 
         var request = URLRequest(url: url)
@@ -520,7 +470,7 @@ public class AdminViewModel: ObservableObject {
     public func addUnit(name: String, region: String) async {
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
         let unitId = "UNIT_" + name.uppercased().replacingOccurrences(of: " ", with: "_").prefix(10)
-        let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/units?documentId=\(unitId)"
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/units?documentId=\(unitId)"
         guard let url = URL(string: urlString) else { return }
 
         var request = URLRequest(url: url)
@@ -545,7 +495,7 @@ public class AdminViewModel: ObservableObject {
 
     public func deleteUnit(unitId: String) async {
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-        let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/units/\(unitId)"
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/units/\(unitId)"
         guard let url = URL(string: urlString) else { return }
 
         var request = URLRequest(url: url)
@@ -562,7 +512,7 @@ public class AdminViewModel: ObservableObject {
     public func fetchSystemConfig() async {
         isLoadingConfig = true
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-        let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/system_config/general"
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/system_config/general"
         guard let url = URL(string: urlString) else {
             self.isLoadingConfig = false
             return
@@ -598,7 +548,7 @@ public class AdminViewModel: ObservableObject {
     public func saveSystemConfig(companyName: String, gpsRadius: Int, slaUrgentHours: Int, slaNormalHours: Int) async {
         isLoadingConfig = true
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-        let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/system_config/general?updateMask.fieldPaths=companyName&updateMask.fieldPaths=gpsRadiusMeters&updateMask.fieldPaths=slaUrgentHours&updateMask.fieldPaths=slaNormalHours"
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/system_config/general?updateMask.fieldPaths=companyName&updateMask.fieldPaths=gpsRadiusMeters&updateMask.fieldPaths=slaUrgentHours&updateMask.fieldPaths=slaNormalHours"
         guard let url = URL(string: urlString) else { return }
         
         var request = URLRequest(url: url)
@@ -636,7 +586,7 @@ public class AdminViewModel: ObservableObject {
     public func fetchNotifications() async {
         isLoadingNotifications = true
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-        let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/notifications?pageSize=10" // simplify, should ideally orderBy
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/notifications?pageSize=10" // simplify, should ideally orderBy
         guard let url = URL(string: urlString) else {
             self.isLoadingNotifications = false
             return
@@ -674,7 +624,7 @@ public class AdminViewModel: ObservableObject {
     public func sendNotification(title: String, body: String, targetRole: String?) async {
         isLoadingNotifications = true
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-        let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/notifications"
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/notifications"
         guard let url = URL(string: urlString) else { return }
         
         var request = URLRequest(url: url)
@@ -713,7 +663,7 @@ public class AdminViewModel: ObservableObject {
 
     public func deleteNotification(notifId: String) async {
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-        let urlString = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/notifications/\(notifId)"
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/notifications/\(notifId)"
         guard let url = URL(string: urlString) else { return }
         
         var request = URLRequest(url: url)

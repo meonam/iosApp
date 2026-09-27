@@ -194,43 +194,58 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     public var todayDocId: String {
         let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let cleanDate = todayDateString.replacingOccurrences(of: "-", with: "")
-        return "att_\(cleanDate)_\(cleanEmail)"
+        let shift = selectedShiftType.isEmpty ? "HC" : selectedShiftType
+        return "att_\(cleanDate)_\(cleanEmail)_\(shift)"
     }
 
     // Táº£i thÃ´ng tin cháº¥m cÃ´ng hÃ´m nay
     public func fetchTodayAttendance() {
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances/\(todayDocId)"
-            guard let url = URL(string: urlStr) else { return }
+            let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let cleanDate = todayDateString.replacingOccurrences(of: "-", with: "")
+            let shift = selectedShiftType.isEmpty ? "HC" : selectedShiftType
+            
+            let docIdsToTry = [
+                "att_\(cleanDate)_\(cleanEmail)_\(shift)",
+                "att_\(cleanDate)_\(cleanEmail)_DAY",
+                "att_\(cleanDate)_\(cleanEmail)"
+            ]
+            
+            for docId in docIdsToTry {
+                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances/\(docId)"
+                guard let url = URL(string: urlStr) else { continue }
 
-            var request = URLRequest(url: url)
-            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                var request = URLRequest(url: url)
+                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-            guard let (data, response) = try? await URLSession.shared.data(for: request),
-                  let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let fields = json["fields"] as? [String: Any] else {
-                return
+                if let (data, response) = try? await URLSession.shared.data(for: request),
+                   let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let fields = json["fields"] as? [String: Any] {
+
+                    await MainActor.run {
+                        self.todayRecord = AttendanceRecord(
+                            id: docId,
+                            userEmail: self.user.email,
+                            userName: self.user.fullName,
+                            donVi: self.user.donVi,
+                            date: self.todayDateString,
+                            checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
+                            checkInLat: FirestoreHelper.getDouble(fields["checkInLat"] as? [String: Any]),
+                            checkInLng: FirestoreHelper.getDouble(fields["checkInLng"] as? [String: Any]),
+                            checkInAddress: FirestoreHelper.getString(fields["checkInAddress"] as? [String: Any]),
+                            checkInStatus: FirestoreHelper.getString(fields["checkInStatus"] as? [String: Any]),
+                            checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
+                            checkOutLat: FirestoreHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
+                            checkOutLng: FirestoreHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
+                            checkOutAddress: FirestoreHelper.getString(fields["checkOutAddress"] as? [String: Any]),
+                            checkOutStatus: FirestoreHelper.getString(fields["checkOutStatus"] as? [String: Any]),
+                            shiftType: FirestoreHelper.getString(fields["shiftType"] as? [String: Any])
+                        )
+                    }
+                    return
+                }
             }
-
-            self.todayRecord = AttendanceRecord(
-                id: todayDocId,
-                userEmail: user.email,
-                userName: user.fullName,
-                donVi: user.donVi,
-                date: todayDateString,
-                checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
-                checkInLat: FirestoreHelper.getDouble(fields["checkInLat"] as? [String: Any]),
-                checkInLng: FirestoreHelper.getDouble(fields["checkInLng"] as? [String: Any]),
-                checkInAddress: FirestoreHelper.getString(fields["checkInAddress"] as? [String: Any]),
-                checkInStatus: FirestoreHelper.getString(fields["checkInStatus"] as? [String: Any]),
-                checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
-                checkOutLat: FirestoreHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
-                checkOutLng: FirestoreHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
-                checkOutAddress: FirestoreHelper.getString(fields["checkOutAddress"] as? [String: Any]),
-                checkOutStatus: FirestoreHelper.getString(fields["checkOutStatus"] as? [String: Any]),
-                shiftType: FirestoreHelper.getString(fields["shiftType"] as? [String: Any])
-            )
         }
     }
 
@@ -332,8 +347,11 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             formatter.dateFormat = "yyyy-MM"
             let monthStr = formatter.string(from: month)
 
-            let queryUrl = "$(FirebaseConfig.firestoreBaseUrl):runQuery"
-            guard let qUrl = URL(string: queryUrl) else { return }
+            let queryUrl = "\(FirebaseConfig.firestoreBaseUrl):runQuery"
+            guard let qUrl = URL(string: queryUrl) else {
+                await MainActor.run { self.isLoadingHistory = false }
+                return
+            }
             var qRequest = URLRequest(url: qUrl)
             qRequest.httpMethod = "POST"
             qRequest.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
@@ -368,45 +386,84 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             
             qRequest.httpBody = try? JSONSerialization.data(withJSONObject: body)
             
-            guard let (data, response) = try? await URLSession.shared.data(for: qRequest),
-                  let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-                  let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-                
-                await MainActor.run {
-                    self.isLoadingHistory = false
-                    self.attendanceHistory = []
-                }
-                return
-            }
-            
             var records: [AttendanceRecord] = []
-            for docResult in jsonArray {
-                if let doc = docResult["document"] as? [String: Any],
-                   let fields = doc["fields"] as? [String: Any],
-                   let docName = doc["name"] as? String {
-                    
-                    let dateVal = FirestoreHelper.getString(fields["date"] as? [String: Any])
-                    if dateVal.hasPrefix(monthStr) {
-                        let docId = docName.components(separatedBy: "/").last ?? ""
-                        let record = AttendanceRecord(
-                            id: docId,
-                            userEmail: FirestoreHelper.getString(fields["userEmail"] as? [String: Any]),
-                            userName: FirestoreHelper.getString(fields["userName"] as? [String: Any]),
-                            donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
-                            date: dateVal,
-                            checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
-                            checkInLat: FirestoreHelper.getDouble(fields["checkInLat"] as? [String: Any]),
-                            checkInLng: FirestoreHelper.getDouble(fields["checkInLng"] as? [String: Any]),
-                            checkInAddress: FirestoreHelper.getString(fields["checkInAddress"] as? [String: Any]),
-                            checkInStatus: FirestoreHelper.getString(fields["checkInStatus"] as? [String: Any]),
-                            checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
-                            checkOutLat: FirestoreHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
-                            checkOutLng: FirestoreHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
-                            checkOutAddress: FirestoreHelper.getString(fields["checkOutAddress"] as? [String: Any]),
-                            checkOutStatus: FirestoreHelper.getString(fields["checkOutStatus"] as? [String: Any]),
-                            shiftType: FirestoreHelper.getString(fields["shiftType"] as? [String: Any])
-                        )
-                        records.append(record)
+            if let (data, response) = try? await URLSession.shared.data(for: qRequest),
+               let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+               let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                
+                for docResult in jsonArray {
+                    if let doc = docResult["document"] as? [String: Any],
+                       let fields = doc["fields"] as? [String: Any],
+                       let docName = doc["name"] as? String {
+                        
+                        let dateVal = FirestoreHelper.getString(fields["date"] as? [String: Any])
+                        if dateVal.hasPrefix(monthStr) {
+                            let docId = docName.components(separatedBy: "/").last ?? ""
+                            let record = AttendanceRecord(
+                                id: docId,
+                                userEmail: FirestoreHelper.getString(fields["userEmail"] as? [String: Any]),
+                                userName: FirestoreHelper.getString(fields["userName"] as? [String: Any]),
+                                donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
+                                date: dateVal,
+                                checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
+                                checkInLat: FirestoreHelper.getDouble(fields["checkInLat"] as? [String: Any]),
+                                checkInLng: FirestoreHelper.getDouble(fields["checkInLng"] as? [String: Any]),
+                                checkInAddress: FirestoreHelper.getString(fields["checkInAddress"] as? [String: Any]),
+                                checkInStatus: FirestoreHelper.getString(fields["checkInStatus"] as? [String: Any]),
+                                checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
+                                checkOutLat: FirestoreHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
+                                checkOutLng: FirestoreHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
+                                checkOutAddress: FirestoreHelper.getString(fields["checkOutAddress"] as? [String: Any]),
+                                checkOutStatus: FirestoreHelper.getString(fields["checkOutStatus"] as? [String: Any]),
+                                shiftType: FirestoreHelper.getString(fields["shiftType"] as? [String: Any])
+                            )
+                            records.append(record)
+                        }
+                    }
+                }
+            }
+
+            // Fallback đọc trực tiếp collection attendances nếu runQuery chưa trả về kết quả
+            if records.isEmpty {
+                let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances?pageSize=300"
+                if let listUrl = URL(string: listUrlStr) {
+                    var listReq = URLRequest(url: listUrl)
+                    listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                    if let (data, response) = try? await URLSession.shared.data(for: listReq),
+                       let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let docs = json["documents"] as? [[String: Any]] {
+                        for doc in docs {
+                            if let fields = doc["fields"] as? [String: Any],
+                               let docName = doc["name"] as? String {
+                                let docEmail = FirestoreHelper.getString(fields["userEmail"] as? [String: Any])
+                                if docEmail.caseInsensitiveCompare(user.email) == .orderedSame {
+                                    let dateVal = FirestoreHelper.getString(fields["date"] as? [String: Any])
+                                    if dateVal.hasPrefix(monthStr) {
+                                        let docId = docName.components(separatedBy: "/").last ?? ""
+                                        let record = AttendanceRecord(
+                                            id: docId,
+                                            userEmail: docEmail,
+                                            userName: FirestoreHelper.getString(fields["userName"] as? [String: Any]),
+                                            donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
+                                            date: dateVal,
+                                            checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
+                                            checkInLat: FirestoreHelper.getDouble(fields["checkInLat"] as? [String: Any]),
+                                            checkInLng: FirestoreHelper.getDouble(fields["checkInLng"] as? [String: Any]),
+                                            checkInAddress: FirestoreHelper.getString(fields["checkInAddress"] as? [String: Any]),
+                                            checkInStatus: FirestoreHelper.getString(fields["checkInStatus"] as? [String: Any]),
+                                            checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
+                                            checkOutLat: FirestoreHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
+                                            checkOutLng: FirestoreHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
+                                            checkOutAddress: FirestoreHelper.getString(fields["checkOutAddress"] as? [String: Any]),
+                                            checkOutStatus: FirestoreHelper.getString(fields["checkOutStatus"] as? [String: Any]),
+                                            shiftType: FirestoreHelper.getString(fields["shiftType"] as? [String: Any])
+                                        )
+                                        records.append(record)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }

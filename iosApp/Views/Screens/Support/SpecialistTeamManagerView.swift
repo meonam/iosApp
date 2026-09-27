@@ -264,8 +264,8 @@ public struct SpecialistTeamManagerView: View {
         let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
         let did = teamId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let urlStr = isEditing ? 
-            "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/specialist_teams/\(editingId)?updateMask.fieldPaths=teamName&updateMask.fieldPaths=applications&updateMask.fieldPaths=description&updateMask.fieldPaths=moTa&updateMask.fieldPaths=truongTo&updateMask.fieldPaths=sdtLienHe" :
-            "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/specialist_teams?documentId=\(did)"
+            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/specialist_teams/\(editingId)?updateMask.fieldPaths=teamName&updateMask.fieldPaths=applications&updateMask.fieldPaths=description&updateMask.fieldPaths=moTa&updateMask.fieldPaths=truongTo&updateMask.fieldPaths=sdtLienHe" :
+            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/specialist_teams?documentId=\(did)"
         
         guard let url = URL(string: urlStr) else { return }
         var request = URLRequest(url: url)
@@ -301,7 +301,7 @@ public struct SpecialistTeamManagerView: View {
     
     private func deleteTeam(id: String) {
         let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
-        let urlStr = "https://firestore.googleapis.com/v1/projects/qltb-f89fa/databases/(default)/documents/companies/\(comp)/specialist_teams/\(id)"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/specialist_teams/\(id)"
         guard let url = URL(string: urlStr) else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
