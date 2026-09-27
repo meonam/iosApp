@@ -67,20 +67,22 @@ struct MaterialOutlinedField: View {
 // MARK: - MATERIAL SUGGESTION CHIP (MATCHING ANDROID SUGGESTIONCHIP)
 struct MaterialSuggestionChip: View {
     var label: String
+    var isSelected: Bool = false
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(Color(hex: "#334155"))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color.white)
+                .font(.system(size: 10, weight: isSelected ? .bold : .medium))
+                .foregroundColor(isSelected ? Color(hex: "#1D4ED8") : Color(hex: "#334155"))
+                .lineLimit(1)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 5)
+                .background(isSelected ? Color(hex: "#EFF6FF") : Color.white)
                 .cornerRadius(8)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color(hex: "#CBD5E1"), lineWidth: 0.8)
+                        .stroke(isSelected ? Color(hex: "#2563EB") : Color(hex: "#CBD5E1"), lineWidth: isSelected ? 1.2 : 0.8)
                 )
         }
     }
@@ -871,11 +873,11 @@ public struct AttendanceReportView: View {
                         if canViewAllReports {
                             HStack(spacing: 6) {
                                 Text("Gợi ý nhanh:")
-                                    .font(.system(size: 10.5))
-                                    .foregroundColor(.gray)
-                                MaterialSuggestionChip(label: "5.000 VNĐ/km") { viewModel.cfgPricePerKm = "5000" }
-                                MaterialSuggestionChip(label: "7.000 VNĐ/km") { viewModel.cfgPricePerKm = "7000" }
-                                MaterialSuggestionChip(label: "10.000 VNĐ/km") { viewModel.cfgPricePerKm = "10000" }
+                                    .font(.system(size: 9.5, weight: .medium))
+                                    .foregroundColor(Color(hex: "#64748B"))
+                                MaterialSuggestionChip(label: "5.000 đ/km", isSelected: viewModel.cfgPricePerKm == "5000") { viewModel.cfgPricePerKm = "5000" }
+                                MaterialSuggestionChip(label: "7.000 đ/km", isSelected: viewModel.cfgPricePerKm == "7000") { viewModel.cfgPricePerKm = "7000" }
+                                MaterialSuggestionChip(label: "10.000 đ/km", isSelected: viewModel.cfgPricePerKm == "10000") { viewModel.cfgPricePerKm = "10000" }
                             }
 
                             Button(action: {
