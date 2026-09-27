@@ -39,7 +39,7 @@ public class AuthViewModel: ObservableObject {
     public func login() {
         let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         if cleanEmail.isEmpty {
-            errorMessage = "Vui lòng nhập Email hoặc Số điện thoại!"
+            errorMessage = "Vui lòng nhập Email, SĐT hoặc Mã nhân viên!"
             return
         }
         if password.isEmpty {
@@ -52,7 +52,7 @@ public class AuthViewModel: ObservableObject {
 
         Task {
             do {
-                let session = try await AuthService.shared.signIn(email: cleanEmail, password: password)
+                let session = try await AuthService.shared.signIn(account: cleanEmail, password: password)
                 let (compId, profile) = await AuthService.shared.resolveUserProfile(email: session.email, idToken: session.idToken)
 
                 let status = profile?.status.uppercased() ?? "ACTIVE"
@@ -122,11 +122,17 @@ public class AuthViewModel: ObservableObject {
         self.password = ""
         UserDefaults.standard.removeObject(forKey: "saved_auth_email")
         UserDefaults.standard.removeObject(forKey: "saved_auth_company_id")
+        UserDefaults.standard.removeObject(forKey: "saved_auth_token")
+        UserDefaults.standard.removeObject(forKey: "saved_auth_user_data")
     }
 
     private func saveSession() {
         UserDefaults.standard.set(currentUser?.email, forKey: "saved_auth_email")
         UserDefaults.standard.set(currentCompanyId, forKey: "saved_auth_company_id")
+        UserDefaults.standard.set(currentIdToken, forKey: "saved_auth_token")
+        if let u = currentUser, let data = try? JSONEncoder().encode(u) {
+            UserDefaults.standard.set(data, forKey: "saved_auth_user_data")
+        }
     }
 
     private func loadSavedSession() {
@@ -134,6 +140,13 @@ public class AuthViewModel: ObservableObject {
             self.email = savedEmail
             let savedComp = UserDefaults.standard.string(forKey: "saved_auth_company_id") ?? "SGCOOP"
             self.currentCompanyId = normalizeCompanyId(savedComp)
+            self.currentIdToken = UserDefaults.standard.string(forKey: "saved_auth_token") ?? ""
+            
+            if let data = UserDefaults.standard.data(forKey: "saved_auth_user_data"),
+               let savedUser = try? JSONDecoder().decode(User.self, from: data) {
+                self.currentUser = savedUser
+                self.isAuthenticated = true
+            }
         }
     }
 }

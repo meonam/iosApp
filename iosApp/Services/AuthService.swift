@@ -13,11 +13,194 @@ public struct AuthSession {
 public class AuthService {
     public static let shared = AuthService()
 
-    private init() {}
+    private var identifierCache: [String: String] = [:]
 
-    // 1. Đăng nhập bằng Email & Password qua Firebase REST API
+    // Tra cứu Email từ Số điện thoại hoặc Mã nhân viên (Đồng bộ 1:1 Android UserCompanyResolver.kt)
+    public func resolveEmailFromIdentifier(input: String) async -> String? {
+        let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return nil }
+        if trimmed.contains("@") { return trimmed.lowercased() }
+
+        let upperInput = trimmed.uppercased()
+        if let cached = identifierCache[trimmed] ?? identifierCache[upperInput] {
+            return cached
+        }
+
+        let cleanDigits = trimmed.filter { $0.isNumber }
+        let isPhone = cleanDigits.count >= 8 && cleanDigits.count <= 12
+
+        // Helper so khớp DocumentSnapshot
+        func matchesUser(fields: [String: Any], docId: String) -> String? {
+            let mnvFields = [
+                FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
+                FirestoreHelper.getString(fields["employeeId"] as? [String: Any]),
+                FirestoreHelper.getString(fields["employeeCode"] as? [String: Any]),
+                FirestoreHelper.getString(fields["mnv"] as? [String: Any])
+            ].map { $0.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() }.filter { !$0.isEmpty }
+
+            let cleanDocId = docId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let emailField = FirestoreHelper.getString(fields["email"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let fullName = FirestoreHelper.getString(fields["fullName"] as? [String: Any])
+
+            if mnvFields.contains(upperInput) || cleanDocId == upperInput {
+                return !emailField.isEmpty ? emailField : (docId.contains("@") ? docId.lowercased() : nil)
+            }
+
+            let standardMnv = lookupStandardKtvMnv(email: emailField, fullName: fullName).uppercased()
+            if !standardMnv.isEmpty && standardMnv == upperInput {
+                return !emailField.isEmpty ? emailField : (docId.contains("@") ? docId.lowercased() : nil)
+            }
+
+            if isPhone && !cleanDigits.isEmpty {
+                let pFields = [
+                    FirestoreHelper.getString(fields["phone"] as? [String: Any]),
+                    FirestoreHelper.getString(fields["soDienThoai"] as? [String: Any]),
+                    FirestoreHelper.getString(fields["phoneNumber"] as? [String: Any]),
+                    FirestoreHelper.getString(fields["sdt"] as? [String: Any]),
+                    FirestoreHelper.getString(fields["soDT"] as? [String: Any])
+                ].map { $0.filter { $0.isNumber } }.filter { !$0.isEmpty }
+
+                for p in pFields {
+                    if p == cleanDigits || (p.hasSuffix(cleanDigits) && cleanDigits.count >= 9) || (cleanDigits.hasSuffix(p) && p.count >= 9) {
+                        return !emailField.isEmpty ? emailField : (docId.contains("@") ? docId.lowercased() : nil)
+                    }
+                }
+            }
+
+            return nil
+        }
+
+        // 1. Quét nhanh trong companies/SGCOOP/users
+        let compUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/SGCOOP/users?pageSize=100"
+        if let compUrl = URL(string: compUrlStr) {
+            let req = URLRequest(url: compUrl)
+            if let (data, resp) = try? await URLSession.shared.data(for: req),
+               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let docs = json["documents"] as? [[String: Any]] {
+                for doc in docs {
+                    if let fields = doc["fields"] as? [String: Any],
+                       let docName = doc["name"] as? String {
+                        let docId = docName.components(separatedBy: "/").last ?? ""
+                        if let foundEmail = matchesUser(fields: fields, docId: docId) {
+                            identifierCache[trimmed] = foundEmail
+                            identifierCache[upperInput] = foundEmail
+                            if isPhone { identifierCache[cleanDigits] = foundEmail }
+                            return foundEmail
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Fallback quét qua root users
+        let rootUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/users?pageSize=100"
+        if let rootUrl = URL(string: rootUrlStr) {
+            let req = URLRequest(url: rootUrl)
+            if let (data, resp) = try? await URLSession.shared.data(for: req),
+               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let docs = json["documents"] as? [[String: Any]] {
+                for doc in docs {
+                    if let fields = doc["fields"] as? [String: Any],
+                       let docName = doc["name"] as? String {
+                        let docId = docName.components(separatedBy: "/").last ?? ""
+                        if let foundEmail = matchesUser(fields: fields, docId: docId) {
+                            identifierCache[trimmed] = foundEmail
+                            identifierCache[upperInput] = foundEmail
+                            if isPhone { identifierCache[cleanDigits] = foundEmail }
+                            return foundEmail
+                        }
+                    }
+                }
+            }
+        }
+
+        return nil
+    }
+
+    // 1. Đăng nhập bằng Email, Số điện thoại hoặc Mã nhân viên (Đồng bộ 1:1 Android LoginViewModel.kt)
+    public func signIn(account: String, password: String) async throws -> AuthSession {
+        let cleanInput = account.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanInput.isEmpty {
+            throw NSError(domain: "AuthService", code: 400, userInfo: [NSLocalizedDescriptionKey: "Vui lòng nhập Email, SĐT hoặc Mã nhân viên!"])
+        }
+
+        // Ánh xạ SĐT hoặc Mã NV sang Email tài khoản nếu không có ký tự @
+        let resolvedEmail: String
+        if !cleanInput.contains("@") {
+            if let email = await resolveEmailFromIdentifier(input: cleanInput) {
+                resolvedEmail = email
+            } else {
+                throw NSError(domain: "AuthService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Không tìm thấy tài khoản gắn với số điện thoại hoặc mã nhân viên '\(cleanInput)'."])
+            }
+        } else {
+            resolvedEmail = cleanInput.lowercased()
+        }
+
+        let isSuperAdmin = SuperAdminConfig.isSuperAdmin(email: resolvedEmail)
+
+        // A. Thử đăng nhập qua Firebase Auth REST API
+        var firebaseAuthError: Error? = nil
+        do {
+            let session = try await performFirebaseAuthSignIn(email: resolvedEmail, password: password)
+            return session
+        } catch {
+            firebaseAuthError = error
+        }
+
+        // B. Fallback Firestore: Kiểm tra nếu mật khẩu người dùng khớp với Firestore document (password, matKhau, pass, newPassword)
+        let userDocUrl = "\(FirebaseConfig.firestoreBaseUrl)/companies/SGCOOP/users/\(resolvedEmail)"
+        if let uUrl = URL(string: userDocUrl) {
+            let req = URLRequest(url: uUrl)
+            if let (data, resp) = try? await URLSession.shared.data(for: req),
+               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let fields = json["fields"] as? [String: Any] {
+                let savedPw = FirestoreHelper.getString(fields["password"] as? [String: Any])
+                    .isEmpty ? FirestoreHelper.getString(fields["matKhau"] as? [String: Any]) : FirestoreHelper.getString(fields["password"] as? [String: Any])
+                let fallbackPw = savedPw.isEmpty ? FirestoreHelper.getString(fields["pass"] as? [String: Any]) : savedPw
+                let newPw = FirestoreHelper.getString(fields["newPassword"] as? [String: Any])
+
+                if (!fallbackPw.isEmpty && fallbackPw == password) || (!newPw.isEmpty && newPw == password) || isSuperAdmin {
+                    return AuthSession(
+                        idToken: "token_\(UUID().uuidString)",
+                        refreshToken: "refresh_\(UUID().uuidString)",
+                        localId: resolvedEmail,
+                        email: resolvedEmail,
+                        user: nil
+                    )
+                }
+            }
+        }
+
+        // C. SuperAdmin bypass
+        if isSuperAdmin {
+            return AuthSession(
+                idToken: "token_superadmin_\(UUID().uuidString)",
+                refreshToken: "refresh_superadmin_\(UUID().uuidString)",
+                localId: resolvedEmail,
+                email: resolvedEmail,
+                user: nil
+            )
+        }
+
+        if let err = firebaseAuthError {
+            throw err
+        }
+
+        throw NSError(domain: "AuthService", code: 401, userInfo: [NSLocalizedDescriptionKey: "Tài khoản hoặc mật khẩu không chính xác!"])
+    }
+
+    // Convenience overload to support calling signIn(email:password:) directly
+    @discardableResult
     public func signIn(email: String, password: String) async throws -> AuthSession {
-        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        return try await signIn(account: email, password: password)
+    }
+
+    // Gửi yêu cầu đăng nhập trực tiếp tới Firebase REST
+    public func performFirebaseAuthSignIn(email: String, password: String) async throws -> AuthSession {
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard let url = URL(string: FirebaseConfig.authSignInUrl) else {
             throw NSError(domain: "AuthService", code: 400, userInfo: [NSLocalizedDescriptionKey: "URL không hợp lệ"])
         }
@@ -114,13 +297,34 @@ public class AuthService {
 
     private func fetchUserDoc(urlStr: String, idToken: String) async -> User? {
         guard let url = URL(string: urlStr) else { return nil }
+        
         var request = URLRequest(url: url)
-        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        if !idToken.isEmpty && idToken.hasPrefix("ey") {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let fields = json["fields"] as? [String: Any] else {
+        var resData: Data? = nil
+        var resFields: [String: Any]? = nil
+
+        if let (data, response) = try? await URLSession.shared.data(for: request),
+           let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let fields = json["fields"] as? [String: Any] {
+            resData = data
+            resFields = fields
+        } else {
+            // Fallback: Thử đọc trực tiếp không kèm Authorization header (đối với Firestore public rule)
+            let noAuthReq = URLRequest(url: url)
+            if let (data2, resp2) = try? await URLSession.shared.data(for: noAuthReq),
+               let http2 = resp2 as? HTTPURLResponse, http2.statusCode == 200,
+               let json2 = try? JSONSerialization.jsonObject(with: data2) as? [String: Any],
+               let fields2 = json2["fields"] as? [String: Any] {
+                resData = data2
+                resFields = fields2
+            }
+        }
+
+        guard let fields = resFields else {
             return nil
         }
 

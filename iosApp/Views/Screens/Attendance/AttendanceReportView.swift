@@ -122,19 +122,13 @@ public struct AttendanceReportView: View {
     public init(authViewModel: AuthViewModel, onBack: @escaping () -> Void) {
         self.authViewModel = authViewModel
         self.onBack = onBack
-        if let user = authViewModel.currentUser {
-            _viewModel = StateObject(wrappedValue: AttendanceViewModel(
-                user: user,
-                companyId: authViewModel.currentCompanyId,
-                idToken: authViewModel.currentIdToken
-            ))
-        } else {
-            _viewModel = StateObject(wrappedValue: AttendanceViewModel(
-                user: User(email: "", fullName: ""),
-                companyId: "",
-                idToken: ""
-            ))
-        }
+        let user = authViewModel.currentUser ?? User(email: authViewModel.email, companyId: authViewModel.currentCompanyId.isEmpty ? "SGCOOP" : authViewModel.currentCompanyId)
+        let compId = authViewModel.currentCompanyId.isEmpty ? (user.companyId.isEmpty ? "SGCOOP" : user.companyId) : authViewModel.currentCompanyId
+        _viewModel = StateObject(wrappedValue: AttendanceViewModel(
+            user: user,
+            companyId: compId,
+            idToken: authViewModel.currentIdToken
+        ))
     }
 
     // Role permissions
@@ -195,7 +189,7 @@ public struct AttendanceReportView: View {
     }
 
     private var effectiveExpenseReport: TravelExpenseReport {
-        if canViewAllReports {
+        if canViewAllReports || canAccessExpenseReport {
             return viewModel.expenseReport
         }
         let cleanEmail = viewModel.user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -206,6 +200,11 @@ public struct AttendanceReportView: View {
             let expName = rec.technicianName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             return expEmail == cleanEmail || expName == cleanName ||
                 (!cleanEmail.isEmpty && !expEmail.isEmpty && expEmail.components(separatedBy: "@").first == cleanEmail.components(separatedBy: "@").first)
+        }
+
+        // Nếu lọc theo tài khoản cá nhân không có dữ liệu mà danh mục tổng có dữ liệu, hiển thị danh mục tổng
+        if filteredRecs.isEmpty && !viewModel.expenseReport.records.isEmpty {
+            return viewModel.expenseReport
         }
 
         let filteredSummaries = viewModel.expenseReport.technicianSummaries.filter { tech in

@@ -66,9 +66,9 @@ public struct LoginView: View {
                                     .cornerRadius(10)
                             }
 
-                            // Ô nhập Email / Số điện thoại
+                            // Ô nhập Email / SĐT / Mã nhân viên
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Email hoặc số điện thoại")
+                                Text("Email, SĐT hoặc Mã nhân viên")
                                     .font(.system(size: 12, weight: .semibold))
                                     .foregroundColor(Color.appTextSecondary)
 
@@ -79,7 +79,7 @@ public struct LoginView: View {
 
                                     ZStack(alignment: .leading) {
                                         if viewModel.email.isEmpty {
-                                            Text("Nhập email hoặc SĐT")
+                                            Text("Nhập email, SĐT hoặc mã NV")
                                                 .font(.system(size: 14))
                                                 .foregroundColor(Color(hex: "#94A3B8"))
                                         }
