@@ -1464,6 +1464,23 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         var savedExpenseStatusMap: [String: String] = [:]
         var savedRejectReasonMap: [String: String] = [:]
 
+        // Tính startMillis và endMillis cho targetMonth (yyyy-MM)
+        let dfTime = DateFormatter()
+        dfTime.dateFormat = "yyyy-MM"
+        dfTime.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
+        var startMillis: Int64 = 0
+        var endMillis: Int64 = Int64.max
+        if let targetDate = dfTime.date(from: targetMonth) {
+            var cal = Calendar(identifier: .gregorian)
+            cal.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
+            if let startOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: targetDate)) {
+                startMillis = Int64(startOfMonth.timeIntervalSince1970 * 1000)
+                if let nextMonth = cal.date(byAdding: .month, value: 1, to: startOfMonth) {
+                    endMillis = Int64(nextMonth.timeIntervalSince1970 * 1000) - 1
+                }
+            }
+        }
+
         // 1. Lấy danh sách duyệt travel_expenses qua runQuery (đồng bộ 1:1 Android)
         let expUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp):runQuery"
         if let expUrl = URL(string: expUrlStr) {
@@ -1476,6 +1493,27 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let body: [String: Any] = [
                 "structuredQuery": [
                     "from": [["collectionId": "travel_expenses"]],
+                    "where": [
+                        "compositeFilter": [
+                            "op": "AND",
+                            "filters": [
+                                [
+                                    "fieldFilter": [
+                                        "field": ["fieldPath": "timestamp"],
+                                        "op": "GREATER_THAN_OR_EQUAL",
+                                        "value": ["integerValue": String(startMillis)]
+                                    ]
+                                ],
+                                [
+                                    "fieldFilter": [
+                                        "field": ["fieldPath": "timestamp"],
+                                        "op": "LESS_THAN_OR_EQUAL",
+                                        "value": ["integerValue": String(endMillis)]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ],
                     "limit": 1000
                 ]
             ]
@@ -1581,6 +1619,27 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let body: [String: Any] = [
                 "structuredQuery": [
                     "from": [["collectionId": "support_tickets"]],
+                    "where": [
+                        "compositeFilter": [
+                            "op": "AND",
+                            "filters": [
+                                [
+                                    "fieldFilter": [
+                                        "field": ["fieldPath": "createdAt"],
+                                        "op": "GREATER_THAN_OR_EQUAL",
+                                        "value": ["integerValue": String(startMillis)]
+                                    ]
+                                ],
+                                [
+                                    "fieldFilter": [
+                                        "field": ["fieldPath": "createdAt"],
+                                        "op": "LESS_THAN_OR_EQUAL",
+                                        "value": ["integerValue": String(endMillis)]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ],
                     "limit": 1000
                 ]
             ]
