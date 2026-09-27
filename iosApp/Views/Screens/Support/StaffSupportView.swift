@@ -3,33 +3,141 @@ import SwiftUI
 // MARK: - MÀN HÌNH HỖ TRỢ KỸ THUẬT DÀNH CHO NHÂN VIÊN (ĐỒNG BỘ 1:1 VỚI STAFFSUPPORTSCREEN.KT TRÊN ANDROID)
 public struct StaffSupportView: View {
     @ObservedObject var authViewModel: AuthViewModel
+    @StateObject private var supportVM: SupportViewModel
     var onBack: () -> Void
+    var onTicketClick: ((String, String) -> Void)?
 
-    @State private var tickets: [SupportTicket] = []
-    @State private var isLoading = false
-    @State private var showingCreateSheet = false
-    @State private var selectedStatus: String = "ALL" // "ALL", "OPEN", "CLOSED"
+    @State private var filterStatus: String = "ALL" // "ALL", "OPEN", "CLOSED", "HIDDEN"
+    @State private var selectedChannel: String = "ALL" // "ALL", "APP", "ZALO", "EMAIL"
+    @State private var searchQuery: String = ""
+    @State private var collapsedGroups: Set<String> = []
+    @State private var showingCreateSheet: Bool = false
+    @State private var showConfirmCleanClosed: Bool = false
     @State private var selectedTicketForChat: SupportTicket? = nil
+    @State private var deletedTicketIds: Set<String> = {
+        let saved = UserDefaults.standard.stringArray(forKey: "support_staff_deleted_ids") ?? []
+        return Set(saved)
+    }()
 
-    public init(authViewModel: AuthViewModel, onBack: @escaping () -> Void) {
+    public init(
+        authViewModel: AuthViewModel,
+        onBack: @escaping () -> Void,
+        onTicketClick: ((String, String) -> Void)? = nil
+    ) {
         self.authViewModel = authViewModel
         self.onBack = onBack
+        self.onTicketClick = onTicketClick
+
+        let user = authViewModel.currentUser ?? User(
+            id: "",
+            email: "",
+            fullName: "",
+            role: "STAFF",
+            companyId: authViewModel.currentCompanyId
+        )
+        self._supportVM = StateObject(wrappedValue: SupportViewModel(
+            user: user,
+            companyId: authViewModel.currentCompanyId,
+            idToken: authViewModel.currentIdToken
+        ))
     }
 
-    private var openCount: Int {
-        tickets.filter { $0.isOpen && $0.closedAt <= 0 }.count
+    public init(
+        viewModel: SupportViewModel,
+        authViewModel: AuthViewModel,
+        onBack: @escaping () -> Void,
+        onTicketClick: ((String, String) -> Void)? = nil
+    ) {
+        self.authViewModel = authViewModel
+        self._supportVM = StateObject(wrappedValue: viewModel)
+        self.onBack = onBack
+        self.onTicketClick = onTicketClick
     }
 
-    private var closedCount: Int {
-        tickets.filter { !$0.isOpen || $0.closedAt > 0 }.count
-    }
+    private var myScopedTickets: [SupportTicket] {
+        let myEmail = (authViewModel.currentUser?.email ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let myId = (authViewModel.currentUser?.id ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
-    private var filteredTickets: [SupportTicket] {
-        if selectedStatus == "ALL" { return tickets }
-        if selectedStatus == "OPEN" {
-            return tickets.filter { $0.isOpen && $0.closedAt <= 0 }
+        return supportVM.tickets.filter { t in
+            let cEmail = t.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let cId = t.creatorUserId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return (!myEmail.isEmpty && cEmail == myEmail) || (!myId.isEmpty && cId == myId)
         }
-        return tickets.filter { !$0.isOpen || $0.closedAt > 0 }
+    }
+
+    private var visibleTickets: [SupportTicket] {
+        myScopedTickets.filter { ticket in
+            // Filter by hidden
+            if filterStatus == "HIDDEN" {
+                if !deletedTicketIds.contains(ticket.id) { return false }
+            } else {
+                if deletedTicketIds.contains(ticket.id) { return false }
+                let isClosed = ticket.status.uppercased() == "CLOSED" || ticket.closedAt > 0
+                if filterStatus == "OPEN" && isClosed { return false }
+                if filterStatus == "CLOSED" && !isClosed { return false }
+            }
+
+            // Channel filter
+            if selectedChannel != "ALL" {
+                let src = ticket.source.uppercased()
+                if selectedChannel == "ZALO" && src != "ZALO" { return false }
+                if selectedChannel == "EMAIL" && src != "EMAIL" { return false }
+                if selectedChannel == "APP" && (src == "ZALO" || src == "EMAIL") { return false }
+            }
+
+            // Search query
+            if !searchQuery.isEmpty {
+                let q = searchQuery.lowercased()
+                let match = ticket.subject.lowercased().contains(q) ||
+                            ticket.id.lowercased().contains(q) ||
+                            ticket.assetName.lowercased().contains(q) ||
+                            ticket.donVi.lowercased().contains(q)
+                if !match { return false }
+            }
+
+            return true
+        }
+    }
+
+    private var closedTicketsToClean: [SupportTicket] {
+        myScopedTickets.filter { t in
+            !deletedTicketIds.contains(t.id) &&
+            (t.status.uppercased() == "CLOSED" || t.closedAt > 0)
+        }
+    }
+
+    // Date grouping
+    private var groupedTickets: [(String, [SupportTicket])] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today) ?? today
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd/MM/yyyy"
+
+        var dict: [String: [SupportTicket]] = [:]
+        var order: [String] = []
+
+        for ticket in visibleTickets {
+            let tDate = Date(timeIntervalSince1970: TimeInterval(ticket.createdAt) / 1000)
+            let start = calendar.startOfDay(for: tDate)
+
+            let groupKey: String
+            if start == today {
+                groupKey = "Hôm nay"
+            } else if start == yesterday {
+                groupKey = "Hôm qua"
+            } else {
+                groupKey = formatter.string(from: tDate)
+            }
+
+            if dict[groupKey] == nil {
+                dict[groupKey] = []
+                order.append(groupKey)
+            }
+            dict[groupKey]?.append(ticket)
+        }
+
+        return order.map { ($0, dict[$0] ?? []) }
     }
 
     public var body: some View {
@@ -38,403 +146,410 @@ public struct StaffSupportView: View {
                 Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // TOP BAR
-                    VStack(spacing: 0) {
-                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+                    // ── 1. TOP BAR ──────────────────────────────────────
+                    topBar(safeAreaTop: geometry.safeAreaInsets.top)
 
-                        HStack(spacing: 12) {
-                            Button(action: onBack) {
-                                Image(systemName: "chevron.left")
-                                    .foregroundColor(.white)
-                                    .font(.system(size: 17, weight: .bold))
-                            }
+                    // ── 2. CHANNEL FILTER CHIPS ────────────────────────
+                    channelFilterChips
 
-                            Text("Yêu cầu hỗ trợ của tôi")
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundColor(.white)
+                    // ── 3. SEGMENTED TABS: Tất cả | Đang mở | Đã đóng | Đã ẩn ──
+                    segmentedTabsBar
 
-                            Spacer()
+                    // ── 4. SEARCH BAR ──────────────────────────────────
+                    searchBar
 
-                            Button(action: { showingCreateSheet = true }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "plus.circle.fill")
-                                        .font(.system(size: 16))
-                                    Text("Tạo mới")
-                                        .font(.system(size: 13, weight: .bold))
-                                }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.white.opacity(0.2))
-                                .cornerRadius(8)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                    }
-                    .background(Color.appTopBarColor)
-
-                    // STATUS TABS (Tất cả, Đang mở, Đã đóng)
-                    HStack(spacing: 8) {
-                        statusTabButton(title: "Tất cả", count: tickets.count, tag: "ALL")
-                        statusTabButton(title: "Đang mở", count: openCount, tag: "OPEN", activeColor: Color(hex: "#16A34A"), activeBg: Color(hex: "#DCFCE7"))
-                        statusTabButton(title: "Đã đóng", count: closedCount, tag: "CLOSED")
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-
-                    // TICKETS LIST
-                    if isLoading && tickets.isEmpty {
+                    // ── 5. TICKETS LIST WITH DATE STICKY HEADERS ───────
+                    if supportVM.isLoading && myScopedTickets.isEmpty {
                         Spacer()
                         ProgressView("Đang tải dữ liệu...")
-                            .font(.system(size: 14))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
                         Spacer()
-                    } else if filteredTickets.isEmpty {
-                        VStack(spacing: 12) {
-                            Spacer()
-                            Image(systemName: "ticket.fill")
-                                .font(.system(size: 48))
-                                .foregroundColor(Color.appTextSecondary.opacity(0.5))
-                            Text("Chưa có yêu cầu hỗ trợ nào trong mục này")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(Color.appTextSecondary)
-                            Spacer()
-                        }
+                    } else if visibleTickets.isEmpty {
+                        emptyStateView
                     } else {
-                        ScrollView {
-                            LazyVStack(spacing: 10) {
-                                ForEach(filteredTickets) { ticket in
-                                    ticketRow(ticket)
-                                        .onTapGesture {
+                        ticketListView
+                    }
+                }
+            }
+            .ignoresSafeArea(edges: .top)
+        }
+        .onAppear {
+            if supportVM.tickets.isEmpty {
+                supportVM.fetchTickets()
+            }
+        }
+        .sheet(isPresented: $showingCreateSheet) {
+            CreateTicketSheetView(
+                supportVM: supportVM,
+                authViewModel: authViewModel,
+                onSuccess: {
+                    supportVM.fetchTickets()
+                    showingCreateSheet = false
+                },
+                onCancel: {
+                    showingCreateSheet = false
+                }
+            )
+        }
+        .sheet(item: $selectedTicketForChat) { ticket in
+            TicketChatDetailView(
+                viewModel: supportVM,
+                ticket: ticket,
+                onBack: { selectedTicketForChat = nil }
+            )
+        }
+        .alert(isPresented: $showConfirmCleanClosed) {
+            Alert(
+                title: Text("Dọn dẹp các yêu cầu đã đóng?"),
+                message: Text("Hệ thống sẽ ẩn \(closedTicketsToClean.count) yêu cầu hỗ trợ ĐÃ ĐÓNG khỏi danh sách. Bạn có thể xem lại hoặc hiện lại bất cứ lúc nào trong tab 'Đã ẩn'."),
+                primaryButton: .destructive(Text("Dọn dẹp ngay (\(closedTicketsToClean.count))")) {
+                    cleanClosedTickets()
+                },
+                secondaryButton: .cancel(Text("Hủy"))
+            )
+        }
+    }
+
+    // MARK: - TOP BAR
+    private func topBar(safeAreaTop: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            Color.clear.frame(height: safeAreaTop)
+
+            HStack(spacing: 12) {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(.white)
+                }
+
+                Text("Hỗ trợ Kỹ thuật (\(visibleTickets.count))")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+
+                Spacer()
+
+                // Nút Dọn dẹp ticket đã đóng
+                if !closedTicketsToClean.isEmpty {
+                    Button(action: { showConfirmCleanClosed = true }) {
+                        Image(systemName: "trash.circle.fill")
+                            .font(.system(size: 19))
+                            .foregroundColor(.white)
+                    }
+                }
+
+                // Nút Gửi yêu cầu mới
+                Button(action: { showingCreateSheet = true }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 14))
+                        Text("Tạo mới")
+                            .font(.system(size: 12.5, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color.white.opacity(0.2))
+                    .cornerRadius(8)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+        }
+        .background(Color.appTopBarColor)
+    }
+
+    // MARK: - CHANNEL FILTER CHIPS
+    private var channelFilterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                channelChip(title: "Tất cả kênh", tag: "ALL")
+                channelChip(title: "📱 Ứng dụng", tag: "APP")
+                channelChip(title: "💬 Zalo", tag: "ZALO")
+                channelChip(title: "✉️ Email", tag: "EMAIL")
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+        }
+    }
+
+    private func channelChip(title: String, tag: String) -> some View {
+        let isSel = selectedChannel == tag
+        return Button(action: {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                selectedChannel = tag
+            }
+        }) {
+            Text(title)
+                .font(.system(size: 11, weight: isSel ? .bold : .medium))
+                .foregroundColor(isSel ? Color.white : Color.appSecondaryDarkBlue)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(isSel ? Color.appPrimaryPink : Color.white)
+                .cornerRadius(14)
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(isSel ? Color.clear : Color(hex: "#E2E8F0"), lineWidth: 1))
+        }
+    }
+
+    // MARK: - SEGMENTED TABS BAR
+    private var segmentedTabsBar: some View {
+        HStack(spacing: 4) {
+            tabButton(title: "Tất cả", count: myScopedTickets.filter { !deletedTicketIds.contains($0.id) }.count, tag: "ALL")
+            tabButton(
+                title: "Đang mở",
+                count: myScopedTickets.filter { !deletedTicketIds.contains($0.id) && $0.isOpen }.count,
+                tag: "OPEN",
+                activeColor: Color(hex: "#16A34A"),
+                activeBg: Color(hex: "#DCFCE7")
+            )
+            tabButton(
+                title: "Đã đóng",
+                count: myScopedTickets.filter { !deletedTicketIds.contains($0.id) && !$0.isOpen }.count,
+                tag: "CLOSED"
+            )
+            tabButton(
+                title: "Đã ẩn",
+                count: deletedTicketIds.count,
+                tag: "HIDDEN",
+                activeColor: Color(hex: "#B91C1C"),
+                activeBg: Color(hex: "#FEE2E2")
+            )
+        }
+        .padding(4)
+        .background(Color(hex: "#F1F5F9"))
+        .cornerRadius(12)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 6)
+    }
+
+    private func tabButton(
+        title: String,
+        count: Int,
+        tag: String,
+        activeColor: Color = Color.appSecondaryDarkBlue,
+        activeBg: Color = Color.white
+    ) -> some View {
+        let isSel = filterStatus == tag
+        return Button(action: {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                filterStatus = tag
+            }
+        }) {
+            HStack(spacing: 3) {
+                Text(title)
+                    .font(.system(size: 11.5, weight: isSel ? .bold : .medium))
+                if count > 0 {
+                    Text("(\(count))")
+                        .font(.system(size: 10, weight: isSel ? .bold : .regular))
+                }
+            }
+            .foregroundColor(isSel ? activeColor : Color.gray)
+            .frame(maxWidth: .infinity)
+            .frame(height: 32)
+            .background(isSel ? activeBg : Color.clear)
+            .cornerRadius(8)
+            .shadow(color: isSel ? Color.black.opacity(0.06) : Color.clear, radius: 2, y: 1)
+        }
+    }
+
+    // MARK: - SEARCH BAR
+    private var searchBar: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(Color.gray)
+                .font(.system(size: 14))
+
+            TextField("Tìm theo tiêu đề, thiết bị, đơn vị...", text: $searchQuery)
+                .font(.system(size: 13))
+
+            if !searchQuery.isEmpty {
+                Button(action: { searchQuery = "" }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.gray)
+                        .font(.system(size: 14))
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.white)
+        .cornerRadius(10)
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+        .padding(.horizontal, 12)
+        .padding(.bottom, 6)
+    }
+
+    // MARK: - TICKET LIST VIEW
+    private var ticketListView: some View {
+        ScrollView {
+            LazyVStack(spacing: 8, pinnedViews: [.sectionHeaders]) {
+                ForEach(groupedTickets, id: \.0) { dateGroup, ticketsInGroup in
+                    Section(
+                        header: dateHeaderView(dateGroup: dateGroup, count: ticketsInGroup.count)
+                    ) {
+                        if !collapsedGroups.contains(dateGroup) {
+                            ForEach(ticketsInGroup) { ticket in
+                                TicketItemView(
+                                    ticket: ticket,
+                                    isHidden: filterStatus == "HIDDEN",
+                                    onClick: {
+                                        if let onTicketClick = onTicketClick {
+                                            onTicketClick(ticket.id, ticket.subject)
+                                        } else {
                                             selectedTicketForChat = ticket
                                         }
-                                }
+                                    },
+                                    onToggleHide: {
+                                        toggleHideTicket(ticket.id)
+                                    }
+                                )
                             }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 6)
-                        }
-                        .refreshable {
-                            await fetchTicketsAsync()
                         }
                     }
                 }
             }
-        }
-        .ignoresSafeArea(edges: .top)
-        .onAppear {
-            fetchTickets()
-        }
-        .sheet(isPresented: $showingCreateSheet) {
-            CreateTicketView(authViewModel: authViewModel) {
-                fetchTickets()
-                showingCreateSheet = false
-            } onCancel: {
-                showingCreateSheet = false
-            }
-        }
-        .sheet(item: $selectedTicketForChat) { ticket in
-            if let user = authViewModel.currentUser {
-                TicketChatDetailView(
-                    viewModel: SupportViewModel(
-                        user: user,
-                        companyId: authViewModel.currentCompanyId,
-                        idToken: authViewModel.currentIdToken
-                    ),
-                    ticket: ticket,
-                    onBack: { selectedTicketForChat = nil }
-                )
-            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
         }
     }
 
-    private func statusTabButton(title: String, count: Int, tag: String, activeColor: Color = Color.appSecondaryDarkBlue, activeBg: Color = Color.white) -> some View {
-        let isSelected = selectedStatus == tag
+    private func dateHeaderView(dateGroup: String, count: Int) -> some View {
+        let isCollapsed = collapsedGroups.contains(dateGroup)
         return Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                selectedStatus = tag
+            withAnimation(.easeInOut(duration: 0.15)) {
+                if isCollapsed {
+                    collapsedGroups.remove(dateGroup)
+                } else {
+                    collapsedGroups.insert(dateGroup)
+                }
             }
         }) {
             HStack(spacing: 6) {
-                Text(title)
-                    .font(.system(size: 12.5, weight: isSelected ? .bold : .medium))
-                Text("(\(count))")
-                    .font(.system(size: 11, weight: isSelected ? .bold : .regular))
-            }
-            .foregroundColor(isSelected ? activeColor : Color.gray)
-            .frame(maxWidth: .infinity)
-            .frame(height: 36)
-            .background(isSelected ? activeBg : Color(hex: "#F1F5F9"))
-            .cornerRadius(8)
-            .shadow(color: isSelected ? Color.black.opacity(0.05) : Color.clear, radius: 2, y: 1)
-        }
-    }
-
-    private func ticketRow(_ ticket: SupportTicket) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(ticket.subject.isEmpty ? "Sự cố thiết bị" : ticket.subject)
-                        .font(.system(size: 14.5, weight: .bold))
-                        .foregroundColor(Color.appTextPrimary)
-                        .lineLimit(2)
-
-                    Text("Mã phiếu: #\(ticket.id.prefix(8).uppercased())")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Color.appSecondaryDarkBlue)
-                }
-
-                Spacer()
-
-                priorityBadge(ticket.priority)
-            }
-
-            if !ticket.initialMessage.isEmpty {
-                Text(ticket.initialMessage)
-                    .font(.system(size: 12.5))
-                    .foregroundColor(Color.appTextSecondary)
-                    .lineLimit(2)
-            }
-
-            Divider()
-
-            HStack {
-                // Trạng thái phiếu
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(ticket.isOpen ? Color.appWarning : Color.appSuccess)
-                        .frame(width: 8, height: 8)
-
-                    Text(ticket.isOpen ? (ticket.isAcknowledged ? "Đang xử lý" : "Chờ tiếp nhận") : "Đã hoàn thành")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(ticket.isOpen ? (ticket.isAcknowledged ? Color.appInfo : Color.appWarning) : Color.appSuccess)
-                }
-
-                Spacer()
-
-                if ticket.createdAt > 0 {
-                    Text(formatDate(ticket.createdAt))
-                        .font(.system(size: 11))
-                        .foregroundColor(Color.appTextSecondary)
-                }
-
-                Image(systemName: "chevron.right")
+                Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(Color.appTextSecondary.opacity(0.6))
+                    .foregroundColor(Color.gray)
+
+                Image(systemName: "calendar")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color.gray)
+
+                Text("\(dateGroup) (\(count))")
+                    .font(.system(size: 11.5, weight: .bold))
+                    .foregroundColor(Color.gray)
+
+                Rectangle()
+                    .fill(Color(hex: "#E2E8F0"))
+                    .frame(height: 1)
             }
+            .padding(.vertical, 6)
+            .background(Color.appBackground.opacity(0.95))
         }
-        .padding(12)
-        .background(Color.white)
-        .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
-        .shadow(color: Color.black.opacity(0.03), radius: 4, x: 0, y: 1)
+        .buttonStyle(PlainButtonStyle())
     }
 
-    private func priorityBadge(_ priority: String) -> some View {
-        let p = priority.uppercased()
-        let color: Color
-        let label: String
-        switch p {
-        case "URGENT":
-            color = .appDanger
-            label = "Khẩn cấp"
-        case "HIGH":
-            color = .appWarning
-            label = "Ưu tiên cao"
-        default:
-            color = .appInfo
-            label = "Bình thường"
+    private var emptyStateView: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Image(systemName: "ticket.fill")
+                .font(.system(size: 48))
+                .foregroundColor(Color(hex: "#CBD5E1"))
+
+            Text("Chưa có yêu cầu hỗ trợ nào")
+                .font(.system(size: 15, weight: .bold))
+                .foregroundColor(Color.appSecondaryDarkBlue)
+
+            Text("Nhấn 'Tạo mới' ở góc trên để gửi mô tả sự cố kỹ thuật đến đội ngũ chuyên trách.")
+                .font(.system(size: 12))
+                .foregroundColor(Color.gray)
+                .multilineTextAlignment(.center)
+            Spacer()
         }
-
-        return Text(label)
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(color)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(color.opacity(0.12))
-            .cornerRadius(6)
+        .padding(24)
     }
 
-    private func formatDate(_ ms: Int64) -> String {
-        guard ms > 0 else { return "" }
-        let date = Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
-        let f = DateFormatter()
-        f.dateFormat = "dd/MM/yyyy HH:mm"
-        return f.string(from: date)
+    private func cleanClosedTickets() {
+        let idsToHide = closedTicketsToClean.map { $0.id }
+        deletedTicketIds.formUnion(idsToHide)
+        UserDefaults.standard.set(Array(deletedTicketIds), forKey: "support_staff_deleted_ids")
+        showConfirmCleanClosed = false
     }
 
-    private func fetchTickets() {
-        Task { await fetchTicketsAsync() }
-    }
-
-    // MARK: - QUERY TICKETS VIA RUNQUERY (ĐỒNG BỘ CHUẨN ANDROID)
-    private func fetchTicketsAsync() async {
-        let companyId = authViewModel.currentUser?.companyId ?? authViewModel.currentCompanyId
-        let token = authViewModel.currentIdToken
-        let userEmail = (authViewModel.currentUser?.email ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let userId = (authViewModel.currentUser?.id ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-        guard !companyId.isEmpty, !token.isEmpty, (!userEmail.isEmpty || !userId.isEmpty) else { return }
-
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId):runQuery"
-        guard let url = URL(string: urlStr) else { return }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let queryPayload: [String: Any] = [
-            "structuredQuery": [
-                "from": [["collectionId": "support_tickets"]],
-                "orderBy": [
-                    ["field": ["fieldPath": "createdAt"], "direction": "DESCENDING"]
-                ],
-                "limit": 200
-            ]
-        ]
-
-        guard let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) else { return }
-        request.httpBody = bodyData
-
-        DispatchQueue.main.async { isLoading = true }
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
-                if let results = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-                    var loadedTickets: [SupportTicket] = []
-
-                    for item in results {
-                        guard let doc = item["document"] as? [String: Any],
-                              let fields = doc["fields"] as? [String: Any],
-                              let name = doc["name"] as? String else { continue }
-
-                        let cEmail = FirestoreHelper.getString(fields["creatorEmail"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                        let cId = FirestoreHelper.getString(fields["creatorUserId"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                        let altCId = FirestoreHelper.getString(fields["creatorId"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-                        // Kiểm tra quyền sở hữu vé của nhân viên
-                        let isMine = (!userEmail.isEmpty && cEmail == userEmail) ||
-                                     (!userId.isEmpty && (cId == userId || altCId == userId))
-                        if !isMine { continue }
-
-                        let docId = name.components(separatedBy: "/").last ?? ""
-                        let subject = FirestoreHelper.getString(fields["subject"] as? [String: Any]).isEmpty
-                            ? FirestoreHelper.getString(fields["title"] as? [String: Any])
-                            : FirestoreHelper.getString(fields["subject"] as? [String: Any])
-                        let initialMessage = FirestoreHelper.getString(fields["initialMessage"] as? [String: Any]).isEmpty
-                            ? FirestoreHelper.getString(fields["description"] as? [String: Any])
-                            : FirestoreHelper.getString(fields["initialMessage"] as? [String: Any])
-
-                        let ticket = SupportTicket(
-                            id: docId,
-                            creatorEmail: cEmail,
-                            creatorName: FirestoreHelper.getString(fields["creatorName"] as? [String: Any]),
-                            creatorPhone: FirestoreHelper.getString(fields["creatorPhone"] as? [String: Any]),
-                            creatorUserId: cId,
-                            subject: subject,
-                            status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
-                            category: FirestoreHelper.getString(fields["category"] as? [String: Any]),
-                            priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
-                            assetId: FirestoreHelper.getString(fields["assetId"] as? [String: Any]),
-                            assetName: FirestoreHelper.getString(fields["assetName"] as? [String: Any]),
-                            createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
-                            lastMessage: FirestoreHelper.getString(fields["lastMessage"] as? [String: Any]),
-                            lastMessageAt: FirestoreHelper.getInt64(fields["lastMessageAt"] as? [String: Any]),
-                            companyId: companyId,
-                            donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
-                            initialMessage: initialMessage,
-                            assignedToName: FirestoreHelper.getString(fields["assignedToName"] as? [String: Any]),
-                            isAcknowledged: FirestoreHelper.getBool(fields["isAcknowledged"] as? [String: Any]),
-                            closedAt: FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any])
-                        )
-                        loadedTickets.append(ticket)
-                    }
-
-                    DispatchQueue.main.async {
-                        self.tickets = loadedTickets.sorted { $0.createdAt > $1.createdAt }
-                        self.isLoading = false
-                    }
-                } else {
-                    DispatchQueue.main.async {
-                        self.tickets = []
-                        self.isLoading = false
-                    }
-                }
-            } else {
-                DispatchQueue.main.async { self.isLoading = false }
-            }
-        } catch {
-            DispatchQueue.main.async { self.isLoading = false }
+    private func toggleHideTicket(_ ticketId: String) {
+        if deletedTicketIds.contains(ticketId) {
+            deletedTicketIds.remove(ticketId)
+        } else {
+            deletedTicketIds.insert(ticketId)
         }
+        UserDefaults.standard.set(Array(deletedTicketIds), forKey: "support_staff_deleted_ids")
     }
 }
 
-// MARK: - FORM TẠO YÊU CẦU HỖ TRỢ MỚI (ĐỒNG BỘ 1:1 FIRESTORE VỚI ANDROID)
-struct CreateTicketView: View {
+// MARK: - SHEET TẠO YÊU CẦU HỖ TRỢ MỚI ĐẦY ĐỦ 1:1 VỚI ANDROID
+public struct CreateTicketSheetView: View {
+    @ObservedObject var supportVM: SupportViewModel
     @ObservedObject var authViewModel: AuthViewModel
     var onSuccess: () -> Void
     var onCancel: () -> Void
 
-    @State private var subject = ""
-    @State private var initialMessage = ""
-    @State private var priority = "NORMAL"
-    @State private var category = "HARDWARE"
-    @State private var isSubmitting = false
+    @State private var currentStep: Int = 0 // 0: Phân loại & Thiết bị, 1: Chi tiết sự cố
+    @State private var ticketScope: String = "UNIT" // "UNIT" or "DEPARTMENT"
+    @State private var category: String = "HARDWARE"
+    @State private var priority: String = "NORMAL"
+    @State private var assetId: String = ""
+    @State private var assetName: String = ""
+    @State private var phone: String = ""
+    @State private var subject: String = ""
+    @State private var message: String = ""
+    @State private var donVi: String = ""
+    @State private var isSubmitting: Bool = false
 
-    let priorities = ["NORMAL", "HIGH", "URGENT"]
     let categories = [
-        ("HARDWARE", "Phần cứng / Máy móc"),
-        ("SOFTWARE", "Phần mềm / Ứng dụng"),
-        ("NETWORK", "Mạng / Đường truyền"),
-        ("OTHER", "Vấn đề khác")
+        ("HARDWARE", "🖥️ Phần cứng / Thiết bị"),
+        ("SOFTWARE", "💾 Phần mềm / Ứng dụng"),
+        ("NETWORK", "🌐 Mạng / Internet"),
+        ("PRINTER", "🖨️ Máy in / POS"),
+        ("ACCOUNT", "👤 Tài khoản / Đăng nhập"),
+        ("OTHER", "➕ Vấn đề khác")
     ]
 
-    var body: some View {
+    public var body: some View {
         NavigationView {
-            Form {
-                Section(header: Text("Nội dung sự cố")) {
-                    TextField("Tiêu đề sự cố / Thiết bị (bắt buộc)", text: $subject)
-                        .font(.system(size: 14.5))
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Mô tả chi tiết sự cố:")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.gray)
-                        TextEditor(text: $initialMessage)
-                            .frame(minHeight: 100)
-                            .font(.system(size: 14))
-                    }
+            VStack(spacing: 0) {
+                // Segment Step Header
+                HStack(spacing: 8) {
+                    stepHeaderPill(title: "1. Thiết bị & Phân loại", step: 0)
+                    stepHeaderPill(title: "2. Chi tiết sự cố", step: 1)
                 }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Color(hex: "#F1F5F9"))
 
-                Section(header: Text("Phân loại & Mức độ ưu tiên")) {
-                    Picker("Danh mục", selection: $category) {
-                        ForEach(categories, id: \.0) { cat in
-                            Text(cat.1).tag(cat.0)
-                        }
-                    }
-
-                    Picker("Mức độ", selection: $priority) {
-                        Text("Bình thường").tag("NORMAL")
-                        Text("Ưu tiên cao").tag("HIGH")
-                        Text("Khẩn cấp").tag("URGENT")
-                    }
-                }
-
-                Section(footer: Text("Yêu cầu sẽ được chuyển tới bộ phận kỹ thuật để tiếp nhận và hỗ trợ kịp thời.")) {
-                    EmptyView()
+                if currentStep == 0 {
+                    step0View
+                } else {
+                    step1View
                 }
             }
-            .navigationTitle("Tạo yêu cầu hỗ trợ")
+            .navigationTitle("Gửi yêu cầu hỗ trợ")
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(
                 leading: Button("Hủy", action: onCancel),
-                trailing: Button("Gửi yêu cầu") {
-                    submitTicket()
+                trailing: Group {
+                    if currentStep == 0 {
+                        Button("Tiếp tục") {
+                            withAnimation { currentStep = 1 }
+                        }
+                        .font(.system(size: 14, weight: .bold))
+                    } else {
+                        Button("Gửi yêu cầu") {
+                            submitTicket()
+                        }
+                        .font(.system(size: 14, weight: .bold))
+                        .disabled(subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                                  message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                                  isSubmitting)
+                    }
                 }
-                .font(.system(size: 15, weight: .bold))
-                .disabled(subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                          initialMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                          isSubmitting)
             )
             .overlay {
                 if isSubmitting {
@@ -443,63 +558,116 @@ struct CreateTicketView: View {
                 }
             }
         }
+        .onAppear {
+            let u = authViewModel.currentUser
+            phone = u?.phone ?? ""
+            donVi = u?.donVi ?? ""
+        }
+    }
+
+    private func stepHeaderPill(title: String, step: Int) -> some View {
+        let isSel = currentStep == step
+        return Button(action: {
+            withAnimation { currentStep = step }
+        }) {
+            Text(title)
+                .font(.system(size: 12, weight: isSel ? .bold : .medium))
+                .foregroundColor(isSel ? Color.white : Color.gray)
+                .frame(maxWidth: .infinity)
+                .frame(height: 32)
+                .background(isSel ? Color.appPrimaryPink : Color.white)
+                .cornerRadius(8)
+        }
+    }
+
+    // MARK: - STEP 0 VIEW
+    private var step0View: some View {
+        Form {
+            Section(header: Text("Phạm vi hỗ trợ")) {
+                Picker("Phạm vi", selection: $ticketScope) {
+                    Text("Đơn vị (Chi nhánh)").tag("UNIT")
+                    Text("Phòng ban nội bộ").tag("DEPARTMENT")
+                }
+                .pickerStyle(SegmentedPickerStyle())
+            }
+
+            Section(header: Text("Phân loại sự cố")) {
+                Picker("Danh mục", selection: $category) {
+                    ForEach(categories, id: \.0) { cat in
+                        Text(cat.1).tag(cat.0)
+                    }
+                }
+
+                Picker("Mức độ khẩn cấp", selection: $priority) {
+                    Text("🟢 Bình thường (24h)").tag("NORMAL")
+                    Text("🟡 Cần gấp (4h)").tag("HIGH")
+                    Text("🔴 Khẩn cấp (<1h)").tag("URGENT")
+                }
+            }
+
+            Section(header: Text("Thông tin thiết bị (nếu có)")) {
+                TextField("Mã thiết bị (Asset ID)", text: $assetId)
+                    .font(.system(size: 13.5))
+
+                TextField("Tên thiết bị (Model / Tên gọi)", text: $assetName)
+                    .font(.system(size: 13.5))
+            }
+
+            Section(header: Text("Thông tin liên hệ")) {
+                TextField("Số điện thoại liên hệ", text: $phone)
+                    .keyboardType(.phonePad)
+                    .font(.system(size: 13.5))
+
+                TextField("Đơn vị / Chi nhánh", text: $donVi)
+                    .font(.system(size: 13.5))
+            }
+        }
+    }
+
+    // MARK: - STEP 1 VIEW
+    private var step1View: some View {
+        Form {
+            Section(header: Text("Tiêu đề sự cố *")) {
+                TextField("Ví dụ: Máy in bill không nhận lệnh, mất mạng POS...", text: $subject)
+                    .font(.system(size: 14))
+            }
+
+            Section(header: Text("Mô tả chi tiết *")) {
+                TextEditor(text: $message)
+                    .frame(minHeight: 120)
+                    .font(.system(size: 13.5))
+            }
+
+            Section(footer: Text("Yêu cầu sẽ được tự động điều phối tới bộ phận kỹ thuật / chuyên viên phụ trách.")) {
+                EmptyView()
+            }
+        }
     }
 
     private func submitTicket() {
-        let user = authViewModel.currentUser
-        let companyId = user?.companyId ?? authViewModel.currentCompanyId
-        let token = authViewModel.currentIdToken
-
-        guard !companyId.isEmpty, !token.isEmpty else { return }
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets"
-        guard let url = URL(string: urlStr) else { return }
+        guard !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
         isSubmitting = true
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        let now = Int64(Date().timeIntervalSince1970 * 1000)
-        let cleanSubject = subject.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleanDesc = initialMessage.trimmingCharacters(in: .whitespacesAndNewlines)
-        let email = user?.email ?? ""
-        let fullName = (user?.fullName.isEmpty ?? true) ? email : (user?.fullName ?? "")
-
-        let body: [String: Any] = [
-            "fields": [
-                "subject": ["stringValue": cleanSubject],
-                "title": ["stringValue": cleanSubject],
-                "initialMessage": ["stringValue": cleanDesc],
-                "description": ["stringValue": cleanDesc],
-                "status": ["stringValue": "OPEN"],
-                "priority": ["stringValue": priority],
-                "category": ["stringValue": category],
-                "creatorEmail": ["stringValue": email],
-                "creatorUserId": ["stringValue": user?.id ?? ""],
-                "creatorId": ["stringValue": user?.id ?? ""],
-                "creatorName": ["stringValue": fullName],
-                "donVi": ["stringValue": user?.donVi ?? ""],
-                "departmentId": ["stringValue": user?.departmentId ?? ""],
-                "companyId": ["stringValue": companyId],
-                "createdAt": ["integerValue": "\(now)"],
-                "updatedAt": ["integerValue": "\(now)"]
-            ]
-        ]
-
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-        Task {
-            do {
-                let (_, response) = try await URLSession.shared.data(for: request)
-                DispatchQueue.main.async {
-                    self.isSubmitting = false
-                    if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
-                        self.onSuccess()
-                    }
+        supportVM.createTicket(
+            subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),
+            message: message.trimmingCharacters(in: .whitespacesAndNewlines),
+            category: category,
+            priority: priority,
+            assetId: assetId.trimmingCharacters(in: .whitespacesAndNewlines),
+            assetName: assetName.trimmingCharacters(in: .whitespacesAndNewlines),
+            phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
+            images: [],
+            donVi: donVi.trimmingCharacters(in: .whitespacesAndNewlines),
+            gpsLat: 0.0,
+            gpsLng: 0.0,
+            scope: ticketScope
+        ) { success in
+            DispatchQueue.main.async {
+                self.isSubmitting = false
+                if success {
+                    self.onSuccess()
                 }
-            } catch {
-                DispatchQueue.main.async { self.isSubmitting = false }
             }
         }
     }

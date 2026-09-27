@@ -195,3 +195,19 @@ public struct LichSuThietBi: Identifiable, Codable, Hashable {
         self.timestamp = timestamp
     }
 }
+
+// MARK: - DEVICE TYPE MODEL (LOAITHIETBI)
+public struct DeviceType: Identifiable, Codable, Hashable {
+    public var id: String
+    public var name: String
+    public var displayName: String { name }
+    public var phongBan: String?
+    public var companyId: String?
+
+    public init(id: String, name: String, phongBan: String? = nil, companyId: String? = nil) {
+        self.id = id
+        self.name = name
+        self.phongBan = phongBan
+        self.companyId = companyId
+    }
+}

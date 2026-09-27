@@ -1,6 +1,7 @@
 import SwiftUI
+import UIKit
 
-// MARK: - MÀN HÌNH TRANG CHỦ (ĐỒNG BỘ 1:1 THEO HOMESCREEN.KT TRÊN ANDROID & ẢNH SCREENSHOT ADMIN)
+// MARK: - MÀN HÌNH TRANG CHỦ (ĐỒNG BỘ 1:1 THEO HOMESCREEN.KT TRÊN ANDROID)
 public struct HomeScreenView: View {
     @ObservedObject var viewModel: HomeViewModel
     var onOpenDrawer: () -> Void
@@ -11,15 +12,22 @@ public struct HomeScreenView: View {
     @State private var showEditNameDialog: Bool = false
     @State private var editNameInput: String = ""
     @State private var isSavingName: Bool = false
+    @State private var nameError: String? = nil
 
     @State private var showEditPhoneDialog: Bool = false
     @State private var editPhoneInput: String = ""
     @State private var isSavingPhone: Bool = false
+    @State private var phoneError: String? = nil
 
     @State private var showGuideDialog: Bool = false
     @State private var showNotificationsSheet: Bool = false
     @State private var showAboutDialog: Bool = false
     @State private var showLogoutConfirmDialog: Bool = false
+    @State private var accessRestrictedMessage: String? = nil
+
+    // Image Picker for Avatar
+    @State private var showImagePicker: Bool = false
+    @State private var selectedAvatarImage: UIImage? = nil
 
     // Quick Action Sheets
     @State private var showQRScannerSheet: Bool = false
@@ -45,58 +53,62 @@ public struct HomeScreenView: View {
                 Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // 1. TOP BAR CHUẨN ANDROID (Màu #002A8F) TRÀN TAI THỎ VỚI SAFE AREA
+                    // 1. TOP BAR CHUẨN ANDROID (#002A8F) KÈM STATUS BAR INSETS
                     VStack(spacing: 0) {
-                        // Khoảng đệm an toàn tránh Notch tai thỏ / Dynamic Island
                         Color.clear.frame(height: geometry.safeAreaInsets.top)
 
                         HStack(spacing: 12) {
-                            // Nút Menu Hamburger mở Drawer
+                            // Nút Hamburger mở Drawer
                             Button(action: onOpenDrawer) {
                                 Image(systemName: "line.3.horizontal")
                                     .font(.system(size: 20, weight: .bold))
                                     .foregroundColor(.white)
                             }
 
-                            // Logo & Tiêu đề "Trang chủ"
+                            // Logo & Tiêu đề "Hệ Thống QLTB" (chuẩn R.string.home_title)
                             HStack(spacing: 8) {
                                 Image("logo_app")
                                     .resizable()
                                     .scaledToFit()
-                                    .frame(width: 26, height: 26)
+                                    .frame(width: 28, height: 28)
                                     .cornerRadius(6)
 
-                                Text("Trang chủ")
+                                Text("Hệ Thống QLTB")
                                     .font(.system(size: 18, weight: .heavy))
                                     .foregroundColor(.white)
+                                    .lineLimit(1)
                             }
 
                             Spacer()
 
-                            // Nút 1: Bóng đèn Hướng dẫn (Màu vàng #FBBF24)
+                            // Nút 1: Bóng đèn Hướng dẫn (Màu vàng #FBBF24, 20dp)
                             Button(action: { showGuideDialog = true }) {
                                 Image(systemName: "lightbulb.fill")
-                                    .font(.system(size: 19))
+                                    .font(.system(size: 20))
                                     .foregroundColor(Color(hex: "#FBBF24"))
                             }
 
-                            // Nút 2: Chuông thông báo (Kèm Badge đỏ)
+                            // Nút 2: Chuông thông báo (Kèm Badge số lượng màu hồng #F40266)
                             Button(action: { showNotificationsSheet = true }) {
                                 ZStack(alignment: .topTrailing) {
                                     Image(systemName: "bell.fill")
-                                        .font(.system(size: 18))
+                                        .font(.system(size: 20))
                                         .foregroundColor(.white)
 
                                     if viewModel.unreadNotificationCount > 0 {
-                                        Circle()
-                                            .fill(Color.appPrimaryPink)
-                                            .frame(width: 8, height: 8)
-                                            .offset(x: 2, y: -2)
+                                        Text(viewModel.unreadNotificationCount > 99 ? "99+" : "\(viewModel.unreadNotificationCount)")
+                                            .font(.system(size: 9, weight: .heavy))
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 4)
+                                            .padding(.vertical, 1)
+                                            .background(Color.appPrimaryPink)
+                                            .clipShape(Capsule())
+                                            .offset(x: 8, y: -6)
                                     }
                                 }
                             }
 
-                            // Nút 3: Menu 3 chấm (Overflow Menu)
+                            // Nút 3: Menu mở rộng 3 chấm (Overflow Menu)
                             Menu {
                                 if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
                                     Button(action: { onNavigate(.systemSettings) }) {
@@ -108,11 +120,11 @@ public struct HomeScreenView: View {
                                     Label("Đổi mật khẩu tài khoản", systemImage: "lock.fill")
                                 }
 
-                                Button(action: { showGuideDialog = true }) {
+                                Button(action: { onNavigate(.help) }) {
                                     Label("Trợ giúp & Hướng dẫn", systemImage: "questionmark.circle.fill")
                                 }
 
-                                Button(action: { showAboutDialog = true }) {
+                                Button(action: { onNavigate(.appInfo) }) {
                                     Label("Thông tin ứng dụng", systemImage: "info.circle.fill")
                                 }
 
@@ -124,34 +136,42 @@ public struct HomeScreenView: View {
                             } label: {
                                 Image(systemName: "ellipsis")
                                     .rotationEffect(.degrees(90))
-                                    .font(.system(size: 18, weight: .bold))
+                                    .font(.system(size: 20, weight: .bold))
                                     .foregroundColor(.white)
                             }
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
 
-                        // Dòng chữ chạy thông báo doanh nghiệp gắn liền dưới TopBar
+                        // Dòng chữ chạy thông báo doanh nghiệp gắn liền ngay dưới TopBar
                         CompanyBannerTickerView()
                     }
                     .background(Color.appTopBarColor)
 
                     // 2. NỘI DUNG CUỘN (SCROLLABLE CONTENT)
                     ScrollView {
-                        VStack(spacing: 14) {
+                        VStack(spacing: 16) {
                             // Thẻ Hồ sơ Người dùng (User Profile Card)
                             userProfileCard
 
-                            // Thống kê 3 Thẻ ngang (Thiết bị | Sự cố mở | Điểm danh)
+                            // 3 Thẻ thống kê ngang (Thiết bị | Sự cố mở | Điểm danh)
                             dashboardStatsRow
 
-                            // Truy cập nhanh chức năng (8 lối tắt chính)
+                            // Trung tâm thao tác nhanh (8 lối tắt chính)
                             quickAccessSection
 
                             Spacer(minLength: 80)
                         }
-                        .padding(14)
+                        .padding(16)
                     }
+                }
+
+                // Modal thông báo "Truy cập bị giới hạn" (chuẩn Android)
+                if let restrictedMsg = accessRestrictedMessage {
+                    Color.black.opacity(0.4).ignoresSafeArea()
+                    accessRestrictedDialog(message: restrictedMsg)
+                        .padding(.horizontal, 28)
+                        .zIndex(50)
                 }
             }
             .ignoresSafeArea(edges: .top)
@@ -159,38 +179,30 @@ public struct HomeScreenView: View {
         .onAppear {
             viewModel.loadDashboardData()
         }
-        // Modal Đổi tên
-        .alert("Đổi tên hiển thị", isPresented: $showEditNameDialog) {
-            TextField("Nhập họ và tên mới", text: $editNameInput)
-            Button("Hủy", role: .cancel) {}
-            Button("Lưu") {
+        // Chọn ảnh đại diện từ Photo Library
+        .sheet(isPresented: $showImagePicker) {
+            ImagePickerView(selectedImage: $selectedAvatarImage) { image in
                 Task {
-                    try? await viewModel.updateUserName(newName: editNameInput)
+                    try? await viewModel.uploadAvatarImage(image)
                 }
             }
-        } message: {
-            Text("Nhập họ và tên hiển thị mới của bạn:")
         }
-        // Modal Đổi số điện thoại
-        .alert("Cập nhật số điện thoại", isPresented: $showEditPhoneDialog) {
-            TextField("Nhập số điện thoại", text: $editPhoneInput)
-            Button("Hủy", role: .cancel) {}
-            Button("Lưu") {
-                Task {
-                    try? await viewModel.updateUserPhone(newPhone: editPhoneInput)
-                }
-            }
-        } message: {
-            Text("Nhập số điện thoại liên lạc của bạn:")
+        // Sheet Đổi tên hiển thị
+        .sheet(isPresented: $showEditNameDialog) {
+            editNameSheetView
         }
-        // Modal Thông tin ứng dụng
+        // Sheet Đổi số điện thoại
+        .sheet(isPresented: $showEditPhoneDialog) {
+            editPhoneSheetView
+        }
+        // Sheet Thông tin ứng dụng
         .alert("Thông tin ứng dụng", isPresented: $showAboutDialog) {
             Button("OK", role: .cancel) {}
         } message: {
             Text("IT Service & Assets (QLTB)\nPhiên bản: v1.2.0 (Build 120)\nSaigon Co.op - Bản quyền thuộc Trung tâm CNTT")
         }
-        // Modal Xác nhận đăng xuất
-        .alert("Xác nhận đăng xuất", isPresented: $showLogoutConfirmDialog) {
+        // Alert Xác nhận đăng xuất
+        .alert("Đăng xuất", isPresented: $showLogoutConfirmDialog) {
             Button("Hủy", role: .cancel) {}
             Button("Đăng xuất", role: .destructive) {
                 onLogout()
@@ -211,20 +223,17 @@ public struct HomeScreenView: View {
                 onBack: { showNotificationsSheet = false }
             )
         }
-        // Sheet Đổi mật khẩu
+        // Modal Đổi mật khẩu tài khoản
         .sheet(isPresented: $viewModel.showChangePasswordModal) {
-            ChangePasswordModal(
-                email: viewModel.user.email,
-                idToken: viewModel.idToken,
+            ChangePasswordModalView(
+                viewModel: viewModel,
                 onDismiss: { viewModel.showChangePasswordModal = false }
             )
         }
         // Sheet Quét QR
         .sheet(isPresented: $showQRScannerSheet) {
             QRScannerView(
-                onScanResult: { scannedCode in
-                    // Quét được mã thiết bị -> mở danh sách hoặc thông báo
-                },
+                onScanResult: { _ in },
                 onDismiss: { showQRScannerSheet = false }
             )
         }
@@ -264,48 +273,77 @@ public struct HomeScreenView: View {
         }
     }
 
-    // MARK: - CARD HỒ SƠ NGƯỜI DÙNG (PROFILE CARD)
+    // MARK: - 1. THẺ HỒ SƠ NGƯỜI DÙNG (PROFILE CARD)
     private var userProfileCard: some View {
         HStack(alignment: .center, spacing: 14) {
-            // Avatar tròn với viền hồng và camera badge ở góc
-            ZStack(alignment: .bottomTrailing) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.appPrimaryPink.opacity(0.4), lineWidth: 2)
-                        .frame(width: 68, height: 68)
+            // Avatar tròn 68dp với viền hồng, camera badge và hiển thị ảnh Cloudinary
+            Button(action: { showImagePicker = true }) {
+                ZStack(alignment: .bottomTrailing) {
+                    ZStack {
+                        Circle()
+                            .stroke(Color.appPrimaryPink.opacity(0.4), lineWidth: 2)
+                            .frame(width: 68, height: 68)
 
-                    Image("logo_app")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 58, height: 58)
-                        .clipShape(Circle())
+                        if !viewModel.user.avatarUrl.isEmpty, let url = URL(string: viewModel.user.avatarUrl) {
+                            AsyncImage(url: url) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image.resizable()
+                                        .scaledToFill()
+                                        .frame(width: 60, height: 60)
+                                        .clipShape(Circle())
+                                case .failure, .empty:
+                                    Image("logo_app")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 60, height: 60)
+                                        .clipShape(Circle())
+                                @unknown default:
+                                    ProgressView().frame(width: 60, height: 60)
+                                }
+                            }
+                        } else {
+                            Image("logo_app")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 60, height: 60)
+                                .clipShape(Circle())
+                        }
+
+                        if viewModel.isUploadingAvatar {
+                            Circle().fill(Color.black.opacity(0.45)).frame(width: 60, height: 60)
+                            ProgressView().colorInvert()
+                        }
+                    }
+
+                    // Camera icon badge
+                    ZStack {
+                        Circle()
+                            .fill(Color.appPrimaryPink)
+                            .frame(width: 22, height: 22)
+                            .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
+
+                        Image(systemName: "camera.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(.white)
+                    }
+                    .offset(x: 2, y: 2)
                 }
-
-                // Camera icon badge
-                ZStack {
-                    Circle()
-                        .fill(Color.appPrimaryPink)
-                        .frame(width: 22, height: 22)
-                        .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
-
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(.white)
-                }
-                .offset(x: 2, y: 2)
             }
 
             // Thông tin cá nhân
             VStack(alignment: .leading, spacing: 3) {
                 // Dòng 1: Tên + Bút chì đổi tên + Pill Badge Role
                 HStack(spacing: 6) {
-                    Text(!viewModel.user.fullName.isEmpty ? viewModel.user.fullName : "admin")
-                        .font(.system(size: 17, weight: .bold))
+                    let displayName = !viewModel.user.fullName.isEmpty ? viewModel.user.fullName : (viewModel.user.email.components(separatedBy: "@").first ?? "Người dùng")
+                    Text(displayName)
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundColor(Color.appSecondaryDarkBlue)
                         .lineLimit(1)
 
                     Button(action: {
-                        editNameInput = viewModel.user.fullName.isEmpty ? "admin" : viewModel.user.fullName
+                        editNameInput = displayName
+                        nameError = nil
                         showEditNameDialog = true
                     }) {
                         Image(systemName: "pencil")
@@ -313,14 +351,8 @@ public struct HomeScreenView: View {
                             .foregroundColor(Color.appPrimaryPink)
                     }
 
-                    // Badge Role Pill
-                    Text(viewModel.user.roleTitle)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(Color.appPrimaryPink)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.appPrimaryPinkContainer)
-                        .cornerRadius(6)
+                    // Badge Role Pill chuẩn Android với 6 phân quyền
+                    roleBadgeView
                 }
 
                 // Dòng 2: Email
@@ -342,6 +374,7 @@ public struct HomeScreenView: View {
 
                         Button(action: {
                             editPhoneInput = viewModel.user.phone
+                            phoneError = nil
                             showEditPhoneDialog = true
                         }) {
                             Image(systemName: "pencil")
@@ -370,14 +403,20 @@ public struct HomeScreenView: View {
                     }
                 }
 
-                // Dòng 4: Đơn vị sở hữu
+                // Dòng 4: Đơn vị sở hữu & Phòng ban
                 if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
-                    Text("🏢 Toàn hệ thống Doanh nghiệp")
+                    Text("🏢 \(viewModel.user.donVi.isEmpty ? "Toàn hệ thống Doanh nghiệp" : viewModel.user.donVi)")
                         .font(.system(size: 11.5, weight: .medium))
                         .foregroundColor(Color(hex: "#334155"))
                         .lineLimit(1)
-                } else if !viewModel.user.donVi.isEmpty {
-                    Text("🏬 Đơn vị: \(viewModel.user.donVi)")
+                } else {
+                    if !viewModel.user.departmentId.isEmpty {
+                        Text("🏛️ Phòng: \(viewModel.user.departmentId)")
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundColor(Color(hex: "#334155"))
+                            .lineLimit(1)
+                    }
+                    Text("🏬 Đơn vị: \(viewModel.user.donVi.isEmpty ? "Chưa gán" : viewModel.user.donVi)")
                         .font(.system(size: 11.5, weight: .medium))
                         .foregroundColor(Color(hex: "#334155"))
                         .lineLimit(1)
@@ -391,7 +430,34 @@ public struct HomeScreenView: View {
         .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
     }
 
-    // MARK: - DASHBOARD STATS (3 THẺ NGANG)
+    // Role badge pill chuẩn xác 1:1 theo HomeScreen.kt
+    private var roleBadgeView: some View {
+        let (title, bg, textCol) = { () -> (String, Color, Color) in
+            if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
+                return ("Quản trị viên (Admin)", Color.appPrimaryPink.opacity(0.12), Color.appPrimaryPink)
+            } else if viewModel.user.isHelpDesk {
+                return ("Phòng Helpdesk", Color(hex: "#0284C7").opacity(0.15), Color(hex: "#0284C7"))
+            } else if viewModel.user.isTechnician {
+                return ("Kỹ thuật viên", Color(hex: "#16A34A").opacity(0.15), Color(hex: "#16A34A"))
+            } else if viewModel.user.isSpecialist {
+                return ("Chuyên viên", Color(hex: "#7E22CE").opacity(0.12), Color(hex: "#7E22CE"))
+            } else if viewModel.user.isManager {
+                return ("Quản lý phòng ban", Color.appSecondaryDarkBlue.opacity(0.12), Color.appSecondaryDarkBlue)
+            } else {
+                return ("Nhân viên", Color(hex: "#F0F2F5"), Color.darkGray)
+            }
+        }()
+
+        return Text(title)
+            .font(.system(size: 9.5, weight: .bold))
+            .foregroundColor(textCol)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2.5)
+            .background(bg)
+            .cornerRadius(6)
+    }
+
+    // MARK: - 2. DASHBOARD STATS (3 THẺ NGANG)
     private var dashboardStatsRow: some View {
         HStack(spacing: 8) {
             // Thẻ 1: Tổng thiết bị (Màu xanh dương)
@@ -406,7 +472,7 @@ public struct HomeScreenView: View {
                 onNavigate(.deviceList)
             }
 
-            // Thẻ 2: Sự cố kỹ thuật OPEN (Đồng bộ 1:1 với HomeScreen.kt trên Android)
+            // Thẻ 2: Sự cố kỹ thuật OPEN
             let openCount = viewModel.openTicketsCount
             let isAdmOrHd = viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk
             let isTech = viewModel.user.isTechnician
@@ -432,10 +498,12 @@ public struct HomeScreenView: View {
                 accentColor: ticketColor,
                 bgColor: ticketBg
             ) {
-                if isAdmOrHd || isTech {
-                    onNavigate(.supportHub)
-                } else {
+                if isAdmOrHd {
+                    onNavigate(.adminTicketList)
+                } else if isTech {
                     onNavigate(.staffSupport)
+                } else {
+                    onNavigate(.supportHub)
                 }
             }
 
@@ -478,12 +546,12 @@ public struct HomeScreenView: View {
                     Spacer()
 
                     Text(count)
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.system(size: 18, weight: .heavy))
                         .foregroundColor(accentColor)
                 }
 
                 Text(title)
-                    .font(.system(size: 12.5, weight: .bold))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundColor(Color.appTextPrimary)
                     .lineLimit(1)
 
@@ -501,7 +569,7 @@ public struct HomeScreenView: View {
         }
     }
 
-    // MARK: - TRUY CẬP NHANH CHỨC NĂNG (8 LỐI TẮT CHÍNH - 2 HÀNG x 4 CỘT)
+    // MARK: - 3. TRUY CẬP NHANH CHỨC NĂNG (8 LỐI TẮT CHÍNH)
     private var quickAccessSection: some View {
         VStack(spacing: 12) {
             // Header
@@ -551,30 +619,47 @@ public struct HomeScreenView: View {
                     iconColor: Color(hex: "#EA580C"),
                     bgColor: Color(hex: "#FFEDD5")
                 ) {
-                    onNavigate(.supportHub)
+                    if viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk {
+                        onNavigate(.adminTicketList)
+                    } else if viewModel.user.isTechnician {
+                        onNavigate(.staffSupport)
+                    } else {
+                        onNavigate(.supportHub)
+                    }
                 }
             }
 
-            // Hàng 2: Chấm công | Phân ca | Thống kê | In tem QR
+            // Hàng 2: Chấm công | Phân ca | Thống kê | Duyệt NV / In tem QR
             HStack(spacing: 8) {
+                // Chấm công (Staff bị giới hạn)
                 quickAccessCard(
                     icon: "chart.bar.xaxis",
                     label: "Chấm công",
                     iconColor: Color(hex: "#059669"),
                     bgColor: Color(hex: "#D1FAE5")
                 ) {
-                    onNavigate(.attendance)
+                    if viewModel.user.isStaff {
+                        accessRestrictedMessage = "Báo cáo Chấm công & Công tác phí chỉ dành cho Kỹ thuật viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
+                    } else {
+                        onNavigate(.attendanceReport)
+                    }
                 }
 
+                // Phân ca (Staff bị giới hạn)
                 quickAccessCard(
                     icon: "calendar",
                     label: "Phân ca",
                     iconColor: Color(hex: "#7C3AED"),
                     bgColor: Color(hex: "#EDE9FE")
                 ) {
-                    onNavigate(.shiftSchedule)
+                    if viewModel.user.isStaff {
+                        accessRestrictedMessage = "Lịch trực và Phân ca kỹ thuật chỉ dành cho Kỹ thuật viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
+                    } else {
+                        onNavigate(.shiftSchedule)
+                    }
                 }
 
+                // Thống kê
                 quickAccessCard(
                     icon: "chart.pie.fill",
                     label: "Thống kê",
@@ -584,13 +669,27 @@ public struct HomeScreenView: View {
                     showStatisticsSheet = true
                 }
 
-                quickAccessCard(
-                    icon: "printer.fill",
-                    label: "In tem QR",
-                    iconColor: Color(hex: "#4F46E5"),
-                    bgColor: Color(hex: "#E0E7FF")
-                ) {
-                    showPrintQrSheet = true
+                // Thẻ thứ 4: Nếu có nhân viên chờ duyệt -> Hiện Duyệt NV; ngược lại hiện In tem QR
+                let isMgrOrAdm = viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk || viewModel.user.isManager
+                if isMgrOrAdm && viewModel.pendingStaffCount > 0 {
+                    quickAccessCard(
+                        icon: "person.badge.shield.checkmark.fill",
+                        label: "Duyệt NV",
+                        iconColor: Color(hex: "#DB2777"),
+                        bgColor: Color(hex: "#FCE7F3"),
+                        badgeCount: viewModel.pendingStaffCount
+                    ) {
+                        onNavigate(.approveStaff)
+                    }
+                } else {
+                    quickAccessCard(
+                        icon: "printer.fill",
+                        label: "In tem QR",
+                        iconColor: Color(hex: "#4F46E5"),
+                        bgColor: Color(hex: "#E0E7FF")
+                    ) {
+                        showPrintQrSheet = true
+                    }
                 }
             }
         }
@@ -601,23 +700,37 @@ public struct HomeScreenView: View {
         label: String,
         iconColor: Color,
         bgColor: Color,
+        badgeCount: Int = 0,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             VStack(spacing: 6) {
-                ZStack {
-                    Circle()
-                        .fill(bgColor)
-                        .frame(width: 44, height: 44)
+                ZStack(alignment: .topTrailing) {
+                    ZStack {
+                        Circle()
+                            .fill(bgColor)
+                            .frame(width: 42, height: 42)
 
-                    Image(systemName: icon)
-                        .font(.system(size: 20))
-                        .foregroundColor(iconColor)
+                        Image(systemName: icon)
+                            .font(.system(size: 19))
+                            .foregroundColor(iconColor)
+                    }
+
+                    if badgeCount > 0 {
+                        Text("\(badgeCount)")
+                            .font(.system(size: 9.5, weight: .heavy))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(Color.appPrimaryPink)
+                            .clipShape(Capsule())
+                            .offset(x: 4, y: -2)
+                    }
                 }
 
                 Text(label)
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(Color.appTextPrimary)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity)
@@ -629,7 +742,181 @@ public struct HomeScreenView: View {
         }
     }
 
-    // MARK: - SHEET HƯỚNG DẪN SỬ DỤNG (TIPS / COACH MARKS)
+    // MARK: - 4. MODAL HỘP THOẠI "TRUY CẬP BỊ GIỚI HẠN" (CHUẨN ANDROID)
+    private func accessRestrictedDialog(message: String) -> some View {
+        VStack(spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color(hex: "#FFE4E6"))
+                    .frame(width: 56, height: 56)
+
+                Image(systemName: "shield.slash.fill")
+                    .font(.system(size: 26))
+                    .foregroundColor(Color(hex: "#E11D48"))
+            }
+
+            Text("Truy cập bị giới hạn")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(Color(hex: "#0F172A"))
+
+            Text(message)
+                .font(.system(size: 13.5))
+                .foregroundColor(Color(hex: "#64748B"))
+                .multilineTextAlignment(.center)
+                .lineSpacing(3)
+
+            Button(action: { accessRestrictedMessage = nil }) {
+                Text("Đóng")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color(hex: "#0F172A"))
+                    .cornerRadius(10)
+            }
+        }
+        .padding(20)
+        .background(Color.white)
+        .cornerRadius(20)
+        .shadow(color: Color.black.opacity(0.15), radius: 12)
+    }
+
+    // MARK: - 5. SHEET ĐỔI TÊN HIỂN THỊ
+    private var editNameSheetView: some View {
+        NavigationView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Nhập họ và tên hiển thị mới của bạn:")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color.appTextSecondary)
+
+                if let err = nameError {
+                    Text(err)
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.red)
+                }
+
+                TextField("Họ và tên *", text: $editNameInput)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .font(.system(size: 14))
+
+                Spacer()
+
+                Button(action: {
+                    let clean = editNameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !clean.isEmpty else {
+                        nameError = "Vui lòng nhập họ và tên!"
+                        return
+                    }
+                    isSavingName = true
+                    Task {
+                        do {
+                            try await viewModel.updateUserName(newName: clean)
+                            isSavingName = false
+                            showEditNameDialog = false
+                        } catch {
+                            isSavingName = false
+                            nameError = error.localizedDescription
+                        }
+                    }
+                }) {
+                    HStack {
+                        if isSavingName {
+                            ProgressView().colorInvert()
+                        } else {
+                            Text("Lưu thay đổi")
+                        }
+                    }
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 46)
+                    .background(Color.appPrimaryPink)
+                    .cornerRadius(10)
+                }
+                .disabled(isSavingName || editNameInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+            .padding(20)
+            .navigationTitle("Đổi tên hiển thị")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Hủy") { showEditNameDialog = false }
+                }
+            }
+        }
+    }
+
+    // MARK: - 6. SHEET ĐỔI SỐ ĐIỆN THOẠI (KIỂM TRA DUY NHẤT)
+    private var editPhoneSheetView: some View {
+        NavigationView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Nhập số điện thoại mới của bạn (mỗi tài khoản gắn với 1 số điện thoại duy nhất):")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color.appTextSecondary)
+
+                if let err = phoneError {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(Color(hex: "#EF4444"))
+                        Text(err)
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(hex: "#B91C1C"))
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(hex: "#FEF2F2"))
+                    .cornerRadius(8)
+                }
+
+                TextField("Số điện thoại (VD: 0912345678)", text: $editPhoneInput)
+                    .keyboardType(.phonePad)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .font(.system(size: 14))
+
+                Spacer()
+
+                Button(action: {
+                    isSavingPhone = true
+                    phoneError = nil
+                    Task {
+                        do {
+                            try await viewModel.updateUserPhone(newPhone: editPhoneInput)
+                            isSavingPhone = false
+                            showEditPhoneDialog = false
+                        } catch {
+                            isSavingPhone = false
+                            phoneError = error.localizedDescription
+                        }
+                    }
+                }) {
+                    HStack {
+                        if isSavingPhone {
+                            ProgressView().colorInvert()
+                        } else {
+                            Text("Lưu thay đổi")
+                        }
+                    }
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 46)
+                    .background(Color.appPrimaryPink)
+                    .cornerRadius(10)
+                }
+                .disabled(isSavingPhone)
+            }
+            .padding(20)
+            .navigationTitle("Đổi số điện thoại")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Hủy") { showEditPhoneDialog = false }
+                }
+            }
+        }
+    }
+
+    // MARK: - 7. SHEET HƯỚNG DẪN SỬ DỤNG
     private var guideModalView: some View {
         NavigationView {
             ScrollView {
@@ -637,7 +924,7 @@ public struct HomeScreenView: View {
                     guideSection(
                         icon: "person.crop.circle.badge.checkmark",
                         title: "1. Hồ Sơ & Đơn Vị Của Bạn 👤",
-                        desc: "Hiển thị thông tin cá nhân, phòng ban, đơn vị trực thuộc và vai trò quyền hạn được cấp. Bạn có thể nhấn vào biểu tượng cây bút để cập nhật họ tên và số điện thoại."
+                        desc: "Hiển thị thông tin cá nhân, phòng ban, đơn vị trực thuộc và vai trò quyền hạn được cấp. Nhấn vào ảnh để đổi avatar, nhấn bút chì để cập nhật họ tên hoặc số điện thoại."
                     )
 
                     guideSection(
@@ -664,9 +951,7 @@ public struct HomeScreenView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Đóng") {
-                        showGuideDialog = false
-                    }
+                    Button("Đóng") { showGuideDialog = false }
                 }
             }
         }
@@ -695,10 +980,49 @@ public struct HomeScreenView: View {
     }
 }
 
+// MARK: - IMAGE PICKER VIEW CONTROLLER REPRESENTABLE
+struct ImagePickerView: UIViewControllerRepresentable {
+    @Binding var selectedImage: UIImage?
+    var onSelected: (UIImage) -> Void
+    @Environment(\.presentationMode) private var presentationMode
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .photoLibrary
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: ImagePickerView
+
+        init(_ parent: ImagePickerView) {
+            self.parent = parent
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.selectedImage = image
+                parent.onSelected(image)
+            }
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.presentationMode.wrappedValue.dismiss()
+        }
+    }
+}
+
 // MARK: - MODAL ĐỔI MẬT KHẨU TÀI KHOẢN (CHUẨN 1:1 THEO ANDROID HOMESCREEN.KT)
-public struct ChangePasswordModal: View {
-    var email: String
-    var idToken: String
+public struct ChangePasswordModalView: View {
+    @ObservedObject var viewModel: HomeViewModel
     var onDismiss: () -> Void
 
     @State private var oldPass: String = ""
@@ -854,38 +1178,21 @@ public struct ChangePasswordModal: View {
     }
 
     private func executeChangePassword() {
-        let cleanOld = oldPass.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleanNew = newPass.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cleanConfirm = confirmPass.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        if cleanOld.isEmpty {
-            errorMessage = "Vui lòng nhập mật khẩu hiện tại!"
-            return
-        }
-        if cleanNew.count < 6 {
-            errorMessage = "Mật khẩu mới phải có ít nhất 6 ký tự!"
-            return
-        }
-        if cleanNew != cleanConfirm {
-            errorMessage = "Mật khẩu xác nhận không khớp với mật khẩu mới!"
-            return
-        }
-
         isLoading = true
         errorMessage = nil
         successMessage = nil
 
         Task {
             do {
-                try await AuthService.shared.updatePassword(idToken: idToken, newPassword: cleanNew)
+                try await viewModel.executeChangePassword(oldPass: oldPass, newPass: newPass, confirmPass: confirmPass)
                 self.isLoading = false
-                self.successMessage = "✅ Đổi mật khẩu tài khoản thành công!"
+                self.successMessage = "✅ Đổi mật khẩu tài khoản thành công! Mật khẩu cũ đã bị vô hiệu hóa."
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                     onDismiss()
                 }
             } catch {
                 self.isLoading = false
-                self.errorMessage = "Lỗi: \(error.localizedDescription)"
+                self.errorMessage = error.localizedDescription
             }
         }
     }

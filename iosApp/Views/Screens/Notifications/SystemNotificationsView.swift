@@ -144,7 +144,7 @@ public struct SystemNotificationsView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 8)
                     }
-                    .background(Color.appPrimary)
+                    .background(Color.appTopBarColor)
 
                     // Filter
                     ScrollView(.horizontal, showsIndicators: false) {

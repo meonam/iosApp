@@ -3,6 +3,7 @@ import SwiftUI
 // MARK: - MAIN CONTAINER VIEW (ĐỒNG BỘ 1:1 THEO MAINACTIVITY.KT TRÊN ANDROID)
 public struct MainContainerView: View {
     @StateObject private var authViewModel = AuthViewModel()
+    @StateObject private var homeViewModel = HomeViewModel(user: User(), companyId: "SGCOOP", idToken: "")
     @State private var currentDestination: DrawerDestination = .home
     @State private var isDrawerOpen: Bool = false
     @State private var selectedTicketForChat: SupportTicket? = nil
@@ -62,7 +63,7 @@ public struct MainContainerView: View {
                             }
                             .disabled(isDrawerOpen)
 
-                            // 2. NÚT NỔI HỖ TRỢ KỸ THUẬT (FAB - GREEN SUPPORT BUTTON WITH BADGE 99+)
+                            // 2. NÚT NỔI HỖ TRỢ KỸ THUẬT (FAB - GREEN SUPPORT BUTTON WITH BADGE)
                             if isMainTab && currentDestination != .supportHub && currentDestination != .staffSupport {
                                 floatingSupportButton
                                     .padding(.trailing, 16)
@@ -83,9 +84,9 @@ public struct MainContainerView: View {
                                 .zIndex(20)
 
                             AppSidebarDrawer(
-                                user: user,
-                                pendingStaffCount: 0,
-                                openTicketsCount: 0,
+                                user: homeViewModel.user.email.isEmpty ? user : homeViewModel.user,
+                                pendingStaffCount: homeViewModel.pendingStaffCount,
+                                openTicketsCount: homeViewModel.openTicketsCount,
                                 currentDestination: currentDestination,
                                 onSelect: { dest in
                                     withAnimation(.easeInOut(duration: 0.25)) {
@@ -107,6 +108,20 @@ public struct MainContainerView: View {
                             )
                             .transition(.move(edge: .leading))
                             .zIndex(30)
+                        }
+                    }
+                    .onAppear {
+                        homeViewModel.user = user
+                        homeViewModel.companyId = compId
+                        homeViewModel.idToken = token
+                        homeViewModel.loadDashboardData()
+                    }
+                    .onChange(of: authViewModel.currentUser) { newUser in
+                        if let u = newUser {
+                            homeViewModel.user = u
+                            homeViewModel.companyId = authViewModel.currentCompanyId
+                            homeViewModel.idToken = authViewModel.currentIdToken
+                            homeViewModel.loadDashboardData()
                         }
                     }
                     }
@@ -135,10 +150,11 @@ public struct MainContainerView: View {
             }
 
             let isSupportSelected = currentDestination == .supportHub || currentDestination == .staffSupport
+            let ticketBadge: String? = homeViewModel.openTicketsCount > 0 ? (homeViewModel.openTicketsCount > 99 ? "99+" : "\(homeViewModel.openTicketsCount)") : nil
             bottomNavItem(
                 title: "Hỗ trợ",
                 icon: "headphones",
-                badgeText: "99+",
+                badgeText: ticketBadge,
                 isSelected: isSupportSelected
             ) {
                 if let u = authViewModel.currentUser {
@@ -201,7 +217,7 @@ public struct MainContainerView: View {
         }
     }
 
-    // MARK: - FLOATING ACTION BUTTON (GREEN SUPPORT FAB WITH 99+ BADGE)
+    // MARK: - FLOATING ACTION BUTTON (GREEN SUPPORT FAB WITH BADGE)
     private var floatingSupportButton: some View {
         Button(action: {
             if let u = authViewModel.currentUser {
@@ -223,14 +239,16 @@ public struct MainContainerView: View {
                     .foregroundColor(.white)
                     .frame(width: 56, height: 56)
 
-                Text("99+")
-                    .font(.system(size: 9.5, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(Color(hex: "#E11D48"))
-                    .clipShape(Capsule())
-                    .offset(x: 4, y: -2)
+                if homeViewModel.openTicketsCount > 0 {
+                    Text(homeViewModel.openTicketsCount > 99 ? "99+" : "\(homeViewModel.openTicketsCount)")
+                        .font(.system(size: 9.5, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color(hex: "#E11D48"))
+                        .clipShape(Capsule())
+                        .offset(x: 4, y: -2)
+                }
             }
         }
     }
@@ -241,7 +259,7 @@ public struct MainContainerView: View {
         switch dest {
         case .home:
             HomeScreenView(
-                viewModel: HomeViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: homeViewModel,
                 onOpenDrawer: {
                     withAnimation(.easeInOut(duration: 0.25)) {
                         isDrawerOpen = true
@@ -346,7 +364,9 @@ public struct MainContainerView: View {
         case .attendance:
             AttendanceCheckInView(
                 viewModel: AttendanceViewModel(user: user, companyId: compId, idToken: token),
-                onBack: { currentDestination = .home }
+                onBack: { currentDestination = .home },
+                onNavigateToHistory: { currentDestination = .attendanceHistory },
+                onNavigateToReport: { currentDestination = .attendanceReport }
             )
 
         case .attendanceReport:
@@ -402,13 +422,26 @@ public struct MainContainerView: View {
             PaywallLicenseView(companyId: compId, token: token, onBack: { currentDestination = .home })
 
         case .adminTicketList:
+            let adminSupportVM = SupportViewModel(user: user, companyId: compId, idToken: token)
             AdminTicketListView(
-                viewModel: SupportViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: adminSupportVM,
                 onBack: { currentDestination = .home },
                 onTicketClick: { ticketId, subject in
-                    currentDestination = .supportHub
+                    if let t = adminSupportVM.tickets.first(where: { $0.id == ticketId }) {
+                        selectedTicketForChat = t
+                    }
+                },
+                onOpenRatingReport: {
+                    currentDestination = .supportRating
                 }
             )
+            .sheet(item: $selectedTicketForChat) { ticket in
+                TicketChatDetailView(
+                    viewModel: adminSupportVM,
+                    ticket: ticket,
+                    onBack: { selectedTicketForChat = nil }
+                )
+            }
 
         case .help:
             HelpView(authViewModel: authViewModel, onBack: { currentDestination = .home })

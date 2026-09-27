@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - HOME VIEW MODEL (ĐỒNG BỘ 1:1 VỚI HOMESCREEN.KT TRÊN ANDROID)
 @MainActor
@@ -13,6 +14,7 @@ public class HomeViewModel: ObservableObject {
     @Published public var pendingStaffCount: Int = 0
     @Published public var unreadNotificationCount: Int = 0
     @Published public var isLoading: Bool = false
+    @Published public var isUploadingAvatar: Bool = false
 
     // Modal đổi mật khẩu
     @Published public var showChangePasswordModal: Bool = false
@@ -20,22 +22,76 @@ public class HomeViewModel: ObservableObject {
 
     public init(user: User, companyId: String, idToken: String) {
         self.user = user
-        self.companyId = companyId
+        self.companyId = companyId.isEmpty ? "SGCOOP" : companyId
         self.idToken = idToken
     }
 
-    // Tải dữ liệu Trang chủ chuẩn 1:1 theo HomeScreen.kt
+    // MARK: - TẢI TOÀN BỘ DỮ LIỆU DASHBOARD TRANG CHỦ
     public func loadDashboardData() {
         isLoading = true
         Task {
+            await fetchUserProfileRealtime()
             await fetchDevices()
             await fetchOpenTickets()
             await fetchPendingStaff()
+            await fetchUnreadNotifications()
             self.isLoading = false
         }
     }
 
-    // 1. Tải thiết bị: Nếu Admin tải toàn bộ 13 thiết bị, nếu Staff chỉ đếm thiết bị của mình
+    // MARK: - 1. TẢI HỒ SƠ NGƯỜI DÙNG MỚI NHẤT TỪ FIRESTORE
+    public func fetchUserProfileRealtime() async {
+        let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !cleanEmail.isEmpty else { return }
+
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)"
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let fields = json["fields"] as? [String: Any] else {
+            return
+        }
+
+        let newName = FirestoreHelper.getString(fields["fullName"] as? [String: Any])
+        let altName = FirestoreHelper.getString(fields["name"] as? [String: Any])
+        if !newName.isEmpty { self.user.fullName = newName }
+        else if !altName.isEmpty { self.user.fullName = altName }
+
+        let newPhone = FirestoreHelper.getString(fields["phone"] as? [String: Any])
+        let altPhone = FirestoreHelper.getString(fields["phoneNumber"] as? [String: Any])
+        let sdt = FirestoreHelper.getString(fields["sdt"] as? [String: Any])
+        if !newPhone.isEmpty { self.user.phone = newPhone }
+        else if !altPhone.isEmpty { self.user.phone = altPhone }
+        else if !sdt.isEmpty { self.user.phone = sdt }
+
+        let newRole = FirestoreHelper.getString(fields["role"] as? [String: Any])
+        if !newRole.isEmpty { self.user.role = newRole }
+
+        let newDept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
+        let altDept = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
+        if !newDept.isEmpty { self.user.departmentId = newDept }
+        else if !altDept.isEmpty { self.user.departmentId = altDept }
+
+        let newDonVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
+        let altDonVi = FirestoreHelper.getString(fields["tenDonVi"] as? [String: Any])
+        if !newDonVi.isEmpty { self.user.donVi = newDonVi }
+        else if !altDonVi.isEmpty { self.user.donVi = altDonVi }
+
+        let newAvatar = FirestoreHelper.getString(fields["profileImageUrl"] as? [String: Any])
+        let altAvatar = FirestoreHelper.getString(fields["avatarUrl"] as? [String: Any])
+        if !newAvatar.isEmpty { self.user.avatarUrl = newAvatar }
+        else if !altAvatar.isEmpty { self.user.avatarUrl = altAvatar }
+
+        let newToNghiepVu = FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any])
+        if !newToNghiepVu.isEmpty { self.user.toNghiepVu = newToNghiepVu }
+    }
+
+    // MARK: - 2. TẢI DANH SÁCH THIẾT BỊ
     private func fetchDevices() async {
         let isFullAccess = user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isWarehouse
         let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices?pageSize=100"
@@ -79,10 +135,8 @@ public class HomeViewModel: ObservableObject {
         self.devices = parsedDevices
 
         if isFullAccess {
-            // Admin thấy đủ toàn bộ 13 thiết bị
             self.totalDevicesCount = parsedDevices.count
         } else {
-            // Staff chỉ đếm thiết bị của mình
             let myEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             self.totalDevicesCount = parsedDevices.filter {
                 ($0.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == myEmail
@@ -90,7 +144,7 @@ public class HomeViewModel: ObservableObject {
         }
     }
 
-    // 2. Tải số lượng Ticket đang mở (đồng bộ 1:1 với HomeScreen.kt trên Android qua runQuery)
+    // MARK: - 3. TẢI SỐ LƯỢNG TICKET ĐANG MỞ (SỰ CỐ MỞ)
     private func fetchOpenTickets() async {
         let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId):runQuery"
         guard let url = URL(string: urlStr) else { return }
@@ -165,10 +219,15 @@ public class HomeViewModel: ObservableObject {
         self.openTicketsCount = openCount
     }
 
-    // 3. Tải nhân viên chờ duyệt (Dành cho Admin)
+    // MARK: - 4. TẢI NHÂN VIÊN CHỜ DUYỆT (PENDING STAFF)
     private func fetchPendingStaff() async {
-        guard user.isAdmin || user.isSuperAdmin else { return }
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/pending_staff?pageSize=50"
+        let isMgrOrAdmin = user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isManager
+        guard isMgrOrAdmin else {
+            self.pendingStaffCount = 0
+            return
+        }
+
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users?pageSize=100"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -181,16 +240,106 @@ public class HomeViewModel: ObservableObject {
             return
         }
 
-        self.pendingStaffCount = documents.count
+        let userRoleLower = user.role.lowercased()
+        let isGlobalAdmin = userRoleLower.contains("admin") || user.isSuperAdmin
+
+        let pendingList = documents.filter { doc in
+            guard let fields = doc["fields"] as? [String: Any] else { return false }
+            let status = FirestoreHelper.getString(fields["status"] as? [String: Any]).uppercased()
+            guard status == "PENDING" else { return false }
+
+            if isGlobalAdmin || user.departmentId.isEmpty {
+                return true
+            }
+
+            let dept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
+            let phongBan = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
+            return dept.caseInsensitiveCompare(user.departmentId) == .orderedSame ||
+                   phongBan.caseInsensitiveCompare(user.departmentId) == .orderedSame
+        }
+
+        self.pendingStaffCount = pendingList.count
     }
 
-    // 4. Cập nhật Họ và tên hiển thị (Đổi tên)
+    // MARK: - 5. TẢI THÔNG BÁO CHƯA ĐỌC
+    private func fetchUnreadNotifications() async {
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/notifications?pageSize=30"
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let documents = json["documents"] as? [[String: Any]] else {
+            return
+        }
+
+        let readIds = Set(UserDefaults.standard.stringArray(forKey: "notification_read_ids") ?? [])
+        let deletedIds = Set(UserDefaults.standard.stringArray(forKey: "notification_deleted_ids") ?? [])
+        let myEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        let unread = documents.filter { doc in
+            guard let name = doc["name"] as? String,
+                  let fields = doc["fields"] as? [String: Any] else { return false }
+            let id = name.components(separatedBy: "/").last ?? ""
+            if deletedIds.contains(id) || readIds.contains(id) { return false }
+
+            let readByList = FirestoreHelper.getStringArray(fields["readBy"] as? [String: Any]).map { $0.lowercased() }
+            if readByList.contains(myEmail) { return false }
+
+            return true
+        }.count
+
+        self.unreadNotificationCount = unread
+    }
+
+    // MARK: - 6. KIỂM TRA SỐ ĐIỆN THOẠI TRÙNG LẶP (isPhoneAlreadyUsed)
+    public func isPhoneAlreadyUsed(cleanPhone: String, excludeEmail: String) async -> (isUsed: Bool, usedEmail: String?) {
+        let digitsOnly = cleanPhone.filter { $0.isNumber }
+        guard !digitsOnly.isEmpty else { return (false, nil) }
+
+        let cleanExclude = excludeEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users?pageSize=150"
+        guard let url = URL(string: urlStr) else { return (false, nil) }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let documents = json["documents"] as? [[String: Any]] else {
+            return (false, nil)
+        }
+
+        for doc in documents {
+            guard let fields = doc["fields"] as? [String: Any] else { continue }
+            let email = FirestoreHelper.getString(fields["email"] as? [String: Any]).lowercased()
+            if !cleanExclude.isEmpty && email == cleanExclude { continue }
+
+            let p1 = FirestoreHelper.getString(fields["phone"] as? [String: Any]).filter { $0.isNumber }
+            let p2 = FirestoreHelper.getString(fields["phoneNumber"] as? [String: Any]).filter { $0.isNumber }
+            let p3 = FirestoreHelper.getString(fields["sdt"] as? [String: Any]).filter { $0.isNumber }
+
+            if p1 == digitsOnly || p2 == digitsOnly || p3 == digitsOnly {
+                return (true, email)
+            }
+        }
+
+        return (false, nil)
+    }
+
+    // MARK: - 7. CẬP NHẬT HỌ VÀ TÊN HIỂN THỊ
     public func updateUserName(newName: String) async throws {
         let cleanName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanName.isEmpty else { return }
+        guard !cleanName.isEmpty else {
+            throw NSError(domain: "HomeViewModel", code: 400, userInfo: [NSLocalizedDescriptionKey: "Họ và tên không được để trống!"])
+        }
         let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=fullName"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=fullName&updateMask.fieldPaths=name"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -200,21 +349,37 @@ public class HomeViewModel: ObservableObject {
 
         let payload: [String: Any] = [
             "fields": [
-                "fullName": ["stringValue": cleanName]
+                "fullName": ["stringValue": cleanName],
+                "name": ["stringValue": cleanName]
             ]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
         let (_, response) = try await URLSession.shared.data(for: request)
-        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+        if let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
             self.user.fullName = cleanName
         }
     }
 
-    // 5. Cập nhật Số điện thoại người dùng
+    // MARK: - 8. CẬP NHẬT SỐ ĐIỆN THOẠI (KIỂM TRA DUY NHẤT & ĐỒNG BỘ ĐẾN TICKETS)
     public func updateUserPhone(newPhone: String) async throws {
         let cleanPhone = newPhone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let digitsOnly = cleanPhone.filter { $0.isNumber }
+
+        if !cleanPhone.isEmpty && (digitsOnly.count < 8 || digitsOnly.count > 12) {
+            throw NSError(domain: "HomeViewModel", code: 400, userInfo: [NSLocalizedDescriptionKey: "Số điện thoại không hợp lệ (từ 8 đến 12 chữ số)!"])
+        }
+
         let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        // Kiểm tra xem số điện thoại đã được dùng bởi tài khoản khác chưa
+        if !cleanPhone.isEmpty {
+            let (isUsed, usedEmail) = await isPhoneAlreadyUsed(cleanPhone: cleanPhone, excludeEmail: cleanEmail)
+            if isUsed {
+                let targetEmail = usedEmail ?? "tài khoản khác"
+                throw NSError(domain: "HomeViewModel", code: 409, userInfo: [NSLocalizedDescriptionKey: "❌ Số điện thoại này đã được sử dụng bởi tài khoản khác (\(targetEmail))!"])
+            }
+        }
 
         let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=phone&updateMask.fieldPaths=phoneNumber&updateMask.fieldPaths=sdt"
         guard let url = URL(string: urlStr) else { return }
@@ -234,13 +399,105 @@ public class HomeViewModel: ObservableObject {
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
         let (_, response) = try await URLSession.shared.data(for: request)
-        if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+        if let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
             self.user.phone = cleanPhone
+
+            // Đồng bộ sang technician_locations
+            Task {
+                let locUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/technician_locations/\(cleanEmail)?updateMask.fieldPaths=phone&updateMask.fieldPaths=lastUpdatedAt"
+                guard let locUrl = URL(string: locUrlStr) else { return }
+                var locReq = URLRequest(url: locUrl)
+                locReq.httpMethod = "PATCH"
+                locReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                locReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                let locPayload: [String: Any] = [
+                    "fields": [
+                        "phone": ["stringValue": cleanPhone],
+                        "lastUpdatedAt": ["integerValue": "\(Int64(Date().timeIntervalSince1970 * 1000))"]
+                    ]
+                ]
+                locReq.httpBody = try? JSONSerialization.data(withJSONObject: locPayload)
+                _ = try? await URLSession.shared.data(for: locReq)
+            }
         }
     }
 
-    // 6. Đổi mật khẩu tài khoản
-    public func updatePassword(newPassword: String) async throws {
-        try await AuthService.shared.updatePassword(idToken: idToken, newPassword: newPassword)
+    // MARK: - 9. TẢI LÊN ẢNH ĐẠI DIỆN (AVATAR) LÊN CLOUDINARY & CẬP NHẬT FIRESTORE
+    public func uploadAvatarImage(_ image: UIImage) async throws {
+        isUploadingAvatar = true
+        defer { isUploadingAvatar = false }
+
+        guard let uploadedUrl = await CloudinaryService.uploadImage(image, folder: "profile_images") else {
+            throw NSError(domain: "HomeViewModel", code: 500, userInfo: [NSLocalizedDescriptionKey: "Tải ảnh lên máy chủ thất bại! Vui lòng thử lại."])
+        }
+
+        let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=profileImageUrl&updateMask.fieldPaths=avatarUrl"
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload: [String: Any] = [
+            "fields": [
+                "profileImageUrl": ["stringValue": uploadedUrl],
+                "avatarUrl": ["stringValue": uploadedUrl]
+            ]
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
+            self.user.avatarUrl = uploadedUrl
+        }
+    }
+
+    // MARK: - 10. ĐỔI MẬT KHẨU TÀI KHOẢN (TÁI XÁC THỰC MẬT KHẨU CŨ & CẬP NHẬT FIRESTORE)
+    public func executeChangePassword(oldPass: String, newPass: String, confirmPass: String) async throws {
+        let cleanOld = oldPass.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanNew = newPass.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanConfirm = confirmPass.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if cleanOld.isEmpty {
+            throw NSError(domain: "HomeViewModel", code: 400, userInfo: [NSLocalizedDescriptionKey: "Vui lòng nhập mật khẩu hiện tại!"])
+        }
+        if cleanNew.count < 6 {
+            throw NSError(domain: "HomeViewModel", code: 400, userInfo: [NSLocalizedDescriptionKey: "Mật khẩu mới phải có ít nhất 6 ký tự!"])
+        }
+        if cleanNew != cleanConfirm {
+            throw NSError(domain: "HomeViewModel", code: 400, userInfo: [NSLocalizedDescriptionKey: "Mật khẩu xác nhận không khớp với mật khẩu mới!"])
+        }
+
+        let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        // 1. Tái xác thực mật khẩu cũ bằng signIn
+        let reauthSession = try await AuthService.shared.signIn(email: cleanEmail, password: cleanOld)
+
+        // 2. Cập nhật mật khẩu mới trên Firebase Auth
+        try await AuthService.shared.updatePassword(idToken: reauthSession.idToken, newPassword: cleanNew)
+        self.idToken = reauthSession.idToken
+
+        // 3. Cập nhật thông tin mật khẩu trong Firestore
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=password&updateMask.fieldPaths=newPassword&updateMask.fieldPaths=mustChangePassword&updateMask.fieldPaths=updatedAt"
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let payload: [String: Any] = [
+            "fields": [
+                "password": ["stringValue": cleanNew],
+                "newPassword": ["stringValue": cleanNew],
+                "mustChangePassword": ["booleanValue": false],
+                "updatedAt": ["integerValue": "\(nowMs)"]
+            ]
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
+        _ = try? await URLSession.shared.data(for: request)
     }
 }

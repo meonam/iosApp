@@ -41,8 +41,8 @@ public struct AssetStatisticsView: View {
 
             if !searchQuery.isEmpty {
                 let q = searchQuery.lowercased()
-                let nameMatch = (dev.ten ?? "").lowercased().contains(q)
-                let unitMatch = (dev.tenDonVi ?? "").lowercased().contains(q)
+                let nameMatch = dev.ten.lowercased().contains(q)
+                let unitMatch = dev.tenDonVi.lowercased().contains(q)
                 let typeMatch = (dev.loai ?? "").lowercased().contains(q)
                 return nameMatch || unitMatch || typeMatch
             }
@@ -70,7 +70,7 @@ public struct AssetStatisticsView: View {
     // Nhóm theo Đơn vị
     private var groupedByUnit: [(unit: String, count: Int, devices: [ThietBi])] {
         let dict = Dictionary(grouping: filteredDevices) { dev in
-            let u = dev.tenDonVi ?? ""
+            let u = dev.tenDonVi
             return u.isEmpty ? "Chưa gán đơn vị" : u
         }
         return dict.map { (unit: $0.key, count: $0.value.count, devices: $0.value) }
@@ -295,11 +295,11 @@ public struct AssetStatisticsView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 ForEach(item.devices) { dev in
                                     HStack {
-                                        Text("• \(dev.ten ?? "Thiết bị")")
+                                        Text("• \(dev.ten.isEmpty ? "Thiết bị" : dev.ten)")
                                             .font(.system(size: 12))
                                             .foregroundColor(Color.appTextPrimary)
                                         Spacer()
-                                        Text(dev.trangThai ?? "")
+                                        Text(dev.trangThai)
                                             .font(.system(size: 10, weight: .bold))
                                             .foregroundColor(Color.appSecondaryDarkBlue)
                                     }

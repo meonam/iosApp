@@ -219,10 +219,16 @@ public struct SupportHubView: View {
                                     ) {
                                         if !isCollapsed {
                                             ForEach(group.tickets) { ticket in
-                                                ticketCard(ticket)
-                                                    .onTapGesture {
+                                                TicketItemView(
+                                                    ticket: ticket,
+                                                    isHidden: viewModel.filterTab == "HIDDEN",
+                                                    onClick: {
                                                         onSelectTicket(ticket)
+                                                    },
+                                                    onToggleHide: {
+                                                        viewModel.toggleHideTicket(ticket.id)
                                                     }
+                                                )
                                             }
                                         }
                                     }
@@ -390,150 +396,4 @@ public struct SupportHubView: View {
         .cornerRadius(8)
     }
 
-    // MARK: - TICKET CARD (ĐỒNG BỘ 1:1 VỚI TICKETITEM.KT)
-    private func ticketCard(_ ticket: SupportTicket) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Hàng 1: Subject + ID + Priority badge
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(ticket.subject.isEmpty ? "Sự cố thiết bị" : ticket.subject)
-                        .font(.system(size: 14.5, weight: .bold))
-                        .foregroundColor(Color.appTextPrimary)
-                        .lineLimit(2)
-
-                    Text("Mã phiếu: #\(ticket.id.prefix(8).uppercased())")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Color.appSecondaryDarkBlue)
-                }
-
-                Spacer()
-
-                priorityBadge(ticket.priority)
-            }
-
-            // Hàng 2: Creator info & Don vi
-            HStack(spacing: 12) {
-                Label(ticket.creatorName.isEmpty ? ticket.creatorEmail : ticket.creatorName, systemImage: "person.circle")
-                    .font(.system(size: 11.5))
-                    .foregroundColor(Color.appTextSecondary)
-                    .lineLimit(1)
-
-                if !ticket.donVi.isEmpty {
-                    Label(ticket.donVi, systemImage: "building.2")
-                        .font(.system(size: 11.5))
-                        .foregroundColor(Color.appTextSecondary)
-                        .lineLimit(1)
-                }
-            }
-
-            Divider()
-
-            // Hàng 3: Trạng thái & Action (Ẩn/Hiện lại)
-            HStack {
-                // Trạng thái phiếu
-                HStack(spacing: 5) {
-                    Circle()
-                        .fill(ticket.isOpen ? Color.appWarning : Color.appSuccess)
-                        .frame(width: 8, height: 8)
-
-                    Text(ticketStatusText(ticket))
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(ticketStatusColor(ticket))
-                }
-
-                Spacer()
-
-                // Action button: Hiện lại hoặc Ẩn
-                if viewModel.filterTab == "HIDDEN" {
-                    Button(action: {
-                        withAnimation {
-                            viewModel.unhideTicket(id: ticket.id)
-                        }
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.uturn.backward")
-                            Text("Hiện lại")
-                        }
-                        .font(.system(size: 11.5, weight: .semibold))
-                        .foregroundColor(Color.appSecondaryDarkBlue)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.appSecondaryDarkBlue.opacity(0.08))
-                        .cornerRadius(6)
-                    }
-                } else if !ticket.isOpen || ticket.closedAt > 0 {
-                    Button(action: {
-                        withAnimation {
-                            viewModel.hideTicket(id: ticket.id)
-                        }
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "eye.slash")
-                            Text("Ẩn")
-                        }
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color.gray)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(Color.black.opacity(0.04))
-                        .cornerRadius(6)
-                    }
-                }
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Color.appTextSecondary.opacity(0.6))
-            }
-        }
-        .padding(12)
-        .background(Color.white)
-        .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
-        .shadow(color: Color.black.opacity(0.03), radius: 4, x: 0, y: 1)
-    }
-
-    private func ticketStatusText(_ ticket: SupportTicket) -> String {
-        if !ticket.isOpen || ticket.closedAt > 0 {
-            return "Đã giải quyết"
-        }
-        if ticket.isAcknowledged {
-            return "Đang xử lý"
-        }
-        return "Chưa tiếp nhận"
-    }
-
-    private func ticketStatusColor(_ ticket: SupportTicket) -> Color {
-        if !ticket.isOpen || ticket.closedAt > 0 {
-            return Color.appSuccess
-        }
-        if ticket.isAcknowledged {
-            return Color.appInfo
-        }
-        return Color.appWarning
-    }
-
-    private func priorityBadge(_ priority: String) -> some View {
-        let p = priority.uppercased()
-        let color: Color
-        let label: String
-        switch p {
-        case "URGENT":
-            color = .appDanger
-            label = "Khẩn cấp"
-        case "HIGH":
-            color = .appWarning
-            label = "Ưu tiên cao"
-        default:
-            color = .appInfo
-            label = "Bình thường"
-        }
-
-        return Text(label)
-            .font(.system(size: 10, weight: .bold))
-            .foregroundColor(color)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(color.opacity(0.12))
-            .cornerRadius(6)
-    }
 }

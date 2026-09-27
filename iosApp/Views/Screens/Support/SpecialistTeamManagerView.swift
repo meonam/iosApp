@@ -66,7 +66,7 @@ public struct SpecialistTeamManagerView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                     }
-                    .background(Color.appPrimary)
+                    .background(Color.appTopBarColor)
 
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")

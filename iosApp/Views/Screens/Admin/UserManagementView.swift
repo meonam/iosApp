@@ -69,7 +69,7 @@ public struct UserManagementView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                     }
-                    .background(Color.appPrimary)
+                    .background(Color.appTopBarColor)
 
                     // TABS
                     Picker("Tab", selection: $selectedTab) {
@@ -292,7 +292,7 @@ public struct UserManagementView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 46)
-                        .background(Color.appPrimary)
+                        .background(Color.appPrimaryPink)
                         .cornerRadius(10)
                 }
                 .padding(.top, 10)
@@ -472,7 +472,7 @@ struct UserDetailSheet: View {
                                     .font(.system(size: 14, weight: .bold))
                                     .padding()
                                     .frame(maxWidth: .infinity)
-                                    .background(Color.appPrimary)
+                                    .background(Color.appPrimaryPink)
                                     .foregroundColor(.white)
                                     .cornerRadius(8)
                             }

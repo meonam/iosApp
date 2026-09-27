@@ -129,7 +129,7 @@ public struct OnlineKtvMonitorView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                     }
-                    .background(Color.appPrimary)
+                    .background(Color.appTopBarColor)
 
                     // 2. Map View
                     ZStack(alignment: .bottomTrailing) {

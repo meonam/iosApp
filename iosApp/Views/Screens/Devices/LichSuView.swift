@@ -1,9 +1,10 @@
 import SwiftUI
 
-// LichSuThietBi model is defined in DeviceModels.swift
-
+// MARK: - MÀN HÌNH NHẬT KÝ THIẾT BỊ (ĐỒNG BỘ 1:1 VỚI LICHSUTHIETBISCREEN.KT TRÊN ANDROID)
 public struct LichSuView: View {
     @ObservedObject var authViewModel: AuthViewModel
+    var companyIdOverride: String? = nil
+    var idTokenOverride: String? = nil
     var thietBiId: String
     var onBack: () -> Void
 
@@ -12,12 +13,32 @@ public struct LichSuView: View {
     @State private var lichSuList: [LichSuThietBi] = []
     @State private var isNewestFirst: Bool = true
     @State private var isLoading: Bool = false
+    @State private var showScanner: Bool = false
 
     public init(authViewModel: AuthViewModel, thietBiId: String, onBack: @escaping () -> Void) {
         self.authViewModel = authViewModel
+        self.companyIdOverride = nil
+        self.idTokenOverride = nil
         self.thietBiId = thietBiId
         self.onBack = onBack
         _searchQuery = State(initialValue: thietBiId)
+    }
+
+    public init(companyId: String, idToken: String, thietBiId: String, onBack: @escaping () -> Void) {
+        self.authViewModel = AuthViewModel()
+        self.companyIdOverride = companyId
+        self.idTokenOverride = idToken
+        self.thietBiId = thietBiId
+        self.onBack = onBack
+        _searchQuery = State(initialValue: thietBiId)
+    }
+
+    private var effectiveCompanyId: String {
+        companyIdOverride ?? authViewModel.currentCompanyId
+    }
+
+    private var effectiveIdToken: String {
+        idTokenOverride ?? authViewModel.currentIdToken
     }
 
     public var body: some View {
@@ -31,7 +52,7 @@ public struct LichSuView: View {
                         Color.clear.frame(height: geometry.safeAreaInsets.top)
                         HStack(spacing: 12) {
                             Button(action: onBack) {
-                                Image(systemName: "arrow.left")
+                                Image(systemName: "chevron.left")
                                     .font(.system(size: 18, weight: .bold))
                                     .foregroundColor(.white)
                             }
@@ -41,42 +62,47 @@ public struct LichSuView: View {
                             Spacer()
                         }
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 12)
                     }
-                    .background(Color.appTopBarColor) // Assuming appTopBarColor is equivalent to TopBarColor or appPrimary
+                    .background(Color.appTopBarColor)
 
-                    VStack(spacing: 16) {
-                        // Search Bar
-                        HStack {
+                    VStack(spacing: 12) {
+                        // Search Bar with scanner button
+                        HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
-                                .foregroundColor(.gray)
+                                .foregroundColor(Color.appTextSecondary)
                             TextField("Mã thiết bị", text: $searchQuery)
-                                .textFieldStyle(PlainTextFieldStyle())
+                                .font(.system(size: 14))
                                 .onSubmit {
                                     fetchLichSu(thietBiId: searchQuery)
                                 }
-                            Button(action: {
-                                // Mở camera scan QR (mock action)
-                            }) {
+                            if !searchQuery.isEmpty {
+                                Button(action: { searchQuery = "" }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(Color.appTextSecondary)
+                                }
+                            }
+                            Button(action: { showScanner = true }) {
                                 Image(systemName: "qrcode.viewfinder")
-                                    .foregroundColor(Color.appPrimaryPink) // App colors
+                                    .font(.system(size: 18))
+                                    .foregroundColor(Color.appPrimaryPink)
                             }
                         }
-                        .padding(12)
+                        .padding(10)
                         .background(Color.white)
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
 
                         if !tenThietBi.isEmpty {
                             HStack {
                                 Image(systemName: "clock.arrow.circlepath")
                                     .foregroundColor(Color.appSecondaryDarkBlue)
                                 Text("Lịch sử thiết bị: \(tenThietBi) (\(searchQuery))")
-                                    .font(.system(size: 14, weight: .bold))
+                                    .font(.system(size: 13, weight: .bold))
                                     .foregroundColor(Color.appSecondaryDarkBlue)
                                 Spacer()
                             }
-                            .padding(12)
+                            .padding(10)
                             .background(Color.appSecondaryDarkBlue.opacity(0.1))
                             .cornerRadius(10)
                         }
@@ -84,10 +110,10 @@ public struct LichSuView: View {
                         // Sắp xếp
                         HStack {
                             Text("DÒNG THỜI GIAN")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(Color.appSecondaryDarkBlue)
                             Spacer()
-                            
+
                             Menu {
                                 Button("Mới nhất trước") {
                                     isNewestFirst = true
@@ -98,7 +124,7 @@ public struct LichSuView: View {
                                     sortList()
                                 }
                             } label: {
-                                HStack {
+                                HStack(spacing: 4) {
                                     Text(isNewestFirst ? "Mới nhất" : "Cũ nhất")
                                         .font(.system(size: 12, weight: .bold))
                                         .foregroundColor(Color.appSecondaryDarkBlue)
@@ -107,78 +133,110 @@ public struct LichSuView: View {
                                         .foregroundColor(Color.appSecondaryDarkBlue)
                                 }
                                 .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appSecondaryDarkBlue, lineWidth: 1))
+                                .padding(.vertical, 5)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appSecondaryDarkBlue, lineWidth: 1))
                             }
                         }
 
                         // List
                         if isLoading {
-                            ProgressView()
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            Spacer()
+                            ProgressView("Đang tải nhật ký...")
+                            Spacer()
                         } else if lichSuList.isEmpty {
-                            VStack {
-                                Spacer()
+                            Spacer()
+                            VStack(spacing: 8) {
                                 Image(systemName: "doc.text.magnifyingglass")
                                     .font(.system(size: 40))
-                                    .foregroundColor(.gray)
+                                    .foregroundColor(Color.appTextSecondary)
                                 Text("Chưa có dữ liệu nhật ký")
-                                    .foregroundColor(.gray)
-                                    .padding(.top, 8)
-                                Spacer()
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(Color.appTextSecondary)
                             }
+                            Spacer()
                         } else {
                             ScrollView {
-                                LazyVStack(spacing: 8) {
+                                LazyVStack(spacing: 10) {
                                     ForEach(lichSuList) { item in
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            HStack {
-                                                Text("📅 \(item.ngay.isEmpty ? "Ghi nhận" : item.ngay)")
-                                                    .font(.system(size: 12, weight: .bold))
-                                                    .foregroundColor(Color.appPrimaryPink)
-                                                Spacer()
-                                                Text(item.hanhDong)
-                                                    .font(.system(size: 12, weight: .bold))
-                                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                            }
-                                            if !item.thietBiId.isEmpty {
-                                                Text("🏷️ Mã TB: \(item.thietBiId)")
-                                                    .font(.system(size: 12))
-                                                    .foregroundColor(Color(hex: "#334155"))
-                                            }
-                                            if !item.donVi.isEmpty {
-                                                Text("🏢 Đơn vị: \(item.donVi)")
-                                                    .font(.system(size: 12))
-                                                    .foregroundColor(.gray)
-                                            }
-                                            if !item.nguoiThucHien.isEmpty {
-                                                Text("👤 Thực hiện: \(item.nguoiThucHien)")
-                                                    .font(.system(size: 12))
-                                                    .foregroundColor(.gray)
-                                            }
-                                            if !item.moTa.isEmpty {
-                                                Text("📝 Ghi chú: \(item.moTa)")
-                                                    .font(.system(size: 12))
-                                                    .foregroundColor(.gray)
-                                            }
-                                        }
-                                        .padding(12)
-                                        .background(Color.white)
-                                        .cornerRadius(12)
-                                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "DDE2E5"), lineWidth: 1))
+                                        timelineCard(item)
                                     }
                                 }
+                                .padding(.bottom, 20)
                             }
                         }
                     }
                     .padding(14)
                 }
             }
-            .ignoresSafeArea(edges: .top)
         }
+        .ignoresSafeArea(edges: .top)
         .onAppear {
             fetchLichSu(thietBiId: thietBiId)
         }
+        .sheet(isPresented: $showScanner) {
+            QRScannerView(
+                onScanResult: { scannedCode in
+                    self.searchQuery = scannedCode
+                    self.showScanner = false
+                    self.fetchLichSu(thietBiId: scannedCode)
+                },
+                onDismiss: { self.showScanner = false }
+            )
+        }
+    }
+
+    private func timelineCard(_ item: LichSuThietBi) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("📅 \(item.ngay.isEmpty ? "Ghi nhận" : item.ngay)")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(Color.appPrimaryPink)
+                Spacer()
+                Text(item.hanhDong)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(Color.appSecondaryDarkBlue.opacity(0.1))
+                    .cornerRadius(6)
+            }
+
+            if !item.thietBiId.isEmpty {
+                Text("🏷️ Mã TB: \(item.thietBiId)")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Color(hex: "#334155"))
+            }
+
+            if !item.donVi.isEmpty {
+                Text("🏢 Đơn vị: \(item.donVi)")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color.appTextSecondary)
+            }
+
+            if !item.moTa.isEmpty {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "pencil.and.outline")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "#E65100"))
+                    Text(item.moTa)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Color(hex: "#E65100"))
+                }
+                .padding(8)
+                .background(Color(hex: "#FFF3E0"))
+                .cornerRadius(8)
+            }
+
+            if !item.nguoiThucHien.isEmpty {
+                Text("👤 Thực hiện: \(item.nguoiThucHien)")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color.appTextSecondary)
+            }
+        }
+        .padding(12)
+        .background(Color.white)
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     private func sortList() {
@@ -191,35 +249,32 @@ public struct LichSuView: View {
 
     private func fetchLichSu(thietBiId: String) {
         self.isLoading = true
-        let companyId = authViewModel.currentCompanyId
-        
+        let companyId = effectiveCompanyId
+
         let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/history?pageSize=300"
-        
         guard let url = URL(string: urlString) else {
             self.isLoading = false
             return
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        if !authViewModel.currentIdToken.isEmpty {
-            request.setValue("Bearer \(authViewModel.currentIdToken)", forHTTPHeaderField: "Authorization")
+        if !effectiveIdToken.isEmpty {
+            request.setValue("Bearer \(effectiveIdToken)", forHTTPHeaderField: "Authorization")
         }
-        
+
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 self.isLoading = false
-                guard let data = data, error == nil else {
-                    return
-                }
-                
+                guard let data = data, error == nil else { return }
+
                 do {
                     if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
                        let documents = json["documents"] as? [[String: Any]] {
-                        
+
                         var results: [LichSuThietBi] = []
                         let targetId = thietBiId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                        
+
                         for doc in documents {
                             if let fields = doc["fields"] as? [String: Any] {
                                 let docThietBiId = {
@@ -227,11 +282,11 @@ public struct LichSuView: View {
                                     if !id1.isEmpty { return id1 }
                                     return FirestoreHelper.getString(fields["deviceId"] as? [String: Any])
                                 }()
-                                
+
                                 let matchesTarget = targetId.isEmpty ||
                                     docThietBiId.lowercased().contains(targetId) ||
                                     targetId.contains(docThietBiId.lowercased())
-                                
+
                                 if matchesTarget {
                                     let id = (doc["name"] as? String)?.components(separatedBy: "/").last ?? UUID().uuidString
                                     let ngay = {
@@ -271,11 +326,11 @@ public struct LichSuView: View {
                                         if !name1.isEmpty { return name1 }
                                         return FirestoreHelper.getString(fields["deviceName"] as? [String: Any])
                                     }()
-                                    
+
                                     if !name.isEmpty && self.tenThietBi.isEmpty {
                                         self.tenThietBi = name
                                     }
-                                    
+
                                     results.append(LichSuThietBi(
                                         id: id,
                                         thietBiId: docThietBiId,
@@ -290,7 +345,7 @@ public struct LichSuView: View {
                                 }
                             }
                         }
-                        
+
                         self.lichSuList = results
                         self.sortList()
                     }

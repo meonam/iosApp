@@ -69,7 +69,7 @@ public struct UnitRegionManagerView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                     }
-                    .background(Color.appPrimary)
+                    .background(Color.appTopBarColor)
 
                     Picker("Phân hệ", selection: $selectedTab) {
                         Text("Đơn vị (\(viewModel.units.count))").tag(0)

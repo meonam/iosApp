@@ -47,6 +47,13 @@ public class AuthViewModel: ObservableObject {
                 let session = try await AuthService.shared.signIn(email: cleanEmail, password: password)
                 let (compId, profile) = await AuthService.shared.resolveUserProfile(email: session.email, idToken: session.idToken)
 
+                let status = profile?.status.uppercased() ?? "ACTIVE"
+                if status == "DISABLED" || status == "LOCKED" {
+                    self.isLoading = false
+                    self.errorMessage = "Tài khoản của bạn đã bị vô hiệu hóa bởi Quản trị viên."
+                    return
+                }
+
                 self.currentIdToken = session.idToken
                 self.currentCompanyId = compId
                 self.currentUser = profile ?? User(email: session.email)

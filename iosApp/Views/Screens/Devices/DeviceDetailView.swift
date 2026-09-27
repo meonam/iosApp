@@ -1,6 +1,7 @@
 import SwiftUI
 import CoreImage.CIFilterBuiltins
 
+// MARK: - MÀN HÌNH CHI TIẾT THIẾT BỊ (ĐỒNG BỘ 1:1 VỚI DEVICESCREEN.KT TRÊN ANDROID)
 public struct DeviceDetailView: View {
     @ObservedObject var viewModel: DeviceViewModel
     var deviceId: String
@@ -8,9 +9,9 @@ public struct DeviceDetailView: View {
 
     @State private var device: ThietBi?
     @State private var showDeleteConfirmAlert = false
+    @State private var showHistoryCover = false
     @State private var isLoading = false
-    
-    // CoreImage context for QR code
+
     private let context = CIContext()
     private let filter = CIFilter.qrCodeGenerator()
 
@@ -26,7 +27,7 @@ public struct DeviceDetailView: View {
                 Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Top Bar
+                    // TOP BAR
                     VStack(spacing: 0) {
                         Color.clear.frame(height: geometry.safeAreaInsets.top)
                         HStack(spacing: 12) {
@@ -39,9 +40,15 @@ public struct DeviceDetailView: View {
                                 .font(.system(size: 17, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()
+
+                            Button(action: { showHistoryCover = true }) {
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white)
+                            }
                         }
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 12)
                     }
                     .background(Color.appTopBarColor)
 
@@ -51,25 +58,29 @@ public struct DeviceDetailView: View {
                                 ProgressView("Đang tải dữ liệu...")
                                     .padding(.top, 40)
                             } else if let dev = device {
-                                // QR Code Section
+                                // 1. QR Code Section
                                 VStack(spacing: 8) {
                                     if let qrImage = generateQRCode(from: dev.id) {
                                         Image(uiImage: qrImage)
                                             .interpolation(.none)
                                             .resizable()
                                             .scaledToFit()
-                                            .frame(width: 150, height: 150)
+                                            .frame(width: 140, height: 140)
                                             .background(Color.white)
-                                            .cornerRadius(8)
-                                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                            .cornerRadius(10)
+                                            .shadow(color: Color.black.opacity(0.08), radius: 6, x: 0, y: 3)
                                     }
-                                    Text(dev.id)
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(Color.appTextPrimary)
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "qrcode")
+                                            .foregroundColor(Color.appSecondaryDarkBlue)
+                                        Text(dev.id)
+                                            .font(.system(size: 15, weight: .bold))
+                                            .foregroundColor(Color.appSecondaryDarkBlue)
+                                    }
                                 }
-                                .padding(.top, 20)
-                                
-                                // Details Section
+                                .padding(.top, 16)
+
+                                // 2. Details Card
                                 VStack(spacing: 0) {
                                     detailRow(label: "Tên thiết bị", value: dev.ten)
                                     Divider().padding(.leading, 16)
@@ -79,60 +90,97 @@ public struct DeviceDetailView: View {
                                         detailRow(label: "Phòng ban", value: pb)
                                     }
                                     Divider().padding(.leading, 16)
-                                    
+
+                                    // Trạng thái Badge
                                     HStack {
                                         Text("Trạng thái")
                                             .font(.system(size: 14))
                                             .foregroundColor(Color.appTextSecondary)
                                         Spacer()
                                         Text(dev.statusNormalized)
-                                            .font(.system(size: 14, weight: .bold))
+                                            .font(.system(size: 13, weight: .bold))
                                             .foregroundColor(dev.statusColor)
-                                            .padding(.horizontal, 8)
+                                            .padding(.horizontal, 10)
                                             .padding(.vertical, 4)
                                             .background(dev.statusColor.opacity(0.12))
                                             .cornerRadius(8)
                                     }
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 12)
-                                    
+
                                     if let loai = dev.loai, !loai.isEmpty {
                                         Divider().padding(.leading, 16)
                                         detailRow(label: "Loại thiết bị", value: loai)
                                     }
+
+                                    // THÔNG TIN MƯỢN (NẾU CÓ)
+                                    if let dvm = dev.donViMuon, !dvm.isEmpty {
+                                        Divider().padding(.leading, 16)
+                                        detailRow(label: "Đơn vị mượn", value: dvm)
+                                    }
+                                    if let pbm = dev.phongBanMuon, !pbm.isEmpty {
+                                        Divider().padding(.leading, 16)
+                                        detailRow(label: "Phòng ban mượn", value: pbm)
+                                    }
+                                    if let nm = dev.nguoiMuon, !nm.isEmpty {
+                                        Divider().padding(.leading, 16)
+                                        detailRow(label: "Người mượn", value: nm)
+                                    }
+                                    if let nht = dev.ngayHenTra, !nht.isEmpty {
+                                        Divider().padding(.leading, 16)
+                                        detailRow(label: "Ngày hẹn trả", value: nht)
+                                    }
+                                    if let nm = dev.ngayMuon, !nm.isEmpty {
+                                        Divider().padding(.leading, 16)
+                                        detailRow(label: "Ngày mượn", value: nm)
+                                    }
+
                                     if let moTa = dev.moTa, !moTa.isEmpty {
                                         Divider().padding(.leading, 16)
                                         detailRow(label: "Ghi chú", value: moTa)
                                     }
                                 }
                                 .background(Color.white)
-                                .cornerRadius(12)
-                                .shadow(color: Color.black.opacity(0.05), radius: 5, x: 0, y: 2)
+                                .cornerRadius(14)
+                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
                                 .padding(.horizontal, 16)
-                                .padding(.top, 10)
-                                
-                                // Actions Section
-                                if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
-                                    Button(action: {
-                                        showDeleteConfirmAlert = true
-                                    }) {
-                                        HStack {
-                                            Image(systemName: "trash")
-                                            Text("Xóa thiết bị")
+
+                                // 3. Action Buttons
+                                VStack(spacing: 10) {
+                                    Button(action: { showHistoryCover = true }) {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "clock.arrow.circlepath")
+                                            Text("Xem nhật ký lịch sử")
                                         }
-                                        .font(.system(size: 15, weight: .bold))
-                                        .foregroundColor(.white)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(Color.appSecondaryDarkBlue)
                                         .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(Color.appDanger)
+                                        .frame(height: 46)
+                                        .background(Color.appSecondaryDarkBlue.opacity(0.1))
                                         .cornerRadius(12)
                                     }
-                                    .padding(.horizontal, 16)
-                                    .padding(.top, 20)
+
+                                    if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
+                                        Button(action: { showDeleteConfirmAlert = true }) {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: "trash")
+                                                Text("Xóa thiết bị")
+                                            }
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 46)
+                                            .background(Color.appDanger)
+                                            .cornerRadius(12)
+                                        }
+                                    }
                                 }
+                                .padding(.horizontal, 16)
+                                .padding(.top, 6)
+
                             } else {
-                                Text("Không tìm thấy thiết bị")
-                                    .foregroundColor(.red)
+                                Text("Không tìm thấy thông tin thiết bị")
+                                    .foregroundColor(Color.appDanger)
                                     .padding(.top, 40)
                             }
                         }
@@ -141,18 +189,22 @@ public struct DeviceDetailView: View {
                 }
             }
         }
+        .ignoresSafeArea(edges: .top)
         .onAppear {
             loadDeviceDetails()
+        }
+        .fullScreenCover(isPresented: $showHistoryCover) {
+            LichSuView(companyId: viewModel.companyId, idToken: viewModel.idToken, thietBiId: deviceId, onBack: { showHistoryCover = false })
         }
         .alert(isPresented: $showDeleteConfirmAlert) {
             Alert(
                 title: Text("Xác nhận xóa"),
-                message: Text("Bạn có chắc chắn muốn xóa thiết bị này không?"),
+                message: Text("Bạn có chắc chắn muốn xóa thiết bị này khỏi hệ thống không?"),
                 primaryButton: .destructive(Text("Xóa")) {
                     viewModel.deleteDevice(deviceId: deviceId)
                     onBack()
                 },
-                secondaryButton: .cancel()
+                secondaryButton: .cancel(Text("Hủy"))
             )
         }
     }
@@ -164,7 +216,7 @@ public struct DeviceDetailView: View {
                 .foregroundColor(Color.appTextSecondary)
             Spacer()
             Text(value)
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(Color.appTextPrimary)
                 .multilineTextAlignment(.trailing)
         }
@@ -173,73 +225,28 @@ public struct DeviceDetailView: View {
     }
 
     private func loadDeviceDetails() {
-        // Try finding from cached devices first
-        if let cached = viewModel.rawDevices.first(where: { $0.id == deviceId }) {
+        if let cached = viewModel.rawDevices.first(where: { $0.id.caseInsensitiveCompare(deviceId) == .orderedSame }) {
             self.device = cached
             return
         }
-        
-        // Otherwise try fetching (REST API)
+
         isLoading = true
-        let companyId = viewModel.user.companyId
-        
-        // Construct the URL Session REST API request
-        guard let url = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(deviceId)") else {
-            isLoading = false
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        if !viewModel.idToken.isEmpty {
-            request.setValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization")
-        }
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                self.isLoading = false
-                guard let data = data, error == nil else {
-                    return
-                }
-                do {
-                    if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
-                       let fields = json["fields"] as? [String: Any] {
-                        
-                        let thietBi = ThietBi(
-                            id: self.deviceId,
-                            ten: FirestoreHelper.getString(fields["ten"] as? [String: Any]),
-                            tenDonVi: FirestoreHelper.getString(fields["tenDonVi"] as? [String: Any]),
-                            trangThai: FirestoreHelper.getString(fields["trangThai"] as? [String: Any]),
-                            createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
-                            loai: FirestoreHelper.getString(fields["loai"] as? [String: Any]),
-                            phongBan: FirestoreHelper.getString(fields["phongBan"] as? [String: Any]),
-                            moTa: FirestoreHelper.getString(fields["moTa"] as? [String: Any]),
-                            createdBy: FirestoreHelper.getString(fields["createdBy"] as? [String: Any]),
-                            companyId: FirestoreHelper.getString(fields["companyId"] as? [String: Any]),
-                            donViMuon: FirestoreHelper.getString(fields["donViMuon"] as? [String: Any]),
-                            phongBanMuon: FirestoreHelper.getString(fields["phongBanMuon"] as? [String: Any]),
-                            nguoiMuon: FirestoreHelper.getString(fields["nguoiMuon"] as? [String: Any]),
-                            ngayMuon: FirestoreHelper.getString(fields["ngayMuon"] as? [String: Any]),
-                            ngayHenTra: FirestoreHelper.getString(fields["ngayHenTra"] as? [String: Any])
-                        )
-                        self.device = thietBi
-                    }
-                } catch {
-                    print("Error parsing device detail: \(error)")
-                }
+        Task {
+            if let dev = await viewModel.getDeviceById(deviceId) {
+                self.device = dev
             }
-        }.resume()
+            self.isLoading = false
+        }
     }
 
     private func generateQRCode(from string: String) -> UIImage? {
         let data = Data(string.utf8)
         filter.setValue(data, forKey: "inputMessage")
-        
+
         if let outputImage = filter.outputImage {
-            // Scale up the image
             let transform = CGAffineTransform(scaleX: 10, y: 10)
             let scaledImage = outputImage.transformed(by: transform)
-            
+
             if let cgimg = context.createCGImage(scaledImage, from: scaledImage.extent) {
                 return UIImage(cgImage: cgimg)
             }

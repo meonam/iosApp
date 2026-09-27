@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - ATTACHMENT ITEM
 public struct AttachmentItem: Identifiable, Codable, Hashable {
@@ -6,7 +7,7 @@ public struct AttachmentItem: Identifiable, Codable, Hashable {
     public var name: String
     public var url: String
     public var size: Int64
-    public var type: String
+    public var type: String // pdf, word, excel, text, image, html, archive, other
     public var uploadedAt: Int64
     public var sha256: String
     public var scanStatus: String
@@ -41,7 +42,7 @@ public struct CoTechnician: Identifiable, Codable, Hashable {
     public var email: String
     public var name: String
     public var phone: String
-    public var role: String
+    public var role: String // ASSISTANT, SPECIALIST
     public var assignedAt: Int64
     public var assignedBy: String
     public var isAcknowledged: Bool
@@ -74,7 +75,7 @@ public struct HandoverRecord: Identifiable, Codable, Hashable {
     public var handoverId: String
     public var fromEmail: String
     public var fromName: String
-    public var toType: String
+    public var toType: String // TECHNICIAN, HELPDESK
     public var toEmail: String
     public var toName: String
     public var toCluster: String
@@ -104,18 +105,92 @@ public struct HandoverRecord: Identifiable, Codable, Hashable {
     }
 }
 
-// MARK: - TICKET TRACKING (TỌA ĐỘ VÀ LỘ TRÌNH KTV)
+// MARK: - TICKET TRACKING (TỌA ĐỘ VÀ LỘ TRÌNH KTV - ĐỒNG BỘ 1:1 ANDROID TICKETTRACKING)
 public struct TicketTracking: Codable, Hashable {
-    public var lat: Double
-    public var lng: Double
-    public var updatedAt: Int64
-    public var step: String
+    public var ticketId: String
+    public var technicianEmail: String
+    public var technicianName: String
+    public var technicianPhone: String
+    public var currentLat: Double
+    public var currentLng: Double
+    public var speedKmh: Float
+    public var heading: Float
+    public var startLat: Double
+    public var startLng: Double
+    public var startAddress: String
+    public var startName: String
+    public var destLat: Double
+    public var destLng: Double
+    public var destAddress: String
+    public var destName: String
+    public var distanceKm: Double
+    public var traveledDistanceKm: Double
+    public var etaMinutes: Int
+    public var status: String // IDLE, EN_ROUTE, ARRIVED, COMPLETED, CANCELLED, CANCELLED_SELF_RESOLVED, CANCELLED_BY_HELPDESK
+    public var lastUpdatedAt: Int64
+    public var isGpsLost: Bool
+    public var lastGpsLostAt: Int64
+    public var isArrivedVerified: Bool
+    public var cancelledBy: String
+    public var cancelReason: String
+    public var cancelledAt: Int64
 
-    public init(lat: Double = 0.0, lng: Double = 0.0, updatedAt: Int64 = 0, step: String = "") {
-        self.lat = lat
-        self.lng = lng
-        self.updatedAt = updatedAt
-        self.step = step
+    public init(
+        ticketId: String = "",
+        technicianEmail: String = "",
+        technicianName: String = "",
+        technicianPhone: String = "",
+        currentLat: Double = 0.0,
+        currentLng: Double = 0.0,
+        speedKmh: Float = 0.0,
+        heading: Float = 0.0,
+        startLat: Double = 0.0,
+        startLng: Double = 0.0,
+        startAddress: String = "",
+        startName: String = "",
+        destLat: Double = 0.0,
+        destLng: Double = 0.0,
+        destAddress: String = "",
+        destName: String = "",
+        distanceKm: Double = 0.0,
+        traveledDistanceKm: Double = 0.0,
+        etaMinutes: Int = 0,
+        status: String = "IDLE",
+        lastUpdatedAt: Int64 = 0,
+        isGpsLost: Bool = false,
+        lastGpsLostAt: Int64 = 0,
+        isArrivedVerified: Bool = false,
+        cancelledBy: String = "",
+        cancelReason: String = "",
+        cancelledAt: Int64 = 0
+    ) {
+        self.ticketId = ticketId
+        self.technicianEmail = technicianEmail
+        self.technicianName = technicianName
+        self.technicianPhone = technicianPhone
+        self.currentLat = currentLat
+        self.currentLng = currentLng
+        self.speedKmh = speedKmh
+        self.heading = heading
+        self.startLat = startLat
+        self.startLng = startLng
+        self.startAddress = startAddress
+        self.startName = startName
+        self.destLat = destLat
+        self.destLng = destLng
+        self.destAddress = destAddress
+        self.destName = destName
+        self.distanceKm = distanceKm
+        self.traveledDistanceKm = traveledDistanceKm
+        self.etaMinutes = etaMinutes
+        self.status = status
+        self.lastUpdatedAt = lastUpdatedAt
+        self.isGpsLost = isGpsLost
+        self.lastGpsLostAt = lastGpsLostAt
+        self.isArrivedVerified = isArrivedVerified
+        self.cancelledBy = cancelledBy
+        self.cancelReason = cancelReason
+        self.cancelledAt = cancelledAt
     }
 }
 
@@ -130,9 +205,9 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
     public var creatorLng: Double
     public var creatorAddress: String
     public var subject: String
-    public var status: String // OPEN, CLOSED
+    public var status: String // OPEN, CLOSED, RESOLVED, CANCELED
     public var category: String // HARDWARE, SOFTWARE, NETWORK, OTHER
-    public var priority: String // NORMAL, HIGH, URGENT
+    public var priority: String // NORMAL, HIGH, URGENT, CRITICAL
     public var assetId: String
     public var assetName: String
     public var images: [String]
@@ -161,10 +236,13 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
     public var handlingMethod: String // REMOTE, ONSITE
     public var handlingMethodUpdatedAt: Int64
     public var coTechnicians: [CoTechnician]
+    public var tracking: TicketTracking?
     public var isAcknowledged: Bool
     public var acknowledgedAt: Int64
     public var acknowledgedBy: String
     public var acknowledgedByName: String
+    public var helpdeskAcknowledgedAt: Int64
+    public var helpdeskAcknowledgedBy: String
     public var resolvedAt: Int64
     public var resolvedBy: String
     public var resolvedByName: String
@@ -176,12 +254,32 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
     public var ratingResolve: Int
     public var ratingAttitude: Int
     public var ratingQuality: Int
+    public var ratingRequested: Bool
+    public var ratingRequestedAt: Int64
+    public var ratingEmailSent: Bool
+    public var ratingEmailSentAt: Int64
     public var isAutoRated: Bool
     public var reopenCount: Int
     public var isQualityPassed: Bool
     public var source: String // APP, ZALO, EMAIL
+    public var externalSenderId: String
+    public var externalThreadId: String
+    public var externalChannelName: String
     public var isInvalid: Bool
     public var invalidReason: String
+    public var previousRating: Int
+    public var previousFeedback: String
+    public var isObjectiveExclusion: Bool
+    public var objectiveExclusionReason: String
+    public var reopenedAt: Int64
+    public var reopenedByEmail: String
+    public var reopenedByName: String
+    public var reopenReason: String
+    public var handoverHistory: [HandoverRecord]
+    public var assignedApplication: String
+    public var assignedRole: String
+    public var scope: String // UNIT, DEPARTMENT
+    public var toNghiepVu: String
 
     public init(
         id: String = "",
@@ -224,10 +322,13 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         handlingMethod: String = "",
         handlingMethodUpdatedAt: Int64 = 0,
         coTechnicians: [CoTechnician] = [],
+        tracking: TicketTracking? = nil,
         isAcknowledged: Bool = false,
         acknowledgedAt: Int64 = 0,
         acknowledgedBy: String = "",
         acknowledgedByName: String = "",
+        helpdeskAcknowledgedAt: Int64 = 0,
+        helpdeskAcknowledgedBy: String = "",
         resolvedAt: Int64 = 0,
         resolvedBy: String = "",
         resolvedByName: String = "",
@@ -239,12 +340,32 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         ratingResolve: Int = 0,
         ratingAttitude: Int = 0,
         ratingQuality: Int = 0,
+        ratingRequested: Bool = false,
+        ratingRequestedAt: Int64 = 0,
+        ratingEmailSent: Bool = false,
+        ratingEmailSentAt: Int64 = 0,
         isAutoRated: Bool = false,
         reopenCount: Int = 0,
         isQualityPassed: Bool = true,
         source: String = "APP",
+        externalSenderId: String = "",
+        externalThreadId: String = "",
+        externalChannelName: String = "",
         isInvalid: Bool = false,
-        invalidReason: String = ""
+        invalidReason: String = "",
+        previousRating: Int = 0,
+        previousFeedback: String = "",
+        isObjectiveExclusion: Bool = false,
+        objectiveExclusionReason: String = "",
+        reopenedAt: Int64 = 0,
+        reopenedByEmail: String = "",
+        reopenedByName: String = "",
+        reopenReason: String = "",
+        handoverHistory: [HandoverRecord] = [],
+        assignedApplication: String = "",
+        assignedRole: String = "TECH",
+        scope: String = "UNIT",
+        toNghiepVu: String = ""
     ) {
         self.id = id
         self.creatorEmail = creatorEmail
@@ -286,10 +407,13 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         self.handlingMethod = handlingMethod
         self.handlingMethodUpdatedAt = handlingMethodUpdatedAt
         self.coTechnicians = coTechnicians
+        self.tracking = tracking
         self.isAcknowledged = isAcknowledged
         self.acknowledgedAt = acknowledgedAt
         self.acknowledgedBy = acknowledgedBy
         self.acknowledgedByName = acknowledgedByName
+        self.helpdeskAcknowledgedAt = helpdeskAcknowledgedAt
+        self.helpdeskAcknowledgedBy = helpdeskAcknowledgedBy
         self.resolvedAt = resolvedAt
         self.resolvedBy = resolvedBy
         self.resolvedByName = resolvedByName
@@ -301,16 +425,54 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         self.ratingResolve = ratingResolve
         self.ratingAttitude = ratingAttitude
         self.ratingQuality = ratingQuality
+        self.ratingRequested = ratingRequested
+        self.ratingRequestedAt = ratingRequestedAt
+        self.ratingEmailSent = ratingEmailSent
+        self.ratingEmailSentAt = ratingEmailSentAt
         self.isAutoRated = isAutoRated
         self.reopenCount = reopenCount
         self.isQualityPassed = isQualityPassed
         self.source = source
+        self.externalSenderId = externalSenderId
+        self.externalThreadId = externalThreadId
+        self.externalChannelName = externalChannelName
         self.isInvalid = isInvalid
         self.invalidReason = invalidReason
+        self.previousRating = previousRating
+        self.previousFeedback = previousFeedback
+        self.isObjectiveExclusion = isObjectiveExclusion
+        self.objectiveExclusionReason = objectiveExclusionReason
+        self.reopenedAt = reopenedAt
+        self.reopenedByEmail = reopenedByEmail
+        self.reopenedByName = reopenedByName
+        self.reopenReason = reopenReason
+        self.handoverHistory = handoverHistory
+        self.assignedApplication = assignedApplication
+        self.assignedRole = assignedRole
+        self.scope = scope
+        self.toNghiepVu = toNghiepVu
     }
 
     public var isOpen: Bool {
-        status.uppercased() != "CLOSED"
+        status.uppercased() != "CLOSED" && closedAt <= 0
+    }
+
+    public var isClosed: Bool {
+        status.uppercased() == "CLOSED" || closedAt > 0
+    }
+
+    public var isReopenedActive: Bool {
+        !isClosed && (reopenCount > 0 || reopenedAt > 0) &&
+        status.uppercased() != "RESOLVED" &&
+        !(reopenedAt > 0 && resolvedAt > reopenedAt)
+    }
+
+    public var isResolved: Bool {
+        !isClosed && !isReopenedActive && (
+            status.uppercased() == "RESOLVED" ||
+            (reopenCount == 0 && reopenedAt <= 0 && resolvedAt > 0) ||
+            (reopenedAt > 0 && resolvedAt > reopenedAt)
+        )
     }
 
     public var effectiveRating: Int {
@@ -318,6 +480,71 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         if rating >= 1 && rating <= 5 { return rating }
         if isAutoRated { return 5 }
         return 0
+    }
+
+    public var isSpecialistAssigned: Bool {
+        assignedRole.uppercased() == "SPECIALIST" ||
+        !assignedApplication.isEmpty ||
+        assignedDepartmentId.uppercased().hasPrefix("TO_") ||
+        assignedDepartmentName.localizedCaseInsensitiveContains("Ứng Dụng") ||
+        assignedDepartmentName.localizedCaseInsensitiveContains("Nghiệp Vụ") ||
+        assignedDepartmentName.localizedCaseInsensitiveContains("Dữ Liệu") ||
+        assignedDepartmentName.localizedCaseInsensitiveContains("Hạ Tầng Mạng") ||
+        assignedDepartmentName.localizedCaseInsensitiveContains("Bảo Mật")
+    }
+
+    public var assigneeTitle: String {
+        isSpecialistAssigned ? "Chuyên viên" : "KTV"
+    }
+
+    public func getLegitimateImages() -> [String] {
+        if images.isEmpty { return [] }
+        if source.uppercased() != "EMAIL" { return images }
+        let signatureKeywords = [
+            "signature", "sign", "sigimg", "mysig", "chuky", "chu_ky", "chu-ky", "chữ ký",
+            "logo", "icon", "facebook", "zalo", "linkedin", "twitter", "instagram", "youtube",
+            "footer", "banner", "divider", "spacer", "pixel", "avatar", "hotline",
+            "image001", "image002", "image003", "clip_image", "outlook-", "outlookemoji"
+        ]
+        return images.filter { url in
+            let clean = url.lowercased().components(separatedBy: "/").last?.components(separatedBy: "?").first ?? ""
+            return !signatureKeywords.contains { clean.contains($0) }
+        }
+    }
+
+    public func getSlaTargetMinutes(deptResolveMinutes: Int? = nil) -> Int {
+        if let d = deptResolveMinutes, d > 0 { return d }
+        switch priority.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() {
+        case "URGENT": return 60
+        case "HIGH":   return 240
+        default:       return 1440
+        }
+    }
+
+    public func getQualityTrackingWindowHours() -> Int64 {
+        switch priority.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() {
+        case "CRITICAL", "URGENT": return 120
+        case "HIGH":               return 72
+        case "MEDIUM", "NORMAL":   return 48
+        case "LOW":                return 24
+        default:                   return 48
+        }
+    }
+
+    public func isWithinQualityTrackingWindow(eventTimeMs: Int64 = Int64(Date().timeIntervalSince1970 * 1000)) -> Bool {
+        let finishTime = closedAt > 0 ? closedAt : (resolvedAt > 0 ? resolvedAt : 0)
+        if finishTime <= 0 { return true }
+        let windowMs = getQualityTrackingWindowHours() * 3600 * 1000
+        return (eventTimeMs - finishTime) <= windowMs
+    }
+
+    public func getRemainingQualityTrackingHours(eventTimeMs: Int64 = Int64(Date().timeIntervalSince1970 * 1000)) -> Int64 {
+        let finishTime = closedAt > 0 ? closedAt : (resolvedAt > 0 ? resolvedAt : 0)
+        if finishTime <= 0 { return getQualityTrackingWindowHours() }
+        let windowMs = getQualityTrackingWindowHours() * 3600 * 1000
+        let elapsedMs = eventTimeMs - finishTime
+        let remainMs = max(0, windowMs - elapsedMs)
+        return remainMs / (3600 * 1000)
     }
 
     public func isUserAssigned(email: String) -> Bool {
