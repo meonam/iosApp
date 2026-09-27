@@ -184,6 +184,41 @@ public class SupportViewModel: ObservableObject {
         scopedTickets.filter { deletedTicketIds.contains($0.id) }.count
     }
 
+    public func isDeptTicket(_ t: SupportTicket) -> Bool {
+        t.scope.uppercased() == "DEPARTMENT" ||
+        t.source.uppercased() == "DEPARTMENT" ||
+        t.isSpecialistAssigned ||
+        t.assignedRole.uppercased() == "SPECIALIST" ||
+        t.assignedDepartmentId.uppercased().hasPrefix("TO_") ||
+        t.assignedDepartmentName.localizedCaseInsensitiveContains("ứng dụng") ||
+        t.assignedDepartmentName.localizedCaseInsensitiveContains("nghiệp vụ") ||
+        t.departmentId.localizedCaseInsensitiveContains("phòng ban") ||
+        t.subject.localizedCaseInsensitiveContains("phòng ban")
+    }
+
+    public var appCount: Int {
+        scopedTickets.filter { t in
+            !deletedTicketIds.contains(t.id) &&
+            (t.source.isEmpty || t.source.uppercased() == "APP") &&
+            !isDeptTicket(t)
+        }.count
+    }
+
+    public var emailCount: Int {
+        scopedTickets.filter { t in
+            !deletedTicketIds.contains(t.id) &&
+            (t.source.uppercased() == "EMAIL" || t.externalSenderId.contains("@")) &&
+            !isDeptTicket(t)
+        }.count
+    }
+
+    public var deptCount: Int {
+        scopedTickets.filter { t in
+            !deletedTicketIds.contains(t.id) &&
+            isDeptTicket(t)
+        }.count
+    }
+
     // MARK: - FILTERED TICKETS BY STATUS, CHANNEL & SEARCH
     public var filteredTickets: [SupportTicket] {
         let baseList = scopedTickets

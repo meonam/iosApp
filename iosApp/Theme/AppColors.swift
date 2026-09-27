@@ -87,4 +87,22 @@ public struct SafeAreaHelper {
         let insets = geometry.safeAreaInsets.top
         return insets > 0 ? insets : topInset
     }
+
+    public static var bottomInset: CGFloat {
+        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+           let window = windowScene.windows.first(where: { $0.isKeyWindow }) {
+            let bottom = window.safeAreaInsets.bottom
+            if bottom > 0 { return bottom }
+        }
+        if let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) {
+            let bottom = window.safeAreaInsets.bottom
+            if bottom > 0 { return bottom }
+        }
+        return 34.0 // Fallback an toàn cho iOS Home Indicator (iPhone X trở lên)
+    }
+
+    public static func bottom(_ geometry: GeometryProxy) -> CGFloat {
+        let insets = geometry.safeAreaInsets.bottom
+        return insets > 0 ? insets : bottomInset
+    }
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - MÀN HÌNH DANH SÁCH PHIẾU HỖ TRỢ (ĐỒNG BỘ 1:1 VỚI ADMINTICKETLISTSCREEN.KT TRÊN ANDROID)
+// MARK: - MÀN HÌNH DANH SÁCH PHIẾU HỖ TRỢ TRỰC TUYẾN & XỬ LÝ SỰ CỐ (ĐỒNG BỘ 1:1 VỚI DESKTOP SUPPORT TICKET LIST)
 public struct SupportHubView: View {
     @ObservedObject var viewModel: SupportViewModel
     var onBack: () -> Void
@@ -13,6 +13,8 @@ public struct SupportHubView: View {
     @State private var showKtvMonitorSheet: Bool = false
     @State private var manuallyExpandedGroups: Set<String> = []
     @State private var manuallyCollapsedGroups: Set<String> = []
+    @State private var ticketToDelete: SupportTicket? = nil
+    @State private var showDeleteSingleConfirm: Bool = false
 
     public init(
         viewModel: SupportViewModel,
@@ -70,7 +72,7 @@ public struct SupportHubView: View {
     private func isGroupCollapsed(key: String, openCountInGroup: Int) -> Bool {
         if manuallyExpandedGroups.contains(key) { return false }
         if manuallyCollapsedGroups.contains(key) { return true }
-        // Tự động thu gọn nếu không có ticket đang mở và không phải hôm nay (chuẩn Android)
+        // Tự động thu gọn nếu không có ticket đang mở và không phải hôm nay (chuẩn Desktop/Android)
         return openCountInGroup == 0 && key != "Hôm nay"
     }
 
@@ -92,7 +94,7 @@ public struct SupportHubView: View {
 
                 VStack(spacing: 0) {
                     topBarView(safeAreaTop: SafeAreaHelper.top(geometry))
-                    searchAndFilterBar
+                    desktopHeaderAndFilterBar
                     ticketListView
                 }
             }
@@ -122,11 +124,23 @@ public struct SupportHubView: View {
                 secondaryButton: .cancel(Text("Hủy"))
             )
         }
+        // Alert xóa 1 ticket
+        .alert("Xóa yêu cầu hỗ trợ?", isPresented: $showDeleteSingleConfirm) {
+            Button("Hủy", role: .cancel) { ticketToDelete = nil }
+            Button("Xóa", role: .destructive) {
+                if let t = ticketToDelete {
+                    viewModel.hideTicket(id: t.id)
+                    ticketToDelete = nil
+                }
+            }
+        } message: {
+            Text("Bạn có chắc chắn muốn xóa yêu cầu '\(ticketToDelete?.subject ?? "")' khỏi danh sách không?")
+        }
         // Alert hướng dẫn
         .alert("Hướng dẫn Quản lý Phiếu Hỗ trợ", isPresented: $showGuideAlert) {
             Button("Đã hiểu", role: .cancel) {}
         } message: {
-            Text("• Bộ Lọc 4 Tab: Tất cả, Đang mở (xanh lá), Đã đóng, Đã ẩn (đỏ).\n• Nhóm theo ngày: Chạm tiêu đề ngày để thu gọn/mở rộng.\n• Chạm vào từng phiếu để mở khung chat 2 chiều, điều phối Kỹ thuật viên và xem hình ảnh đính kèm.\n• Nút Dọn dẹp trên thanh tiêu đề giúp ẩn hàng loạt các phiếu đã đóng.")
+            Text("• Bộ Lọc 4 Tab: Tất cả, Đang mở, Đã đóng, Đã ẩn.\n• Kênh tiếp nhận: App, Email, Phòng ban.\n• Nhóm theo ngày: Chạm tiêu đề ngày để thu gọn/mở rộng.\n• Chạm vào từng phiếu để mở khung chat 2 chiều, điều phối Kỹ thuật viên và xem hình ảnh đính kèm.")
         }
     }
 
@@ -139,117 +153,266 @@ public struct SupportHubView: View {
         }
     }
 
-    // MARK: - 4 FILTER TABS
-    private var filterTabsView: some View {
-        HStack(spacing: 4) {
-            // Tab: Tất cả
-            tabButton(
-                title: "Tất cả",
-                count: viewModel.allCount,
-                tag: "ALL",
-                activeBg: Color.white,
-                activeFg: Color.appSecondaryDarkBlue
-            )
+    // MARK: - DESKTOP HEADER & FILTER BAR (HÌNH 2)
+    @ViewBuilder
+    private var desktopHeaderAndFilterBar: some View {
+        VStack(spacing: 8) {
+            // Hàng Tiêu Đề Panel: 📋 Hỗ trợ trực tuyến & Xử lý sự cố (N) + Nút Xóa tất cả
+            HStack {
+                HStack(spacing: 6) {
+                    Text("📋")
+                        .font(.system(size: 14))
+                    Text("Hỗ trợ trực tuyến & Xử lý sự cố (\(viewModel.allCount))")
+                        .font(.system(size: 14.5, weight: .bold))
+                        .foregroundColor(Color(hex: "#0B2545"))
+                }
 
-            // Tab: Đang mở (màu xanh lá chuẩn Android)
-            tabButton(
-                title: "Đang mở",
-                count: viewModel.openCount,
-                tag: "OPEN",
-                activeBg: Color(hex: "#DCFCE7"),
-                activeFg: Color(hex: "#16A34A")
-            )
+                Spacer()
 
-            // Tab: Đã đóng
-            tabButton(
-                title: "Đã đóng",
-                count: viewModel.closedCount,
-                tag: "CLOSED",
-                activeBg: Color.white,
-                activeFg: Color.appSecondaryDarkBlue
-            )
+                if viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isManager {
+                    Button(action: {
+                        if closedTicketsToCleanCount > 0 {
+                            showConfirmCleanClosed = true
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "trash")
+                                .font(.system(size: 11))
+                            Text("Xóa tất cả")
+                                .font(.system(size: 11.5, weight: .bold))
+                        }
+                        .foregroundColor(Color(hex: "#E11D48"))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(hex: "#FFE4E6"))
+                        .cornerRadius(6)
+                    }
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
 
-            // Tab: Đã ẩn (màu đỏ chuẩn Android)
-            tabButton(
-                title: "Đã ẩn",
-                count: viewModel.hiddenCount,
-                tag: "HIDDEN",
-                activeBg: Color(hex: "#FEE2E2"),
-                activeFg: Color(hex: "#B91C1C")
-            )
+            // Hàng 1: 4 Tabs Trạng thái (Segmented Tabs nền xám bo tròn)
+            statusTabsRow
+
+            // Hàng 2: Omni-Channel Filter Chips (Tất cả, App, Email, Phòng ban - bỏ Zalo)
+            omniChannelChipsRow
+
+            // Hàng 3: Ô tìm kiếm
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(Color.appTextSecondary)
+                TextField("Tìm mã phiếu, tiêu đề, người gửi, đơn vị...", text: $viewModel.searchQuery)
+                    .font(.system(size: 13))
+                if !viewModel.searchQuery.isEmpty {
+                    Button(action: { viewModel.searchQuery = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(Color.appTextSecondary)
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(Color.white)
+            .cornerRadius(8)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+            .padding(.horizontal, 12)
+            .padding(.bottom, 6)
         }
-        .padding(4)
-        .background(Color(hex: "#F1F5F9"))
-        .cornerRadius(12)
+        .background(Color.white)
+        .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 2)
     }
 
-    private func tabButton(title: String, count: Int, tag: String, activeBg: Color, activeFg: Color) -> some View {
+    // MARK: - 4 STATUS TABS (HÌNH 2)
+    private var statusTabsRow: some View {
+        HStack(spacing: 4) {
+            statusTabButton(title: "Tất cả", count: viewModel.allCount, tag: "ALL")
+            statusTabButton(title: "Đang mở", count: viewModel.openCount, tag: "OPEN")
+            statusTabButton(title: "Đã đóng", count: viewModel.closedCount, tag: "CLOSED")
+            statusTabButton(title: "Đã ẩn", count: viewModel.hiddenCount, tag: "HIDDEN")
+        }
+        .padding(3)
+        .background(Color(hex: "#E2E8F0").opacity(0.65))
+        .cornerRadius(10)
+        .padding(.horizontal, 12)
+    }
+
+    private func statusTabButton(title: String, count: Int, tag: String) -> some View {
         let isSelected = viewModel.filterTab == tag
+        let activeBg: Color = {
+            switch tag {
+            case "OPEN": return Color(hex: "#DCFCE7")
+            case "CLOSED": return Color.white
+            case "HIDDEN": return Color.white
+            default: return Color(hex: "#0B2545")
+            }
+        }()
+        let activeFg: Color = {
+            switch tag {
+            case "OPEN": return Color(hex: "#16A34A")
+            case "CLOSED": return Color(hex: "#1E293B")
+            case "HIDDEN": return Color(hex: "#64748B")
+            default: return .white
+            }
+        }()
+
         return Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(.easeInOut(duration: 0.15)) {
                 viewModel.filterTab = tag
             }
         }) {
-            VStack(spacing: 2) {
+            HStack(spacing: 3) {
                 Text(title)
-                    .font(.system(size: 11.5, weight: isSelected ? .bold : .medium))
+                    .font(.system(size: 12, weight: isSelected ? .bold : .medium))
                 Text("(\(count))")
-                    .font(.system(size: 10, weight: isSelected ? .bold : .regular))
+                    .font(.system(size: 11, weight: isSelected ? .bold : .regular))
             }
-            .foregroundColor(isSelected ? activeFg : Color.gray)
+            .foregroundColor(isSelected ? activeFg : Color(hex: "#64748B"))
             .frame(maxWidth: .infinity)
-            .frame(height: 38)
+            .frame(height: 34)
             .background(isSelected ? activeBg : Color.clear)
-            .cornerRadius(8)
-            .shadow(color: isSelected ? Color.black.opacity(0.06) : Color.clear, radius: 2, y: 1)
+            .cornerRadius(7)
+            .shadow(color: isSelected ? Color.black.opacity(0.06) : Color.clear, radius: 1, y: 1)
         }
     }
 
-    // MARK: - GROUP HEADER
+    // MARK: - OMNI-CHANNEL FILTER CHIPS (HÌNH 2 - BỎ ZALO)
+    private var omniChannelChipsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                // Tất cả
+                channelChip(
+                    title: "Tất cả (\(viewModel.allCount))",
+                    icon: nil,
+                    tag: "ALL",
+                    activeBg: Color(hex: "#0B2545"),
+                    activeFg: .white,
+                    inactiveBg: Color(hex: "#F1F5F9"),
+                    inactiveFg: Color(hex: "#475569")
+                )
+
+                // App
+                channelChip(
+                    title: "App (\(viewModel.appCount))",
+                    icon: "iphone",
+                    tag: "APP",
+                    activeBg: Color(hex: "#0F766E"),
+                    activeFg: .white,
+                    inactiveBg: Color(hex: "#F0FDFA"),
+                    inactiveFg: Color(hex: "#0F766E"),
+                    borderColor: Color(hex: "#99F6E4")
+                )
+
+                // Email
+                channelChip(
+                    title: "Email (\(viewModel.emailCount))",
+                    icon: "envelope.fill",
+                    tag: "EMAIL",
+                    activeBg: Color(hex: "#EA4335"),
+                    activeFg: .white,
+                    inactiveBg: Color(hex: "#FFF1F2"),
+                    inactiveFg: Color(hex: "#EA4335"),
+                    borderColor: Color(hex: "#FECDD3")
+                )
+
+                // Phòng ban
+                channelChip(
+                    title: "Phòng ban (\(viewModel.deptCount))",
+                    icon: "building.2.fill",
+                    tag: "DEPARTMENT",
+                    activeBg: Color(hex: "#0D9488"),
+                    activeFg: .white,
+                    inactiveBg: Color(hex: "#F0FDFA"),
+                    inactiveFg: Color(hex: "#0D9488"),
+                    borderColor: Color(hex: "#99F6E4")
+                )
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 2)
+        }
+    }
+
+    private func channelChip(
+        title: String,
+        icon: String?,
+        tag: String,
+        activeBg: Color,
+        activeFg: Color,
+        inactiveBg: Color,
+        inactiveFg: Color,
+        borderColor: Color? = nil
+    ) -> some View {
+        let isSelected = viewModel.filterSource == tag
+        return Button(action: {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                viewModel.filterSource = tag
+            }
+        }) {
+            HStack(spacing: 4) {
+                if let icon = icon {
+                    Image(systemName: icon)
+                        .font(.system(size: 11))
+                }
+                Text(title)
+                    .font(.system(size: 11.5, weight: isSelected ? .bold : .semibold))
+            }
+            .foregroundColor(isSelected ? activeFg : inactiveFg)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(isSelected ? activeBg : inactiveBg)
+            .cornerRadius(16)
+            .overlay(
+                Group {
+                    if let border = borderColor, !isSelected {
+                        RoundedRectangle(cornerRadius: 16).stroke(border, lineWidth: 1)
+                    }
+                }
+            )
+        }
+    }
+
+    // MARK: - GROUP HEADER (HÌNH 2: v 📅 Hôm nay (2) [2 đang mở])
     private func groupHeader(title: String, totalCount: Int, openCount: Int, isCollapsed: Bool) -> some View {
         HStack(spacing: 6) {
             Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
-                .font(.system(size: 12, weight: .bold))
+                .font(.system(size: 11, weight: .bold))
                 .foregroundColor(openCount > 0 ? Color(hex: "#D97706") : Color.gray)
                 .frame(width: 14)
 
-            Image(systemName: "calendar")
+            Text("📅")
                 .font(.system(size: 12))
-                .foregroundColor(openCount > 0 ? Color(hex: "#D97706") : Color.gray)
 
             Text("\(title) (\(totalCount))")
                 .font(.system(size: 12.5, weight: .bold))
-                .foregroundColor(openCount > 0 ? Color.appTextPrimary : Color.gray)
-
-            Spacer()
+                .foregroundColor(openCount > 0 ? Color(hex: "#1E293B") : Color(hex: "#64748B"))
 
             if openCount > 0 {
                 Text("\(openCount) đang mở")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(size: 10.5, weight: .bold))
                     .foregroundColor(Color(hex: "#B45309"))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
                     .background(Color(hex: "#FEF3C7"))
-                    .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#FDE68A"), lineWidth: 1))
+                    .cornerRadius(6)
             } else {
                 Text("✓ Đã xong")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 10.5, weight: .medium))
                     .foregroundColor(Color(hex: "#64748B"))
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
                     .background(Color(hex: "#F1F5F9"))
-                    .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                    .cornerRadius(6)
             }
+
+            Spacer()
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(Color.white.opacity(0.96))
+        .padding(.vertical, 7)
+        .background(Color.white.opacity(0.95))
         .cornerRadius(8)
     }
 
-    // MARK: - SUBVIEWS
+    // MARK: - TOP BAR
     @ViewBuilder
     private func topBarView(safeAreaTop: CGFloat) -> some View {
         VStack(spacing: 0) {
@@ -262,7 +425,7 @@ public struct SupportHubView: View {
                         .foregroundColor(.white)
                 }
 
-                Text("Trung tâm hỗ trợ")
+                Text("Hỗ trợ kỹ thuật")
                     .font(.system(size: 17, weight: .bold))
                     .foregroundColor(.white)
 
@@ -282,25 +445,14 @@ public struct SupportHubView: View {
                         .foregroundColor(viewModel.rawTickets.contains { $0.isOpen } ? Color(hex: "#10B981") : .white)
                 }
 
-                // Nút 3: Dọn dẹp các yêu cầu đã đóng
-                Button(action: {
-                    if closedTicketsToCleanCount > 0 {
-                        showConfirmCleanClosed = true
-                    }
-                }) {
-                    Image(systemName: "tray.and.arrow.down.fill")
-                        .font(.system(size: 15))
-                        .foregroundColor(.white)
-                }
-
-                // Nút 4: Báo cáo SLA / Đánh giá
+                // Nút 3: Báo cáo SLA / Đánh giá
                 Button(action: onOpenRatingReport) {
                     Image(systemName: "chart.bar.fill")
                         .font(.system(size: 16))
                         .foregroundColor(.white)
                 }
 
-                // Nút 5: Làm mới
+                // Nút 4: Làm mới
                 Button(action: { viewModel.fetchTickets() }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 15, weight: .bold))
@@ -313,34 +465,7 @@ public struct SupportHubView: View {
         .background(Color.appTopBarColor)
     }
 
-    @ViewBuilder
-    private var searchAndFilterBar: some View {
-        VStack(spacing: 10) {
-            filterTabsView
-
-            // Search field
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(Color.appTextSecondary)
-                TextField("Tìm mã phiếu, tiêu đề, người gửi, đơn vị...", text: $viewModel.searchQuery)
-                    .font(.system(size: 13.5))
-                if !viewModel.searchQuery.isEmpty {
-                    Button(action: { viewModel.searchQuery = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(Color.appTextSecondary)
-                    }
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(Color.white)
-            .cornerRadius(10)
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-    }
-
+    // MARK: - TICKET LIST
     @ViewBuilder
     private var ticketListView: some View {
         if viewModel.isLoading && viewModel.rawTickets.isEmpty {
@@ -361,7 +486,7 @@ public struct SupportHubView: View {
             }
         } else {
             ScrollView {
-                LazyVStack(spacing: 12, pinnedViews: [.sectionHeaders]) {
+                LazyVStack(spacing: 10, pinnedViews: [.sectionHeaders]) {
                     ForEach(groupedTickets, id: \.key) { group in
                         let openInGroup = group.tickets.filter { $0.isOpen && $0.closedAt <= 0 }.count
                         let isCollapsed = isGroupCollapsed(key: group.key, openCountInGroup: openInGroup)
@@ -389,7 +514,11 @@ public struct SupportHubView: View {
                                         },
                                         onToggleHide: {
                                             viewModel.toggleHideTicket(ticket.id)
-                                        }
+                                        },
+                                        onDelete: (viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isManager) ? {
+                                            ticketToDelete = ticket
+                                            showDeleteSingleConfirm = true
+                                        } : nil
                                     )
                                 }
                             }

@@ -58,7 +58,7 @@ public struct MainContainerView: View {
 
                                 // 1. THANH ĐIỀU HƯỚNG DƯỚI (PRO BOTTOM NAVIGATION BAR - 4 TABS)
                                 if isMainTab {
-                                    proBottomBar(bottomInset: geometry.safeAreaInsets.bottom)
+                                    proBottomBar(bottomInset: SafeAreaHelper.bottom(geometry))
                                 }
                             }
                             .disabled(isDrawerOpen)
@@ -67,7 +67,7 @@ public struct MainContainerView: View {
                             if isMainTab && currentDestination != .supportHub && currentDestination != .staffSupport {
                                 floatingSupportButton
                                     .padding(.trailing, 16)
-                                    .padding(.bottom, geometry.safeAreaInsets.bottom > 0 ? geometry.safeAreaInsets.bottom + 58 : 68)
+                                    .padding(.bottom, SafeAreaHelper.bottom(geometry) + 64)
                                     .zIndex(10)
                             }
                         }
@@ -176,7 +176,7 @@ public struct MainContainerView: View {
             }
         }
         .padding(.top, 8)
-        .padding(.bottom, max(bottomInset - 4, 8))
+        .padding(.bottom, max(bottomInset, 16))
         .padding(.horizontal, 6)
         .background(Color.appBottomBarBackground)
         .shadow(color: Color.black.opacity(0.15), radius: 8, x: 0, y: -2)
@@ -400,8 +400,14 @@ public struct MainContainerView: View {
                 onBack: { currentDestination = .home }
             )
 
-        case .unitManagement, .regionManagement:
-            UnitRegionManagerView(
+        case .unitManagement:
+            UnitManagerView(
+                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                onBack: { currentDestination = .home }
+            )
+
+        case .regionManagement:
+            RegionManagerView(
                 viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
                 onBack: { currentDestination = .home }
             )

@@ -71,23 +71,44 @@ public struct DonVi: Identifiable, Codable, Hashable {
     public var id: String
     public var tenDonVi: String
     public var maKhuVuc: String
+    public var companyId: String
 
-    public init(id: String, tenDonVi: String, maKhuVuc: String = "") {
+    public init(id: String, tenDonVi: String, maKhuVuc: String = "", companyId: String = "") {
         self.id = id
         self.tenDonVi = tenDonVi
         self.maKhuVuc = maKhuVuc
+        self.companyId = companyId
     }
 }
 
-// MARK: - KHU VUC MODEL (CỤM / KHU VỰC)
+// MARK: - KHU VUC MODEL (CỤM / KHU VỰC - ĐỒNG BỘ 1:1 VỚI KHUVUC.KT)
 public struct KhuVuc: Identifiable, Codable, Hashable {
-    public var id: String { maKhuVuc }
+    public var id: String { maKhuVuc.isEmpty ? UUID().uuidString : maKhuVuc }
     public var maKhuVuc: String
     public var tenKhuVuc: String
+    public var moTa: String
+    public var nguoiPhuTrach: String
+    public var sdtLienHe: String
+    public var companyId: String
+    public var createdAt: Int64
 
-    public init(maKhuVuc: String, tenKhuVuc: String) {
+    public init(
+        id: String = "",
+        maKhuVuc: String,
+        tenKhuVuc: String,
+        moTa: String = "",
+        nguoiPhuTrach: String = "",
+        sdtLienHe: String = "",
+        companyId: String = "",
+        createdAt: Int64 = 0
+    ) {
         self.maKhuVuc = maKhuVuc
         self.tenKhuVuc = tenKhuVuc
+        self.moTa = moTa
+        self.nguoiPhuTrach = nguoiPhuTrach
+        self.sdtLienHe = sdtLienHe
+        self.companyId = companyId
+        self.createdAt = createdAt
     }
 }
 // MARK: - SPECIALIST TEAM

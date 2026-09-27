@@ -48,6 +48,8 @@
 		220010352C12345600000001 /* ApproveStaffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000352C12345600000001 /* ApproveStaffView.swift */; };
 		220010362C12345600000001 /* DepartmentManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000362C12345600000001 /* DepartmentManagerView.swift */; };
 		220010372C12345600000001 /* UnitRegionManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000372C12345600000001 /* UnitRegionManagerView.swift */; };
+		220010592C12345600000001 /* UnitManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000592C12345600000001 /* UnitManagerView.swift */; };
+		220010602C12345600000001 /* RegionManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000602C12345600000001 /* RegionManagerView.swift */; };
 		220010382C12345600000001 /* PaywallLicenseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000382C12345600000001 /* PaywallLicenseView.swift */; };
 		220010392C12345600000001 /* DeviceTypeManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000392C12345600000001 /* DeviceTypeManagerView.swift */; };
 		220010402C12345600000001 /* SpecialistTeamManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000402C12345600000001 /* SpecialistTeamManagerView.swift */; };
@@ -117,6 +119,8 @@
 		220000352C12345600000001 /* ApproveStaffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApproveStaffView.swift; sourceTree = "<group>"; };
 		220000362C12345600000001 /* DepartmentManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepartmentManagerView.swift; sourceTree = "<group>"; };
 		220000372C12345600000001 /* UnitRegionManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitRegionManagerView.swift; sourceTree = "<group>"; };
+		220000592C12345600000001 /* UnitManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitManagerView.swift; sourceTree = "<group>"; };
+		220000602C12345600000001 /* RegionManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionManagerView.swift; sourceTree = "<group>"; };
 		220000382C12345600000001 /* PaywallLicenseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallLicenseView.swift; sourceTree = "<group>"; };
 		220000392C12345600000001 /* DeviceTypeManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceTypeManagerView.swift; sourceTree = "<group>"; };
 		220000402C12345600000001 /* SpecialistTeamManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpecialistTeamManagerView.swift; sourceTree = "<group>"; };
@@ -393,6 +397,8 @@
 				220000352C12345600000001 /* ApproveStaffView.swift */,
 				220000362C12345600000001 /* DepartmentManagerView.swift */,
 				220000372C12345600000001 /* UnitRegionManagerView.swift */,
+				220000592C12345600000001 /* UnitManagerView.swift */,
+				220000602C12345600000001 /* RegionManagerView.swift */,
 				220000382C12345600000001 /* PaywallLicenseView.swift */,
 				220000482C12345600000001 /* AdminTicketListView.swift */,
 				2200004B2C12345600000001 /* SuperAdminPortalView.swift */,
@@ -525,6 +531,8 @@
 				220010352C12345600000001 /* ApproveStaffView.swift in Sources */,
 				220010362C12345600000001 /* DepartmentManagerView.swift in Sources */,
 				220010372C12345600000001 /* UnitRegionManagerView.swift in Sources */,
+				220010592C12345600000001 /* UnitManagerView.swift in Sources */,
+				220010602C12345600000001 /* RegionManagerView.swift in Sources */,
 				220010382C12345600000001 /* PaywallLicenseView.swift in Sources */,
 				220010392C12345600000001 /* DeviceTypeManagerView.swift in Sources */,
 				220010402C12345600000001 /* SpecialistTeamManagerView.swift in Sources */,
