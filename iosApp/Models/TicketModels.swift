@@ -537,7 +537,10 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
     }
 
     public func getSlaTargetMinutes(deptResolveMinutes: Int? = nil) -> Int {
-        if let d = deptResolveMinutes, d > 0 { return d }
+        if let d = deptResolveMinutes {
+            if d == 0 { return 0 }
+            if d > 0 { return d }
+        }
         switch priority.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() {
         case "URGENT": return 60
         case "HIGH":   return 240

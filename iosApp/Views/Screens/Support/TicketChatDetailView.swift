@@ -85,8 +85,8 @@ public struct TicketChatDetailView: View {
                     // ── 1. TOP BAR ──────────────────────────────────────
                     topBar(safeAreaTop: SafeAreaHelper.top(geometry))
 
-                    // ── 2. SLA COUNTDOWN BAR (nếu đang OPEN) ───────────
-                    if isOpen {
+                    // ── 2. SLA COUNTDOWN BAR (nếu đang OPEN và có áp dụng SLA) ───────────
+                    if isOpen && ticket.slaTargetMinutes > 0 {
                         slaCountdownBar
                     }
 
