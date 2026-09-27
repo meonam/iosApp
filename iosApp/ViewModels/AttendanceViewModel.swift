@@ -1715,6 +1715,15 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let arrR = FirestoreHelper.getDouble(fields["arrivalRadiusMeters"] as? [String: Any])
             cfg.arrivalRadiusMeters = arrR > 0 ? arrR : 150.0
 
+            let canTh = FirestoreHelper.getInt(fields["cancellationThresholdPercent"] as? [String: Any])
+            cfg.cancellationThresholdPercent = canTh > 0 ? canTh : 50
+            let underPol = FirestoreHelper.getString(fields["underThresholdPolicy"] as? [String: Any])
+            cfg.underThresholdPolicy = !underPol.isEmpty ? underPol : "HALF_TRIP"
+            let flatFee = FirestoreHelper.getDouble(fields["underThresholdFlatFee"] as? [String: Any])
+            cfg.underThresholdFlatFee = flatFee > 0 ? flatFee : 30000.0
+            let abovePol = FirestoreHelper.getString(fields["aboveThresholdPolicy"] as? [String: Any])
+            cfg.aboveThresholdPolicy = !abovePol.isEmpty ? abovePol : "FULL_TRIP"
+
             await MainActor.run {
                 self.travelConfig = cfg
                 self.cfgStandardCheckIn = cfg.standardCheckInTime

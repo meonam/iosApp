@@ -21,6 +21,10 @@ public struct TravelExpenseConfig: Codable {
     public var overtimeMultiplier: Double = 0.0
     public var strictGeofenceBlocking: Bool = false
     public var autoCaptureGpsOnOpen: Bool = true
+    public var cancellationThresholdPercent: Int = 50
+    public var underThresholdPolicy: String = "HALF_TRIP"
+    public var underThresholdFlatFee: Double = 30000.0
+    public var aboveThresholdPolicy: String = "FULL_TRIP"
 
     public init(
         standardCheckInTime: String = "08:00",
@@ -41,7 +45,11 @@ public struct TravelExpenseConfig: Codable {
         tripBaseAllowance: Double = 50000.0,
         overtimeMultiplier: Double = 0.0,
         strictGeofenceBlocking: Bool = false,
-        autoCaptureGpsOnOpen: Bool = true
+        autoCaptureGpsOnOpen: Bool = true,
+        cancellationThresholdPercent: Int = 50,
+        underThresholdPolicy: String = "HALF_TRIP",
+        underThresholdFlatFee: Double = 30000.0,
+        aboveThresholdPolicy: String = "FULL_TRIP"
     ) {
         self.standardCheckInTime = standardCheckInTime
         self.standardCheckOutTime = standardCheckOutTime
@@ -62,6 +70,10 @@ public struct TravelExpenseConfig: Codable {
         self.overtimeMultiplier = overtimeMultiplier
         self.strictGeofenceBlocking = strictGeofenceBlocking
         self.autoCaptureGpsOnOpen = autoCaptureGpsOnOpen
+        self.cancellationThresholdPercent = cancellationThresholdPercent
+        self.underThresholdPolicy = underThresholdPolicy
+        self.underThresholdFlatFee = underThresholdFlatFee
+        self.aboveThresholdPolicy = aboveThresholdPolicy
     }
 }
 
