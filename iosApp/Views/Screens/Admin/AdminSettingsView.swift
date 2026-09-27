@@ -48,7 +48,7 @@ struct AdminSettingsView: View {
     @State private var isSaving = false
     @State private var isLoading = false
     @State private var isUploadingLogo = false
-    @State private var showMessage = false
+    @State private var isShowingAlert = false
     @State private var messageText = ""
     
     @State private var showingImagePicker = false
@@ -253,12 +253,12 @@ struct AdminSettingsView: View {
                     Spacer().frame(height: 40)
                 }
                 .padding(16)
-                .padding(.bottom, bottomPadding)
+                    }
                 }
             }
+            .ignoresSafeArea(edges: .top)
         }
-        .ignoresSafeArea(edges: .top)
-        .alert(isPresented: $showMessage) {
+        .alert(isPresented: $isShowingAlert) {
             Alert(title: Text("Thông báo"), message: Text(messageText), dismissButton: .default(Text("OK")))
         }
         .task {
@@ -268,7 +268,7 @@ struct AdminSettingsView: View {
     
     private func showMessage(text: String) {
         messageText = text
-        showMessage = true
+        isShowingAlert = true
     }
     
     private func loadData() async {

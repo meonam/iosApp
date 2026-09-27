@@ -251,7 +251,6 @@ public struct ShiftScheduleView: View {
                 
                 Spacer()
             }
-            .presentationDetents([.fraction(0.35)])
         }
         .sheet(isPresented: $showingAddEmployeeSheet) {
             AddEmployeeSheet(viewModel: viewModel, isPresented: $showingAddEmployeeSheet)
