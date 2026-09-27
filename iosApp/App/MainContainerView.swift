@@ -5,6 +5,7 @@ public struct MainContainerView: View {
     @StateObject private var authViewModel = AuthViewModel()
     @StateObject private var homeViewModel = HomeViewModel(user: User(), companyId: "SGCOOP", idToken: "")
     @StateObject private var supportViewModel = SupportViewModel(user: User(), companyId: "SGCOOP", idToken: "")
+    @StateObject private var adminViewModel = AdminViewModel(user: User(), companyId: "SGCOOP", idToken: "")
     @State private var currentDestination: DrawerDestination = .home
     @State private var isDrawerOpen: Bool = false
     @State private var selectedTicketForChat: SupportTicket? = nil
@@ -120,17 +121,30 @@ public struct MainContainerView: View {
                         supportViewModel.user = user
                         supportViewModel.companyId = compId
                         supportViewModel.idToken = token
+
+                        adminViewModel.currentUser = user
+                        adminViewModel.companyId = compId
+                        adminViewModel.idToken = token
+                        adminViewModel.fetchAllDataIfNeeded()
                     }
                     .onChange(of: authViewModel.currentUser) { newUser in
                         if let u = newUser {
+                            let cid = authViewModel.currentCompanyId
+                            let tok = authViewModel.currentIdToken
+
                             homeViewModel.user = u
-                            homeViewModel.companyId = authViewModel.currentCompanyId
-                            homeViewModel.idToken = authViewModel.currentIdToken
+                            homeViewModel.companyId = cid
+                            homeViewModel.idToken = tok
                             homeViewModel.loadDashboardData()
 
                             supportViewModel.user = u
-                            supportViewModel.companyId = authViewModel.currentCompanyId
-                            supportViewModel.idToken = authViewModel.currentIdToken
+                            supportViewModel.companyId = cid
+                            supportViewModel.idToken = tok
+
+                            adminViewModel.currentUser = u
+                            adminViewModel.companyId = cid
+                            adminViewModel.idToken = tok
+                            adminViewModel.fetchAllDataIfNeeded()
                         }
                     }
                     }
@@ -344,7 +358,7 @@ public struct MainContainerView: View {
 
         case .specialistTeams:
             SpecialistTeamManagerView(
-                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: adminViewModel,
                 onBack: { currentDestination = .home }
             )
 
@@ -382,37 +396,37 @@ public struct MainContainerView: View {
 
         case .userManagement:
             UserManagementView(
-                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: adminViewModel,
                 onBack: { currentDestination = .home }
             )
 
         case .approveStaff:
             ApproveStaffView(
-                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: adminViewModel,
                 onBack: { currentDestination = .home }
             )
 
         case .departmentManagement:
             DepartmentManagerView(
-                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: adminViewModel,
                 onBack: { currentDestination = .home }
             )
 
         case .unitManagement:
             UnitManagerView(
-                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: adminViewModel,
                 onBack: { currentDestination = .home }
             )
 
         case .regionManagement:
             RegionManagerView(
-                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: adminViewModel,
                 onBack: { currentDestination = .home }
             )
 
         case .systemSettings:
             SystemSettingsView(
-                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: adminViewModel,
                 onBack: { currentDestination = .home }
             )
 

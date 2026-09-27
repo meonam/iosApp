@@ -37,6 +37,32 @@ public class AdminViewModel: ObservableObject {
         allUsers.filter { $0.status.uppercased() == "PENDING" }
     }
 
+    public func fetchAllDataIfNeeded() {
+        if allUsers.isEmpty {
+            fetchUsers()
+        }
+        if departments.isEmpty {
+            fetchDepartments()
+        }
+        if units.isEmpty || regions.isEmpty {
+            fetchUnitsAndRegions()
+        }
+        if specialistTeams.isEmpty {
+            Task {
+                await fetchSpecialistTeams()
+            }
+        }
+    }
+
+    public func refreshAllData() {
+        fetchUsers()
+        fetchDepartments()
+        fetchUnitsAndRegions()
+        Task {
+            await fetchSpecialistTeams()
+        }
+    }
+
     // MARK: - FETCH USERS (TẢI DANH SÁCH TÀI KHOẢN TỪ FIRESTORE)
     public func fetchUsers() {
         isLoading = true
@@ -61,7 +87,10 @@ public class AdminViewModel: ObservableObject {
                response.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let documents = json["documents"] as? [[String: Any]], !documents.isEmpty {
-                self.allUsers = parseUsers(from: documents)
+                let parsed = parseUsers(from: documents)
+                if !parsed.isEmpty || self.allUsers.isEmpty {
+                    self.allUsers = parsed
+                }
                 self.isLoading = false
                 return
             }
@@ -77,10 +106,15 @@ public class AdminViewModel: ObservableObject {
                response.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let documents = json["documents"] as? [[String: Any]] {
-                self.allUsers = parseUsers(from: documents)
+                let parsed = parseUsers(from: documents)
+                if !parsed.isEmpty || self.allUsers.isEmpty {
+                    self.allUsers = parsed
+                }
             } else {
-                self.allUsers = []
-                self.errorMessage = "Không thể tải danh sách tài khoản từ máy chủ."
+                if self.allUsers.isEmpty {
+                    self.allUsers = []
+                    self.errorMessage = "Không thể tải danh sách tài khoản từ máy chủ."
+                }
             }
             self.isLoading = false
         }
@@ -483,14 +517,16 @@ public class AdminViewModel: ObservableObject {
             if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let documents = json["documents"] as? [[String: Any]] {
-                self.departments = documents.compactMap { doc in
+                let parsed: [Department] = documents.compactMap { doc in
                     guard let name = doc["name"] as? String,
                           let fields = doc["fields"] as? [String: Any] else { return nil }
                     let id = name.components(separatedBy: "/").last ?? ""
+                    let rawName = FirestoreHelper.getString(fields["departmentName"] as? [String: Any])
+                    let deptName = rawName.isEmpty ? (FirestoreHelper.getString(fields["deptName"] as? [String: Any]).isEmpty ? id : FirestoreHelper.getString(fields["deptName"] as? [String: Any])) : rawName
                     return Department(
                         departmentId: id,
                         companyId: comp,
-                        departmentName: FirestoreHelper.getString(fields["departmentName"] as? [String: Any]),
+                        departmentName: deptName,
                         departmentType: FirestoreHelper.getString(fields["departmentType"] as? [String: Any]),
                         isHelpDesk: FirestoreHelper.getBool(fields["isHelpDesk"] as? [String: Any]),
                         isIncidentHandler: FirestoreHelper.getBool(fields["isIncidentHandler"] as? [String: Any]),
@@ -503,14 +539,15 @@ public class AdminViewModel: ObservableObject {
                         assignedRegionId: FirestoreHelper.getString(fields["assignedRegionId"] as? [String: Any]),
                         slaResponseMinutes: FirestoreHelper.getInt(fields["slaResponseMinutes"] as? [String: Any]),
                         slaResolveMinutes: FirestoreHelper.getInt(fields["slaResolveMinutes"] as? [String: Any]),
-                        isActive: FirestoreHelper.getBool(fields["isActive"] as? [String: Any]),
+                        isActive: FirestoreHelper.getBool(fields["isActive"] as? [String: Any], defaultValue: true),
                         parentDepartmentId: FirestoreHelper.getString(fields["parentDepartmentId"] as? [String: Any]),
                         colorHex: FirestoreHelper.getString(fields["colorHex"] as? [String: Any]),
                         khuVucPhuTrach: FirestoreHelper.getStringArray(fields["khuVucPhuTrach"] as? [String: Any])
                     )
                 }
-            } else {
-                self.departments = []
+                if !parsed.isEmpty || self.departments.isEmpty {
+                    self.departments = parsed
+                }
             }
 
             // Đồng bộ 1:1 Android: Nạp thống kê số NV và thiết bị theo phòng ban
@@ -569,7 +606,7 @@ public class AdminViewModel: ObservableObject {
                 if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let documents = json["documents"] as? [[String: Any]] {
-                    self.units = documents.compactMap { doc in
+                    let parsed: [DonVi] = documents.compactMap { doc in
                         guard let name = doc["name"] as? String,
                               let fields = doc["fields"] as? [String: Any] else { return nil }
                         let id = doc["id"] as? String ?? name.components(separatedBy: "/").last ?? ""
@@ -584,8 +621,9 @@ public class AdminViewModel: ObservableObject {
                             companyId: comp
                         )
                     }.sorted { $0.tenDonVi.localizedCaseInsensitiveCompare($1.tenDonVi) == .orderedAscending }
-                } else {
-                    self.units = []
+                    if !parsed.isEmpty || self.units.isEmpty {
+                        self.units = parsed
+                    }
                 }
             }
             
@@ -598,7 +636,7 @@ public class AdminViewModel: ObservableObject {
                 if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(regRequest), httpResponse.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let documents = json["documents"] as? [[String: Any]] {
-                    self.regions = documents.compactMap { doc in
+                    let parsed: [KhuVuc] = documents.compactMap { doc in
                         guard let name = doc["name"] as? String,
                               let fields = doc["fields"] as? [String: Any] else { return nil }
                         let docId = name.components(separatedBy: "/").last ?? ""
@@ -617,6 +655,9 @@ public class AdminViewModel: ObservableObject {
                             createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
                         )
                     }.sorted { $0.tenKhuVuc.localizedCaseInsensitiveCompare($1.tenKhuVuc) == .orderedAscending }
+                    if !parsed.isEmpty || self.regions.isEmpty {
+                        self.regions = parsed
+                    }
                 }
             }
             self.isLoading = false
@@ -665,6 +706,7 @@ public class AdminViewModel: ObservableObject {
 
             if teams.isEmpty {
                 // Tự động khởi tạo 5 Tổ nghiệp vụ mặc định nếu Firestore chưa có dữ liệu (giống Android)
+                var defaults: [SpecialistTeam] = []
                 for def in AdminViewModel.defaultSpecialistTeams {
                     let teamObj = SpecialistTeam(
                         id: def.id,
@@ -678,8 +720,10 @@ public class AdminViewModel: ObservableObject {
                         companyId: comp,
                         updatedAt: Int64(Date().timeIntervalSince1970 * 1000)
                     )
+                    defaults.append(teamObj)
                     await saveSpecialistTeam(team: teamObj)
                 }
+                self.specialistTeams = defaults
             } else {
                 self.specialistTeams = teams.sorted { $0.teamName.localizedCaseInsensitiveCompare($1.teamName) == .orderedAscending }
             }
