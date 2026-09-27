@@ -1446,7 +1446,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             ]
             qReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (data, resp) = try? await FirestoreHelper.executeSafeRequest(request: qReq, fallbackIdToken: idToken),
+            if let (data, resp) = await FirestoreHelper.executeSafeRequest(qReq),
                let http = resp as? HTTPURLResponse, http.statusCode == 200,
                let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
                 for docResult in jsonArray {
@@ -1468,7 +1468,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/attendances?pageSize=300"
             if let listUrl = URL(string: listUrlStr) {
                 var listReq = URLRequest(url: listUrl)
-                if let (data, resp) = try? await FirestoreHelper.executeSafeRequest(request: listReq, fallbackIdToken: idToken),
+                if let (data, resp) = await FirestoreHelper.executeSafeRequest(listReq),
                    let http = resp as? HTTPURLResponse, http.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let docs = json["documents"] as? [[String: Any]] {
@@ -1520,7 +1520,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         let expGetUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/travel_expenses?pageSize=300"
         if let expGetUrl = URL(string: expGetUrlStr) {
             var expReq = URLRequest(url: expGetUrl)
-            if let (expData, expResp) = try? await FirestoreHelper.executeSafeRequest(request: expReq, fallbackIdToken: idToken),
+            if let (expData, expResp) = await FirestoreHelper.executeSafeRequest(expReq),
                let httpExp = expResp as? HTTPURLResponse, httpExp.statusCode == 200,
                let expJson = try? JSONSerialization.jsonObject(with: expData) as? [String: Any],
                let expDocs = expJson["documents"] as? [[String: Any]] {
@@ -1578,7 +1578,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             ]
             tixReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (tixData, tixResp) = try? await FirestoreHelper.executeSafeRequest(request: tixReq, fallbackIdToken: idToken),
+            if let (tixData, tixResp) = await FirestoreHelper.executeSafeRequest(tixReq),
                let httpTix = tixResp as? HTTPURLResponse, httpTix.statusCode == 200,
                let tixArray = try? JSONSerialization.jsonObject(with: tixData) as? [[String: Any]] {
                 for item in tixArray {
@@ -1598,7 +1598,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             for listUrlStr in listUrls {
                 guard tixDocsList.isEmpty, let listUrl = URL(string: listUrlStr) else { continue }
                 let listReq = URLRequest(url: listUrl)
-                if let (data, resp) = try? await FirestoreHelper.executeSafeRequest(request: listReq, fallbackIdToken: idToken),
+                if let (data, resp) = await FirestoreHelper.executeSafeRequest(listReq),
                    let http = resp as? HTTPURLResponse, http.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let docs = json["documents"] as? [[String: Any]] {
@@ -1790,7 +1790,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
         var request = URLRequest(url: url)
         var responseData: Data? = nil
-        if let (data, response) = try? await FirestoreHelper.executeSafeRequest(request: request, fallbackIdToken: idToken),
+        if let (data, response) = await FirestoreHelper.executeSafeRequest(request),
            let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
             responseData = data
         }
@@ -1918,7 +1918,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let body = ["fields": fields]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (_, resp) = try? await FirestoreHelper.executeSafeRequest(request: request, fallbackIdToken: idToken),
+            if let (_, resp) = await FirestoreHelper.executeSafeRequest(request),
                let http = resp as? HTTPURLResponse, (http.statusCode == 200 || http.statusCode == 204) {
                 await MainActor.run {
                     self.travelConfig.pricePerKm = pKm
@@ -1975,7 +1975,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let body = ["fields": fields]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (_, resp) = try? await FirestoreHelper.executeSafeRequest(request: request, fallbackIdToken: idToken),
+            if let (_, resp) = await FirestoreHelper.executeSafeRequest(request),
                let http = resp as? HTTPURLResponse, (http.statusCode == 200 || http.statusCode == 204) {
                 await MainActor.run {
                     self.fetchMonthlyReport(monthStr: self.selectedReportMonth)
@@ -2007,7 +2007,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 ]
                 let body = ["fields": fields]
                 request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-                _ = try? await FirestoreHelper.executeSafeRequest(request: request, fallbackIdToken: idToken)
+                _ = await FirestoreHelper.executeSafeRequest(request)
             }
             await MainActor.run {
                 self.fetchMonthlyReport(monthStr: self.selectedReportMonth)

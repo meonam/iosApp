@@ -992,6 +992,7 @@ public class SupportViewModel: ObservableObject {
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
+        }
     }
 
     // MARK: - ĐIỀU PHỐI TICKET ĐỒNG BỘ 1:1 ANDROID (assignTicket)
