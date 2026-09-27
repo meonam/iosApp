@@ -1476,10 +1476,6 @@ public struct AttendanceReportView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#BFDBFE"), lineWidth: 0.8))
         }
     }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-        }
-    }
 
     private func configField(label: String, value1: Binding<String>, value2: Binding<String>) -> some View {
         HStack {
