@@ -1,7 +1,92 @@
 import SwiftUI
 import Foundation
 
-// MARK: - ATTENDANCE & EXPENSE REPORT VIEW (ĐỒNG BỘ 1:1 VỚI ANDROID ATTENDANCEREPORTSCREEN.KT & SCREENSHOT media_1790506882715.png)
+// MARK: - MATERIAL OUTLINED TEXT FIELD (MATCHING ANDROID OUTLINEDTEXTFIELD)
+struct MaterialOutlinedField: View {
+    var label: String
+    var leadingIconSystem: String? = nil
+    var leadingIconColor: Color = .gray
+    var trailingText: String? = nil
+    var trailingIconSystem: String? = nil
+    var trailingAction: (() -> Void)? = nil
+    var keyboardType: UIKeyboardType = .default
+    @Binding var text: String
+    var placeholder: String = ""
+    var isEnabled: Bool = true
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            // Outlined Border Container
+            HStack(spacing: 8) {
+                if let sys = leadingIconSystem {
+                    Image(systemName: sys)
+                        .font(.system(size: 15))
+                        .foregroundColor(leadingIconColor)
+                        .frame(width: 18)
+                }
+
+                TextField(placeholder, text: $text)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(isEnabled ? Color(hex: "#1E293B") : Color.gray)
+                    .keyboardType(keyboardType)
+                    .disabled(!isEnabled)
+
+                if let trailingIcon = trailingIconSystem, let action = trailingAction {
+                    Button(action: action) {
+                        Image(systemName: trailingIcon)
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(hex: "#64748B"))
+                    }
+                } else if let trText = trailingText {
+                    Text(trText)
+                        .font(.system(size: 10.5))
+                        .foregroundColor(Color(hex: "#64748B"))
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 48)
+            .background(Color.white)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color(hex: "#CBD5E1"), lineWidth: 1)
+            )
+            .padding(.top, 7)
+
+            // Floating Label
+            Text(label)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(Color(hex: "#64748B"))
+                .padding(.horizontal, 4)
+                .background(Color.white)
+                .padding(.leading, 10)
+        }
+    }
+}
+
+// MARK: - MATERIAL SUGGESTION CHIP (MATCHING ANDROID SUGGESTIONCHIP)
+struct MaterialSuggestionChip: View {
+    var label: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(Color(hex: "#334155"))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.white)
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color(hex: "#CBD5E1"), lineWidth: 0.8)
+                )
+        }
+    }
+}
+
+// MARK: - ATTENDANCE & EXPENSE REPORT VIEW (ĐỒNG BỘ 1:1 VỚI ANDROID ATTENDANCEREPORTSCREEN.KT & SCREENSHOTS)
 public struct AttendanceReportView: View {
     @ObservedObject var authViewModel: AuthViewModel
     var onBack: () -> Void
@@ -387,13 +472,13 @@ public struct AttendanceReportView: View {
             VStack(spacing: 6) {
                 Text(title)
                     .font(.system(size: 12, weight: isSelected ? .bold : .medium))
-                    .foregroundColor(isSelected ? Color.appPrimary : Color(hex: "#64748B"))
+                    .foregroundColor(isSelected ? Color.appPrimaryPink : Color(hex: "#64748B"))
                     .lineLimit(1)
                     .padding(.top, 10)
 
                 Rectangle()
                     .frame(height: 2.5)
-                    .foregroundColor(isSelected ? Color.appPrimary : Color.clear)
+                    .foregroundColor(isSelected ? Color.appPrimaryPink : Color.clear)
             }
             .frame(maxWidth: .infinity)
         }
@@ -718,15 +803,18 @@ public struct AttendanceReportView: View {
                 }
 
                 // Card Tùy Chỉnh Định Mức Chi Phí (VNĐ/KM & VNĐ/CA)
+                // Card Tùy Chỉnh Định Mức Chi Phí (VNĐ/KM & VNĐ/CA - ĐỒNG BỘ 1:1 ANDROID & SCREENSHOT media_1790512385670.png)
                 if canAccessConfigTab || canViewAllReports {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 8) {
-                            Image(systemName: "slider.horizontal.3")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(Color(hex: "#16A34A"))
-                                .frame(width: 28, height: 28)
-                                .background(Color(hex: "#DCFCE7"))
-                                .cornerRadius(6)
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color(hex: "#DCFCE7"))
+                                    .frame(width: 30, height: 30)
+                                Image(systemName: "slider.horizontal.3")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(Color(hex: "#16A34A"))
+                            }
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Tùy Chỉnh Định Mức Công Tác Phí")
@@ -741,58 +829,67 @@ public struct AttendanceReportView: View {
                             Spacer()
                         }
 
-                        Divider()
+                        Divider().background(Color(hex: "#F1F5F9"))
 
-                        // 2 TextFields
+                        // 2 Ô Outlined Tùy Chỉnh (Floating labels, red fuel pump & purple banknote)
                         HStack(spacing: 8) {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Đơn giá xăng (đ/km)")
-                                    .font(.system(size: 10.5, weight: .medium))
-                                    .foregroundColor(.gray)
-                                TextField("5000", text: $viewModel.cfgPricePerKm)
-                                    .keyboardType(.numberPad)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                    .font(.system(size: 12))
-                            }
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text("Phụ cấp mỗi ca (đ/ca)")
-                                    .font(.system(size: 10.5, weight: .medium))
-                                    .foregroundColor(.gray)
-                                TextField("50000", text: $viewModel.cfgTripBaseAllowance)
-                                    .keyboardType(.numberPad)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                    .font(.system(size: 12))
-                            }
+                            MaterialOutlinedField(
+                                label: "Đơn giá xăng",
+                                leadingIconSystem: "fuelpump.fill",
+                                leadingIconColor: Color(hex: "#DC2626"),
+                                trailingText: "đ/km",
+                                keyboardType: .numberPad,
+                                text: $viewModel.cfgPricePerKm,
+                                placeholder: "5000",
+                                isEnabled: canViewAllReports
+                            )
+
+                            MaterialOutlinedField(
+                                label: "Phụ cấp mỗi ca",
+                                leadingIconSystem: "banknote.fill",
+                                leadingIconColor: Color(hex: "#7C3AED"),
+                                trailingText: "đ/ca",
+                                keyboardType: .numberPad,
+                                text: $viewModel.cfgTripBaseAllowance,
+                                placeholder: "50000",
+                                isEnabled: canViewAllReports
+                            )
                         }
 
-                        // Presets & Save Button
-                        HStack(spacing: 6) {
-                            presetChip(label: "5.000/km") { viewModel.cfgPricePerKm = "5000" }
-                            presetChip(label: "7.000/km") { viewModel.cfgPricePerKm = "7000" }
-                            presetChip(label: "10.000/km") { viewModel.cfgPricePerKm = "10000" }
-
-                            Spacer()
-
-                            Button(action: {
-                                viewModel.saveTravelExpenseConfig()
-                            }) {
+                        // Gợi ý nhanh & Nút Áp dụng (Đúng ảnh chụp media_1790512385670.png)
+                        if canViewAllReports {
+                            HStack(spacing: 4) {
                                 HStack(spacing: 4) {
-                                    if viewModel.isSavingReportConfig {
-                                        ProgressView().tint(.white).scaleEffect(0.8)
-                                    } else {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 11, weight: .bold))
-                                        Text("Áp dụng")
-                                            .font(.system(size: 11, weight: .bold))
-                                    }
+                                    MaterialSuggestionChip(label: "5.000 VNĐ/km") { viewModel.cfgPricePerKm = "5000" }
+                                    MaterialSuggestionChip(label: "7.000 VNĐ/km") { viewModel.cfgPricePerKm = "7000" }
+                                    MaterialSuggestionChip(label: "10.000 VNĐ/km") { viewModel.cfgPricePerKm = "10000" }
                                 }
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(Color(hex: "#16A34A"))
-                                .cornerRadius(6)
+
+                                Spacer()
+
+                                Button(action: {
+                                    viewModel.saveTravelExpenseConfig()
+                                }) {
+                                    HStack(spacing: 4) {
+                                        if viewModel.isSavingReportConfig {
+                                            ProgressView().tint(.white).scaleEffect(0.7)
+                                            Text("Đang lưu...")
+                                                .font(.system(size: 11, weight: .bold))
+                                        } else {
+                                            Image(systemName: "square.and.arrow.down.fill")
+                                                .font(.system(size: 12))
+                                            Text("Áp dụng")
+                                                .font(.system(size: 11, weight: .bold))
+                                        }
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 12)
+                                    .frame(height: 32)
+                                    .background(Color(hex: "#16A34A"))
+                                    .cornerRadius(8)
+                                }
+                                .disabled(viewModel.isSavingReportConfig)
                             }
-                            .disabled(viewModel.isSavingReportConfig)
                         }
                     }
                     .padding(14)
@@ -1047,18 +1144,20 @@ public struct AttendanceReportView: View {
             .cornerRadius(4)
     }
 
-    // MARK: - 5. TAB 3: CẤU HÌNH ĐỊNH MỨC & GIỜ CA (ĐỒNG BỘ 1:1 ANDROID LINES 1380-1920)
+    // MARK: - 5. TAB 3: CẤU HÌNH ĐỊNH MỨC & GIỜ CA (ĐỒNG BỘ 1:1 VỚI ANDROID ATTENDANCEREPORTSCREEN.KT & SCREENSHOTS)
     private var configTabView: some View {
         ScrollView {
             VStack(spacing: 14) {
-                // Header Card
+                // Header Card: Cấu Hình Khung Giờ & Định Mức
                 HStack(spacing: 12) {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 20))
-                        .foregroundColor(Color.appPrimaryPink)
-                        .frame(width: 42, height: 42)
-                        .background(Color.appPrimaryPink.opacity(0.12))
-                        .cornerRadius(10)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.appPrimaryPink.opacity(0.12))
+                            .frame(width: 42, height: 42)
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 20))
+                            .foregroundColor(Color.appPrimaryPink)
+                    }
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Cấu Hình Khung Giờ & Định Mức")
@@ -1075,70 +1174,140 @@ public struct AttendanceReportView: View {
                 .cornerRadius(12)
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
 
-                // CARD 1: KHUNG GIỜ LÀM VIỆC & ĐI MUỘN
+                // CARD 1: KHUNG GIỜ LÀM VIỆC & ĐI MUỘN (Đúng ảnh chụp media_1790512398463.png)
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 8) {
-                        Image(systemName: "clock.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color(hex: "#2563EB"))
-                            .frame(width: 28, height: 28)
-                            .background(Color(hex: "#EFF6FF"))
-                            .cornerRadius(6)
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(hex: "#EFF6FF"))
+                                .frame(width: 28, height: 28)
+                            Image(systemName: "clock.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(hex: "#2563EB"))
+                        }
                         Text("1. Khung Giờ Làm Việc & Đi Muộn")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(Color.appSecondaryDarkBlue)
                     }
-                    Divider()
+                    Divider().background(Color(hex: "#F1F5F9"))
 
+                    // 1.1 Ca Hành Chính (HC)
                     Text("☀️ 1.1. Ca Hành Chính (HC)")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(Color(hex: "#15803D"))
-                    configField(label: "Vào ca HC - Tan ca HC", value1: $viewModel.cfgStandardCheckIn, value2: $viewModel.cfgStandardCheckOut)
+                    HStack(spacing: 8) {
+                        MaterialOutlinedField(
+                            label: "Vào ca HC",
+                            leadingIconSystem: "clock.fill",
+                            leadingIconColor: Color(hex: "#15803D"),
+                            text: $viewModel.cfgStandardCheckIn,
+                            placeholder: "08:00"
+                        )
+                        MaterialOutlinedField(
+                            label: "Tan ca HC",
+                            leadingIconSystem: "clock.fill",
+                            leadingIconColor: Color(hex: "#15803D"),
+                            text: $viewModel.cfgStandardCheckOut,
+                            placeholder: "17:00"
+                        )
+                    }
 
+                    // 1.2 Ca 1 (Ca Sáng)
                     Text("🌅 1.2. Ca 1 (Ca Sáng)")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(Color(hex: "#B45309"))
-                    configField(label: "Vào Ca 1 - Tan Ca 1", value1: $viewModel.cfgShift1CheckIn, value2: $viewModel.cfgShift1CheckOut)
+                    HStack(spacing: 8) {
+                        MaterialOutlinedField(
+                            label: "Vào Ca 1",
+                            leadingIconSystem: "clock.fill",
+                            leadingIconColor: Color(hex: "#B45309"),
+                            text: $viewModel.cfgShift1CheckIn,
+                            placeholder: "07:00"
+                        )
+                        MaterialOutlinedField(
+                            label: "Tan Ca 1",
+                            leadingIconSystem: "clock.fill",
+                            leadingIconColor: Color(hex: "#B45309"),
+                            text: $viewModel.cfgShift1CheckOut,
+                            placeholder: "15:00"
+                        )
+                    }
 
+                    // 1.3 Ca 2 (Ca Chiều / Tối)
                     Text("🌇 1.3. Ca 2 (Ca Chiều / Tối)")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(Color(hex: "#1D4ED8"))
-                    configField(label: "Vào Ca 2 - Tan Ca 2", value1: $viewModel.cfgShift2CheckIn, value2: $viewModel.cfgShift2CheckOut)
+                    HStack(spacing: 8) {
+                        MaterialOutlinedField(
+                            label: "Vào Ca 2",
+                            leadingIconSystem: "clock.fill",
+                            leadingIconColor: Color(hex: "#1D4ED8"),
+                            text: $viewModel.cfgShift2CheckIn,
+                            placeholder: "14:00"
+                        )
+                        MaterialOutlinedField(
+                            label: "Tan Ca 2",
+                            leadingIconSystem: "clock.fill",
+                            leadingIconColor: Color(hex: "#1D4ED8"),
+                            text: $viewModel.cfgShift2CheckOut,
+                            placeholder: "22:00"
+                        )
+                    }
 
+                    // 1.4 Ca 3 (Ca Đêm / Trực)
                     Text("🌙 1.4. Ca 3 (Ca Đêm / Trực)")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(Color(hex: "#7C3AED"))
-                    configField(label: "Vào Ca 3 - Tan Ca 3", value1: $viewModel.cfgNightCheckIn, value2: $viewModel.cfgNightCheckOut)
+                    HStack(spacing: 8) {
+                        MaterialOutlinedField(
+                            label: "Vào Ca 3",
+                            leadingIconSystem: "moon.fill",
+                            leadingIconColor: Color(hex: "#7C3AED"),
+                            text: $viewModel.cfgNightCheckIn,
+                            placeholder: "22:00"
+                        )
+                        MaterialOutlinedField(
+                            label: "Tan Ca 3",
+                            leadingIconSystem: "moon.fill",
+                            leadingIconColor: Color(hex: "#7C3AED"),
+                            text: $viewModel.cfgNightCheckOut,
+                            placeholder: "06:00"
+                        )
+                    }
 
                     // Phút cho phép trễ
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Số phút cho phép đi muộn")
-                            .font(.system(size: 11.5, weight: .medium))
-                            .foregroundColor(.gray)
-                        TextField("15", text: $viewModel.cfgMaxLateMinutes)
-                            .keyboardType(.numberPad)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        MaterialOutlinedField(
+                            label: "Số phút cho phép đi muộn",
+                            leadingIconSystem: "timer",
+                            leadingIconColor: Color(hex: "#D97706"),
+                            keyboardType: .numberPad,
+                            text: $viewModel.cfgMaxLateMinutes,
+                            placeholder: "15"
+                        )
                         HStack(spacing: 6) {
-                            presetChip(label: "5p") { viewModel.cfgMaxLateMinutes = "5" }
-                            presetChip(label: "10p") { viewModel.cfgMaxLateMinutes = "10" }
-                            presetChip(label: "15p") { viewModel.cfgMaxLateMinutes = "15" }
-                            presetChip(label: "30p") { viewModel.cfgMaxLateMinutes = "30" }
+                            MaterialSuggestionChip(label: "5p") { viewModel.cfgMaxLateMinutes = "5" }
+                            MaterialSuggestionChip(label: "10p") { viewModel.cfgMaxLateMinutes = "10" }
+                            MaterialSuggestionChip(label: "15p") { viewModel.cfgMaxLateMinutes = "15" }
+                            MaterialSuggestionChip(label: "30p") { viewModel.cfgMaxLateMinutes = "30" }
                         }
                     }
 
                     // Bán kính GPS hợp lệ
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Bán kính GPS hợp lệ (Mét)")
-                            .font(.system(size: 11.5, weight: .medium))
-                            .foregroundColor(.gray)
-                        TextField("250", text: $viewModel.cfgGeofenceRadius)
-                            .keyboardType(.numberPad)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        MaterialOutlinedField(
+                            label: "Bán kính GPS hợp lệ (Mét)",
+                            leadingIconSystem: "scope",
+                            leadingIconColor: Color(hex: "#7C3AED"),
+                            keyboardType: .numberPad,
+                            text: $viewModel.cfgGeofenceRadius,
+                            placeholder: "250"
+                        )
                         HStack(spacing: 6) {
-                            presetChip(label: "100m") { viewModel.cfgGeofenceRadius = "100" }
-                            presetChip(label: "250m") { viewModel.cfgGeofenceRadius = "250" }
-                            presetChip(label: "500m") { viewModel.cfgGeofenceRadius = "500" }
-                            presetChip(label: "1000m") { viewModel.cfgGeofenceRadius = "1000" }
+                            MaterialSuggestionChip(label: "100m") { viewModel.cfgGeofenceRadius = "100" }
+                            MaterialSuggestionChip(label: "250m") { viewModel.cfgGeofenceRadius = "250" }
+                            MaterialSuggestionChip(label: "500m") { viewModel.cfgGeofenceRadius = "500" }
+                            MaterialSuggestionChip(label: "1000m") { viewModel.cfgGeofenceRadius = "1000" }
                         }
                     }
                 }
@@ -1147,15 +1316,17 @@ public struct AttendanceReportView: View {
                 .cornerRadius(12)
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
 
-                // CARD 2: TỌA ĐỘ MỐC CHẤM CÔNG (GEOFENCING GPS)
+                // CARD 2: TỌA ĐỘ MỐC CHẤM CÔNG (GEOFENCING GPS - Đúng ảnh chụp media_1790512408538.png)
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 8) {
-                        Image(systemName: "mappin.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color(hex: "#DC2626"))
-                            .frame(width: 28, height: 28)
-                            .background(Color(hex: "#FEE2E2"))
-                            .cornerRadius(6)
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(hex: "#FEE2E2"))
+                                .frame(width: 28, height: 28)
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(hex: "#DC2626"))
+                        }
                         VStack(alignment: .leading, spacing: 1) {
                             Text("2. Mốc Tọa Độ Chấm Công Chuẩn")
                                 .font(.system(size: 13, weight: .bold))
@@ -1165,7 +1336,7 @@ public struct AttendanceReportView: View {
                                 .foregroundColor(Color(hex: "#64748B"))
                         }
                     }
-                    Divider()
+                    Divider().background(Color(hex: "#F1F5F9"))
 
                     // Nút Lấy vị trí GPS hiện tại
                     Button(action: {
@@ -1173,19 +1344,20 @@ public struct AttendanceReportView: View {
                     }) {
                         HStack(spacing: 6) {
                             if viewModel.isGettingCurrentLocation {
-                                ProgressView().scaleEffect(0.8)
+                                ProgressView().tint(Color(hex: "#1D4ED8")).scaleEffect(0.8)
                                 Text("Đang định vị GPS...")
                                     .font(.system(size: 12, weight: .bold))
                             } else {
                                 Image(systemName: "location.fill")
-                                    .font(.system(size: 13))
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color(hex: "#2563EB"))
                                 Text("📍 Lấy vị trí GPS hiện tại làm mốc")
                                     .font(.system(size: 12, weight: .bold))
                             }
                         }
                         .foregroundColor(Color(hex: "#1D4ED8"))
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 9)
+                        .frame(height: 40)
                         .background(Color(hex: "#EFF6FF"))
                         .cornerRadius(8)
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#93C5FD"), lineWidth: 1))
@@ -1193,190 +1365,210 @@ public struct AttendanceReportView: View {
                     .disabled(viewModel.isGettingCurrentLocation)
 
                     // Target Address
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Tên / Địa chỉ điểm làm việc chuẩn")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.gray)
-                        HStack {
-                            TextField("vd: Trụ sở chính - Chi nhánh 1...", text: $viewModel.cfgTargetAddress)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .font(.system(size: 12))
-                            if !viewModel.cfgTargetAddress.isEmpty || !viewModel.cfgTargetLatitude.isEmpty {
-                                Button(action: {
-                                    viewModel.cfgTargetAddress = ""
-                                    viewModel.cfgTargetLatitude = ""
-                                    viewModel.cfgTargetLongitude = ""
-                                }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(.gray)
-                                }
-                            }
-                        }
-                    }
+                    MaterialOutlinedField(
+                        label: "Tên / Địa chỉ điểm làm việc chuẩn",
+                        leadingIconSystem: "building.2.fill",
+                        leadingIconColor: Color(hex: "#2563EB"),
+                        trailingIconSystem: (!viewModel.cfgTargetAddress.isEmpty || !viewModel.cfgTargetLatitude.isEmpty || !viewModel.cfgTargetLongitude.isEmpty) ? "xmark.circle.fill" : nil,
+                        trailingAction: {
+                            viewModel.cfgTargetAddress = ""
+                            viewModel.cfgTargetLatitude = ""
+                            viewModel.cfgTargetLongitude = ""
+                        },
+                        text: $viewModel.cfgTargetAddress,
+                        placeholder: "vd: Trụ sở chính - Chi nhánh 1..."
+                    )
 
                     // Lat & Lng Row
                     HStack(spacing: 8) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Vĩ độ (Lat)")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.gray)
-                            TextField("vd: 10.776889", text: $viewModel.cfgTargetLatitude)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .font(.system(size: 12))
-                        }
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("Kinh độ (Lng)")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.gray)
-                            TextField("vd: 106.700806", text: $viewModel.cfgTargetLongitude)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .font(.system(size: 12))
-                        }
+                        MaterialOutlinedField(
+                            label: "Vĩ độ (Lat)",
+                            leadingIconSystem: "mappin.and.ellipse",
+                            leadingIconColor: Color(hex: "#D97706"),
+                            keyboardType: .decimalPad,
+                            text: $viewModel.cfgTargetLatitude,
+                            placeholder: "vd: 10.776889"
+                        )
+                        MaterialOutlinedField(
+                            label: "Kinh độ (Lng)",
+                            leadingIconSystem: "mappin.and.ellipse",
+                            leadingIconColor: Color(hex: "#D97706"),
+                            keyboardType: .decimalPad,
+                            text: $viewModel.cfgTargetLongitude,
+                            placeholder: "vd: 106.700806"
+                        )
                     }
 
+                    // Surface Info Box
                     HStack(alignment: .top, spacing: 6) {
                         Image(systemName: "info.circle")
-                            .font(.system(size: 13))
+                            .font(.system(size: 14))
                             .foregroundColor(Color(hex: "#64748B"))
                         Text("Để trống nếu không muốn ép buộc mốc cố định. Khi đã cài đặt mốc, nhân viên đứng ngoài bán kính quy định sẽ bị cảnh báo vi phạm check-in.")
                             .font(.system(size: 11))
                             .foregroundColor(Color(hex: "#64748B"))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(8)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(hex: "#F8FAFC"))
                     .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
                 }
                 .padding(14)
                 .background(Color.white)
                 .cornerRadius(12)
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
 
-                // CARD 3: ĐỊNH MỨC CÔNG TÁC PHÍ & PHỤ CẤP CA
+                // CARD 3: ĐỊNH MỨC CÔNG TÁC PHÍ & PHỤ CẤP CA (Đúng ảnh chụp media_1790512408538.png)
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 8) {
-                        Image(systemName: "banknote.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color(hex: "#16A34A"))
-                            .frame(width: 28, height: 28)
-                            .background(Color(hex: "#DCFCE7"))
-                            .cornerRadius(6)
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(Color(hex: "#DCFCE7"))
+                                .frame(width: 28, height: 28)
+                            Image(systemName: "banknote.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(hex: "#16A34A"))
+                        }
                         Text("3. Định Mức Công Tác Phí & Phụ Cấp Ca")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(Color.appSecondaryDarkBlue)
                     }
-                    Divider()
+                    Divider().background(Color(hex: "#F1F5F9"))
 
                     // Giá xăng
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Đơn giá xăng xe di chuyển (VNĐ / Km)")
-                            .font(.system(size: 11.5, weight: .medium))
-                            .foregroundColor(.gray)
-                        TextField("5000", text: $viewModel.cfgPricePerKm)
-                            .keyboardType(.numberPad)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        MaterialOutlinedField(
+                            label: "Đơn giá xăng xe di chuyển (VNĐ / Km)",
+                            leadingIconSystem: "fuelpump.fill",
+                            leadingIconColor: Color(hex: "#DC2626"),
+                            trailingText: "đ/km",
+                            keyboardType: .numberPad,
+                            text: $viewModel.cfgPricePerKm,
+                            placeholder: "5000"
+                        )
                         HStack(spacing: 6) {
-                            presetChip(label: "5.000/km") { viewModel.cfgPricePerKm = "5000" }
-                            presetChip(label: "7.000/km") { viewModel.cfgPricePerKm = "7000" }
-                            presetChip(label: "10.000/km") { viewModel.cfgPricePerKm = "10000" }
-                            presetChip(label: "12.000/km") { viewModel.cfgPricePerKm = "12000" }
+                            MaterialSuggestionChip(label: "5.000 VNĐ/km") { viewModel.cfgPricePerKm = "5000" }
+                            MaterialSuggestionChip(label: "7.000 VNĐ/km") { viewModel.cfgPricePerKm = "7000" }
+                            MaterialSuggestionChip(label: "10.000 VNĐ/km") { viewModel.cfgPricePerKm = "10000" }
+                            MaterialSuggestionChip(label: "12.000 VNĐ/km") { viewModel.cfgPricePerKm = "12000" }
                         }
                     }
 
                     // Phụ cấp ca
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Phụ cấp mỗi ca xử lý / ca đêm (VNĐ / ca)")
-                            .font(.system(size: 11.5, weight: .medium))
-                            .foregroundColor(.gray)
-                        TextField("50000", text: $viewModel.cfgTripBaseAllowance)
-                            .keyboardType(.numberPad)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        MaterialOutlinedField(
+                            label: "Phụ cấp mỗi ca xử lý / ca đêm (VNĐ / ca)",
+                            leadingIconSystem: "banknote.fill",
+                            leadingIconColor: Color(hex: "#7C3AED"),
+                            trailingText: "đ/ca",
+                            keyboardType: .numberPad,
+                            text: $viewModel.cfgTripBaseAllowance,
+                            placeholder: "50000"
+                        )
                         HStack(spacing: 6) {
-                            presetChip(label: "30.000/ca") { viewModel.cfgTripBaseAllowance = "30000" }
-                            presetChip(label: "50.000/ca") { viewModel.cfgTripBaseAllowance = "50000" }
-                            presetChip(label: "70.000/ca") { viewModel.cfgTripBaseAllowance = "70000" }
-                            presetChip(label: "100.000/ca") { viewModel.cfgTripBaseAllowance = "100000" }
+                            MaterialSuggestionChip(label: "30.000 VNĐ/ca") { viewModel.cfgTripBaseAllowance = "30000" }
+                            MaterialSuggestionChip(label: "50.000 VNĐ/ca") { viewModel.cfgTripBaseAllowance = "50000" }
+                            MaterialSuggestionChip(label: "70.000 VNĐ/ca") { viewModel.cfgTripBaseAllowance = "70000" }
+                            MaterialSuggestionChip(label: "100.000 VNĐ/ca") { viewModel.cfgTripBaseAllowance = "100000" }
                         }
                     }
 
                     // Hệ số ngoài giờ
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Hệ số ngoài giờ / ca đêm / cuối tuần")
-                            .font(.system(size: 11.5, weight: .medium))
-                            .foregroundColor(.gray)
-                        TextField("0", text: $viewModel.cfgOvertimeMultiplier)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        MaterialOutlinedField(
+                            label: "Hệ số ngoài giờ / ca đêm / cuối tuần",
+                            leadingIconSystem: "clock.badge.checkmark",
+                            leadingIconColor: Color(hex: "#2563EB"),
+                            keyboardType: .decimalPad,
+                            text: $viewModel.cfgOvertimeMultiplier,
+                            placeholder: "0"
+                        )
                         HStack(spacing: 6) {
-                            presetChip(label: "0 (Mặc định)") { viewModel.cfgOvertimeMultiplier = "0" }
-                            presetChip(label: "1.0x") { viewModel.cfgOvertimeMultiplier = "1.0" }
-                            presetChip(label: "1.25x") { viewModel.cfgOvertimeMultiplier = "1.25" }
-                            presetChip(label: "1.5x") { viewModel.cfgOvertimeMultiplier = "1.5" }
-                            presetChip(label: "2.0x") { viewModel.cfgOvertimeMultiplier = "2.0" }
+                            MaterialSuggestionChip(label: "0 (Mặc định)") { viewModel.cfgOvertimeMultiplier = "0" }
+                            MaterialSuggestionChip(label: "1.0x") { viewModel.cfgOvertimeMultiplier = "1.0" }
+                            MaterialSuggestionChip(label: "1.25x") { viewModel.cfgOvertimeMultiplier = "1.25" }
+                            MaterialSuggestionChip(label: "1.5x") { viewModel.cfgOvertimeMultiplier = "1.5" }
+                            MaterialSuggestionChip(label: "2.0x") { viewModel.cfgOvertimeMultiplier = "2.0" }
                         }
                     }
 
-                    // Ghi chú hệ số
+                    // Ghi chú hệ số ngoài giờ
                     VStack(alignment: .leading, spacing: 2) {
                         Text("📌 Quy tắc nhân hệ số ngoài giờ / ca đêm:")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(Color(hex: "#1D4ED8"))
                         let multVal = Double(viewModel.cfgOvertimeMultiplier) ?? 0.0
-                        Text(multVal > 1.0 ? "Hệ số (\(String(format: "%.2f", multVal))x) CHỈ NHÂN VỚI PHỤ CẤP CA khi phát sinh ngoài giờ hoặc ca đêm. Tiền xăng giữ nguyên theo km thực tế." : "Mặc định hệ số = 0: Không áp dụng nhân hệ số phụ cấp ngoài giờ / ca đêm. Phụ cấp ca giữ nguyên theo định mức cơ bản.")
+                        Text(multVal > 1.0 ? "Hệ số (\(String(format: "%.2f", multVal))x) CHỈ NHÂN VỚI PHỤ CẤP CA khi phát sinh ngoài giờ hoặc ca đêm / cuối tuần. Tiền xăng giữ nguyên theo km thực tế." : "Mặc định hệ số = 0: Không áp dụng nhân hệ số phụ cấp ngoài giờ / ca đêm. Phụ cấp ca giữ nguyên theo định mức cơ bản. Khi cần áp dụng có thể tự điều chỉnh hệ số sau (1.25x, 1.5x, 2.0x...).")
                             .font(.system(size: 10.5))
                             .foregroundColor(Color(hex: "#1E40AF"))
+                            .lineSpacing(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(8)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(hex: "#EFF6FF"))
                     .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#BFDBFE"), lineWidth: 1))
 
                     // Bán kính xác nhận KTV đến nơi
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Bán kính xác nhận KTV đã đến nơi (Mét)")
-                            .font(.system(size: 11.5, weight: .medium))
-                            .foregroundColor(.gray)
-                        TextField("150", text: $viewModel.cfgArrivalRadius)
-                            .keyboardType(.numberPad)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                        MaterialOutlinedField(
+                            label: "Bán kính xác nhận KTV đã đến nơi (Mét)",
+                            leadingIconSystem: "location.north.line.fill",
+                            leadingIconColor: Color(hex: "#10B981"),
+                            trailingText: "m",
+                            keyboardType: .numberPad,
+                            text: $viewModel.cfgArrivalRadius,
+                            placeholder: "150"
+                        )
                         HStack(spacing: 6) {
-                            presetChip(label: "50m") { viewModel.cfgArrivalRadius = "50" }
-                            presetChip(label: "100m") { viewModel.cfgArrivalRadius = "100" }
-                            presetChip(label: "150m") { viewModel.cfgArrivalRadius = "150" }
-                            presetChip(label: "200m") { viewModel.cfgArrivalRadius = "200" }
-                            presetChip(label: "300m") { viewModel.cfgArrivalRadius = "300" }
+                            Text("Gợi ý:")
+                                .font(.system(size: 10.5))
+                                .foregroundColor(Color.gray)
+                            MaterialSuggestionChip(label: "50m") { viewModel.cfgArrivalRadius = "50" }
+                            MaterialSuggestionChip(label: "100m") { viewModel.cfgArrivalRadius = "100" }
+                            MaterialSuggestionChip(label: "150m") { viewModel.cfgArrivalRadius = "150" }
+                            MaterialSuggestionChip(label: "200m") { viewModel.cfgArrivalRadius = "200" }
+                            MaterialSuggestionChip(label: "300m") { viewModel.cfgArrivalRadius = "300" }
+                            MaterialSuggestionChip(label: "500m") { viewModel.cfgArrivalRadius = "500" }
                         }
                     }
 
-                    // Ghi chú điểm đến
+                    // Ghi chú cơ chế xác nhận
                     VStack(alignment: .leading, spacing: 2) {
                         Text("🎯 Cơ chế xác nhận điểm đến KTV:")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(Color(hex: "#15803D"))
-                        Text("Khi KTV di chuyển gần vị trí sự cố trong bán kính này (mặc định 150m), app sẽ tự động hiển thị nút 'Đã đến nơi' để xác nhận hỗ trợ và tính chốt công tác phí.")
+                        Text("Khi Kỹ thuật viên di chuyển đến gần vị trí sự cố trong phạm vi bán kính này (mặc định 150m), app sẽ tự động hiển thị nút 'Đã đến nơi' để xác nhận bắt đầu hỗ trợ và tính toán chốt công tác phí.")
                             .font(.system(size: 10.5))
-                            .foregroundColor(Color(hex: "#15803D"))
+                            .foregroundColor(Color(hex: "#166534"))
+                            .lineSpacing(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(8)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(hex: "#F0FDF4"))
                     .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#BBF7D0"), lineWidth: 1))
                 }
                 .padding(14)
                 .background(Color.white)
                 .cornerRadius(12)
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
 
-                // CARD 4: BẢNG TÍNH THỬ NGHIỆM CHI PHÍ (SIMULATION)
+                // CARD 4: MINH HỌA QUYẾT TOÁN THỰC TẾ (Đúng ảnh chụp media_1790512414585.png)
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "function")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color(hex: "#7C3AED"))
-                            .frame(width: 28, height: 28)
-                            .background(Color(hex: "#EDE9FE"))
-                            .cornerRadius(6)
-                        Text("4. Bảng Tính Thử Nghiệm Chi Phí (10 Km)")
-                            .font(.system(size: 13, weight: .bold))
+                    HStack(spacing: 6) {
+                        Image(systemName: "equal.square.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(Color(hex: "#0284C7"))
+                        Text("💡 Minh Họa Quyết Toán (Mô phỏng ca 10 km)")
+                            .font(.system(size: 12.5, weight: .bold))
                             .foregroundColor(Color.appSecondaryDarkBlue)
                     }
-                    Divider()
+                    Divider().background(Color(hex: "#E2E8F0"))
 
                     let pKm = Double(viewModel.cfgPricePerKm) ?? 5000.0
                     let tAllow = Double(viewModel.cfgTripBaseAllowance) ?? 50000.0
@@ -1384,111 +1576,112 @@ public struct AttendanceReportView: View {
                     let sampleKm = 10.0
                     let sampleKmVal = sampleKm * pKm
                     let sampleNormalVal = sampleKmVal + tAllow
-                    let sampleOtAllow = oMulti > 1.0 ? tAllow * oMulti : tAllow
+                    let isOtActive = oMulti > 1.0
+                    let sampleOtAllow = isOtActive ? tAllow * oMulti : tAllow
                     let sampleOtVal = sampleKmVal + sampleOtAllow
 
-                    VStack(spacing: 6) {
-                        HStack {
-                            Text("Tiền xăng (10 km x \(formatCurrency(pKm))):")
-                                .font(.system(size: 11.5))
-                                .foregroundColor(.gray)
-                            Spacer()
-                            Text(formatCurrency(sampleKmVal))
-                                .font(.system(size: 11.5, weight: .bold))
-                        }
-                        HStack {
-                            Text("Phụ cấp mỗi ca cơ bản:")
-                                .font(.system(size: 11.5))
-                                .foregroundColor(.gray)
-                            Spacer()
-                            Text(formatCurrency(tAllow))
-                                .font(.system(size: 11.5, weight: .bold))
-                        }
-                        Divider()
-                        HStack {
-                            Text("Tổng chi phí ca bình thường:")
+                    // Ca trong giờ
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "sun.max.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(hex: "#D97706"))
+                            Text("☀️ Ca trong giờ hành chính:")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(Color(hex: "#15803D"))
+                                .foregroundColor(Color(hex: "#1E3A8A"))
+                        }
+                        Text("• Tiền xăng: 10 km × \(formatCurrency(pKm)) = \(formatCurrency(sampleKmVal))")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "#475569"))
+                        Text("• Phụ cấp ca: \(formatCurrency(tAllow))")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "#475569"))
+                        Divider().background(Color(hex: "#F1F5F9"))
+                        HStack {
+                            Text("Tổng tiền ca:")
+                                .font(.system(size: 11.5, weight: .bold))
+                                .foregroundColor(Color(hex: "#1E293B"))
                             Spacer()
                             Text(formatCurrency(sampleNormalVal))
-                                .font(.system(size: 13, weight: .black))
-                                .foregroundColor(Color(hex: "#15803D"))
-                        }
-                        if oMulti > 1.0 {
-                            HStack {
-                                Text("Tổng ca ngoài giờ (\(String(format: "%.2f", oMulti))x):")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Color.appPrimaryPink)
-                                Spacer()
-                                Text(formatCurrency(sampleOtVal))
-                                    .font(.system(size: 13, weight: .black))
-                                    .foregroundColor(Color.appPrimaryPink)
-                            }
+                                .font(.system(size: 12.5, weight: .bold))
+                                .foregroundColor(Color(hex: "#2563EB"))
                         }
                     }
                     .padding(10)
-                    .background(Color(hex: "#F8FAFC"))
+                    .background(Color.white)
                     .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#BFDBFE"), lineWidth: 1))
+
+                    // Ca ngoài giờ
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "moon.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(hex: "#7C3AED"))
+                            let displayOtText = isOtActive ? "\(String(format: "%.2f", oMulti))x" : "Hệ số 0"
+                            Text("🌙 Ca ngoài giờ / ca đêm (\(displayOtText)):")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(Color(hex: "#5B21B6"))
+                        }
+                        Text("• Tiền xăng: 10 km × \(formatCurrency(pKm)) = \(formatCurrency(sampleKmVal))")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "#475569"))
+                        let otAllowText = isOtActive ?
+                            "• Phụ cấp (\(String(format: "%.2f", oMulti))x): \(formatCurrency(tAllow)) × \(String(format: "%.2f", oMulti)) = \(formatCurrency(sampleOtAllow))" :
+                            "• Phụ cấp (Hệ số 0 - Giữ nguyên): \(formatCurrency(sampleOtAllow))"
+                        Text(otAllowText)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color(hex: "#7C3AED"))
+                        Divider().background(Color(hex: "#F1F5F9"))
+                        HStack {
+                            Text("Tổng tiền ca:")
+                                .font(.system(size: 11.5, weight: .bold))
+                                .foregroundColor(Color(hex: "#1E293B"))
+                            Spacer()
+                            Text(formatCurrency(sampleOtVal))
+                                .font(.system(size: 12.5, weight: .bold))
+                                .foregroundColor(Color.appPrimaryPink)
+                        }
+                    }
+                    .padding(10)
+                    .background(Color.white)
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#DDD6FE"), lineWidth: 1))
                 }
                 .padding(14)
-                .background(Color.white)
+                .background(Color(hex: "#F8FAFC"))
                 .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
 
-                // SAVE BUTTON (PRIMARY PINK CHUẨN ANDROID)
+                // SAVE BUTTON (PRIMARY PINK CHUẨN ANDROID - Đúng ảnh chụp media_1790512414585.png)
                 Button(action: {
                     viewModel.saveTravelExpenseConfig()
                 }) {
-                    HStack {
+                    HStack(spacing: 8) {
                         if viewModel.isSavingReportConfig {
                             ProgressView()
                                 .tint(.white)
                                 .scaleEffect(0.9)
+                            Text("Đang lưu cấu hình...")
+                                .font(.system(size: 13, weight: .bold))
                         } else {
                             Image(systemName: "square.and.arrow.down.fill")
-                            Text("LƯU VÀ ÁP DỤNG CẤU HÌNH")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.system(size: 16))
+                            Text("Lưu Cấu Hình Định Mức & Giờ Ca")
+                                .font(.system(size: 13.5, weight: .bold))
                         }
                     }
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 13)
+                    .frame(height: 48)
                     .background(Color.appPrimaryPink)
-                    .cornerRadius(10)
+                    .cornerRadius(8)
                 }
                 .disabled(viewModel.isSavingReportConfig)
-                .padding(.bottom, 16)
+                .padding(.bottom, 24)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-        }
-    }
-
-    private func presetChip(label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(Color(hex: "#1E40AF"))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(Color(hex: "#EFF6FF"))
-                .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#BFDBFE"), lineWidth: 0.8))
-        }
-    }
-
-    private func configField(label: String, value1: Binding<String>, value2: Binding<String>) -> some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 12, weight: .medium))
-            Spacer()
-            TextField("08:00", text: value1)
-                .frame(width: 55)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-            Text("-")
-            TextField("17:00", text: value2)
-                .frame(width: 55)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
         }
     }
 
