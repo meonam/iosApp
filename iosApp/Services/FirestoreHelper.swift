@@ -33,8 +33,8 @@ public struct FirestoreHelper {
         return Double(getInt64(field))
     }
 
-    public static func getBool(_ field: [String: Any]?) -> Bool {
-        return field?["booleanValue"] as? Bool ?? false
+    public static func getBool(_ field: [String: Any]?, defaultValue: Bool = false) -> Bool {
+        return field?["booleanValue"] as? Bool ?? defaultValue
     }
 
     public static func getArray(_ field: [String: Any]?) -> [[String: Any]] {
@@ -74,8 +74,8 @@ public struct FirestoreHelper {
         return getDouble(fields?[key] as? [String: Any])
     }
 
-    public static func getBool(_ fields: [String: Any]?, _ key: String) -> Bool {
-        return getBool(fields?[key] as? [String: Any])
+    public static func getBool(_ fields: [String: Any]?, _ key: String, defaultValue: Bool = false) -> Bool {
+        return getBool(fields?[key] as? [String: Any], defaultValue: defaultValue)
     }
 
     public static func getArray(_ fields: [String: Any]?, _ key: String) -> [[String: Any]] {
