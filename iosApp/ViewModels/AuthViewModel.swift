@@ -11,7 +11,7 @@ public class AuthViewModel: ObservableObject {
 
     // State đăng nhập & session
     @Published public var currentUser: User? = nil
-    @Published public var currentCompanyId: String = "saigoncoop"
+    @Published public var currentCompanyId: String = "SGCOOP"
     @Published public var currentIdToken: String = ""
     @Published public var isAuthenticated: Bool = false
 
@@ -22,6 +22,14 @@ public class AuthViewModel: ObservableObject {
     // State quên mật khẩu
     @Published public var showForgotPasswordDialog: Bool = false
     @Published public var forgotPasswordSuccessMessage: String? = nil
+
+    private func normalizeCompanyId(_ compId: String) -> String {
+        let clean = compId.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.isEmpty || clean.uppercased() == "SAIGONCOOP" || clean.uppercased() == "SAIGON CO-OP" || clean.uppercased() == "SAIGON_COOP" {
+            return "SGCOOP"
+        }
+        return clean
+    }
 
     public init() {
         // Tải session đã lưu từ UserDefaults nếu có
@@ -55,7 +63,7 @@ public class AuthViewModel: ObservableObject {
                 }
 
                 self.currentIdToken = session.idToken
-                self.currentCompanyId = compId
+                self.currentCompanyId = self.normalizeCompanyId(compId)
                 self.currentUser = profile ?? User(email: session.email)
 
                 // Kiểm tra xem có bắt buộc đổi mật khẩu lần đầu không
@@ -124,7 +132,8 @@ public class AuthViewModel: ObservableObject {
     private func loadSavedSession() {
         if let savedEmail = UserDefaults.standard.string(forKey: "saved_auth_email"), !savedEmail.isEmpty {
             self.email = savedEmail
-            self.currentCompanyId = UserDefaults.standard.string(forKey: "saved_auth_company_id") ?? "saigoncoop"
+            let savedComp = UserDefaults.standard.string(forKey: "saved_auth_company_id") ?? "SGCOOP"
+            self.currentCompanyId = normalizeCompanyId(savedComp)
         }
     }
 }

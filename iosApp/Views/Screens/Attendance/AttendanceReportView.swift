@@ -867,40 +867,39 @@ public struct AttendanceReportView: View {
                             )
                         }
 
-                        // Gợi ý nhanh & Nút Áp dụng (Đúng ảnh chụp media_1790512385670.png)
+                        // Gợi ý nhanh & Nút Áp dụng (Tách dòng, Full-width như Android)
                         if canViewAllReports {
-                            HStack(spacing: 4) {
-                                HStack(spacing: 4) {
-                                    MaterialSuggestionChip(label: "5.000 VNĐ/km") { viewModel.cfgPricePerKm = "5000" }
-                                    MaterialSuggestionChip(label: "7.000 VNĐ/km") { viewModel.cfgPricePerKm = "7000" }
-                                    MaterialSuggestionChip(label: "10.000 VNĐ/km") { viewModel.cfgPricePerKm = "10000" }
-                                }
-
-                                Spacer()
-
-                                Button(action: {
-                                    viewModel.saveTravelExpenseConfig()
-                                }) {
-                                    HStack(spacing: 4) {
-                                        if viewModel.isSavingReportConfig {
-                                            ProgressView().tint(.white).scaleEffect(0.7)
-                                            Text("Đang lưu...")
-                                                .font(.system(size: 11, weight: .bold))
-                                        } else {
-                                            Image(systemName: "square.and.arrow.down.fill")
-                                                .font(.system(size: 12))
-                                            Text("Áp dụng")
-                                                .font(.system(size: 11, weight: .bold))
-                                        }
-                                    }
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 12)
-                                    .frame(height: 32)
-                                    .background(Color(hex: "#16A34A"))
-                                    .cornerRadius(8)
-                                }
-                                .disabled(viewModel.isSavingReportConfig)
+                            HStack(spacing: 6) {
+                                Text("Gợi ý nhanh:")
+                                    .font(.system(size: 10.5))
+                                    .foregroundColor(.gray)
+                                MaterialSuggestionChip(label: "5.000 VNĐ/km") { viewModel.cfgPricePerKm = "5000" }
+                                MaterialSuggestionChip(label: "7.000 VNĐ/km") { viewModel.cfgPricePerKm = "7000" }
+                                MaterialSuggestionChip(label: "10.000 VNĐ/km") { viewModel.cfgPricePerKm = "10000" }
                             }
+
+                            Button(action: {
+                                viewModel.saveTravelExpenseConfig()
+                            }) {
+                                HStack(spacing: 6) {
+                                    if viewModel.isSavingReportConfig {
+                                        ProgressView().tint(.white).scaleEffect(0.7)
+                                        Text("Đang lưu định mức...")
+                                            .font(.system(size: 12, weight: .bold))
+                                    } else {
+                                        Image(systemName: "square.and.arrow.down.fill")
+                                            .font(.system(size: 13))
+                                        Text("Áp Dụng Định Mức Mới")
+                                            .font(.system(size: 12, weight: .bold))
+                                    }
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 36)
+                                .background(Color(hex: "#16A34A"))
+                                .cornerRadius(8)
+                            }
+                            .disabled(viewModel.isSavingReportConfig)
                         }
                     }
                     .padding(14)
