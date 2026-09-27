@@ -422,7 +422,7 @@ public struct ShiftScheduleView: View {
     // MARK: - 5. SCHEDULE MATRIX GRID
     private var scheduleMatrixGrid: some View {
         let entries = viewModel.currentWeekSchedule?.entries ?? []
-        let labels = viewModel.dateLabels
+        let labels = viewModel.shortDateLabels
 
         return ScrollView([.horizontal, .vertical]) {
             VStack(alignment: .leading, spacing: 0) {
@@ -486,8 +486,18 @@ public struct ShiftScheduleView: View {
 
                             // 7 Ngày trong tuần
                             ForEach(0..<dayKeys.count, id: \.self) { dIdx in
-                                let key = dayKeys[dIdx]
-                                let code = entry.days[key] ?? ""
+                                let shortKey = dayKeys[dIdx]
+                                let fullKey = viewModel.fullDateKeys.indices.contains(dIdx) ? viewModel.fullDateKeys[dIdx] : ""
+                                let labelDate = labels.indices.contains(dIdx) ? labels[dIdx] : ""
+                                let fullLabelDate = viewModel.dateLabels.indices.contains(dIdx) ? viewModel.dateLabels[dIdx] : ""
+                                let shortDateKey = labelDate.replacingOccurrences(of: "/", with: "-")
+
+                                let code = (!fullKey.isEmpty ? entry.days[fullKey] : nil)
+                                    ?? entry.days[shortKey]
+                                    ?? (!labelDate.isEmpty ? entry.days[labelDate] : nil)
+                                    ?? (!fullLabelDate.isEmpty ? entry.days[fullLabelDate] : nil)
+                                    ?? (!shortDateKey.isEmpty ? entry.days[shortDateKey] : nil)
+                                    ?? ""
 
                                 shiftCell(
                                     code: code,
@@ -496,8 +506,8 @@ public struct ShiftScheduleView: View {
                                     isEditable: viewModel.canEditShift
                                 ) {
                                     if viewModel.canEditShift {
-                                        let title = "\(dayNames[dIdx]) (\(labels.indices.contains(dIdx) ? labels[dIdx] : ""))"
-                                        self.selectedCell = (entry.employeeId, entry.employeeName, key, title, code)
+                                        let title = "\(dayNames[dIdx]) (\(labelDate))"
+                                        self.selectedCell = (entry.employeeId, entry.employeeName, shortKey, title, code)
                                         self.showingEditSheet = true
                                     }
                                 }

@@ -29,10 +29,11 @@ public class ShiftViewModel: ObservableObject {
         user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isManager || user.isTechnician || user.isSpecialist
     }
 
-    // MARK: - TÍNH TOÁN NGÀY VÀ TUẦN THEO CHUẨN THỨ HAI ĐẦU TUẦN
+    // MARK: - TÍNH TOÁN NGÀY VÀ TUẦN THEO CHUẨN THỨ HAI ĐẦU TUẦN (ISO 8601 ĐỒNG BỘ ANDROID)
     public var currentMondayDate: Date {
         var cal = Calendar(identifier: .gregorian)
         cal.firstWeekday = 2 // Monday
+        cal.minimumDaysInFirstWeek = 4
         let now = Date()
         let weekday = cal.component(.weekday, from: now)
         // Calendar weekday: 1 = Sun, 2 = Mon, 3 = Tue, ... 7 = Sat
@@ -44,6 +45,7 @@ public class ShiftViewModel: ObservableObject {
     public var currentWeekId: String {
         var cal = Calendar(identifier: .gregorian)
         cal.firstWeekday = 2
+        cal.minimumDaysInFirstWeek = 4
         let target = currentMondayDate
         let year = cal.component(.yearForWeekOfYear, from: target)
         let week = cal.component(.weekOfYear, from: target)
@@ -53,12 +55,46 @@ public class ShiftViewModel: ObservableObject {
     public var currentWeekNumber: Int {
         var cal = Calendar(identifier: .gregorian)
         cal.firstWeekday = 2
+        cal.minimumDaysInFirstWeek = 4
         return cal.component(.weekOfYear, from: currentMondayDate)
+    }
+
+    public var fullDateKeys: [String] {
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2
+        cal.minimumDaysInFirstWeek = 4
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        var keys: [String] = []
+        let monday = currentMondayDate
+        for i in 0..<7 {
+            if let d = cal.date(byAdding: .day, value: i, to: monday) {
+                keys.append(formatter.string(from: d))
+            }
+        }
+        return keys
     }
 
     public var dateLabels: [String] {
         var cal = Calendar(identifier: .gregorian)
         cal.firstWeekday = 2
+        cal.minimumDaysInFirstWeek = 4
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd/MM/yyyy"
+        var labels: [String] = []
+        let monday = currentMondayDate
+        for i in 0..<7 {
+            if let d = cal.date(byAdding: .day, value: i, to: monday) {
+                labels.append(formatter.string(from: d))
+            }
+        }
+        return labels
+    }
+
+    public var shortDateLabels: [String] {
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2
+        cal.minimumDaysInFirstWeek = 4
         let formatter = DateFormatter()
         formatter.dateFormat = "dd/MM"
         var labels: [String] = []
@@ -72,13 +108,25 @@ public class ShiftViewModel: ObservableObject {
     }
 
     public var weekDateRangeLabel: String {
-        if dateLabels.count >= 7 {
-            return "\(dateLabels.first!) - \(dateLabels.last!)"
+        let labels = shortDateLabels
+        if labels.count >= 7 {
+            return "\(labels.first!) - \(labels.last!)"
         }
         return ""
     }
 
-    // MARK: - TẢI PHÂN CA TUẦN TỪ FIRESTORE
+    public var weekDisplayLabel: String {
+        let f = DateFormatter()
+        f.dateFormat = "dd/MM/yyyy"
+        let monday = currentMondayDate
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2
+        cal.minimumDaysInFirstWeek = 4
+        let sunday = cal.date(byAdding: .day, value: 6, to: monday) ?? monday
+        return String(format: "Tuần %02d (%@ - %@)", currentWeekNumber, f.string(from: monday), f.string(from: sunday))
+    }
+
+    // MARK: - TẢI PHÂN CA TUẦN TỪ FIRESTORE (ĐỒNG BỘ 1:1 ANDROID lines 280-335 & 814-822)
     public func fetchShiftSchedule() {
         isLoading = true
         errorMessage = nil
@@ -96,7 +144,7 @@ public class ShiftViewModel: ObservableObject {
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let fields = json["fields"] as? [String: Any] else {
                 self.isLoading = false
-                // Template mặc định nếu tuần chưa được tạo
+                // Template mặc định nếu tuần chưa được tạo: lấy KTV từ default template
                 self.currentWeekSchedule = ShiftSchedule(
                     id: currentWeekId,
                     companyId: companyId,
@@ -105,6 +153,11 @@ public class ShiftViewModel: ObservableObject {
                 )
                 return
             }
+
+            let shortKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+            let fKeys = self.fullDateKeys
+            let dLabels = self.dateLabels
+            let sLabels = self.shortDateLabels
 
             var parsedEntries: [ShiftEntry] = []
 
@@ -115,23 +168,49 @@ public class ShiftViewModel: ObservableObject {
                 for item in values {
                     if let mapVal = item["mapValue"] as? [String: Any],
                        let subFields = mapVal["fields"] as? [String: Any] {
-                        let empId = FirestoreHelper.getString(subFields["employeeId"] as? [String: Any])
-                        let empName = FirestoreHelper.getString(subFields["employeeName"] as? [String: Any])
+                        var empId = FirestoreHelper.getString(subFields["employeeId"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
+                        let empName = FirestoreHelper.getString(subFields["employeeName"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
                         let maKhuVuc = FirestoreHelper.getString(subFields["maKhuVuc"] as? [String: Any])
                         let donVi = FirestoreHelper.getString(subFields["donVi"] as? [String: Any])
-                        
-                        var daysMap: [String: String] = [:]
+
+                        // Standardize MNV if phone or empty
+                        let isOldPhone = (empId.hasPrefix("0") && empId.count >= 9) || empId.range(of: "^[0-9]{10}$", options: .regularExpression) != nil
+                        if isOldPhone || empId.isEmpty || empId.contains("@") {
+                            let std = lookupStandardKtvMnv(email: nil, fullName: empName)
+                            if !std.isEmpty { empId = std }
+                        }
+
+                        var rawDays: [String: String] = [:]
                         if let daysObj = subFields["days"] as? [String: Any],
                            let daysMapVal = daysObj["mapValue"] as? [String: Any],
                            let dayFields = daysMapVal["fields"] as? [String: Any] {
                             for (dayKey, dayCodeVal) in dayFields {
-                                let code = FirestoreHelper.getString(dayCodeVal as? [String: Any])
+                                let code = FirestoreHelper.getString(dayCodeVal as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
                                 if !code.isEmpty {
-                                    daysMap[dayKey.lowercased()] = code
+                                    rawDays[dayKey.lowercased()] = code
                                 }
                             }
                         }
-                        
+
+                        // Bi-directional key synchronization: populate BOTH shortKeys ("mon") and fullDateKeys ("2026-09-14")
+                        var daysMap: [String: String] = [:]
+                        for (k, v) in rawDays {
+                            daysMap[k] = v
+                            for (dIdx, sk) in shortKeys.enumerated() {
+                                let fk = fKeys.indices.contains(dIdx) ? fKeys[dIdx] : ""
+                                let dl = dLabels.indices.contains(dIdx) ? dLabels[dIdx] : ""
+                                let sl = sLabels.indices.contains(dIdx) ? sLabels[dIdx] : ""
+                                let sdk = sl.replacingOccurrences(of: "/", with: "-")
+
+                                if k == sk || k == fk || k == dl || k == sl || k == sdk || (fk.count >= 10 && k.hasSuffix(String(fk.suffix(5)))) {
+                                    daysMap[sk] = v
+                                    if !fk.isEmpty { daysMap[fk] = v }
+                                    if !dl.isEmpty { daysMap[dl] = v }
+                                    if !sl.isEmpty { daysMap[sl] = v }
+                                }
+                            }
+                        }
+
                         if !empId.isEmpty || !empName.isEmpty {
                             parsedEntries.append(ShiftEntry(
                                 employeeId: empId,
@@ -151,11 +230,18 @@ public class ShiftViewModel: ObservableObject {
                     if key.starts(with: "emp_") || key.starts(with: "ktv_") || key.allSatisfy({ $0.isNumber }) {
                         if let map = (valObj as? [String: Any])?["mapValue"] as? [String: Any],
                            let subFields = map["fields"] as? [String: Any] {
-                            var daysMap: [String: String] = [:]
-                            for dayKey in ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] {
+                            var rawDays: [String: String] = [:]
+                            for dayKey in shortKeys {
                                 let code = FirestoreHelper.getString(subFields[dayKey] as? [String: Any])
                                 if !code.isEmpty {
-                                    daysMap[dayKey] = code
+                                    rawDays[dayKey] = code
+                                }
+                            }
+                            var daysMap: [String: String] = [:]
+                            for (k, v) in rawDays {
+                                daysMap[k] = v
+                                if let idx = shortKeys.firstIndex(of: k), fKeys.indices.contains(idx) {
+                                    daysMap[fKeys[idx]] = v
                                 }
                             }
                             let empName = FirestoreHelper.getString(subFields["name"] as? [String: Any])
@@ -184,16 +270,41 @@ public class ShiftViewModel: ObservableObject {
     public func updateShiftCode(employeeId: String, dayKey: String, newCode: String) {
         let cleanDayKey = dayKey.lowercased()
         guard var currentEntries = self.currentWeekSchedule?.entries else { return }
-        
+
+        let shortKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        let fKeys = self.fullDateKeys
+        let dLabels = self.dateLabels
+        let sLabels = self.shortDateLabels
+
+        var matchedIdx: Int? = nil
+        for (idx, sk) in shortKeys.enumerated() {
+            let fk = fKeys.indices.contains(idx) ? fKeys[idx].lowercased() : ""
+            if cleanDayKey == sk || cleanDayKey == fk {
+                matchedIdx = idx
+                break
+            }
+        }
+
         if let idx = currentEntries.firstIndex(where: { $0.employeeId == employeeId }) {
             if newCode.isEmpty {
                 currentEntries[idx].days.removeValue(forKey: cleanDayKey)
+                if let mIdx = matchedIdx {
+                    currentEntries[idx].days.removeValue(forKey: shortKeys[mIdx])
+                    if fKeys.indices.contains(mIdx) { currentEntries[idx].days.removeValue(forKey: fKeys[mIdx]) }
+                    if dLabels.indices.contains(mIdx) { currentEntries[idx].days.removeValue(forKey: dLabels[mIdx]) }
+                    if sLabels.indices.contains(mIdx) { currentEntries[idx].days.removeValue(forKey: sLabels[mIdx]) }
+                }
             } else {
                 currentEntries[idx].days[cleanDayKey] = newCode
+                if let mIdx = matchedIdx {
+                    currentEntries[idx].days[shortKeys[mIdx]] = newCode
+                    if fKeys.indices.contains(mIdx) { currentEntries[idx].days[fKeys[mIdx]] = newCode }
+                    if dLabels.indices.contains(mIdx) { currentEntries[idx].days[dLabels[mIdx]] = newCode }
+                    if sLabels.indices.contains(mIdx) { currentEntries[idx].days[sLabels[mIdx]] = newCode }
+                }
             }
+            self.currentWeekSchedule?.entries = currentEntries
         }
-        
-        self.currentWeekSchedule?.entries = currentEntries
     }
 
     // MARK: - THÊM KTV MỚI VÀO BẢNG PHÂN CA
@@ -383,11 +494,23 @@ public class ShiftViewModel: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         var arrayValues: [[String: Any]] = []
+        let shortKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        let fKeys = self.fullDateKeys
+
         for entry in entries {
             var dayFields: [String: Any] = [:]
             for (k, v) in entry.days {
                 if !v.isEmpty {
                     dayFields[k.lowercased()] = ["stringValue": v]
+                }
+            }
+            // Ensure both shortKey ("mon") and fullDateKey ("2026-09-14") are present
+            for (dIdx, sk) in shortKeys.enumerated() {
+                let fk = fKeys.indices.contains(dIdx) ? fKeys[dIdx] : ""
+                let code = entry.days[sk] ?? (!fk.isEmpty ? entry.days[fk] : nil) ?? ""
+                if !code.isEmpty {
+                    dayFields[sk] = ["stringValue": code]
+                    if !fk.isEmpty { dayFields[fk] = ["stringValue": code] }
                 }
             }
             let entryMap: [String: Any] = [

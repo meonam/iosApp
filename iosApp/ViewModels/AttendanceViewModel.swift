@@ -56,6 +56,47 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     @Published public var isLoadingHistory: Bool = false
     @Published public var selectedMonth: Date = Date()
 
+    // MARK: - ATTENDANCE & EXPENSE REPORT STATES (ĐỒNG BỘ 1:1 VỚI ANDROID ATTENDANCEREPORTSCREEN.KT)
+    @Published public var attendanceReport: AttendanceMonthlyReport = AttendanceMonthlyReport()
+    @Published public var expenseReport: TravelExpenseReport = TravelExpenseReport()
+    @Published public var selectedReportMonth: String = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM"
+        return f.string(from: Date())
+    }()
+    @Published public var selectedReportTab: Int = 0 // 0: Chấm Công, 1: Chi Phí, 2: Cấu Hình
+    @Published public var isLoadingReport: Bool = false
+
+    // Config Tab Inputs
+    @Published public var cfgStandardCheckIn: String = "08:00"
+    @Published public var cfgStandardCheckOut: String = "17:00"
+    @Published public var cfgShift1CheckIn: String = "07:00"
+    @Published public var cfgShift1CheckOut: String = "15:00"
+    @Published public var cfgShift2CheckIn: String = "14:00"
+    @Published public var cfgShift2CheckOut: String = "22:00"
+    @Published public var cfgNightCheckIn: String = "22:00"
+    @Published public var cfgNightCheckOut: String = "06:00"
+    @Published public var cfgMaxLateMinutes: String = "15"
+    @Published public var cfgGeofenceRadius: String = "250"
+    @Published public var cfgTargetAddress: String = ""
+    @Published public var cfgPricePerKm: String = "5000"
+    @Published public var cfgTripBaseAllowance: String = "50000"
+    @Published public var cfgOvertimeMultiplier: String = "0"
+    @Published public var isSavingReportConfig: Bool = false
+
+    // Role permissions (Đồng bộ Android lines 293-338)
+    public var canViewAllReports: Bool {
+        user.isAdmin || user.isSuperAdmin || user.isHelpDesk
+    }
+
+    public var canAccessExpenseReport: Bool {
+        (user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isManager) && (!user.isTechnician || user.isAdmin || user.isHelpDesk)
+    }
+
+    public var canAccessConfigTab: Bool {
+        user.isAdmin || user.isSuperAdmin
+    }
+
     // Computed Stats
     public var totalDays: Int { attendanceHistory.count }
     public var lateDays: Int { attendanceHistory.filter { $0.checkInStatus == "LATE" }.count }
@@ -1135,4 +1176,455 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             }
         }
     }
+
+    // MARK: - PARSE ATTENDANCE RECORD HELPER
+    private func parseAttendanceRecord(docId: String, fields: [String: Any]) -> AttendanceRecord {
+        return AttendanceRecord(
+            id: docId,
+            userEmail: FirestoreHelper.getString(fields["userEmail"] as? [String: Any]),
+            userName: FirestoreHelper.getString(fields["userName"] as? [String: Any]),
+            userPhone: FirestoreHelper.getString(fields["userPhone"] as? [String: Any]),
+            maNhanVien: FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
+            employeeId: FirestoreHelper.getString(fields["employeeId"] as? [String: Any]),
+            departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
+            departmentName: FirestoreHelper.getString(fields["departmentName"] as? [String: Any]),
+            donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
+            date: FirestoreHelper.getString(fields["date"] as? [String: Any]),
+            checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
+            checkInLat: FirestoreHelper.getDouble(fields["checkInLat"] as? [String: Any]),
+            checkInLng: FirestoreHelper.getDouble(fields["checkInLng"] as? [String: Any]),
+            checkInAddress: FirestoreHelper.getString(fields["checkInAddress"] as? [String: Any]),
+            checkInStatus: FirestoreHelper.getString(fields["checkInStatus"] as? [String: Any]),
+            checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
+            checkOutLat: FirestoreHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
+            checkOutLng: FirestoreHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
+            checkOutAddress: FirestoreHelper.getString(fields["checkOutAddress"] as? [String: Any]),
+            checkOutStatus: FirestoreHelper.getString(fields["checkOutStatus"] as? [String: Any]),
+            totalWorkMinutes: FirestoreHelper.getInt(fields["totalWorkMinutes"] as? [String: Any]),
+            note: FirestoreHelper.getString(fields["note"] as? [String: Any]),
+            companyId: self.companyId,
+            shiftType: FirestoreHelper.getString(fields["shiftType"] as? [String: Any]),
+            scheduledShiftCode: FirestoreHelper.getString(fields["scheduledShiftCode"] as? [String: Any]),
+            isUnscheduled: (fields["isUnscheduled"] as? [String: Any])?["booleanValue"] as? Bool ?? false
+        )
+    }
+
+    // MARK: - PARSE TRAVEL EXPENSE HELPER
+    private func parseExpenseRecord(docId: String, fields: [String: Any]) -> TravelExpenseRecord {
+        return TravelExpenseRecord(
+            id: docId,
+            ticketId: FirestoreHelper.getString(fields["ticketId"] as? [String: Any]),
+            ticketSubject: FirestoreHelper.getString(fields["ticketSubject"] as? [String: Any]),
+            technicianEmail: FirestoreHelper.getString(fields["technicianEmail"] as? [String: Any]),
+            technicianName: FirestoreHelper.getString(fields["technicianName"] as? [String: Any]),
+            departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
+            fromDonVi: FirestoreHelper.getString(fields["fromDonVi"] as? [String: Any]),
+            toDonVi: FirestoreHelper.getString(fields["toDonVi"] as? [String: Any]),
+            date: FirestoreHelper.getString(fields["date"] as? [String: Any]),
+            timestamp: FirestoreHelper.getInt64(fields["timestamp"] as? [String: Any]),
+            distanceKm: FirestoreHelper.getDouble(fields["distanceKm"] as? [String: Any]),
+            kmExpenseAmount: FirestoreHelper.getDouble(fields["kmExpenseAmount"] as? [String: Any]),
+            tripAllowanceAmount: FirestoreHelper.getDouble(fields["tripAllowanceAmount"] as? [String: Any]),
+            totalAmount: FirestoreHelper.getDouble(fields["totalAmount"] as? [String: Any]),
+            status: FirestoreHelper.getString(fields["status"] as? [String: Any]).isEmpty ? "PENDING" : FirestoreHelper.getString(fields["status"] as? [String: Any]),
+            approvedBy: FirestoreHelper.getString(fields["approvedBy"] as? [String: Any]),
+            approvedAt: FirestoreHelper.getInt64(fields["approvedAt"] as? [String: Any]),
+            note: FirestoreHelper.getString(fields["note"] as? [String: Any]),
+            rejectReason: FirestoreHelper.getString(fields["rejectReason"] as? [String: Any])
+        )
+    }
+
+    // MARK: - FETCH FULL MONTHLY REPORT (ĐỒNG BỘ 1:1 VỚI ANDROID lines 220-417 & AttendanceRepository.kt lines 281-408)
+    public func fetchMonthlyReport(monthStr: String? = nil) {
+        let targetMonth = (monthStr?.isEmpty == false) ? monthStr! : selectedReportMonth
+        selectedReportMonth = targetMonth
+
+        Task {
+            await MainActor.run { self.isLoadingReport = true }
+
+            let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            guard !cleanComp.isEmpty else {
+                await MainActor.run { self.isLoadingReport = false }
+                return
+            }
+
+            // 1. Fetch Travel Expense Config
+            await fetchTravelExpenseConfigAsync()
+
+            // 2. Query all attendances in company for this month
+            var fetchedRecords: [AttendanceRecord] = []
+
+            // Try structuredQuery
+            let queryUrlStr = "\(FirebaseConfig.firestoreBaseUrl):runQuery"
+            if let qUrl = URL(string: queryUrlStr) {
+                var qReq = URLRequest(url: qUrl)
+                qReq.httpMethod = "POST"
+                if !idToken.isEmpty {
+                    qReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                }
+                qReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+                let body: [String: Any] = [
+                    "structuredQuery": [
+                        "from": [["collectionId": "attendances"]],
+                        "where": [
+                            "compositeFilter": [
+                                "op": "AND",
+                                "filters": [
+                                    [
+                                        "fieldFilter": [
+                                            "field": ["fieldPath": "date"],
+                                            "op": "GREATER_THAN_OR_EQUAL",
+                                            "value": ["stringValue": "\(targetMonth)-01"]
+                                        ]
+                                    ],
+                                    [
+                                        "fieldFilter": [
+                                            "field": ["fieldPath": "date"],
+                                            "op": "LESS_THAN_OR_EQUAL",
+                                            "value": ["stringValue": "\(targetMonth)-31\u{F7FF}"]
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ],
+                        "orderBy": [
+                            [
+                                "field": ["fieldPath": "date"],
+                                "direction": "DESCENDING"
+                            ]
+                        ]
+                    ],
+                    "parent": "projects/\(FirebaseConfig.projectId)/databases/(default)/documents/companies/\(cleanComp)"
+                ]
+                qReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+                if let (data, resp) = try? await URLSession.shared.data(for: qReq),
+                   let http = resp as? HTTPURLResponse, http.statusCode == 200,
+                   let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                    for docResult in jsonArray {
+                        if let doc = docResult["document"] as? [String: Any],
+                           let fields = doc["fields"] as? [String: Any],
+                           let docName = doc["name"] as? String {
+                            let dDate = FirestoreHelper.getString(fields["date"] as? [String: Any])
+                            if dDate.hasPrefix(targetMonth) {
+                                let docId = docName.components(separatedBy: "/").last ?? ""
+                                fetchedRecords.append(parseAttendanceRecord(docId: docId, fields: fields))
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fallback: list collection attendances if structuredQuery didn't return
+            if fetchedRecords.isEmpty {
+                let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/attendances?pageSize=300"
+                if let listUrl = URL(string: listUrlStr) {
+                    var listReq = URLRequest(url: listUrl)
+                    if !idToken.isEmpty {
+                        listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                    }
+                    if let (data, resp) = try? await URLSession.shared.data(for: listReq),
+                       let http = resp as? HTTPURLResponse, http.statusCode == 200,
+                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let docs = json["documents"] as? [[String: Any]] {
+                        for doc in docs {
+                            if let fields = doc["fields"] as? [String: Any],
+                               let docName = doc["name"] as? String {
+                                let dDate = FirestoreHelper.getString(fields["date"] as? [String: Any])
+                                if dDate.hasPrefix(targetMonth) {
+                                    let docId = docName.components(separatedBy: "/").last ?? ""
+                                    fetchedRecords.append(parseAttendanceRecord(docId: docId, fields: fields))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            fetchedRecords.sort { $0.date > $1.date }
+
+            // Compute KPI Stats (Đồng bộ 1:1 với Android lines 356-402)
+            let totalRec = fetchedRecords.count
+            let onTime = fetchedRecords.filter { $0.checkInStatus == "ON_TIME" }.count
+            let late = fetchedRecords.filter { $0.checkInStatus == "LATE" }.count
+            let early = fetchedRecords.filter { $0.checkOutStatus == "EARLY" }.count
+            let totalMins = fetchedRecords.reduce(0) { $0 + $1.totalWorkMinutes }
+            let totalHours = (Double(round(Double(totalMins) / 6.0)) / 10.0)
+            let onTimePct = totalRec > 0 ? (Double(onTime) / Double(totalRec)) * 100.0 : 0.0
+            let distinctDays = Set(fetchedRecords.map { $0.date }).count
+
+            // Group by Technician
+            let summaries = Dictionary(grouping: fetchedRecords, by: { $0.userEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }).map { (em, list) in
+                let name = list.first(where: { !$0.userName.isEmpty })?.userName ?? em
+                let dName = list.first(where: { !$0.departmentName.isEmpty })?.departmentName ?? list.first?.departmentId ?? ""
+                let mnv = list.first(where: { !$0.mnvDisplay.isEmpty })?.mnvDisplay ?? ""
+                let tDays = list.count
+                let tOnTime = list.filter { $0.checkInStatus == "ON_TIME" }.count
+                let tLate = list.filter { $0.checkInStatus == "LATE" }.count
+                let tEarly = list.filter { $0.checkOutStatus == "EARLY" }.count
+                let tMins = list.reduce(0) { $0 + $1.totalWorkMinutes }
+                let tHrs = (Double(round(Double(tMins) / 6.0)) / 10.0)
+
+                return TechnicianAttendanceSummary(
+                    technicianEmail: em,
+                    technicianName: name,
+                    maNhanVien: mnv,
+                    employeeId: mnv,
+                    departmentName: dName,
+                    totalDays: tDays,
+                    onTimeDays: tOnTime,
+                    lateDays: tLate,
+                    earlyDays: tEarly,
+                    totalHours: tHrs
+                )
+            }.sorted { $0.totalDays > $1.totalDays }
+
+            let builtReport = AttendanceMonthlyReport(
+                month: targetMonth,
+                totalWorkDays: distinctDays,
+                totalRecords: totalRec,
+                onTimeCount: onTime,
+                lateCount: late,
+                earlyLeaveCount: early,
+                totalWorkHours: totalHours,
+                onTimePercentage: onTimePct,
+                records: fetchedRecords,
+                technicianSummaries: summaries
+            )
+
+            // 3. Fetch Travel Expense Records
+            var fetchedExpenses: [TravelExpenseRecord] = []
+            let expUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/expenses?pageSize=300"
+            if let expUrl = URL(string: expUrlStr) {
+                var expReq = URLRequest(url: expUrl)
+                if !idToken.isEmpty {
+                    expReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                }
+                if let (expData, expResp) = try? await URLSession.shared.data(for: expReq),
+                   let httpExp = expResp as? HTTPURLResponse, httpExp.statusCode == 200,
+                   let expJson = try? JSONSerialization.jsonObject(with: expData) as? [String: Any],
+                   let expDocs = expJson["documents"] as? [[String: Any]] {
+                    for doc in expDocs {
+                        if let fields = doc["fields"] as? [String: Any],
+                           let docName = doc["name"] as? String {
+                            let dDate = FirestoreHelper.getString(fields["date"] as? [String: Any])
+                            if dDate.hasPrefix(targetMonth) {
+                                let docId = docName.components(separatedBy: "/").last ?? ""
+                                fetchedExpenses.append(parseExpenseRecord(docId: docId, fields: fields))
+                            }
+                        }
+                    }
+                }
+            }
+
+            let expTotalTrips = fetchedExpenses.count
+            let expTotalKm = fetchedExpenses.reduce(0.0) { $0 + $1.distanceKm }
+            let expTotalAmount = fetchedExpenses.reduce(0.0) { $0 + $1.totalAmount }
+            let expPending = fetchedExpenses.filter { $0.status == "PENDING" }.reduce(0.0) { $0 + $1.totalAmount }
+            let expApproved = fetchedExpenses.filter { $0.status == "APPROVED" }.reduce(0.0) { $0 + $1.totalAmount }
+            let expPaid = fetchedExpenses.filter { $0.status == "PAID" }.reduce(0.0) { $0 + $1.totalAmount }
+            let expRejected = fetchedExpenses.filter { $0.status == "REJECTED" }.reduce(0.0) { $0 + $1.totalAmount }
+
+            let expSummaries = Dictionary(grouping: fetchedExpenses, by: { $0.technicianEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }).map { (em, list) in
+                let name = list.first(where: { !$0.technicianName.isEmpty })?.technicianName ?? em
+                let dName = list.first(where: { !$0.departmentId.isEmpty })?.departmentId ?? ""
+                let tTrips = list.count
+                let tKm = list.reduce(0.0) { $0 + $1.distanceKm }
+                let tAmt = list.reduce(0.0) { $0 + $1.totalAmount }
+                let pAmt = list.filter { $0.status == "PENDING" }.reduce(0.0) { $0 + $1.totalAmount }
+                let aAmt = list.filter { $0.status == "APPROVED" }.reduce(0.0) { $0 + $1.totalAmount }
+                let pdAmt = list.filter { $0.status == "PAID" }.reduce(0.0) { $0 + $1.totalAmount }
+                let rAmt = list.filter { $0.status == "REJECTED" }.reduce(0.0) { $0 + $1.totalAmount }
+                let pCnt = list.filter { $0.status == "PENDING" }.count
+                let aCnt = list.filter { $0.status == "APPROVED" }.count
+                let pdCnt = list.filter { $0.status == "PAID" }.count
+                let rCnt = list.filter { $0.status == "REJECTED" }.count
+                return TechnicianExpenseSummary(
+                    technicianEmail: em,
+                    technicianName: name,
+                    maNhanVien: "",
+                    employeeId: "",
+                    departmentName: dName,
+                    totalTrips: tTrips,
+                    totalDistanceKm: tKm,
+                    totalAmount: tAmt,
+                    pendingAmount: pAmt,
+                    approvedAmount: aAmt,
+                    paidAmount: pdAmt,
+                    rejectedAmount: rAmt,
+                    pendingCount: pCnt,
+                    approvedCount: aCnt,
+                    paidCount: pdCnt,
+                    rejectedCount: rCnt
+                )
+            }.sorted { $0.totalTrips > $1.totalTrips }
+
+            let builtExpenseReport = TravelExpenseReport(
+                month: targetMonth,
+                totalTrips: expTotalTrips,
+                totalDistanceKm: expTotalKm,
+                totalExpenseAmount: expTotalAmount,
+                pendingAmount: expPending,
+                approvedAmount: expApproved,
+                paidAmount: expPaid,
+                rejectedAmount: expRejected,
+                records: fetchedExpenses,
+                technicianSummaries: expSummaries
+            )
+
+            await MainActor.run {
+                self.attendanceReport = builtReport
+                self.expenseReport = builtExpenseReport
+                self.attendanceHistory = fetchedRecords
+                self.isLoadingReport = false
+            }
+        }
+    }
+
+    // MARK: - FETCH TRAVEL EXPENSE CONFIG ASYNC HELPER
+    public func fetchTravelExpenseConfigAsync() async {
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanComp.isEmpty else { return }
+
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/travel_expense_config"
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        if !idToken.isEmpty {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        if let (data, response) = try? await URLSession.shared.data(for: request),
+           let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let fields = json["fields"] as? [String: Any] {
+
+            var cfg = TravelExpenseConfig()
+            cfg.standardCheckInTime = FirestoreHelper.getString(fields["standardCheckInTime"] as? [String: Any])
+            if cfg.standardCheckInTime.isEmpty { cfg.standardCheckInTime = "08:00" }
+            cfg.standardCheckOutTime = FirestoreHelper.getString(fields["standardCheckOutTime"] as? [String: Any])
+            if cfg.standardCheckOutTime.isEmpty { cfg.standardCheckOutTime = "17:00" }
+            cfg.shift1CheckInTime = FirestoreHelper.getString(fields["shift1CheckInTime"] as? [String: Any])
+            if cfg.shift1CheckInTime.isEmpty { cfg.shift1CheckInTime = "07:00" }
+            cfg.shift1CheckOutTime = FirestoreHelper.getString(fields["shift1CheckOutTime"] as? [String: Any])
+            if cfg.shift1CheckOutTime.isEmpty { cfg.shift1CheckOutTime = "15:00" }
+            cfg.shift2CheckInTime = FirestoreHelper.getString(fields["shift2CheckInTime"] as? [String: Any])
+            if cfg.shift2CheckInTime.isEmpty { cfg.shift2CheckInTime = "14:00" }
+            cfg.shift2CheckOutTime = FirestoreHelper.getString(fields["shift2CheckOutTime"] as? [String: Any])
+            if cfg.shift2CheckOutTime.isEmpty { cfg.shift2CheckOutTime = "22:00" }
+            cfg.nightCheckInTime = FirestoreHelper.getString(fields["nightCheckInTime"] as? [String: Any])
+            if cfg.nightCheckInTime.isEmpty { cfg.nightCheckInTime = "22:00" }
+            cfg.nightCheckOutTime = FirestoreHelper.getString(fields["nightCheckOutTime"] as? [String: Any])
+            if cfg.nightCheckOutTime.isEmpty { cfg.nightCheckOutTime = "06:00" }
+
+            let lateM = FirestoreHelper.getInt(fields["maxCheckInLateMinutes"] as? [String: Any])
+            cfg.maxCheckInLateMinutes = lateM > 0 ? lateM : 15
+            let radius = FirestoreHelper.getDouble(fields["geofenceRadiusMeters"] as? [String: Any])
+            cfg.geofenceRadiusMeters = radius > 0 ? radius : 250.0
+
+            cfg.targetLatitude = FirestoreHelper.getDouble(fields["targetLatitude"] as? [String: Any])
+            cfg.targetLongitude = FirestoreHelper.getDouble(fields["targetLongitude"] as? [String: Any])
+            cfg.targetAddress = FirestoreHelper.getString(fields["targetAddress"] as? [String: Any])
+
+            let pKm = FirestoreHelper.getDouble(fields["pricePerKm"] as? [String: Any])
+            cfg.pricePerKm = pKm > 0 ? pKm : 5000.0
+            let tAllow = FirestoreHelper.getDouble(fields["tripBaseAllowance"] as? [String: Any])
+            cfg.tripBaseAllowance = tAllow > 0 ? tAllow : 50000.0
+            cfg.overtimeMultiplier = FirestoreHelper.getDouble(fields["overtimeMultiplier"] as? [String: Any])
+
+            await MainActor.run {
+                self.travelConfig = cfg
+                self.cfgStandardCheckIn = cfg.standardCheckInTime
+                self.cfgStandardCheckOut = cfg.standardCheckOutTime
+                self.cfgShift1CheckIn = cfg.shift1CheckInTime
+                self.cfgShift1CheckOut = cfg.shift1CheckOutTime
+                self.cfgShift2CheckIn = cfg.shift2CheckInTime
+                self.cfgShift2CheckOut = cfg.shift2CheckOutTime
+                self.cfgNightCheckIn = cfg.nightCheckInTime
+                self.cfgNightCheckOut = cfg.nightCheckOutTime
+                self.cfgMaxLateMinutes = "\(cfg.maxCheckInLateMinutes)"
+                self.cfgGeofenceRadius = "\(Int(cfg.geofenceRadiusMeters))"
+                self.cfgTargetAddress = cfg.targetAddress
+                self.cfgPricePerKm = "\(Int(cfg.pricePerKm))"
+                self.cfgTripBaseAllowance = "\(Int(cfg.tripBaseAllowance))"
+                self.cfgOvertimeMultiplier = cfg.overtimeMultiplier > 0 ? "\(cfg.overtimeMultiplier)" : "0"
+            }
+        }
+    }
+
+    // MARK: - SAVE TRAVEL EXPENSE CONFIG (ĐỒNG BỘ ANDROID AttendanceReportScreen.kt lines 1438-1600)
+    public func saveTravelExpenseConfig() {
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanComp.isEmpty else { return }
+
+        Task {
+            await MainActor.run { self.isSavingReportConfig = true }
+
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/travel_expense_config"
+            guard let url = URL(string: urlStr) else {
+                await MainActor.run { self.isSavingReportConfig = false }
+                return
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            if !idToken.isEmpty {
+                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            }
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let pKm = Double(cfgPricePerKm) ?? 5000.0
+            let tAllow = Double(cfgTripBaseAllowance) ?? 50000.0
+            let oMulti = Double(cfgOvertimeMultiplier) ?? 0.0
+            let maxLate = Int(cfgMaxLateMinutes) ?? 15
+            let geofenceR = Double(cfgGeofenceRadius) ?? 250.0
+
+            let fields: [String: Any] = [
+                "standardCheckInTime": ["stringValue": cfgStandardCheckIn],
+                "standardCheckOutTime": ["stringValue": cfgStandardCheckOut],
+                "shift1CheckInTime": ["stringValue": cfgShift1CheckIn],
+                "shift1CheckOutTime": ["stringValue": cfgShift1CheckOut],
+                "shift2CheckInTime": ["stringValue": cfgShift2CheckIn],
+                "shift2CheckOutTime": ["stringValue": cfgShift2CheckOut],
+                "nightCheckInTime": ["stringValue": cfgNightCheckIn],
+                "nightCheckOutTime": ["stringValue": cfgNightCheckOut],
+                "maxCheckInLateMinutes": ["integerValue": String(maxLate)],
+                "geofenceRadiusMeters": ["doubleValue": geofenceR],
+                "targetAddress": ["stringValue": cfgTargetAddress],
+                "pricePerKm": ["doubleValue": pKm],
+                "tripBaseAllowance": ["doubleValue": tAllow],
+                "overtimeMultiplier": ["doubleValue": oMulti]
+            ]
+            let body = ["fields": fields]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+            if let (_, resp) = try? await URLSession.shared.data(for: request),
+               let http = resp as? HTTPURLResponse, http.statusCode == 200 {
+                await MainActor.run {
+                    self.travelConfig.pricePerKm = pKm
+                    self.travelConfig.tripBaseAllowance = tAllow
+                    self.travelConfig.standardCheckInTime = cfgStandardCheckIn
+                    self.travelConfig.standardCheckOutTime = cfgStandardCheckOut
+                    self.travelConfig.shift1CheckInTime = cfgShift1CheckIn
+                    self.travelConfig.shift1CheckOutTime = cfgShift1CheckOut
+                    self.travelConfig.shift2CheckInTime = cfgShift2CheckIn
+                    self.travelConfig.shift2CheckOutTime = cfgShift2CheckOut
+                    self.travelConfig.nightCheckInTime = cfgNightCheckIn
+                    self.travelConfig.nightCheckOutTime = cfgNightCheckOut
+                    self.travelConfig.maxCheckInLateMinutes = maxLate
+                    self.travelConfig.geofenceRadiusMeters = geofenceR
+                    self.travelConfig.targetAddress = cfgTargetAddress
+                    self.isSavingReportConfig = false
+                    self.successMessage = "Đã lưu cấu hình định mức & khung giờ thành công!"
+                }
+            } else {
+                await MainActor.run {
+                    self.isSavingReportConfig = false
+                    self.errorMessage = "Lỗi lưu cấu hình định mức!"
+                }
+            }
+        }
+    }
 }
+
