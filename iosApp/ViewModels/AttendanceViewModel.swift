@@ -1250,71 +1250,218 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         selectedReportMonth = targetMonth
 
         Task {
-            await MainActor.run { self.isLoadingReport = true }
+            await self.performFetchMonthlyReport(targetMonth: targetMonth)
+        }
+    }
 
-            let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            guard !cleanComp.isEmpty else {
-                await MainActor.run { self.isLoadingReport = false }
-                return
+    private func performFetchMonthlyReport(targetMonth: String) async {
+        await MainActor.run { self.isLoadingReport = true }
+
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanComp.isEmpty else {
+            await MainActor.run { self.isLoadingReport = false }
+            return
+        }
+
+        // 1. Fetch Travel Expense Config
+        await fetchTravelExpenseConfigAsync()
+
+        // 2. Fetch attendances
+        let fetchedRecords = await fetchMonthlyAttendances(cleanComp: cleanComp, targetMonth: targetMonth)
+
+        // Compute KPI Stats (Đồng bộ 1:1 với Android lines 356-402)
+        let totalRec: Int = fetchedRecords.count
+        let onTime: Int = fetchedRecords.filter { $0.checkInStatus == "ON_TIME" }.count
+        let late: Int = fetchedRecords.filter { $0.checkInStatus == "LATE" }.count
+        let early: Int = fetchedRecords.filter { $0.checkOutStatus == "EARLY" }.count
+        let totalMins: Int = fetchedRecords.reduce(0) { (acc: Int, r: AttendanceRecord) -> Int in acc + r.totalWorkMinutes }
+        let totalHours: Double = (Double(round(Double(totalMins) / 6.0)) / 10.0)
+        let onTimePct: Double = totalRec > 0 ? (Double(onTime) / Double(totalRec)) * 100.0 : 0.0
+        let distinctDays: Int = Set(fetchedRecords.map { $0.date }).count
+
+        // Group by Technician
+        let summaries: [TechnicianAttendanceSummary] = Dictionary(grouping: fetchedRecords, by: { $0.userEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }).map { (em: String, list: [AttendanceRecord]) -> TechnicianAttendanceSummary in
+            let name = list.first(where: { !$0.userName.isEmpty })?.userName ?? em
+            let dName = list.first(where: { !$0.departmentName.isEmpty })?.departmentName ?? list.first?.departmentId ?? ""
+            let mnv = list.first(where: { !$0.mnvDisplay.isEmpty })?.mnvDisplay ?? ""
+            let tDays = list.count
+            let tOnTime = list.filter { $0.checkInStatus == "ON_TIME" }.count
+            let tLate = list.filter { $0.checkInStatus == "LATE" }.count
+            let tEarly = list.filter { $0.checkOutStatus == "EARLY" }.count
+            let tMins = list.reduce(0) { (acc: Int, r: AttendanceRecord) -> Int in acc + r.totalWorkMinutes }
+            let tHrs = (Double(round(Double(tMins) / 6.0)) / 10.0)
+
+            return TechnicianAttendanceSummary(
+                technicianEmail: em,
+                technicianName: name,
+                maNhanVien: mnv,
+                employeeId: mnv,
+                departmentName: dName,
+                totalDays: tDays,
+                onTimeDays: tOnTime,
+                lateDays: tLate,
+                earlyDays: tEarly,
+                totalHours: tHrs
+            )
+        }.sorted { $0.totalDays > $1.totalDays }
+
+        let builtReport = AttendanceMonthlyReport(
+            month: targetMonth,
+            totalWorkDays: distinctDays,
+            totalRecords: totalRec,
+            onTimeCount: onTime,
+            lateCount: late,
+            earlyLeaveCount: early,
+            totalWorkHours: totalHours,
+            onTimePercentage: onTimePct,
+            records: fetchedRecords,
+            technicianSummaries: summaries
+        )
+
+        // 3. Fetch Travel Expense Records
+        let fetchedExpenses = await fetchMonthlyExpenses(cleanComp: cleanComp, targetMonth: targetMonth)
+
+        let expTotalTrips: Int = fetchedExpenses.count
+        let expTotalKm: Double = fetchedExpenses.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.distanceKm }
+        let expTotalAmount: Double = fetchedExpenses.filter { $0.status != "REJECTED" }.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.totalAmount }
+        let expPending: Double = fetchedExpenses.filter { $0.status == "PENDING" }.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.totalAmount }
+        let expApproved: Double = fetchedExpenses.filter { $0.status == "APPROVED" }.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.totalAmount }
+        let expPaid: Double = fetchedExpenses.filter { $0.status == "PAID" }.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.totalAmount }
+        let expRejected: Double = fetchedExpenses.filter { $0.status == "REJECTED" }.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.totalAmount }
+
+        let expSummaries: [TechnicianExpenseSummary] = Dictionary(grouping: fetchedExpenses, by: { $0.technicianEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }).map { (em: String, list: [TravelExpenseRecord]) -> TechnicianExpenseSummary in
+            let name = list.first(where: { !$0.technicianName.isEmpty })?.technicianName ?? em
+            let dName = list.first(where: { !$0.departmentId.isEmpty })?.departmentId ?? ""
+            let tTrips = list.count
+            let tKm = list.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.distanceKm }
+            let tAmt = list.filter { $0.status != "REJECTED" }.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.totalAmount }
+            let pAmt = list.filter { $0.status == "PENDING" }.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.totalAmount }
+            let aAmt = list.filter { $0.status == "APPROVED" }.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.totalAmount }
+            let pdAmt = list.filter { $0.status == "PAID" }.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.totalAmount }
+            let rAmt = list.filter { $0.status == "REJECTED" }.reduce(0.0) { (acc: Double, r: TravelExpenseRecord) -> Double in acc + r.totalAmount }
+            let pCnt = list.filter { $0.status == "PENDING" }.count
+            let aCnt = list.filter { $0.status == "APPROVED" }.count
+            let pdCnt = list.filter { $0.status == "PAID" }.count
+            let rCnt = list.filter { $0.status == "REJECTED" }.count
+            return TechnicianExpenseSummary(
+                technicianEmail: em,
+                technicianName: name,
+                maNhanVien: "",
+                employeeId: "",
+                departmentName: dName,
+                totalTrips: tTrips,
+                totalDistanceKm: tKm,
+                totalAmount: tAmt,
+                pendingAmount: pAmt,
+                approvedAmount: aAmt,
+                paidAmount: pdAmt,
+                rejectedAmount: rAmt,
+                pendingCount: pCnt,
+                approvedCount: aCnt,
+                paidCount: pdCnt,
+                rejectedCount: rCnt
+            )
+        }.sorted { $0.totalTrips > $1.totalTrips }
+
+        let builtExpenseReport = TravelExpenseReport(
+            month: targetMonth,
+            totalTrips: expTotalTrips,
+            totalDistanceKm: expTotalKm,
+            totalExpenseAmount: expTotalAmount,
+            pendingAmount: expPending,
+            approvedAmount: expApproved,
+            paidAmount: expPaid,
+            rejectedAmount: expRejected,
+            records: fetchedExpenses,
+            technicianSummaries: expSummaries
+        )
+
+        await MainActor.run {
+            self.attendanceReport = builtReport
+            self.expenseReport = builtExpenseReport
+            self.attendanceHistory = fetchedRecords
+            self.isLoadingReport = false
+        }
+    }
+
+    private func fetchMonthlyAttendances(cleanComp: String, targetMonth: String) async -> [AttendanceRecord] {
+        var fetchedRecords: [AttendanceRecord] = []
+
+        let queryUrlStr = "\(FirebaseConfig.firestoreBaseUrl):runQuery"
+        if let qUrl = URL(string: queryUrlStr) {
+            var qReq = URLRequest(url: qUrl)
+            qReq.httpMethod = "POST"
+            if !idToken.isEmpty {
+                qReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
+            qReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            // 1. Fetch Travel Expense Config
-            await fetchTravelExpenseConfigAsync()
-
-            // 2. Query all attendances in company for this month
-            var fetchedRecords: [AttendanceRecord] = []
-
-            // Try structuredQuery
-            let queryUrlStr = "\(FirebaseConfig.firestoreBaseUrl):runQuery"
-            if let qUrl = URL(string: queryUrlStr) {
-                var qReq = URLRequest(url: qUrl)
-                qReq.httpMethod = "POST"
-                if !idToken.isEmpty {
-                    qReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                }
-                qReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-                let body: [String: Any] = [
-                    "structuredQuery": [
-                        "from": [["collectionId": "attendances"]],
-                        "where": [
-                            "compositeFilter": [
-                                "op": "AND",
-                                "filters": [
-                                    [
-                                        "fieldFilter": [
-                                            "field": ["fieldPath": "date"],
-                                            "op": "GREATER_THAN_OR_EQUAL",
-                                            "value": ["stringValue": "\(targetMonth)-01"]
-                                        ]
-                                    ],
-                                    [
-                                        "fieldFilter": [
-                                            "field": ["fieldPath": "date"],
-                                            "op": "LESS_THAN_OR_EQUAL",
-                                            "value": ["stringValue": "\(targetMonth)-31\u{F7FF}"]
-                                        ]
+            let body: [String: Any] = [
+                "structuredQuery": [
+                    "from": [["collectionId": "attendances"]],
+                    "where": [
+                        "compositeFilter": [
+                            "op": "AND",
+                            "filters": [
+                                [
+                                    "fieldFilter": [
+                                        "field": ["fieldPath": "date"],
+                                        "op": "GREATER_THAN_OR_EQUAL",
+                                        "value": ["stringValue": "\(targetMonth)-01"]
+                                    ]
+                                ],
+                                [
+                                    "fieldFilter": [
+                                        "field": ["fieldPath": "date"],
+                                        "op": "LESS_THAN_OR_EQUAL",
+                                        "value": ["stringValue": "\(targetMonth)-31\u{F7FF}"]
                                     ]
                                 ]
                             ]
-                        ],
-                        "orderBy": [
-                            [
-                                "field": ["fieldPath": "date"],
-                                "direction": "DESCENDING"
-                            ]
                         ]
                     ],
-                    "parent": "projects/\(FirebaseConfig.projectId)/databases/(default)/documents/companies/\(cleanComp)"
-                ]
-                qReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
+                    "orderBy": [
+                        [
+                            "field": ["fieldPath": "date"],
+                            "direction": "DESCENDING"
+                        ]
+                    ]
+                ],
+                "parent": "projects/\(FirebaseConfig.projectId)/databases/(default)/documents/companies/\(cleanComp)"
+            ]
+            qReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-                if let (data, resp) = try? await URLSession.shared.data(for: qReq),
+            if let (data, resp) = try? await URLSession.shared.data(for: qReq),
+               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+               let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                for docResult in jsonArray {
+                    if let doc = docResult["document"] as? [String: Any],
+                       let fields = doc["fields"] as? [String: Any],
+                       let docName = doc["name"] as? String {
+                        let dDate = FirestoreHelper.getString(fields["date"] as? [String: Any])
+                        if dDate.hasPrefix(targetMonth) {
+                            let docId = docName.components(separatedBy: "/").last ?? ""
+                            fetchedRecords.append(parseAttendanceRecord(docId: docId, fields: fields))
+                        }
+                    }
+                }
+            }
+        }
+
+        // Fallback: list collection attendances if structuredQuery didn't return
+        if fetchedRecords.isEmpty {
+            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/attendances?pageSize=300"
+            if let listUrl = URL(string: listUrlStr) {
+                var listReq = URLRequest(url: listUrl)
+                if !idToken.isEmpty {
+                    listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                }
+                if let (data, resp) = try? await URLSession.shared.data(for: listReq),
                    let http = resp as? HTTPURLResponse, http.statusCode == 200,
-                   let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-                    for docResult in jsonArray {
-                        if let doc = docResult["document"] as? [String: Any],
-                           let fields = doc["fields"] as? [String: Any],
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let docs = json["documents"] as? [[String: Any]] {
+                    for doc in docs {
+                        if let fields = doc["fields"] as? [String: Any],
                            let docName = doc["name"] as? String {
                             let dDate = FirestoreHelper.getString(fields["date"] as? [String: Any])
                             if dDate.hasPrefix(targetMonth) {
@@ -1325,327 +1472,193 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     }
                 }
             }
+        }
 
-            // Fallback: list collection attendances if structuredQuery didn't return
-            if fetchedRecords.isEmpty {
-                let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/attendances?pageSize=300"
-                if let listUrl = URL(string: listUrlStr) {
-                    var listReq = URLRequest(url: listUrl)
-                    if !idToken.isEmpty {
-                        listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                    }
-                    if let (data, resp) = try? await URLSession.shared.data(for: listReq),
-                       let http = resp as? HTTPURLResponse, http.statusCode == 200,
-                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let docs = json["documents"] as? [[String: Any]] {
-                        for doc in docs {
-                            if let fields = doc["fields"] as? [String: Any],
-                               let docName = doc["name"] as? String {
-                                let dDate = FirestoreHelper.getString(fields["date"] as? [String: Any])
-                                if dDate.hasPrefix(targetMonth) {
-                                    let docId = docName.components(separatedBy: "/").last ?? ""
-                                    fetchedRecords.append(parseAttendanceRecord(docId: docId, fields: fields))
-                                }
-                            }
-                        }
-                    }
-                }
+        fetchedRecords.sort { $0.date > $1.date }
+        return fetchedRecords
+    }
+
+    private func fetchMonthlyExpenses(cleanComp: String, targetMonth: String) async -> [TravelExpenseRecord] {
+        var savedExpenseStatusMap: [String: String] = [:]
+        var savedRejectReasonMap: [String: String] = [:]
+
+        let expUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/travel_expenses?pageSize=300"
+        if let expUrl = URL(string: expUrlStr) {
+            var expReq = URLRequest(url: expUrl)
+            if !idToken.isEmpty {
+                expReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
-
-            fetchedRecords.sort { $0.date > $1.date }
-
-            // Compute KPI Stats (Đồng bộ 1:1 với Android lines 356-402)
-            let totalRec = fetchedRecords.count
-            let onTime = fetchedRecords.filter { $0.checkInStatus == "ON_TIME" }.count
-            let late = fetchedRecords.filter { $0.checkInStatus == "LATE" }.count
-            let early = fetchedRecords.filter { $0.checkOutStatus == "EARLY" }.count
-            let totalMins = fetchedRecords.reduce(0) { $0 + $1.totalWorkMinutes }
-            let totalHours = (Double(round(Double(totalMins) / 6.0)) / 10.0)
-            let onTimePct = totalRec > 0 ? (Double(onTime) / Double(totalRec)) * 100.0 : 0.0
-            let distinctDays = Set(fetchedRecords.map { $0.date }).count
-
-            // Group by Technician
-            let summaries = Dictionary(grouping: fetchedRecords, by: { $0.userEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }).map { (em, list) in
-                let name = list.first(where: { !$0.userName.isEmpty })?.userName ?? em
-                let dName = list.first(where: { !$0.departmentName.isEmpty })?.departmentName ?? list.first?.departmentId ?? ""
-                let mnv = list.first(where: { !$0.mnvDisplay.isEmpty })?.mnvDisplay ?? ""
-                let tDays = list.count
-                let tOnTime = list.filter { $0.checkInStatus == "ON_TIME" }.count
-                let tLate = list.filter { $0.checkInStatus == "LATE" }.count
-                let tEarly = list.filter { $0.checkOutStatus == "EARLY" }.count
-                let tMins = list.reduce(0) { $0 + $1.totalWorkMinutes }
-                let tHrs = (Double(round(Double(tMins) / 6.0)) / 10.0)
-
-                return TechnicianAttendanceSummary(
-                    technicianEmail: em,
-                    technicianName: name,
-                    maNhanVien: mnv,
-                    employeeId: mnv,
-                    departmentName: dName,
-                    totalDays: tDays,
-                    onTimeDays: tOnTime,
-                    lateDays: tLate,
-                    earlyDays: tEarly,
-                    totalHours: tHrs
-                )
-            }.sorted { $0.totalDays > $1.totalDays }
-
-            let builtReport = AttendanceMonthlyReport(
-                month: targetMonth,
-                totalWorkDays: distinctDays,
-                totalRecords: totalRec,
-                onTimeCount: onTime,
-                lateCount: late,
-                earlyLeaveCount: early,
-                totalWorkHours: totalHours,
-                onTimePercentage: onTimePct,
-                records: fetchedRecords,
-                technicianSummaries: summaries
-            )
-
-            // 3. Fetch Travel Expense Records from travel_expenses and support_tickets (Matching Android AttendanceRepository.kt lines 460-685)
-            var savedExpenseStatusMap: [String: String] = [:]
-            var savedRejectReasonMap: [String: String] = [:]
-
-            let expUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/travel_expenses?pageSize=300"
-            if let expUrl = URL(string: expUrlStr) {
-                var expReq = URLRequest(url: expUrl)
-                if !idToken.isEmpty {
-                    expReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                }
-                if let (expData, expResp) = try? await URLSession.shared.data(for: expReq),
-                   let httpExp = expResp as? HTTPURLResponse, httpExp.statusCode == 200,
-                   let expJson = try? JSONSerialization.jsonObject(with: expData) as? [String: Any],
-                   let expDocs = expJson["documents"] as? [[String: Any]] {
-                    for doc in expDocs {
-                        if let fields = doc["fields"] as? [String: Any],
-                           let docName = doc["name"] as? String {
-                            let docId = docName.components(separatedBy: "/").last ?? ""
-                            let st = FirestoreHelper.getString(fields["status"] as? [String: Any])
-                            let rj = FirestoreHelper.getString(fields["rejectReason"] as? [String: Any])
-                            if !docId.isEmpty {
-                                savedExpenseStatusMap[docId] = st.isEmpty ? "PENDING" : st
-                                if !rj.isEmpty { savedRejectReasonMap[docId] = rj }
-                            }
+            if let (expData, expResp) = try? await URLSession.shared.data(for: expReq),
+               let httpExp = expResp as? HTTPURLResponse, httpExp.statusCode == 200,
+               let expJson = try? JSONSerialization.jsonObject(with: expData) as? [String: Any],
+               let expDocs = expJson["documents"] as? [[String: Any]] {
+                for doc in expDocs {
+                    if let fields = doc["fields"] as? [String: Any],
+                       let docName = doc["name"] as? String {
+                        let docId = docName.components(separatedBy: "/").last ?? ""
+                        let st = FirestoreHelper.getString(fields["status"] as? [String: Any])
+                        let rj = FirestoreHelper.getString(fields["rejectReason"] as? [String: Any])
+                        if !docId.isEmpty {
+                            savedExpenseStatusMap[docId] = st.isEmpty ? "PENDING" : st
+                            if !rj.isEmpty { savedRejectReasonMap[docId] = rj }
                         }
                     }
                 }
-            }
-
-            var fetchedExpenses: [TravelExpenseRecord] = []
-            let tixUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=300"
-            if let tixUrl = URL(string: tixUrlStr) {
-                var tixReq = URLRequest(url: tixUrl)
-                if !idToken.isEmpty {
-                    tixReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                }
-                if let (tixData, tixResp) = try? await URLSession.shared.data(for: tixReq),
-                   let httpTix = tixResp as? HTTPURLResponse, httpTix.statusCode == 200,
-                   let tixJson = try? JSONSerialization.jsonObject(with: tixData) as? [String: Any],
-                   let tixDocs = tixJson["documents"] as? [[String: Any]] {
-
-                    let df = DateFormatter()
-                    df.dateFormat = "yyyy-MM-dd"
-                    df.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
-
-                    let cfg = self.travelConfig
-                    let pKm = cfg.pricePerKm > 0 ? cfg.pricePerKm : (Double(self.cfgPricePerKm) ?? 5000.0)
-                    let tAllow = cfg.tripBaseAllowance > 0 ? cfg.tripBaseAllowance : (Double(self.cfgTripBaseAllowance) ?? 50000.0)
-
-                    for doc in tixDocs {
-                        guard let fields = doc["fields"] as? [String: Any],
-                              let docName = doc["name"] as? String else { continue }
-                        let ticketId = docName.components(separatedBy: "/").last ?? ""
-                        let createdAt = FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
-                        let ticketDate = createdAt > 0 ? df.string(from: Date(timeIntervalSince1970: Double(createdAt) / 1000.0)) : ""
-                        guard ticketDate.hasPrefix(targetMonth) else { continue }
-
-                        let trackingFields = (fields["tracking"] as? [String: Any])?["mapValue"] as? [String: Any]? ?? nil
-                        let trMap = trackingFields?["fields"] as? [String: Any]
-
-                        let rawDistKm = FirestoreHelper.getDouble(trMap?["distanceKm"] as? [String: Any])
-                        let traveledKm = FirestoreHelper.getDouble(trMap?["traveledDistanceKm"] as? [String: Any])
-                        let trackingStatus = FirestoreHelper.getString(trMap?["status"] as? [String: Any])
-                        let destName = FirestoreHelper.getString(trMap?["destName"] as? [String: Any])
-                        let trackingTechEmail = FirestoreHelper.getString(trMap?["technicianEmail"] as? [String: Any])
-                        let trackingTechName = FirestoreHelper.getString(trMap?["technicianName"] as? [String: Any])
-
-                        let assignedToEmail = FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any])
-                        let assignedTo = FirestoreHelper.getString(fields["assignedTo"] as? [String: Any])
-                        let assignedToName = FirestoreHelper.getString(fields["assignedToName"] as? [String: Any])
-                        let assignedDept = FirestoreHelper.getString(fields["assignedDepartmentId"] as? [String: Any])
-                        let assignedDeptName = FirestoreHelper.getString(fields["assignedDepartmentName"] as? [String: Any])
-                        let donVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
-                        let subject = FirestoreHelper.getString(fields["subject"] as? [String: Any])
-                        let resolvedReason = FirestoreHelper.getString(fields["resolvedReason"] as? [String: Any])
-                        let resolutionNote = FirestoreHelper.getString(fields["resolutionNote"] as? [String: Any])
-
-                        let techEmail = !trackingTechEmail.isEmpty ? trackingTechEmail : (!assignedToEmail.isEmpty ? assignedToEmail : assignedTo)
-                        let techName = !trackingTechName.isEmpty ? trackingTechName : (!assignedToName.isEmpty ? assignedToName : techEmail)
-                        guard !techEmail.isEmpty else { continue }
-
-                        let isCancelled = trackingStatus.localizedCaseInsensitiveContains("CANCEL") ||
-                                          resolvedReason.localizedCaseInsensitiveContains("SELF_RESOLVED") ||
-                                          resolvedReason.localizedCaseInsensitiveContains("CANCEL")
-
-                        var effectiveDistKm = traveledKm > 0.0 ? traveledKm : rawDistKm
-                        var noteStr = ""
-                        var autoStatus = "PENDING"
-                        var autoReason = ""
-                        var customTripAllowance: Double? = nil
-
-                        if isCancelled {
-                            let thresholdPct = min(max(cfg.cancellationThresholdPercent, 10), 90)
-                            let thresholdRatio = Double(thresholdPct) / 100.0
-                            if rawDistKm > 0.0 {
-                                let progressRatio = traveledKm / rawDistKm
-                                if progressRatio < thresholdRatio {
-                                    switch cfg.underThresholdPolicy.uppercased() {
-                                    case "FULL_TRIP":
-                                        effectiveDistKm = rawDistKm
-                                        customTripAllowance = tAllow
-                                        noteStr = "⚠️ Hủy dưới \(thresholdPct)% đoạn đường ➔ Quyết toán hoàn thành cả đoạn (100%)"
-                                    case "ACTUAL_KM":
-                                        effectiveDistKm = traveledKm * 2.0
-                                        customTripAllowance = tAllow * 0.5
-                                        noteStr = "⚠️ Hủy dưới \(thresholdPct)% đoạn đường ➔ Tính Km thực tế × 2"
-                                    case "FLAT_FEE":
-                                        effectiveDistKm = 0.0
-                                        customTripAllowance = cfg.underThresholdFlatFee
-                                        noteStr = "⚠️ Hủy dưới \(thresholdPct)% đoạn đường ➔ Phụ cấp hủy cố định \(Int(cfg.underThresholdFlatFee))đ"
-                                    default:
-                                        effectiveDistKm = rawDistKm * 0.5
-                                        customTripAllowance = tAllow * 0.5
-                                        noteStr = "⚠️ Hủy dưới \(thresholdPct)% đoạn đường ➔ Quyết toán 1/2 đoạn đường"
-                                    }
-                                } else {
-                                    effectiveDistKm = rawDistKm
-                                    customTripAllowance = tAllow
-                                    noteStr = "⚠️ Hủy khi đã đi >= \(thresholdPct)% đoạn đường ➔ Quyết toán trọn gói 100%"
-                                }
-                            } else {
-                                if traveledKm >= 0.5 {
-                                    effectiveDistKm = traveledKm
-                                    noteStr = "⚠️ Hủy giữa đường - Đã đi \(String(format: "%.1f", traveledKm)) km"
-                                } else {
-                                    effectiveDistKm = 0.0
-                                    noteStr = "⛔ Hủy tại chỗ (< 500m)"
-                                    autoStatus = "REJECTED"
-                                    autoReason = "Hủy ca tại chỗ / chưa di chuyển"
-                                }
-                            }
-                        }
-
-                        let kmAmount = effectiveDistKm * pKm
-                        var isOvertime = false
-                        if createdAt > 0 {
-                            let dateObj = Date(timeIntervalSince1970: Double(createdAt) / 1000.0)
-                            var cal = Calendar(identifier: .gregorian)
-                            cal.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
-                            let hour = cal.component(.hour, from: dateObj)
-                            let weekday = cal.component(.weekday, from: dateObj) // 1=Sun, 7=Sat
-                            isOvertime = (weekday == 1 || weekday == 7 || hour < 8 || hour >= 17)
-                        }
-
-                        let rawBaseAllowance = customTripAllowance ?? ((effectiveDistKm > 0.5 || (!donVi.isEmpty && !isCancelled)) ? tAllow : 0.0)
-                        let mult = (isOvertime && cfg.overtimeMultiplier > 1.0) ? cfg.overtimeMultiplier : 1.0
-                        let tripAllowance = rawBaseAllowance * mult
-                        let total = kmAmount + tripAllowance
-
-                        let expId = "exp_\(ticketId)"
-                        let status = savedExpenseStatusMap[expId] ?? autoStatus
-                        let reason = (savedRejectReasonMap[expId] ?? "").isEmpty ? autoReason : (savedRejectReasonMap[expId] ?? "")
-
-                        let rec = TravelExpenseRecord(
-                            id: expId,
-                            ticketId: ticketId,
-                            ticketSubject: subject.isEmpty ? "Xử lý sự cố" : subject,
-                            technicianEmail: techEmail,
-                            technicianName: techName,
-                            departmentId: !assignedDeptName.isEmpty ? assignedDeptName : assignedDept,
-                            fromDonVi: "Trụ sở / Phòng Kỹ thuật",
-                            toDonVi: !donVi.isEmpty ? donVi : (!destName.isEmpty ? destName : "Hiện trường"),
-                            date: ticketDate,
-                            timestamp: createdAt,
-                            distanceKm: effectiveDistKm,
-                            kmExpenseAmount: kmAmount,
-                            tripAllowanceAmount: tripAllowance,
-                            totalAmount: total,
-                            status: status,
-                            approvedBy: "",
-                            approvedAt: 0,
-                            note: noteStr,
-                            rejectReason: reason
-                        )
-                        fetchedExpenses.append(rec)
-                    }
-                }
-            }
-
-            fetchedExpenses.sort { $0.timestamp > $1.timestamp }
-
-            let expTotalTrips = fetchedExpenses.count
-            let expTotalKm = fetchedExpenses.reduce(0.0) { $0 + $1.distanceKm }
-            let expTotalAmount = fetchedExpenses.filter { $0.status != "REJECTED" }.reduce(0.0) { $0 + $1.totalAmount }
-            let expPending = fetchedExpenses.filter { $0.status == "PENDING" }.reduce(0.0) { $0 + $1.totalAmount }
-            let expApproved = fetchedExpenses.filter { $0.status == "APPROVED" }.reduce(0.0) { $0 + $1.totalAmount }
-            let expPaid = fetchedExpenses.filter { $0.status == "PAID" }.reduce(0.0) { $0 + $1.totalAmount }
-            let expRejected = fetchedExpenses.filter { $0.status == "REJECTED" }.reduce(0.0) { $0 + $1.totalAmount }
-
-            let expSummaries = Dictionary(grouping: fetchedExpenses, by: { $0.technicianEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }).map { (em, list) in
-                let name = list.first(where: { !$0.technicianName.isEmpty })?.technicianName ?? em
-                let dName = list.first(where: { !$0.departmentId.isEmpty })?.departmentId ?? ""
-                let tTrips = list.count
-                let tKm = list.reduce(0.0) { $0 + $1.distanceKm }
-                let tAmt = list.filter { $0.status != "REJECTED" }.reduce(0.0) { $0 + $1.totalAmount }
-                let pAmt = list.filter { $0.status == "PENDING" }.reduce(0.0) { $0 + $1.totalAmount }
-                let aAmt = list.filter { $0.status == "APPROVED" }.reduce(0.0) { $0 + $1.totalAmount }
-                let pdAmt = list.filter { $0.status == "PAID" }.reduce(0.0) { $0 + $1.totalAmount }
-                let rAmt = list.filter { $0.status == "REJECTED" }.reduce(0.0) { $0 + $1.totalAmount }
-                let pCnt = list.filter { $0.status == "PENDING" }.count
-                let aCnt = list.filter { $0.status == "APPROVED" }.count
-                let pdCnt = list.filter { $0.status == "PAID" }.count
-                let rCnt = list.filter { $0.status == "REJECTED" }.count
-                return TechnicianExpenseSummary(
-                    technicianEmail: em,
-                    technicianName: name,
-                    maNhanVien: "",
-                    employeeId: "",
-                    departmentName: dName,
-                    totalTrips: tTrips,
-                    totalDistanceKm: tKm,
-                    totalAmount: tAmt,
-                    pendingAmount: pAmt,
-                    approvedAmount: aAmt,
-                    paidAmount: pdAmt,
-                    rejectedAmount: rAmt,
-                    pendingCount: pCnt,
-                    approvedCount: aCnt,
-                    paidCount: pdCnt,
-                    rejectedCount: rCnt
-                )
-            }.sorted { $0.totalTrips > $1.totalTrips }
-
-            let builtExpenseReport = TravelExpenseReport(
-                month: targetMonth,
-                totalTrips: expTotalTrips,
-                totalDistanceKm: expTotalKm,
-                totalExpenseAmount: expTotalAmount,
-                pendingAmount: expPending,
-                approvedAmount: expApproved,
-                paidAmount: expPaid,
-                rejectedAmount: expRejected,
-                records: fetchedExpenses,
-                technicianSummaries: expSummaries
-            )
-
-            await MainActor.run {
-                self.attendanceReport = builtReport
-                self.expenseReport = builtExpenseReport
-                self.attendanceHistory = fetchedRecords
-                self.isLoadingReport = false
             }
         }
+
+        var fetchedExpenses: [TravelExpenseRecord] = []
+        let tixUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=300"
+        if let tixUrl = URL(string: tixUrlStr) {
+            var tixReq = URLRequest(url: tixUrl)
+            if !idToken.isEmpty {
+                tixReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            }
+            if let (tixData, tixResp) = try? await URLSession.shared.data(for: tixReq),
+               let httpTix = tixResp as? HTTPURLResponse, httpTix.statusCode == 200,
+               let tixJson = try? JSONSerialization.jsonObject(with: tixData) as? [String: Any],
+               let tixDocs = tixJson["documents"] as? [[String: Any]] {
+
+                let df = DateFormatter()
+                df.dateFormat = "yyyy-MM-dd"
+                df.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
+
+                let cfg = self.travelConfig
+                let pKm = cfg.pricePerKm > 0 ? cfg.pricePerKm : (Double(self.cfgPricePerKm) ?? 5000.0)
+                let tAllow = cfg.tripBaseAllowance > 0 ? cfg.tripBaseAllowance : (Double(self.cfgTripBaseAllowance) ?? 50000.0)
+
+                for doc in tixDocs {
+                    guard let fields = doc["fields"] as? [String: Any],
+                          let docName = doc["name"] as? String else { continue }
+                    let ticketId = docName.components(separatedBy: "/").last ?? ""
+                    let createdAt = FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
+                    let ticketDate = createdAt > 0 ? df.string(from: Date(timeIntervalSince1970: Double(createdAt) / 1000.0)) : ""
+                    guard ticketDate.hasPrefix(targetMonth) else { continue }
+
+                    let trackingFields = (fields["tracking"] as? [String: Any])?["mapValue"] as? [String: Any]? ?? nil
+                    let trMap = trackingFields?["fields"] as? [String: Any]
+
+                    let rawDistKm = FirestoreHelper.getDouble(trMap?["distanceKm"] as? [String: Any])
+                    let traveledKm = FirestoreHelper.getDouble(trMap?["traveledDistanceKm"] as? [String: Any])
+                    let trackingStatus = FirestoreHelper.getString(trMap?["status"] as? [String: Any])
+                    let destName = FirestoreHelper.getString(trMap?["destName"] as? [String: Any])
+                    let trackingTechEmail = FirestoreHelper.getString(trMap?["technicianEmail"] as? [String: Any])
+                    let trackingTechName = FirestoreHelper.getString(trMap?["technicianName"] as? [String: Any])
+
+                    let assignedToEmail = FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any])
+                    let assignedTo = FirestoreHelper.getString(fields["assignedTo"] as? [String: Any])
+                    let assignedToName = FirestoreHelper.getString(fields["assignedToName"] as? [String: Any])
+                    let assignedDept = FirestoreHelper.getString(fields["assignedDepartmentId"] as? [String: Any])
+                    let assignedDeptName = FirestoreHelper.getString(fields["assignedDepartmentName"] as? [String: Any])
+                    let donVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
+                    let subject = FirestoreHelper.getString(fields["subject"] as? [String: Any])
+                    let resolvedReason = FirestoreHelper.getString(fields["resolvedReason"] as? [String: Any])
+                    let resolutionNote = FirestoreHelper.getString(fields["resolutionNote"] as? [String: Any])
+
+                    let techEmail = !trackingTechEmail.isEmpty ? trackingTechEmail : (!assignedToEmail.isEmpty ? assignedToEmail : assignedTo)
+                    let techName = !trackingTechName.isEmpty ? trackingTechName : (!assignedToName.isEmpty ? assignedToName : techEmail)
+                    guard !techEmail.isEmpty else { continue }
+
+                    let isCancelled = trackingStatus.localizedCaseInsensitiveContains("CANCEL") ||
+                                      resolvedReason.localizedCaseInsensitiveContains("SELF_RESOLVED") ||
+                                      resolvedReason.localizedCaseInsensitiveContains("CANCEL")
+
+                    var effectiveDistKm = traveledKm > 0.0 ? traveledKm : rawDistKm
+                    var noteStr = ""
+                    var autoStatus = "PENDING"
+                    var autoReason = ""
+                    var customTripAllowance: Double? = nil
+
+                    if isCancelled {
+                        let thresholdPct = min(max(cfg.cancellationThresholdPercent, 10), 90)
+                        let thresholdRatio = Double(thresholdPct) / 100.0
+                        if rawDistKm > 0.0 {
+                            let progressRatio = traveledKm / rawDistKm
+                            if progressRatio < thresholdRatio {
+                                switch cfg.underThresholdPolicy.uppercased() {
+                                case "FULL_TRIP":
+                                    effectiveDistKm = rawDistKm
+                                    customTripAllowance = tAllow
+                                    noteStr = "⚠️ Hủy dưới \(thresholdPct)% đoạn đường ➔ Quyết toán hoàn thành cả đoạn (100%)"
+                                case "ACTUAL_KM":
+                                    effectiveDistKm = traveledKm * 2.0
+                                    customTripAllowance = tAllow * 0.5
+                                    noteStr = "⚠️ Hủy dưới \(thresholdPct)% đoạn đường ➔ Tính Km thực tế × 2"
+                                case "FLAT_FEE":
+                                    effectiveDistKm = 0.0
+                                    customTripAllowance = cfg.underThresholdFlatFee
+                                    noteStr = "⚠️ Hủy dưới \(thresholdPct)% đoạn đường ➔ Phụ cấp hủy cố định \(Int(cfg.underThresholdFlatFee))đ"
+                                default:
+                                    effectiveDistKm = rawDistKm * 0.5
+                                    customTripAllowance = tAllow * 0.5
+                                    noteStr = "⚠️ Hủy dưới \(thresholdPct)% đoạn đường ➔ Quyết toán 1/2 đoạn đường"
+                                }
+                            } else {
+                                effectiveDistKm = rawDistKm
+                                customTripAllowance = tAllow
+                                noteStr = "⚠️ Hủy khi đã đi >= \(thresholdPct)% đoạn đường ➔ Quyết toán trọn gói 100%"
+                            }
+                        } else {
+                            if traveledKm >= 0.5 {
+                                effectiveDistKm = traveledKm
+                                noteStr = "⚠️ Hủy giữa đường - Đã đi \(String(format: "%.1f", traveledKm)) km"
+                            } else {
+                                effectiveDistKm = 0.0
+                                noteStr = "⛔ Hủy tại chỗ (< 500m)"
+                                autoStatus = "REJECTED"
+                                autoReason = "Hủy ca tại chỗ / chưa di chuyển"
+                            }
+                        }
+                    }
+
+                    let kmAmount = effectiveDistKm * pKm
+                    var isOvertime = false
+                    if createdAt > 0 {
+                        let dateObj = Date(timeIntervalSince1970: Double(createdAt) / 1000.0)
+                        var cal = Calendar(identifier: .gregorian)
+                        cal.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
+                        let hour = cal.component(.hour, from: dateObj)
+                        let weekday = cal.component(.weekday, from: dateObj) // 1=Sun, 7=Sat
+                        isOvertime = (weekday == 1 || weekday == 7 || hour < 8 || hour >= 17)
+                    }
+
+                    let rawBaseAllowance = customTripAllowance ?? ((effectiveDistKm > 0.5 || (!donVi.isEmpty && !isCancelled)) ? tAllow : 0.0)
+                    let mult = (isOvertime && cfg.overtimeMultiplier > 1.0) ? cfg.overtimeMultiplier : 1.0
+                    let tripAllowance = rawBaseAllowance * mult
+                    let total = kmAmount + tripAllowance
+
+                    let expId = "exp_\(ticketId)"
+                    let status = savedExpenseStatusMap[expId] ?? autoStatus
+                    let reason = (savedRejectReasonMap[expId] ?? "").isEmpty ? autoReason : (savedRejectReasonMap[expId] ?? "")
+
+                    let rec = TravelExpenseRecord(
+                        id: expId,
+                        ticketId: ticketId,
+                        ticketSubject: subject.isEmpty ? "Xử lý sự cố" : subject,
+                        technicianEmail: techEmail,
+                        technicianName: techName,
+                        departmentId: !assignedDeptName.isEmpty ? assignedDeptName : assignedDept,
+                        fromDonVi: "Trụ sở / Phòng Kỹ thuật",
+                        toDonVi: !donVi.isEmpty ? donVi : (!destName.isEmpty ? destName : "Hiện trường"),
+                        date: ticketDate,
+                        timestamp: createdAt,
+                        distanceKm: effectiveDistKm,
+                        kmExpenseAmount: kmAmount,
+                        tripAllowanceAmount: tripAllowance,
+                        totalAmount: total,
+                        status: status,
+                        approvedBy: "",
+                        approvedAt: 0,
+                        note: noteStr,
+                        rejectReason: reason
+                    )
+                    fetchedExpenses.append(rec)
+                }
+            }
+        }
+
+        fetchedExpenses.sort { $0.timestamp > $1.timestamp }
+        return fetchedExpenses
     }
 
     // MARK: - FETCH TRAVEL EXPENSE CONFIG ASYNC HELPER
