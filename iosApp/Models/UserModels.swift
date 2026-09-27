@@ -173,26 +173,3 @@ public struct User: Identifiable, Codable, Hashable {
         return !cleanEmail.isEmpty ? "NV\(cleanEmail)" : "NV"
     }
 }
-
-// MARK: - TRA CỨU MÃ NHÂN VIÊN CHUẨN KTV/CHUYÊN VIÊN (ĐỒNG BỘ 1:1 ANDROID USER.KT)
-public func lookupStandardKtvMnv(email: String?, fullName: String?) -> String {
-    let em = (email ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    let fn = (fullName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-    if em.hasPrefix("hieunt") || fn.contains("trung hiếu") || fn.contains("trung hieu") { return "24979" }
-    if em.hasPrefix("tinnh") || fn.contains("hữu tín") || fn.contains("huu tin") { return "02104" }
-    if em.hasPrefix("dungtt") || fn.contains("tiến dũng") || fn.contains("tien dung") { return "00289" }
-    if em.hasPrefix("trinhtm") || fn.contains("minh trình") || fn.contains("minh trinh") { return "8564" }
-    if em.hasPrefix("sangnt") || fn.contains("thanh sang") { return "19842" }
-    if em.hasPrefix("nhat") || fn.contains("minh nhật") || fn.contains("minh nhat") { return "20972" }
-    if em.hasPrefix("phucdh") || fn.contains("hữu phúc") || fn.contains("huu phuc") { return "26063" }
-    if em.hasPrefix("tientb") || fn.contains("bá tiên") || fn.contains("ba tien") { return "28105" }
-    if em.hasPrefix("trongpd") || fn.contains("đình trọng") || fn.contains("dinh trong") { return "31290" }
-    if em.hasPrefix("huydq") || fn.contains("quốc huy") || fn.contains("quoc huy") { return "33430" }
-    if em.hasPrefix("linhnd") || fn.contains("duy linh") { return "43144" }
-    if em.hasPrefix("khanh-ht") || fn.contains("thân khánh") || fn.contains("than khanh") { return "35713" }
-    if em.hasPrefix("duchna") || fn.contains("anh đức") || fn.contains("anh duc") { return "NVDUCHN" }
-    if em.hasPrefix("hungnp") || fn.contains("phước hưng") || fn.contains("phuoc hung") { return "NVHUNGN" }
-    if em.hasPrefix("haph") || fn.contains("hải hà") || fn.contains("hai ha") { return "NVHAPH" }
-    if em.hasPrefix("minh") || fn.contains("huy minh") { return "NVMINH" }
-    return ""
-}
