@@ -4,6 +4,7 @@ import SwiftUI
 public struct MainContainerView: View {
     @StateObject private var authViewModel = AuthViewModel()
     @StateObject private var homeViewModel = HomeViewModel(user: User(), companyId: "SGCOOP", idToken: "")
+    @StateObject private var supportViewModel = SupportViewModel(user: User(), companyId: "SGCOOP", idToken: "")
     @State private var currentDestination: DrawerDestination = .home
     @State private var isDrawerOpen: Bool = false
     @State private var selectedTicketForChat: SupportTicket? = nil
@@ -115,6 +116,10 @@ public struct MainContainerView: View {
                         homeViewModel.companyId = compId
                         homeViewModel.idToken = token
                         homeViewModel.loadDashboardData()
+
+                        supportViewModel.user = user
+                        supportViewModel.companyId = compId
+                        supportViewModel.idToken = token
                     }
                     .onChange(of: authViewModel.currentUser) { newUser in
                         if let u = newUser {
@@ -122,6 +127,10 @@ public struct MainContainerView: View {
                             homeViewModel.companyId = authViewModel.currentCompanyId
                             homeViewModel.idToken = authViewModel.currentIdToken
                             homeViewModel.loadDashboardData()
+
+                            supportViewModel.user = u
+                            supportViewModel.companyId = authViewModel.currentCompanyId
+                            supportViewModel.idToken = authViewModel.currentIdToken
                         }
                     }
                     }
@@ -309,7 +318,7 @@ public struct MainContainerView: View {
 
         case .supportHub:
             SupportHubView(
-                viewModel: SupportViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: supportViewModel,
                 authViewModel: authViewModel,
                 onBack: { currentDestination = .home },
                 onSelectTicket: { ticket in
@@ -321,7 +330,7 @@ public struct MainContainerView: View {
             )
             .sheet(item: $selectedTicketForChat) { ticket in
                 TicketChatDetailView(
-                    viewModel: SupportViewModel(user: user, companyId: compId, idToken: token),
+                    viewModel: supportViewModel,
                     ticket: ticket,
                     onBack: { selectedTicketForChat = nil }
                 )
@@ -329,7 +338,7 @@ public struct MainContainerView: View {
 
         case .supportRating:
             SupportRatingReportView(
-                viewModel: SupportViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: supportViewModel,
                 onBack: { currentDestination = .supportHub }
             )
 

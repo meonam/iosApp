@@ -308,23 +308,19 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
-    // MARK: - FETCH ALL TICKETS (FIRESTORE RUN QUERY)
+    // MARK: - FETCH ALL TICKETS (FIRESTORE RUN QUERY & DIRECT FALLBACK)
     public func fetchTickets() {
         guard !companyId.isEmpty else { return }
         isLoading = true
         errorMessage = nil
 
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId):runQuery"
+            let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp):runQuery"
             guard let url = URL(string: urlStr) else {
-                self.isLoading = false
+                await MainActor.run { self.isLoading = false }
                 return
             }
-
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             let queryPayload: [String: Any] = [
                 "structuredQuery": [
@@ -337,16 +333,83 @@ public class SupportViewModel: ObservableObject {
             ]
 
             guard let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) else {
-                self.isLoading = false
+                await MainActor.run { self.isLoading = false }
                 return
             }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            if !idToken.isEmpty {
+                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            }
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = bodyData
 
-            guard let (data, response) = try? await URLSession.shared.data(for: request),
-                  let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+            var responseData: Data? = nil
+            var isSuccess = false
+
+            if let (data, response) = try? await URLSession.shared.data(for: request),
+               let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 200 {
+                    responseData = data
+                    isSuccess = true
+                } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
+                    // Retry without Authorization header if token expired or rejected
+                    var retryReq = URLRequest(url: url)
+                    retryReq.httpMethod = "POST"
+                    retryReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    retryReq.httpBody = bodyData
+                    if let (retryData, retryResp) = try? await URLSession.shared.data(for: retryReq),
+                       let retryHttp = retryResp as? HTTPURLResponse, retryHttp.statusCode == 200 {
+                        responseData = retryData
+                        isSuccess = true
+                    }
+                }
+            }
+
+            // Fallback: Nếu runQuery bị lỗi hoặc không có dữ liệu, dùng trực tiếp document listing
+            if !isSuccess {
+                let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=300"
+                if let listUrl = URL(string: listUrlStr) {
+                    var listReq = URLRequest(url: listUrl)
+                    if !idToken.isEmpty {
+                        listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                    }
+                    if let (lData, lResp) = try? await URLSession.shared.data(for: listReq),
+                       let lHttp = lResp as? HTTPURLResponse {
+                        if lHttp.statusCode == 200 {
+                            if let json = try? JSONSerialization.jsonObject(with: lData) as? [String: Any],
+                               let docs = json["documents"] as? [[String: Any]] {
+                                let wrappedDocs = docs.map { ["document": $0] }
+                                if let wrappedData = try? JSONSerialization.data(withJSONObject: wrappedDocs) {
+                                    responseData = wrappedData
+                                    isSuccess = true
+                                }
+                            }
+                        } else if lHttp.statusCode == 401 || lHttp.statusCode == 403 {
+                            var retryListReq = URLRequest(url: listUrl)
+                            if let (rData, rResp) = try? await URLSession.shared.data(for: retryListReq),
+                               let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
+                                if let json = try? JSONSerialization.jsonObject(with: rData) as? [String: Any],
+                                   let docs = json["documents"] as? [[String: Any]] {
+                                    let wrappedDocs = docs.map { ["document": $0] }
+                                    if let wrappedData = try? JSONSerialization.data(withJSONObject: wrappedDocs) {
+                                        responseData = wrappedData
+                                        isSuccess = true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            guard isSuccess, let data = responseData,
                   let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-                self.isLoading = false
-                self.errorMessage = "Không thể tải danh sách phiếu hỗ trợ"
+                await MainActor.run {
+                    self.isLoading = false
+                    self.errorMessage = "Không thể tải danh sách phiếu hỗ trợ"
+                }
                 return
             }
 
@@ -453,8 +516,11 @@ public class SupportViewModel: ObservableObject {
                 )
             }
 
-            self.rawTickets = parsed.sorted { $0.lastMessageAt.coerceAtLeast($0.createdAt) > $1.lastMessageAt.coerceAtLeast($1.createdAt) }
-            self.isLoading = false
+            let sortedTickets = parsed.sorted { $0.lastMessageAt.coerceAtLeast($0.createdAt) > $1.lastMessageAt.coerceAtLeast($1.createdAt) }
+            await MainActor.run {
+                self.rawTickets = sortedTickets
+                self.isLoading = false
+            }
         }
     }
 

@@ -105,9 +105,19 @@ public struct SupportHubView: View {
             .ignoresSafeArea(edges: .top)
         }
         .onAppear {
-            if viewModel.rawTickets.isEmpty {
-                viewModel.fetchTickets()
+            if let u = authViewModel?.currentUser {
+                viewModel.user = u
             }
+            if let c = authViewModel?.currentCompanyId, !c.isEmpty {
+                viewModel.companyId = c.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            }
+            if let t = authViewModel?.currentIdToken, !t.isEmpty {
+                viewModel.idToken = t
+            }
+            viewModel.fetchTickets()
+        }
+        .refreshable {
+            viewModel.fetchTickets()
         }
         // Sheet mở Online KTV Monitor
         .sheet(isPresented: $showKtvMonitorSheet) {
