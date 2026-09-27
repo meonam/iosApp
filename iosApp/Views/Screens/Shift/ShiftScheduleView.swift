@@ -26,8 +26,23 @@ public struct ShiftScheduleView: View {
     @State private var newName: String = ""
     @State private var newKhuVuc: String = ""
 
+    struct DaySelectionItem: Identifiable, Hashable {
+        let key: String
+        let name: String
+        var id: String { key }
+    }
+
     private let dayKeys = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
     private let dayNames = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]
+    private let dayItems: [DaySelectionItem] = [
+        DaySelectionItem(key: "mon", name: "T2"),
+        DaySelectionItem(key: "tue", name: "T3"),
+        DaySelectionItem(key: "wed", name: "T4"),
+        DaySelectionItem(key: "thu", name: "T5"),
+        DaySelectionItem(key: "fri", name: "T6"),
+        DaySelectionItem(key: "sat", name: "T7"),
+        DaySelectionItem(key: "sun", name: "CN")
+    ]
 
     public init(viewModel: ShiftViewModel, onBack: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -767,23 +782,8 @@ public struct ShiftScheduleView: View {
                             .font(.system(size: 13, weight: .semibold))
 
                         HStack(spacing: 8) {
-                            ForEach(0..<dayKeys.count, id: \.self) { i in
-                                let key = dayKeys[i]
-                                let isSel = quickAssignSelectedDays.contains(key)
-                                Button(action: {
-                                    if isSel {
-                                        quickAssignSelectedDays.remove(key)
-                                    } else {
-                                        quickAssignSelectedDays.insert(key)
-                                    }
-                                }) {
-                                    Text(dayNames[i])
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundColor(isSel ? .white : Color(hex: "#475569"))
-                                        .frame(maxWidth: .infinity, height: 38)
-                                        .background(isSel ? Color.appSecondaryDarkBlue : Color(hex: "#F1F5F9"))
-                                        .cornerRadius(8)
-                                }
+                            ForEach(dayItems) { day in
+                                dayToggleButton(day: day)
                             }
                         }
                     }
@@ -809,6 +809,25 @@ public struct ShiftScheduleView: View {
                 }
                 .padding(20)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func dayToggleButton(day: DaySelectionItem) -> some View {
+        let isSel = quickAssignSelectedDays.contains(day.key)
+        Button(action: {
+            if isSel {
+                quickAssignSelectedDays.remove(day.key)
+            } else {
+                quickAssignSelectedDays.insert(day.key)
+            }
+        }) {
+            Text(day.name)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(isSel ? .white : Color(hex: "#475569"))
+                .frame(maxWidth: .infinity, height: 38)
+                .background(isSel ? Color.appSecondaryDarkBlue : Color(hex: "#F1F5F9"))
+                .cornerRadius(8)
         }
     }
 
