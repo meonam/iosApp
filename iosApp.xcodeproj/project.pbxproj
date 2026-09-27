@@ -69,6 +69,9 @@
 		220010532C12345600000001 /* EnterpriseFeatureLockedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000532C12345600000001 /* EnterpriseFeatureLockedView.swift */; };
 		220010542C12345600000001 /* AdminSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000542C12345600000001 /* AdminSettingsView.swift */; };
 		220010552C12345600000001 /* PhanQuyenAdminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000552C12345600000001 /* PhanQuyenAdminView.swift */; };
+		220010562C12345600000001 /* CloudinaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000562C12345600000001 /* CloudinaryService.swift */; };
+		220010572C12345600000001 /* TicketItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000572C12345600000001 /* TicketItemView.swift */; };
+		220010582C12345600000001 /* ScannerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000582C12345600000001 /* ScannerSettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -135,6 +138,9 @@
 		220000532C12345600000001 /* EnterpriseFeatureLockedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnterpriseFeatureLockedView.swift; sourceTree = "<group>"; };
 		220000542C12345600000001 /* AdminSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminSettingsView.swift; sourceTree = "<group>"; };
 		220000552C12345600000001 /* PhanQuyenAdminView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhanQuyenAdminView.swift; sourceTree = "<group>"; };
+		220000562C12345600000001 /* CloudinaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudinaryService.swift; sourceTree = "<group>"; };
+		220000572C12345600000001 /* TicketItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TicketItemView.swift; sourceTree = "<group>"; };
+		220000582C12345600000001 /* ScannerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerSettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -228,6 +234,7 @@
 				220000082C12345600000001 /* FirebaseConfig.swift */,
 				220000092C12345600000001 /* FirestoreHelper.swift */,
 				220000102C12345600000001 /* AuthService.swift */,
+				220000562C12345600000001 /* CloudinaryService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -358,6 +365,7 @@
 			isa = PBXGroup;
 			children = (
 				220000272C12345600000001 /* QRScannerView.swift */,
+				220000582C12345600000001 /* ScannerSettingsView.swift */,
 			);
 			path = Scanner;
 			sourceTree = "<group>";
@@ -398,6 +406,7 @@
 			isa = PBXGroup;
 			children = (
 				220000322C12345600000001 /* CompanyBannerTickerView.swift */,
+				220000572C12345600000001 /* TicketItemView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -537,6 +546,9 @@
 				220010532C12345600000001 /* EnterpriseFeatureLockedView.swift in Sources */,
 				220010542C12345600000001 /* AdminSettingsView.swift in Sources */,
 				220010552C12345600000001 /* PhanQuyenAdminView.swift in Sources */,
+				220010562C12345600000001 /* CloudinaryService.swift in Sources */,
+				220010572C12345600000001 /* TicketItemView.swift in Sources */,
+				220010582C12345600000001 /* ScannerSettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

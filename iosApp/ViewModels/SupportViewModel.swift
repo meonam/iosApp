@@ -8,7 +8,15 @@ public class SupportViewModel: ObservableObject {
     public var idToken: String
 
     @Published public var rawTickets: [SupportTicket] = []
+    public var tickets: [SupportTicket] {
+        get { rawTickets }
+        set { rawTickets = newValue }
+    }
     @Published public var filterStatus: String = "ALL" // "ALL", "OPEN", "CLOSED", "HIDDEN"
+    public var filterTab: String {
+        get { filterStatus }
+        set { filterStatus = newValue }
+    }
     @Published public var filterSource: String = "ALL" // "ALL", "APP", "ZALO", "EMAIL", "DEPARTMENT"
     @Published public var searchQuery: String = ""
     @Published public var isLoading: Bool = false
@@ -466,6 +474,41 @@ public class SupportViewModel: ObservableObject {
         return id
     }
 
+    public func createTicket(
+        subject: String,
+        message: String = "",
+        initialMessage: String = "",
+        category: String = "HARDWARE",
+        priority: String = "NORMAL",
+        assetId: String = "",
+        assetName: String = "",
+        phone: String = "",
+        images: [String] = [],
+        donVi: String = "",
+        gpsLat: Double = 0.0,
+        gpsLng: Double = 0.0,
+        scope: String = "GENERAL",
+        attachments: [AttachmentItem] = [],
+        completion: ((Bool) -> Void)? = nil
+    ) {
+        let msg = !message.isEmpty ? message : initialMessage
+        Task {
+            let res = await createTicket(
+                subject: subject,
+                initialMessage: msg,
+                category: category,
+                priority: priority,
+                assetId: assetId,
+                assetName: assetName,
+                images: images,
+                attachments: attachments
+            )
+            DispatchQueue.main.async {
+                completion?(res != nil)
+            }
+        }
+    }
+
     // MARK: - CHAT MESSAGES
     public func fetchMessages(for ticketId: String) {
         Task {
@@ -583,11 +626,11 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
-    public func selectHandlingMethod(ticketId: String, method: String) {
+    public func selectHandlingMethod(ticketId: String, method: String, completion: ((Bool) -> Void)? = nil) {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=handlingMethod&updateMask.fieldPaths=handlingMethodUpdatedAt&updateMask.fieldPaths=isAcknowledged&updateMask.fieldPaths=acknowledgedAt&updateMask.fieldPaths=acknowledgedBy&updateMask.fieldPaths=acknowledgedByName"
-            guard let url = URL(string: urlStr) else { return }
+            guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
             request.httpMethod = "PATCH"
@@ -612,15 +655,16 @@ public class SupportViewModel: ObservableObject {
                 : "🛵 KTV \(user.fullName) đã tiếp nhận và đang di chuyển tới đơn vị"
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
         }
     }
 
     // MARK: - KTV BÁO CÁO HOÀN THÀNH XỬ LÝ (markTicketResolved)
-    public func markTicketResolved(ticketId: String, note: String) {
+    public func markTicketResolved(ticketId: String, note: String, completion: ((Bool) -> Void)? = nil) {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=status&updateMask.fieldPaths=resolvedAt&updateMask.fieldPaths=resolvedBy&updateMask.fieldPaths=resolvedByName&updateMask.fieldPaths=resolutionNote"
-            guard let url = URL(string: urlStr) else { return }
+            guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
             request.httpMethod = "PATCH"
@@ -642,45 +686,58 @@ public class SupportViewModel: ObservableObject {
             let msg = "🛠️ KTV \(user.fullName) báo cáo ĐÃ XỬ LÝ XONG: \(note). Mời bạn nghiệm thu & đánh giá chất lượng."
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
         }
     }
 
     // MARK: - ĐÓNG TICKET
-    public func closeTicket(ticketId: String, note: String = "") {
+    public func closeTicket(ticketId: String, note: String = "", rating: Int? = nil, feedback: String = "", completion: ((Bool) -> Void)? = nil) {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=closedByEmail&updateMask.fieldPaths=closedByName&updateMask.fieldPaths=resolutionNote"
-            guard let url = URL(string: urlStr) else { return }
+            var mask = "updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=closedByEmail&updateMask.fieldPaths=closedByName"
+            if !note.isEmpty { mask += "&updateMask.fieldPaths=resolutionNote" }
+            if let _ = rating {
+                mask += "&updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt"
+            }
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
             request.httpMethod = "PATCH"
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            let body: [String: Any] = [
-                "fields": [
-                    "status": ["stringValue": "CLOSED"],
-                    "closedAt": ["integerValue": String(now)],
-                    "closedByEmail": ["stringValue": user.email],
-                    "closedByName": ["stringValue": user.fullName],
-                    "resolutionNote": ["stringValue": note]
-                ]
+            var f: [String: Any] = [
+                "status": ["stringValue": "CLOSED"],
+                "closedAt": ["integerValue": String(now)],
+                "closedByEmail": ["stringValue": user.email],
+                "closedByName": ["stringValue": user.fullName]
             ]
+            if !note.isEmpty { f["resolutionNote"] = ["stringValue": note] }
+            if let r = rating {
+                f["rating"] = ["integerValue": String(r)]
+                f["feedback"] = ["stringValue": feedback]
+                f["feedbackAt"] = ["integerValue": String(now)]
+            }
+
+            let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
             _ = try? await URLSession.shared.data(for: request)
 
-            sendMessage(ticketId: ticketId, text: "🔒 Yêu cầu hỗ trợ đã được đóng bởi \(user.fullName).")
+            let closeMsg = !note.isEmpty ? "🔒 Yêu cầu hỗ trợ đã được đóng bởi \(user.fullName): \(note)" : "🔒 Yêu cầu hỗ trợ đã được đóng bởi \(user.fullName)."
+            sendMessage(ticketId: ticketId, text: closeMsg)
             self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
         }
     }
 
     // MARK: - REOPEN TICKET (MỞ LẠI SỰ CỐ)
-    public func reopenTicket(ticketId: String, reason: String) {
-        guard let ticket = rawTickets.first(where: { $0.id == ticketId }) else { return }
+    public func reopenTicket(ticketId: String, reason: String, completion: ((Bool) -> Void)? = nil) {
+        guard let ticket = rawTickets.first(where: { $0.id == ticketId }) else { completion?(false); return }
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=status&updateMask.fieldPaths=reopenCount&updateMask.fieldPaths=reopenedAt&updateMask.fieldPaths=reopenedByEmail&updateMask.fieldPaths=reopenedByName&updateMask.fieldPaths=reopenReason&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=resolvedAt&updateMask.fieldPaths=previousRating&updateMask.fieldPaths=previousFeedback"
-            guard let url = URL(string: urlStr) else { return }
+            guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
             request.httpMethod = "PATCH"
@@ -707,16 +764,17 @@ public class SupportViewModel: ObservableObject {
             let msg = "🔄 \(user.fullName) đã MỞ LẠI yêu cầu hỗ trợ (Lần \(ticket.reopenCount + 1)): \(reason)"
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
         }
     }
 
     // MARK: - ĐÁNH GIÁ CHẤT LƯỢNG (RATE TICKET)
-    public func rateTicket(ticketId: String, rating: Int, feedback: String = "") {
+    public func rateTicket(ticketId: String, rating: Int, feedback: String = "", completion: ((Bool) -> Void)? = nil) {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let fields = "updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt&updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=closedByEmail&updateMask.fieldPaths=closedByName"
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(fields)"
-            guard let url = URL(string: urlStr) else { return }
+            guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
             request.httpMethod = "PATCH"
@@ -742,11 +800,12 @@ public class SupportViewModel: ObservableObject {
             let msg = "🎉 Người dùng đã nghiệm thu và đánh giá: \(stars) (\(rating)/5 sao)\(commentPart)"
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
         }
     }
 
     // MARK: - ĐIỀU PHỐI / PHÂN CÔNG KTV
-    public func assignKtv(ticketId: String, ktvEmail: String, ktvName: String, cluster: String = "", note: String = "") {
+    public func assignKtv(ticketId: String, ktvEmail: String, ktvName: String, cluster: String = "", note: String = "", completion: ((Bool) -> Void)? = nil) {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             var mask = "updateMask.fieldPaths=assignedToEmail&updateMask.fieldPaths=assignedToName&updateMask.fieldPaths=assignedAt&updateMask.fieldPaths=assignedByEmail"
@@ -754,7 +813,7 @@ public class SupportViewModel: ObservableObject {
             if !note.isEmpty { mask += "&updateMask.fieldPaths=dispatchNote" }
 
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
-            guard let url = URL(string: urlStr) else { return }
+            guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
             request.httpMethod = "PATCH"
@@ -775,9 +834,11 @@ public class SupportViewModel: ObservableObject {
             _ = try? await URLSession.shared.data(for: request)
 
             let clusterMsg = cluster.isEmpty ? "" : " (Cụm: \(cluster))"
-            let msg = "📋 [Điều phối] Đã phân công KTV: \(ktvName)\(clusterMsg)"
+            let noteMsg = note.isEmpty ? "" : " - Ghi chú: \(note)"
+            let msg = "📌 Ticket đã được điều phối cho KTV \(ktvName)\(clusterMsg)\(noteMsg)"
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
         }
     }
 

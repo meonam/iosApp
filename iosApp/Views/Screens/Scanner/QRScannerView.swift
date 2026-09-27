@@ -1,7 +1,6 @@
 import SwiftUI
 import AVFoundation
 import Vision
-import PhotosUI
 
 // MARK: - MÀN HÌNH QUÉT MÃ QR / BARCODE (ĐỒNG BỘ 1:1 VỚI QRSCANNERSCREEN.KT TRÊN ANDROID)
 public struct QRScannerView: View {
@@ -28,7 +27,6 @@ public struct QRScannerView: View {
 
     // Photo Library Picker
     @State private var showPhotoPicker = false
-    @State private var selectedPhotoItem: PhotosPickerItem? = nil
 
     // Unrecognized code alert
     @State private var unrecognizedCode: String? = nil
@@ -175,13 +173,9 @@ public struct QRScannerView: View {
         .onAppear {
             checkCameraPermission()
         }
-        .photosPicker(isPresented: $showPhotoPicker, selection: $selectedPhotoItem, matching: .images)
-        .onChange(of: selectedPhotoItem) { newItem in
-            Task {
-                if let data = try? await newItem?.loadTransferable(type: Data.self),
-                   let uiImage = UIImage(data: data) {
-                    detectBarcodesFromImage(uiImage)
-                }
+        .sheet(isPresented: $showPhotoPicker) {
+            ImagePickerSheet(isPresented: $showPhotoPicker) { img in
+                detectBarcodesFromImage(img)
             }
         }
         .sheet(isPresented: $showSettings) {
@@ -510,5 +504,43 @@ struct ScannerCorners: Shape {
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - length))
 
         return path
+    }
+}
+
+// MARK: - IMAGE PICKER (iOS 15 COMPATIBLE)
+struct ImagePickerSheet: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    var onImagePicked: (UIImage) -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.delegate = context.coordinator
+        picker.sourceType = .photoLibrary
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: ImagePickerSheet
+
+        init(_ parent: ImagePickerSheet) {
+            self.parent = parent
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.onImagePicked(image)
+            }
+            parent.isPresented = false
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.isPresented = false
+        }
     }
 }

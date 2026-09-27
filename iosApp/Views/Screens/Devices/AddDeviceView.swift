@@ -142,10 +142,10 @@ public struct AddDeviceView: View {
             )
         }
         .sheet(isPresented: $showTypeManager) {
-            if let onNav = onNavigateToTypeManager {
-                // If custom handler provided
-                onNav()
-            }
+            DeviceTypeManagerView(
+                viewModel: viewModel,
+                onDismiss: { showTypeManager = false }
+            )
         }
     }
 

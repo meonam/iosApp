@@ -687,13 +687,16 @@ public struct TicketChatDetailView: View {
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(
                 leading: Button("Hủy") { showReopenSheet = false },
-                trailing: Button("Mở lại") {
-                    guard !reopenReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-                    viewModel.reopenTicket(ticketId: ticket.id, reason: reopenReason) { success in
-                        if success { showReopenSheet = false }
+                trailing: Button(action: {
+                    if !reopenReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        viewModel.reopenTicket(ticketId: ticket.id, reason: reopenReason) { success in
+                            if success { showReopenSheet = false }
+                        }
                     }
+                }) {
+                    Text("Mở lại")
+                        .font(.system(size: 14, weight: .bold))
                 }
-                .font(.system(size: 14, weight: .bold))
                 .disabled(reopenReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             )
         }

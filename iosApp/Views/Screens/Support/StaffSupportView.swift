@@ -29,10 +29,10 @@ public struct StaffSupportView: View {
         self.onTicketClick = onTicketClick
 
         let user = authViewModel.currentUser ?? User(
-            id: "",
+            maNhanVien: "",
             email: "",
-            fullName: "",
             role: "STAFF",
+            fullName: "",
             companyId: authViewModel.currentCompanyId
         )
         self._supportVM = StateObject(wrappedValue: SupportViewModel(

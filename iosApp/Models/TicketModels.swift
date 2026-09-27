@@ -512,6 +512,14 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         }
     }
 
+    public var slaTargetMinutes: Int {
+        getSlaTargetMinutes()
+    }
+
+    public var isWithinQualityTrackingWindow: Bool {
+        isWithinQualityTrackingWindow()
+    }
+
     public func getSlaTargetMinutes(deptResolveMinutes: Int? = nil) -> Int {
         if let d = deptResolveMinutes, d > 0 { return d }
         switch priority.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() {
@@ -574,6 +582,11 @@ public struct SupportMessage: Identifiable, Codable, Hashable {
     public var isSystemMessage: Bool
     public var isInternal: Bool
     public var attachments: [AttachmentItem]
+
+    public var text: String {
+        get { message }
+        set { message = newValue }
+    }
 
     public init(
         id: String = UUID().uuidString,
