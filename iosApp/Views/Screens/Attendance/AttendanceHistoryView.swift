@@ -86,7 +86,7 @@ public struct AttendanceHistoryView: View {
 
                 VStack(spacing: 0) {
                     // TOP BAR CHUẨN ANDROID (Xanh Đậm #002A8F)
-                    topBarView(safeAreaTop: geometry.safeAreaInsets.top)
+                    topBarView(safeAreaTop: SafeAreaHelper.top(geometry))
 
                     // THANH LỌC THÁNG & Ô TÌM KIẾM
                     filterHeaderView

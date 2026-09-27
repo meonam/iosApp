@@ -17,9 +17,9 @@ public struct CompanyBannerTickerView: View {
     @State private var containerWidth: CGFloat = 0
 
     public init(
-        text: String = "Chào mừng quý khách đến với hệ thống Quản lý Thiết bị & Hỗ trợ Kỹ thuật IT Saigon Co.op (SGCOOP)!",
+        text: String = "",
         type: BannerType = .info,
-        isActive: Bool = true
+        isActive: Bool = false
     ) {
         self.text = text
         self.type = type

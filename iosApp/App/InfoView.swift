@@ -19,7 +19,7 @@ public struct InfoView: View {
                 Color.appBackground.ignoresSafeArea()
                 VStack(spacing: 0) {
                     VStack(spacing: 0) {
-                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+                        Color.clear.frame(height: SafeAreaHelper.top(geometry))
                         topBar
                     }
                     .background(Color.appPrimary)

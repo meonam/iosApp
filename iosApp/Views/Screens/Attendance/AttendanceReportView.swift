@@ -25,20 +25,35 @@ public struct AttendanceReportView: View {
     // Derived properties for UI
     private var isManager: Bool {
         guard let user = authViewModel.currentUser else { return false }
-        return user.isAdmin || user.isSuperAdmin || user.role == "MANAGER" || user.isHelpDesk
+        return user.isAdmin || user.isSuperAdmin || user.role == "MANAGER" || user.isHelpDesk || user.isManager
+    }
+
+    private var canAccessReport: Bool {
+        guard let user = authViewModel.currentUser else { return false }
+        return isManager || user.isTechnician || user.isSpecialist
     }
     
     private var filteredRecords: [AttendanceRecord] {
         var records = viewModel.attendanceHistory
         
-        // Filter by department
-        if selectedDept != "Tất cả" {
-            records = records.filter { $0.donVi == selectedDept }
-        }
-        
-        // Filter by user
-        if selectedUser != "Tất cả" {
-            records = records.filter { $0.userName == selectedUser }
+        // Non-managers (KTV & Specialist) see their own attendance records
+        if !isManager, let user = authViewModel.currentUser {
+            let myEmail = user.email.lowercased()
+            let myName = user.fullName.lowercased()
+            records = records.filter {
+                $0.userEmail.lowercased() == myEmail ||
+                (!myName.isEmpty && $0.userName.lowercased() == myName)
+            }
+        } else {
+            // Filter by department
+            if selectedDept != "Tất cả" {
+                records = records.filter { $0.donVi == selectedDept }
+            }
+            
+            // Filter by user
+            if selectedUser != "Tất cả" {
+                records = records.filter { $0.userName == selectedUser }
+            }
         }
         
         // Search by name
@@ -105,14 +120,15 @@ public struct AttendanceReportView: View {
                 VStack(spacing: 0) {
                     // Top Bar
                     VStack(spacing: 0) {
-                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+                        Color.clear.frame(height: SafeAreaHelper.top(geometry))
                         HStack {
                             Button(action: onBack) {
                                 Image(systemName: "arrow.left")
+                                    .font(.system(size: 17, weight: .bold))
                                     .foregroundColor(.white)
                                     .padding(.trailing, 8)
                             }
-                            Text("Báo Cáo Chấm Công")
+                            Text(isManager ? "Báo Cáo Chấm Công" : "Báo Cáo Chấm Công Của Tôi")
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()
@@ -121,11 +137,12 @@ public struct AttendanceReportView: View {
                                     .foregroundColor(.white)
                             }
                         }
-                        .padding()
-                        .background(Color.appPrimary)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
                     }
+                    .background(Color.appTopBarColor)
                     
-                    if !isManager {
+                    if !canAccessReport {
                         Spacer()
                         VStack(spacing: 16) {
                             Image(systemName: "lock.shield")
@@ -133,7 +150,7 @@ public struct AttendanceReportView: View {
                                 .foregroundColor(.gray)
                             Text("Truy cập bị giới hạn")
                                 .font(.headline)
-                            Text("Báo cáo Chấm công chỉ dành cho Quản lý.\nBạn không có quyền truy cập trang này.")
+                            Text("Báo cáo Chấm công chỉ dành cho Kỹ thuật viên, Chuyên viên và Quản lý.\nBạn không có quyền truy cập trang này.")
                                 .multilineTextAlignment(.center)
                                 .foregroundColor(.gray)
                                 .font(.subheadline)
@@ -160,39 +177,41 @@ public struct AttendanceReportView: View {
                             }
                             .padding(.horizontal)
                             
-                            // Search and Dropdowns
-                            HStack {
-                                TextField("Tìm tên nhân viên...", text: $searchQuery)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                            }
-                            .padding(.horizontal)
-                            
-                            HStack {
-                                Picker("Phòng ban", selection: $selectedDept) {
-                                    ForEach(allDepartments, id: \.self) { dept in
-                                        Text(dept).tag(dept)
-                                    }
+                            if isManager {
+                                // Search and Dropdowns for Managers
+                                HStack {
+                                    TextField("Tìm tên nhân viên...", text: $searchQuery)
+                                        .textFieldStyle(RoundedBorderTextFieldStyle())
                                 }
-                                .pickerStyle(MenuPickerStyle())
-                                .frame(maxWidth: .infinity)
-                                .padding(8)
-                                .background(Color.white)
-                                .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                                .padding(.horizontal)
                                 
-                                Picker("Nhân viên", selection: $selectedUser) {
-                                    ForEach(allUsers, id: \.self) { user in
-                                        Text(user).tag(user)
+                                HStack {
+                                    Picker("Phòng ban", selection: $selectedDept) {
+                                        ForEach(allDepartments, id: \.self) { dept in
+                                            Text(dept).tag(dept)
+                                        }
                                     }
+                                    .pickerStyle(MenuPickerStyle())
+                                    .frame(maxWidth: .infinity)
+                                    .padding(8)
+                                    .background(Color.white)
+                                    .cornerRadius(8)
+                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                                    
+                                    Picker("Nhân viên", selection: $selectedUser) {
+                                        ForEach(allUsers, id: \.self) { user in
+                                            Text(user).tag(user)
+                                        }
+                                    }
+                                    .pickerStyle(MenuPickerStyle())
+                                    .frame(maxWidth: .infinity)
+                                    .padding(8)
+                                    .background(Color.white)
+                                    .cornerRadius(8)
+                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3), lineWidth: 1))
                                 }
-                                .pickerStyle(MenuPickerStyle())
-                                .frame(maxWidth: .infinity)
-                                .padding(8)
-                                .background(Color.white)
-                                .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                                .padding(.horizontal)
                             }
-                            .padding(.horizontal)
                         }
                         .padding(.vertical, 12)
                         .background(Color.white)

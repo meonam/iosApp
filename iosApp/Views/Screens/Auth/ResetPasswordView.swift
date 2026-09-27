@@ -17,7 +17,7 @@ struct ResetPasswordView: View {
                 VStack(spacing: 0) {
                     // Top Bar
                     VStack(spacing: 0) {
-                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+                        Color.clear.frame(height: SafeAreaHelper.top(geometry))
                         HStack {
                             Button(action: onBack) {
                                 Image(systemName: "arrow.left")

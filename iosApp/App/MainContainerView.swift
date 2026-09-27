@@ -128,6 +128,7 @@ public struct MainContainerView: View {
                 }
             }
         }
+        .ignoresSafeArea()
     }
 
     // MARK: - PRO BOTTOM BAR (4 TABS CHUẨN ANDROID VỚI SAFE AREA BOTTOM)

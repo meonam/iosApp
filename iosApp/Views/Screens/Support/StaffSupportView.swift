@@ -147,7 +147,7 @@ public struct StaffSupportView: View {
 
                 VStack(spacing: 0) {
                     // ── 1. TOP BAR ──────────────────────────────────────
-                    topBar(safeAreaTop: geometry.safeAreaInsets.top)
+                    topBar(safeAreaTop: SafeAreaHelper.top(geometry))
 
                     // ── 2. CHANNEL FILTER CHIPS ────────────────────────
                     channelFilterChips

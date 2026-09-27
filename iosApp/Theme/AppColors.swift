@@ -67,3 +67,24 @@ public extension Color {
         )
     }
 }
+
+// MARK: - SAFE AREA HELPER (ĐẢM BẢO TOPBAR TRÊN MỌI THIẾT BỊ KHÔNG BỊ TRÙNG CỘT SÓNG / TAI THỎ / DYNAMIC ISLAND)
+public struct SafeAreaHelper {
+    public static var topInset: CGFloat {
+        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+           let window = windowScene.windows.first(where: { $0.isKeyWindow }) {
+            let top = window.safeAreaInsets.top
+            if top > 0 { return top }
+        }
+        if let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) {
+            let top = window.safeAreaInsets.top
+            if top > 0 { return top }
+        }
+        return 47.0 // Fallback an toàn cho iOS Notch / Dynamic Island
+    }
+
+    public static func top(_ geometry: GeometryProxy) -> CGFloat {
+        let insets = geometry.safeAreaInsets.top
+        return insets > 0 ? insets : topInset
+    }
+}

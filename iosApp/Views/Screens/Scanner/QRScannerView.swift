@@ -53,7 +53,7 @@ public struct QRScannerView: View {
                 VStack(spacing: 0) {
                     // Top bar với safe area
                     VStack(spacing: 0) {
-                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+                        Color.clear.frame(height: SafeAreaHelper.top(geometry))
                         topBar
                     }
                     .background(Color.appTopBarColor)

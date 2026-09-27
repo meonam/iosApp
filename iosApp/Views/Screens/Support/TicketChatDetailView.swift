@@ -81,7 +81,7 @@ public struct TicketChatDetailView: View {
 
                 VStack(spacing: 0) {
                     // ── 1. TOP BAR ──────────────────────────────────────
-                    topBar(safeAreaTop: geometry.safeAreaInsets.top)
+                    topBar(safeAreaTop: SafeAreaHelper.top(geometry))
 
                     // ── 2. SLA COUNTDOWN BAR (nếu đang OPEN) ───────────
                     if isOpen {

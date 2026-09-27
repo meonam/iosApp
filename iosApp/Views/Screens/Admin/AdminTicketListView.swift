@@ -106,7 +106,7 @@ public struct AdminTicketListView: View {
 
                 VStack(spacing: 0) {
                     // ── 1. TOP BAR ──────────────────────────────────────
-                    topBar(safeAreaTop: geometry.safeAreaInsets.top)
+                    topBar(safeAreaTop: SafeAreaHelper.top(geometry))
 
                     // ── 2. SEGMENTED TABS: Tất cả | Đang mở | Đã đóng | Đã ẩn ──
                     segmentedTabsBar

@@ -51,7 +51,7 @@ public struct PhanQuyenAdminView: View {
                 VStack(spacing: 0) {
                     // TOP BAR
                     VStack(spacing: 0) {
-                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+                        Color.clear.frame(height: SafeAreaHelper.top(geometry))
                         HStack(spacing: 12) {
                             Button(action: onBack) {
                                 Image(systemName: "chevron.left")

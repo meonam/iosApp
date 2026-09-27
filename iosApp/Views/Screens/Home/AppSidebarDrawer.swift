@@ -167,7 +167,7 @@ public struct AppSidebarDrawer: View {
                 // === 1. DRAWER HEADER (2 HÀNG: CÔNG TY & HỒ SƠ NGƯỜI DÙNG) ===
                 VStack(alignment: .leading, spacing: 12) {
                     // Khoảng đệm tránh Notch tai thỏ / Dynamic Island
-                    Color.clear.frame(height: max(geometry.safeAreaInsets.top, 24))
+                    Color.clear.frame(height: SafeAreaHelper.top(geometry))
 
                     // HÀNG 1: LOGO + TÊN ỨNG DỤNG / CÔNG TY + MÃ DN + NÚT ĐÓNG (X)
                     HStack(alignment: .center, spacing: 10) {

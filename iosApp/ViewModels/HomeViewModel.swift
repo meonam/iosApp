@@ -16,6 +16,11 @@ public class HomeViewModel: ObservableObject {
     @Published public var isLoading: Bool = false
     @Published public var isUploadingAvatar: Bool = false
 
+    // Cấu hình Banner chạy chữ doanh nghiệp (đồng bộ 1:1 theo Android NotificationHelper & MainActivity)
+    @Published public var isCompanyBannerActive: Bool = false
+    @Published public var companyBannerText: String = ""
+    @Published public var companyBannerType: String = "INFO"
+
     // Modal đổi mật khẩu
     @Published public var showChangePasswordModal: Bool = false
     @Published public var showOverflowMenu: Bool = false
@@ -31,12 +36,40 @@ public class HomeViewModel: ObservableObject {
         isLoading = true
         Task {
             await fetchUserProfileRealtime()
+            await fetchCompanyBanner()
             await fetchDevices()
             await fetchOpenTickets()
             await fetchPendingStaff()
             await fetchUnreadNotifications()
             self.isLoading = false
         }
+    }
+
+    // MARK: - TẢI CẤU HÌNH BANNER DOANH NGHIỆP
+    public func fetchCompanyBanner() async {
+        guard !companyId.isEmpty else { return }
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)"
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        if !idToken.isEmpty {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let fields = json["fields"] as? [String: Any] else {
+            return
+        }
+
+        let active = FirestoreHelper.getBool(fields["isBannerActive"] as? [String: Any])
+        let text = FirestoreHelper.getString(fields["bannerText"] as? [String: Any])
+        let type = FirestoreHelper.getString(fields["bannerType"] as? [String: Any])
+
+        self.isCompanyBannerActive = active
+        self.companyBannerText = text
+        self.companyBannerType = type.isEmpty ? "INFO" : type
     }
 
     // MARK: - 1. TẢI HỒ SƠ NGƯỜI DÙNG MỚI NHẤT TỪ FIRESTORE

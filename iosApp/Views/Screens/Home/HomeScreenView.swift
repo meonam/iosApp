@@ -55,7 +55,7 @@ public struct HomeScreenView: View {
                 VStack(spacing: 0) {
                     // 1. TOP BAR CHUẨN ANDROID (#002A8F) KÈM STATUS BAR INSETS
                     VStack(spacing: 0) {
-                        Color.clear.frame(height: geometry.safeAreaInsets.top)
+                        Color.clear.frame(height: SafeAreaHelper.top(geometry))
 
                         HStack(spacing: 12) {
                             // Nút Hamburger mở Drawer
@@ -65,7 +65,7 @@ public struct HomeScreenView: View {
                                     .foregroundColor(.white)
                             }
 
-                            // Logo & Tiêu đề "Hệ Thống QLTB" (chuẩn R.string.home_title)
+                            // Logo & Tiêu đề "Trang chủ"
                             HStack(spacing: 8) {
                                 Image("logo_app")
                                     .resizable()
@@ -73,7 +73,7 @@ public struct HomeScreenView: View {
                                     .frame(width: 28, height: 28)
                                     .cornerRadius(6)
 
-                                Text("Hệ Thống QLTB")
+                                Text("Trang chủ")
                                     .font(.system(size: 18, weight: .heavy))
                                     .foregroundColor(.white)
                                     .lineLimit(1)
@@ -143,8 +143,14 @@ public struct HomeScreenView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
 
-                        // Dòng chữ chạy thông báo doanh nghiệp gắn liền ngay dưới TopBar
-                        CompanyBannerTickerView()
+                        // Dòng chữ chạy thông báo doanh nghiệp gắn liền ngay dưới TopBar (chỉ hiển thị khi Admin bật)
+                        if viewModel.isCompanyBannerActive && !viewModel.companyBannerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            CompanyBannerTickerView(
+                                text: viewModel.companyBannerText,
+                                type: CompanyBannerTickerView.BannerType(rawValue: viewModel.companyBannerType) ?? .info,
+                                isActive: viewModel.isCompanyBannerActive
+                            )
+                        }
                     }
                     .background(Color.appTopBarColor)
 
@@ -631,29 +637,29 @@ public struct HomeScreenView: View {
 
             // Hàng 2: Chấm công | Phân ca | Thống kê | Duyệt NV / In tem QR
             HStack(spacing: 8) {
-                // Chấm công (Staff bị giới hạn)
+                // Chấm công (KTV, Chuyên viên, Quản lý, Admin được truy cập)
                 quickAccessCard(
                     icon: "chart.bar.xaxis",
                     label: "Chấm công",
                     iconColor: Color(hex: "#059669"),
                     bgColor: Color(hex: "#D1FAE5")
                 ) {
-                    if viewModel.user.isStaff {
-                        accessRestrictedMessage = "Báo cáo Chấm công & Công tác phí chỉ dành cho Kỹ thuật viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
+                    if viewModel.user.isStaff && !viewModel.user.isTechnician && !viewModel.user.isSpecialist {
+                        accessRestrictedMessage = "Báo cáo Chấm công & Công tác phí chỉ dành cho Kỹ thuật viên, Chuyên viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
                     } else {
                         onNavigate(.attendanceReport)
                     }
                 }
 
-                // Phân ca (Staff bị giới hạn)
+                // Phân ca (KTV, Chuyên viên, Quản lý, Admin được truy cập)
                 quickAccessCard(
                     icon: "calendar",
                     label: "Phân ca",
                     iconColor: Color(hex: "#7C3AED"),
                     bgColor: Color(hex: "#EDE9FE")
                 ) {
-                    if viewModel.user.isStaff {
-                        accessRestrictedMessage = "Lịch trực và Phân ca kỹ thuật chỉ dành cho Kỹ thuật viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
+                    if viewModel.user.isStaff && !viewModel.user.isTechnician && !viewModel.user.isSpecialist {
+                        accessRestrictedMessage = "Lịch trực và Phân ca kỹ thuật chỉ dành cho Kỹ thuật viên, Chuyên viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
                     } else {
                         onNavigate(.shiftSchedule)
                     }

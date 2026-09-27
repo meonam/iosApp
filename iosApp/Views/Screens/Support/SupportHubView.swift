@@ -91,7 +91,7 @@ public struct SupportHubView: View {
                 Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    topBarView(safeAreaTop: geometry.safeAreaInsets.top)
+                    topBarView(safeAreaTop: SafeAreaHelper.top(geometry))
                     searchAndFilterBar
                     ticketListView
                 }

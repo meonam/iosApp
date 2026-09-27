@@ -33,7 +33,8 @@ public struct AttendanceCheckInView: View {
         return dept.contains("XỬ LÝ") || dept.contains("SỰ CỐ") || dept.contains("KỸ THUẬT") ||
                dept.contains("IT") || dept.contains("BẢO TRÌ") ||
                donVi.contains("KỸ THUẬT") ||
-               role.contains("kythuat") || role.contains("tech") || role.contains("support") || role.contains("ktv")
+               role.contains("kythuat") || role.contains("tech") || role.contains("support") || role.contains("ktv") ||
+               viewModel.user.isTechnician || viewModel.user.isSpecialist
     }
 
     private var canAccessAttendance: Bool { isAdmin || isHelpDesk || isIncidentDept || true }
@@ -46,7 +47,7 @@ public struct AttendanceCheckInView: View {
 
                 VStack(spacing: 0) {
                     // TOP BAR CHUẨN ANDROID (Xanh Đậm #002A8F)
-                    topBarView(safeAreaTop: geometry.safeAreaInsets.top)
+                    topBarView(safeAreaTop: SafeAreaHelper.top(geometry))
 
                     if viewModel.isLoading {
                         Spacer()
