@@ -1,4 +1,4 @@
-﻿﻿import SwiftUI
+import SwiftUI
 import CoreLocation
 
 // MARK: - ImagePicker
@@ -14,7 +14,7 @@ struct ImagePicker: UIViewControllerRepresentable {
         return picker
     }
     
-    func updateUViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
     
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -65,7 +65,7 @@ public struct AttendanceCheckInView: View {
                                     .foregroundColor(.white)
                                     .padding()
                             }
-                            Text("Chấm công")
+                            Text("Cham cong")
                                 .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()
@@ -82,9 +82,9 @@ public struct AttendanceCheckInView: View {
                                 HStack {
                                     Image(systemName: "mappin.and.ellipse")
                                         .foregroundColor(Color.appPrimary)
-                                    Text("Vị trí hiện tại")
+                                    Text("Vi tri hien tai")
                                         .font(.system(size: 15, weight: .bold))
-                                        .foregroundColor(.appText)
+                                        .foregroundColor(.appTextPrimary)
                                     Spacer()
                                     Button(action: {
                                         viewModel.requestLocation()
@@ -94,13 +94,13 @@ public struct AttendanceCheckInView: View {
                                     }
                                 }
                                 
-                                Text(viewModel.currentAddress.isEmpty ? "Đang lầy vị trí..." : viewModel.currentAddress)
+                                Text(viewModel.currentAddress.isEmpty ? "Dang lay vi tri..." : viewModel.currentAddress)
                                     .font(.system(size: 14))
                                     .foregroundColor(.gray)
                                 
                                 if let distance = viewModel.distanceToWorkMeters {
                                     HStack {
-                                        Text("Cách nơi làm việc:")
+                                        Text("Cach noi lam viec:")
                                             .font(.system(size: 14))
                                             .foregroundColor(.gray)
                                         Text("\(Int(distance))m")
@@ -124,9 +124,9 @@ public struct AttendanceCheckInView: View {
                             
                             // 2. Selfie Section
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("Ấnh xác thực")
+                                Text("Anh xac thuc")
                                     .font(.system(size: 15, weight: .bold))
-                                    .foregroundColor(.appText)
+                                    .foregroundColor(.appTextPrimary)
                                 
                                 HStack {
                                     if let image = selfieImage {
@@ -153,7 +153,7 @@ public struct AttendanceCheckInView: View {
                                     }) {
                                         HStack {
                                             Image(systemName: "camera.fill")
-                                            Text("Chụp ảnh")
+                                            Text("Chup anh")
                                         }
                                         .font(.system(size: 14, weight: .semibold))
                                         .padding(.horizontal, 16)
@@ -170,14 +170,14 @@ public struct AttendanceCheckInView: View {
                             
                             // 3. Shift Selection
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("Ca làm việc")
+                                Text("Ca lam viec")
                                     .font(.system(size: 15, weight: .bold))
-                                    .foregroundColor(.appText)
+                                    .foregroundColor(.appTextPrimary)
                                 
                                 HStack(spacing: 8) {
                                     ShiftButton(title: "Hanh chinh", tag: "HC", selectedTag: $viewModel.selectedShiftType)
                                     ShiftButton(title: "Ca 2", tag: "SHIFT_2", selectedTag: $viewModel.selectedShiftType)
-                                    ShiftButton(title: "Ca đêm", tag: "NIGHT", selectedTag: $viewModel.selectedShiftType)
+                                    ShiftButton(title: "Ca dem", tag: "NIGHT", selectedTag: $viewModel.selectedShiftType)
                                 }
                             }
                             .padding()
@@ -188,7 +188,7 @@ public struct AttendanceCheckInView: View {
                             HStack(spacing: 12) {
                                 let checkInTime = viewModel.todayRecord?.checkInTime
                                 TimeCardView(
-                                    title: "GIᜐ VÀO",
+                                    title: "GIO VAO",
                                     time: formatTime(checkInTime),
                                     isDone: checkInTime != nil && checkInTime! > 0,
                                     color: .green
@@ -196,7 +196,7 @@ public struct AttendanceCheckInView: View {
                                 
                                 let checkOutTime = viewModel.todayRecord?.checkOutTime
                                 TimeCardView(
-                                    title: "GI]Ò RA",
+                                    title: "GIO RA",
                                     time: formatTime(checkOutTime),
                                     isDone: checkOutTime != nil && checkOutTime! > 0,
                                     color: .orange
@@ -206,7 +206,7 @@ public struct AttendanceCheckInView: View {
                             // 5. Buttons
                             VStack(spacing: 16) {
                                 if viewModel.isSubmitting {
-                                    ProgressView("Đang xử lý...")
+                                    ProgressView("Dang xu ly...")
                                         .padding()
                                 } else {
                                     let hasCheckIn = viewModel.todayRecord?.checkInTime != nil && viewModel.todayRecord!.checkInTime! > 0
@@ -227,7 +227,7 @@ public struct AttendanceCheckInView: View {
                                         .disabled(isCheckInDisabled)
                                         
                                         if viewModel.travelConfig.strictGeofenceBlocking && !viewModel.isWithinGeofence {
-                                            Text("Bạn đang ở ngoài phạm vi cho phép.")
+                                            Text("Ban dang o ngoai pham vi cho phep.")
                                                 .font(.system(size: 13))
                                                 .foregroundColor(.red)
                                         }
@@ -245,7 +245,7 @@ public struct AttendanceCheckInView: View {
                                                 .cornerRadius(12)
                                         }
                                     } else {
-                                        Text("Bạn đã hoàn thành chấm công hôm nay!")
+                                        Text("Ban da hoan thanh cham cong hom nay!")
                                             .font(.system(size: 14, weight: .semibold))
                                             .foregroundColor(.green)
                                             .padding()
@@ -255,7 +255,7 @@ public struct AttendanceCheckInView: View {
                                         
                                         if let checkIn = viewModel.todayRecord?.checkInTime, let checkOut = viewModel.todayRecord?.checkOutTime {
                                             let duration = (checkOut - checkIn) / 60000
-                                            Text("Tổng thài gian làm việc: \(duration / 60)h \(duration % 60)m")
+                                            Text("Tong thoi gian lam viec: \(duration / 60)h \(duration % 60)m")
                                                 .font(.system(size: 14))
                                                 .foregroundColor(.gray)
                                         }
@@ -279,14 +279,14 @@ public struct AttendanceCheckInView: View {
                             
                             // 6. Monthly Stats Card
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("Thống kê tháng này")
+                                Text("Thong ke thang nay")
                                     .font(.system(size: 15, weight: .bold))
-                                    .foregroundColor(.appText)
+                                    .foregroundColor(.appTextPrimary)
                                 
                                 HStack(spacing: 12) {
-                                    StatBox(title: "Tổng ngày", value: viewModel.totalDays, color: .blue)
-                                    StatBox(title: "Đúng giờ", value: viewModel.onTimeDays, color: .green)
-                                    StatBox(title: "Trễ giờ", value: viewModel.lateDays, color: .red)
+                                    StatBox(title: "Tong ngay", value: viewModel.totalDays, color: .blue)
+                                    StatBox(title: "Dung gio", value: viewModel.onTimeDays, color: .green)
+                                    StatBox(title: "Tre gio", value: viewModel.lateDays, color: .red)
                                 }
                             }
                             .padding()
@@ -312,6 +312,7 @@ public struct AttendanceCheckInView: View {
         }
     }
     
+    @MainActor
     private var isCheckInDisabled: Bool {
         if viewModel.travelConfig.strictGeofenceBlocking && !viewModel.isWithinGeofence {
             return true
@@ -326,14 +327,14 @@ public struct AttendanceCheckInView: View {
         if let img = selfieImage, let data = img.jpegData(compressionQuality: 0.5) {
             viewModel.selfieImageBase64 = data.base64EncodedString()
         }
-        viewModel.performCheckInV2()
+        viewModel.performCheckIn()
     }
     
     private func processCheckOut() {
-        viewModel.performCheckOutV2()
+        viewModel.performCheckOut()
     }
     
-    private func formatTime(\ timestamp: Int64?) -> String {
+    private func formatTime(_ timestamp: Int64?) -> String {
         guard let t = timestamp, t > 0 else { return "--:--" }
         let date = Date(timeIntervalSince1970: TimeInterval(t) / 1000)
         let formatter = DateFormatter()
@@ -354,7 +355,7 @@ struct ShiftButton: View {
         }) {
             Text(title)
                 .font(.system(size: 13, weight: isSelected ? .bold : .medium))
-                .foregroundColor(isSelected ? .white : .appText)
+                .foregroundColor(isSelected ? .white : .appTextPrimary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 40)
                 .background(isSelected ? Color.appPrimary : Color.gray.opacity(0.1))

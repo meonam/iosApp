@@ -14,6 +14,12 @@ public struct PendingApprovalView: View {
         self.onLogout = onLogout
     }
     
+    public init(viewModel: AuthViewModel, onApproved: @escaping (String) -> Void, onLogout: @escaping () -> Void) {
+        self.authViewModel = viewModel
+        self.onApproved = { onApproved(viewModel.currentUser?.role ?? "STAFF") }
+        self.onLogout = onLogout
+    }
+    
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -46,7 +52,7 @@ public struct PendingApprovalView: View {
                                 Text("Họ tên:")
                                     .foregroundColor(.gray)
                                 Spacer()
-                                Text(authViewModel.currentUser?.name ?? "--")
+                                Text(authViewModel.currentUser?.fullName ?? "--")
                                     .bold()
                             }
                             HStack {

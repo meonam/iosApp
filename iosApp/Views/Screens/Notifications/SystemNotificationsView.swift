@@ -1,7 +1,9 @@
 import SwiftUI
 
 public struct SystemNotificationsView: View {
-    @ObservedObject var viewModel: AdminViewModel
+    var companyId: String
+    var idToken: String
+    var userEmail: String
     var onBack: () -> Void
 
     @State private var notifications: [SysNotification] = []
@@ -36,8 +38,24 @@ public struct SystemNotificationsView: View {
         let userId: String
     }
 
-    public init(viewModel: AdminViewModel, onBack: @escaping () -> Void) {
-        self.viewModel = viewModel
+    public init(companyId: String = "", idToken: String = "", userEmail: String = "", onBack: @escaping () -> Void = {}) {
+        self.companyId = companyId
+        self.idToken = idToken
+        self.userEmail = userEmail
+        self.onBack = onBack
+    }
+
+    public init(authViewModel: AuthViewModel, onBack: @escaping () -> Void = {}) {
+        self.companyId = authViewModel.currentUser?.companyId ?? ""
+        self.idToken = authViewModel.currentIdToken
+        self.userEmail = authViewModel.currentUser?.email ?? ""
+        self.onBack = onBack
+    }
+
+    public init(onBack: @escaping () -> Void = {}) {
+        self.companyId = ""
+        self.idToken = ""
+        self.userEmail = ""
         self.onBack = onBack
     }
 
@@ -278,12 +296,12 @@ public struct SystemNotificationsView: View {
 
     private func fetchNotifications() async {
         await MainActor.run { isLoading = true }
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.user.companyId)/notifications"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/notifications"
         guard let url = URL(string: urlStr) else { return }
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("Bearer \(viewModel.authToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -292,7 +310,7 @@ public struct SystemNotificationsView: View {
                    let documents = json["documents"] as? [[String: Any]] {
                     
                     var loaded: [SysNotification] = []
-                    let myUserId = viewModel.user.email // Assuming userId mapping
+                    let myUserId = userEmail
                     
                     for doc in documents {
                         guard let fields = doc["fields"] as? [String: Any] else { continue }
@@ -333,12 +351,12 @@ public struct SystemNotificationsView: View {
             notifications[idx].isRead = true
         }
         
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.user.companyId)/notifications/\(id)?updateMask.fieldPaths=isRead"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/notifications/\(id)?updateMask.fieldPaths=isRead"
         guard let url = URL(string: urlStr) else { return }
         
         var request = URLRequest(url: url)
         request.httpMethod = "PATCH"
-        request.setValue("Bearer \(viewModel.authToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let body: [String: Any] = [
@@ -362,12 +380,12 @@ public struct SystemNotificationsView: View {
 
     private func deleteNotification(_ id: String) {
         notifications.removeAll { $0.id == id }
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.user.companyId)/notifications/\(id)"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/notifications/\(id)"
         guard let url = URL(string: urlStr) else { return }
         
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
-        request.setValue("Bearer \(viewModel.authToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         
         Task {
             let _ = try? await URLSession.shared.data(for: request)

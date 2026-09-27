@@ -204,7 +204,12 @@ public struct HomeScreenView: View {
         }
         // Sheet Thông báo hệ thống
         .sheet(isPresented: $showNotificationsSheet) {
-            SystemNotificationsView(onBack: { showNotificationsSheet = false })
+            SystemNotificationsView(
+                companyId: viewModel.companyId,
+                idToken: viewModel.idToken,
+                userEmail: viewModel.user.email,
+                onBack: { showNotificationsSheet = false }
+            )
         }
         // Sheet Đổi mật khẩu
         .sheet(isPresented: $viewModel.showChangePasswordModal) {

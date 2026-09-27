@@ -1,4 +1,4 @@
-﻿import SwiftUI
+import SwiftUI
 
 public struct SpecialistTeamManagerView: View {
     @ObservedObject var viewModel: AdminViewModel
@@ -232,7 +232,6 @@ public struct SpecialistTeamManagerView: View {
                     }
                     .font(.headline)
                     .foregroundColor(.appPrimary)
-                }
             )
         }
     }

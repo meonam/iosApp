@@ -115,7 +115,7 @@ public struct AddDeviceView: View {
             inputField(title: "Tên thiết bị *", text: $tenThietBi, placeholder: "Ví dụ: Dell Latitude 5420")
             
             VStack(alignment: .leading, spacing: 6) {
-                Text("Loại thiết bị").font(.system(size: 13, weight: .bold)).foregroundColor(Color.appText)
+                Text("Loại thiết bị").font(.system(size: 13, weight: .bold)).foregroundColor(Color.appTextPrimary)
                 Picker("Loại thiết bị", selection: $loaiThietBi) {
                     ForEach(deviceTypes, id: \.self) { t in Text(t).tag(t) }
                 }
@@ -129,7 +129,7 @@ public struct AddDeviceView: View {
             inputField(title: "Người dùng hiện tại", text: $nguoiDungId, placeholder: "Nhập ID người dùng (Tùy chọn)")
             
             VStack(alignment: .leading, spacing: 6) {
-                Text("Trạng thái thiết bị").font(.system(size: 13, weight: .bold)).foregroundColor(Color.appText)
+                Text("Trạng thái thiết bị").font(.system(size: 13, weight: .bold)).foregroundColor(Color.appTextPrimary)
                 Picker("Trạng thái", selection: $trangThai) {
                     ForEach(statusOptions, id: \.self) { opt in Text(opt).tag(opt) }
                 }
@@ -137,7 +137,7 @@ public struct AddDeviceView: View {
             }
             
             VStack(alignment: .leading, spacing: 6) {
-                Text("Mô tả / Thông số kỹ thuật").font(.system(size: 13, weight: .bold)).foregroundColor(Color.appText)
+                Text("Mô tả / Thông số kỹ thuật").font(.system(size: 13, weight: .bold)).foregroundColor(Color.appTextPrimary)
                 TextEditor(text: $moTa)
                     .frame(height: 80).padding(8).background(Color.white).cornerRadius(10)
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.3), lineWidth: 1))
@@ -145,9 +145,9 @@ public struct AddDeviceView: View {
             
             VStack(alignment: .leading, spacing: 6) {
                 DatePicker("Ngày mua", selection: $ngayMua, displayedComponents: .date)
-                    .font(.system(size: 13, weight: .bold)).foregroundColor(Color.appText)
+                    .font(.system(size: 13, weight: .bold)).foregroundColor(Color.appTextPrimary)
                 DatePicker("Ngày hết hạn BH", selection: $ngayHetBaoHanh, displayedComponents: .date)
-                    .font(.system(size: 13, weight: .bold)).foregroundColor(Color.appText)
+                    .font(.system(size: 13, weight: .bold)).foregroundColor(Color.appTextPrimary)
             }
             .padding(12).background(Color.white).cornerRadius(10)
             
@@ -158,7 +158,7 @@ public struct AddDeviceView: View {
 
     private func inputField(title: String, text: Binding<String>, placeholder: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.system(size: 13, weight: .bold)).foregroundColor(Color.appText)
+            Text(title).font(.system(size: 13, weight: .bold)).foregroundColor(Color.appTextPrimary)
             TextField(placeholder, text: text)
                 .padding(12).background(Color.white).cornerRadius(10)
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.gray.opacity(0.3), lineWidth: 1))

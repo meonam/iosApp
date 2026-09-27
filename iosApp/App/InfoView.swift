@@ -71,14 +71,14 @@ public struct InfoView: View {
                 Circle()
                     .fill(Color.appPrimary.opacity(0.1))
                     .frame(width: 80, height: 80)
-                Text(getInitials(authViewModel.currentUser?.name))
+                Text(getInitials(authViewModel.currentUser?.fullName))
                     .font(.title)
                     .foregroundColor(Color.appPrimary)
                     .bold()
             }
             
             VStack(spacing: 4) {
-                Text(authViewModel.currentUser?.name ?? "N/A")
+                Text(authViewModel.currentUser?.fullName ?? "N/A")
                     .font(.title3)
                     .bold()
                 Text(authViewModel.currentUser?.email ?? "N/A")
