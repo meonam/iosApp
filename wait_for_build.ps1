@@ -1,5 +1,5 @@
 $headers = @{ "Authorization" = "token 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"; "Accept" = "application/vnd.github.v3+json" }
-$runId = 36283034528
+$runId = 36283238082
 Write-Output "Waiting for build $runId to complete..."
 while ($true) {
     $response = Invoke-RestMethod -Uri "https://api.github.com/repos/meonam/iosApp/actions/runs/$runId" -Headers $headers

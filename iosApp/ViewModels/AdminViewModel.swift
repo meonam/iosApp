@@ -557,7 +557,7 @@ public class AdminViewModel: ObservableObject {
             fetchUnitsAndRegions()
         }
     }
-}
+
     // MARK: - SYSTEM SETTINGS
     public func fetchSystemConfig() async {
         isLoadingConfig = true

@@ -236,21 +236,16 @@ public struct ApproveStaffView: View {
             }
             .navigationTitle("Xác nhận phê duyệt")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Hủy") { showApprovalSheet = false }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Duyệt") {
+            .navigationBarItems(leading: Button("Hủy") { showApprovalSheet = false }
+                , trailing: Button("Duyệt") {
                         if let s = staffToApprove {
                             viewModel.approveUser(email: s.email, role: selectedRole, donVi: selectedUnit, departmentId: selectedDept)
                         }
                         showApprovalSheet = false
                     }
                     .font(.headline)
-                    .foregroundColor(.appPrimaryPink)
-                }
-            }
+                    .foregroundColor(.appPrimaryPink))
         }
     }
 }
+

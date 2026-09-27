@@ -1,4 +1,4 @@
-import SwiftUI
+﻿import SwiftUI
 
 public struct UnitRegionManagerView: View {
     @ObservedObject var viewModel: AdminViewModel
@@ -227,12 +227,9 @@ public struct UnitRegionManagerView: View {
             }
             .navigationTitle(isEditing ? (selectedTab == 0 ? "Sửa đơn vị" : "Sửa khu vực") : (selectedTab == 0 ? "Thêm đơn vị" : "Thêm khu vực"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Hủy") { showFormSheet = false }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Lưu") {
+            .navigationBarItems(
+                leading: Button("Hủy") { showFormSheet = false },
+                trailing: Button("Lưu") {
                         if !nameInput.isEmpty && !idInput.isEmpty {
                             if selectedTab == 0 {
                                 saveUnit()
@@ -245,7 +242,7 @@ public struct UnitRegionManagerView: View {
                     .font(.headline)
                     .foregroundColor(.appPrimary)
                 }
-            }
+            )
             .onAppear {
                 if selectedTab == 0 && regionSelection.isEmpty && !viewModel.regions.isEmpty {
                     regionSelection = viewModel.regions.first!.maKhuVuc

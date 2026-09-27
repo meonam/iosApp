@@ -295,8 +295,8 @@ public struct SupportRatingReportView: View {
                         
                         let t = SupportTicket(
                             id: id,
-                            createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
                             priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
+                            createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
                             rating: FirestoreHelper.getInt(fields["rating"] as? [String: Any]),
                             assignedToEmail: assignedEmail,
                             assignedToName: assignedName,

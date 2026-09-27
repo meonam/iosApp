@@ -1,4 +1,4 @@
-import SwiftUI
+﻿import SwiftUI
 
 public struct SpecialistTeamManagerView: View {
     @ObservedObject var viewModel: AdminViewModel
@@ -222,12 +222,9 @@ public struct SpecialistTeamManagerView: View {
             }
             .navigationTitle(isEditing ? "Cập nhật tổ nghiệp vụ" : "Thêm tổ nghiệp vụ")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Hủy") { showFormSheet = false }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Lưu") {
+            .navigationBarItems(
+                leading: Button("Hủy") { showFormSheet = false },
+                trailing: Button("Lưu") {
                         if !teamName.isEmpty && !teamId.isEmpty {
                             saveTeam()
                             showFormSheet = false
@@ -236,7 +233,7 @@ public struct SpecialistTeamManagerView: View {
                     .font(.headline)
                     .foregroundColor(.appPrimary)
                 }
-            }
+            )
         }
     }
     

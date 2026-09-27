@@ -1,4 +1,4 @@
-import SwiftUI
+﻿import SwiftUI
 
 // MARK: - MÀN HÌNH QUẢN LÝ LOẠI THIẾT BỊ
 struct DeviceTypeModel: Identifiable, Hashable {
@@ -302,8 +302,8 @@ public struct DeviceTypeManagerView: View {
                         for doc in docs {
                             if let fields = doc["fields"] as? [String: Any] {
                                 let id = (doc["name"] as? String)?.components(separatedBy: "/").last ?? ""
-                                let name = FirestoreHelper.getString(fields, "displayName")
-                                let pb = FirestoreHelper.getString(fields, "phongBan")
+                                let name = FirestoreHelper.getString(fields["displayName"] as? [String: Any])
+                                let pb = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
                                 res.append(DeviceTypeModel(id: id, displayName: name, phongBan: pb))
                             }
                         }

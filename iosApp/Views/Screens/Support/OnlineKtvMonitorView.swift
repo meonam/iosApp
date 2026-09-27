@@ -320,7 +320,6 @@ public struct OnlineKtvMonitorView: View {
 struct KtvDetailSheet: View {
     let ktv: KtvOnlineLocation
     @Environment(\.presentationMode) var presentationMode
-    @State private var showCallView: Bool = false
     @ObservedObject var supportVM: SupportViewModel
 
     var body: some View {
@@ -370,24 +369,7 @@ struct KtvDetailSheet: View {
             Spacer()
 
             HStack(spacing: 16) {
-                Button(action: { 
-                      WebRtcCallManager.shared.startCall(targetEmail: ktv.email, targetName: ktv.name, callerName: supportVM.user.fullName, callerEmail: supportVM.user.email)
-                      showCallView = true
-                  }) {
-                      HStack {
-                          Image(systemName: "phone.bubble.left.fill")
-                          Text("App Call")
-                      }
-                      .font(.system(size: 16, weight: .bold))
-                      .foregroundColor(.white)
-                      .frame(maxWidth: .infinity)
-                      .padding()
-                      .background(ktv.isOnline ? Color.blue : Color.gray)
-                      .cornerRadius(12)
-                  }
-                  .disabled(!ktv.isOnline)
-                  
-                  Button(action: { callKtv() }) {
+                Button(action: { callKtv() }) {
                     HStack {
                         Image(systemName: "phone.fill")
                         Text("Gọi điện")
@@ -434,11 +416,6 @@ struct KtvDetailSheet: View {
             Text(value)
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.black)
-        }
-    }
-
-        .fullScreenCover(isPresented: $showCallView) {
-            CallView()
         }
     }
     

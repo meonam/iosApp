@@ -237,15 +237,11 @@ public struct DepartmentManagerView: View {
             }
             .navigationTitle(isEdit ? "Cập nhật phòng ban" : "Thêm phòng ban")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Hủy") {
+            .navigationBarItems(leading: Button("Hủy") {
                         showAddSheet = false
                         showEditSheet = false
                     }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Lưu") {
+                , trailing: Button("Lưu") {
                         if !deptName.isEmpty && !deptId.isEmpty {
                             if isEdit {
                                 updateDept()
@@ -257,9 +253,7 @@ public struct DepartmentManagerView: View {
                         }
                     }
                     .font(.headline)
-                    .foregroundColor(Color.appPrimaryPink)
-                }
-            }
+                    .foregroundColor(Color.appPrimaryPink))
         }
     }
     
@@ -381,3 +375,5 @@ public struct DepartmentManagerView: View {
         }
     }
 }
+
+

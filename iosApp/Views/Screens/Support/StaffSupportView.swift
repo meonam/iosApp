@@ -1,4 +1,4 @@
-import SwiftUI
+﻿import SwiftUI
 
 struct StaffTicket: Identifiable {
     let id: String
@@ -273,12 +273,9 @@ struct CreateTicketView: View {
             }
             .navigationTitle("Tạo yêu cầu mới")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Hủy", action: onCancel)
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Lưu") {
+            .navigationBarItems(
+                leading: Button("Hủy", action: onCancel),
+                trailing: Button("Lưu") {
                         submitTicket()
                     }
                     .disabled(title.isEmpty || description.isEmpty || isSubmitting)

@@ -1,4 +1,4 @@
-import SwiftUI
+﻿import SwiftUI
 
 public struct SpecialistTeamManagerView: View {
     @ObservedObject var viewModel: AdminViewModel
@@ -145,12 +145,9 @@ public struct SpecialistTeamManagerView: View {
             }
             .navigationTitle("Thêm tổ nghiệp vụ")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Hủy") { showAddSheet = false }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Lưu") {
+            .navigationBarItems(
+                leading: Button("Hủy") { showAddSheet = false },
+                trailing: Button("Lưu") {
                         if !newTeamName.isEmpty {
                             Task {
                                 await viewModel.addSpecialistTeam(name: newTeamName, description: newTeamDesc)
