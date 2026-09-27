@@ -84,6 +84,15 @@ def check_and_download(run_id=None):
     if os.path.exists(ipa_path):
         size_mb = os.path.getsize(ipa_path) / (1024 * 1024)
         print(f"SUCCESS: {ipa_path} extracted! Size: {size_mb:.2f} MB")
+        
+        # Copy to release/iOS
+        release_dir = r"E:\CODE\Android\APP\QLTB\release\iOS"
+        os.makedirs(release_dir, exist_ok=True)
+        import shutil
+        dest_ipa = os.path.join(release_dir, 'QLTB_iOS_v1.2.0.ipa')
+        shutil.copy2(ipa_path, dest_ipa)
+        print(f"COPIED TO RELEASE: {dest_ipa} ({os.path.getsize(dest_ipa) / (1024 * 1024):.2f} MB)")
+
         if os.path.exists(zip_path):
             os.remove(zip_path)
         return True

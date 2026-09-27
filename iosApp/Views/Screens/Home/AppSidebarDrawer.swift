@@ -343,8 +343,8 @@ public struct AppSidebarDrawer: View {
                                     }
                                     drawerItemRow(
                                         title: "Duyệt nhân viên mới",
-                                        icon: "person.badge.plus",
-                                        color: Color.appPrimaryPink,
+                                        icon: "checkmark.shield.fill",
+                                        color: Color(hex: "#10B981"),
                                         badge: pendingStaffCount > 0 ? "\(pendingStaffCount)" : nil,
                                         isSelected: currentDestination == .approveStaff
                                     ) {
@@ -352,7 +352,7 @@ public struct AppSidebarDrawer: View {
                                     }
                                     drawerItemRow(
                                         title: "Quản lý phòng ban",
-                                        icon: "folder.fill",
+                                        icon: "building.2.fill",
                                         color: Color(hex: "#818CF8"),
                                         isSelected: currentDestination == .departmentManagement
                                     ) {
@@ -360,7 +360,7 @@ public struct AppSidebarDrawer: View {
                                     }
                                     drawerItemRow(
                                         title: "Quản lý đơn vị",
-                                        icon: "building.2.fill",
+                                        icon: "building.columns.fill",
                                         color: Color(hex: "#6366F1"),
                                         isSelected: currentDestination == .unitManagement
                                     ) {
@@ -431,7 +431,7 @@ public struct AppSidebarDrawer: View {
                                     ) {
                                         onSelect(.shiftSchedule)
                                     }
-                                    if isAdmin || isHelpDesk || isIncidentHandler {
+                                    if isManagerOrAdmin || isIncidentHandler {
                                         drawerItemRow(
                                             title: "Theo dõi KTV Online (Bản đồ)",
                                             icon: "map.fill",
@@ -594,7 +594,7 @@ public struct AppSidebarDrawer: View {
         }
     }
 
-    // MARK: - DRAWER ITEM ROW
+    // MARK: - DRAWER ITEM ROW (ĐỒNG BỘ 1:1 DRAWERITEM TRÊN ANDROID)
     private func drawerItemRow(
         title: String,
         icon: String,
@@ -606,13 +606,13 @@ public struct AppSidebarDrawer: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 15))
+                    .font(.system(size: 16, weight: isSelected ? .bold : .medium))
                     .foregroundColor(color)
                     .frame(width: 22)
 
                 Text(title)
                     .font(.system(size: 13, weight: isSelected ? .bold : .medium))
-                    .foregroundColor(isSelected ? Color.appSecondaryDarkBlue : Color.appTextPrimary)
+                    .foregroundColor(isSelected ? Color(hex: "#0F172A") : Color(hex: "#334155"))
                     .lineLimit(1)
 
                 Spacer()
@@ -627,11 +627,14 @@ public struct AppSidebarDrawer: View {
                         .clipShape(Capsule())
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(isSelected ? Color.white : Color.clear)
-            .cornerRadius(8)
-            .shadow(color: isSelected ? Color.black.opacity(0.04) : Color.clear, radius: 2, y: 1)
+            .padding(.horizontal, 10)
+            .frame(height: 42)
+            .background(isSelected ? color.opacity(0.10) : Color.clear)
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isSelected ? color.opacity(0.25) : Color.clear, lineWidth: 1)
+            )
         }
     }
 }

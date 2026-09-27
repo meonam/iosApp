@@ -17,6 +17,8 @@ public struct DepartmentManagerView: View {
     @State private var hotline: String = ""
     @State private var location: String = ""
     @State private var isActive: Bool = true
+    @State private var slaResponse: String = "30"
+    @State private var slaResolve: String = "240"
     
     @State private var editingDeptId: String = ""
 
@@ -134,58 +136,135 @@ public struct DepartmentManagerView: View {
         }
     }
 
+    private func deptRoleBadge(_ dept: Department) -> some View {
+        let (icon, label, colorHex): (String, String, String) = {
+            if dept.isHelpDesk || dept.departmentType == "HELPDESK" {
+                return ("🎧", "HelpDesk", "#0284C7")
+            } else if dept.isIncidentHandler || dept.departmentType == "IT" {
+                return ("🛠️", "Xử lý sự cố", "#7E22CE")
+            } else if dept.isApplicationSupport {
+                return ("💻", "Khối ứng dụng", "#6D28D9")
+            } else if dept.isWarehouse || dept.departmentType == "WAREHOUSE" {
+                return ("📦", "Kho thiết bị", "#B45309")
+            } else {
+                return ("🏢", "Chuyên môn", "#64748B")
+            }
+        }()
+        let color = Color(hex: colorHex)
+        return Text("\(icon) \(label)")
+            .font(.system(size: 10.5, weight: .bold))
+            .foregroundColor(color)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2.5)
+            .background(color.opacity(0.12))
+            .cornerRadius(6)
+    }
+
     private func deptCard(_ dept: Department) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "folder.fill")
-                    .foregroundColor(dept.isActive ? Color.appPrimary : Color.gray)
+            // Header: Dept ID chip + Dept Name + Toggle Active
+            HStack(spacing: 8) {
+                Text(dept.departmentId)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(dept.isActive ? Color.appSecondaryDarkBlue : Color.gray)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(dept.isActive ? Color(hex: "#EFF6FF") : Color(hex: "#F1F5F9"))
+                    .cornerRadius(6)
+
                 Text(dept.departmentName)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(dept.isActive ? Color.appTextPrimary : .gray)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(dept.isActive ? Color(hex: "#0F172A") : Color.gray)
+                    .lineLimit(1)
 
                 Spacer()
-                
+
+                Button(action: { toggleActive(dept) }) {
+                    ZStack(alignment: dept.isActive ? .trailing : .leading) {
+                        Capsule()
+                            .fill(dept.isActive ? Color.appPrimaryPink : Color.gray.opacity(0.3))
+                            .frame(width: 38, height: 22)
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 18, height: 18)
+                            .padding(.horizontal, 2)
+                            .shadow(radius: 1)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+
+            // Badges: Loại phòng ban / Vai trò
+            HStack(spacing: 6) {
+                deptRoleBadge(dept)
                 if !dept.isActive {
-                    Text("Đã khóa")
+                    Text("🔒 Đã khóa")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(.red)
                         .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .padding(.vertical, 2.5)
                         .background(Color.red.opacity(0.1))
-                        .cornerRadius(4)
+                        .cornerRadius(6)
                 }
             }
-            Divider()
-            HStack {
-                Text("Mã: \(dept.departmentId)")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color.appSecondaryDarkBlue)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.appSecondaryDarkBlue.opacity(0.1))
-                    .cornerRadius(4)
-                
-                Spacer()
-                
-                Label("\(getUserCount(for: dept.departmentId)) NV", systemImage: "person.2.fill")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color.appPrimaryPink)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.appPrimaryPink.opacity(0.1))
-                    .cornerRadius(4)
+
+            // Thông tin chi tiết: Trưởng phòng, Hotline, Vị trí, SLA
+            let detailParts: [String] = {
+                var parts: [String] = []
+                if !dept.managerName.isEmpty { parts.append("👤 \(dept.managerName)") }
+                if !dept.hotline.isEmpty { parts.append("📞 \(dept.hotline)") }
+                if !dept.location.isEmpty { parts.append("📍 \(dept.location)") }
+                if dept.isHelpDesk || dept.isIncidentHandler || dept.isApplicationSupport {
+                    parts.append("⏱️ SLA: \(dept.slaResponseMinutes)p/\(max(1, dept.slaResolveMinutes / 60))h")
+                }
+                return parts
+            }()
+
+            if !detailParts.isEmpty {
+                Text(detailParts.joined(separator: " • "))
+                    .font(.system(size: 11.5))
+                    .foregroundColor(Color.gray)
+                    .lineLimit(1)
             }
-            if !dept.managerName.isEmpty {
-                Text("Quản lý: \(dept.managerName)")
-                    .font(.system(size: 12))
-                    .foregroundColor(.gray)
+
+            Divider()
+
+            // Footer: Thống kê NV & Thao tác Sửa / Xóa
+            HStack(spacing: 8) {
+                Text("👥 \(getUserCount(for: dept.departmentId)) NV")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(Color(hex: "#1D4ED8"))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color(hex: "#EFF6FF"))
+                    .cornerRadius(6)
+
+                Spacer()
+
+                Button(action: { openEdit(dept) }) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .frame(width: 30, height: 30)
+                        .background(Color(hex: "#F1F5F9"))
+                        .cornerRadius(6)
+                }
+
+                Button(action: { deleteDept(deptId: dept.id) }) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.red)
+                        .frame(width: 30, height: 30)
+                        .background(Color.red.opacity(0.1))
+                        .cornerRadius(6)
+                }
             }
         }
-        .padding(14)
+        .padding(12)
         .background(Color.white)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
-        .opacity(dept.isActive ? 1.0 : 0.6)
+        .opacity(dept.isActive ? 1.0 : 0.65)
     }
 
     private func deptFormSheet(isEdit: Bool) -> some View {
@@ -228,6 +307,23 @@ public struct DepartmentManagerView: View {
                         .keyboardType(.phonePad)
                     TextField("Vị trí (vd: Tầng 2)", text: $location)
                 }
+
+                Section(header: Text("Cấu hình SLA (Hỗ trợ kỹ thuật)")) {
+                    HStack {
+                        Text("SLA Phản hồi (phút):")
+                        Spacer()
+                        TextField("30", text: $slaResponse)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    HStack {
+                        Text("SLA Xử lý (phút):")
+                        Spacer()
+                        TextField("240", text: $slaResolve)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                }
                 
                 if isEdit {
                     Section {
@@ -266,6 +362,8 @@ public struct DepartmentManagerView: View {
         hotline = ""
         location = ""
         isActive = true
+        slaResponse = "30"
+        slaResolve = "240"
     }
     
     private func openEdit(_ dept: Department) {
@@ -278,6 +376,8 @@ public struct DepartmentManagerView: View {
         hotline = dept.hotline
         location = dept.location
         isActive = dept.isActive
+        slaResponse = "\(dept.slaResponseMinutes)"
+        slaResolve = "\(dept.slaResolveMinutes)"
         showEditSheet = true
     }
 
@@ -287,6 +387,27 @@ public struct DepartmentManagerView: View {
     }
     
     // REST API Helpers
+    private func toggleActive(_ dept: Department) {
+        let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
+        let newActive = !dept.isActive
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments/\(dept.departmentId)?updateMask.fieldPaths=isActive"
+        guard let url = URL(string: urlStr) else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !viewModel.idToken.isEmpty { request.addValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization") }
+        let body: [String: Any] = [
+            "fields": [
+                "isActive": ["booleanValue": newActive]
+            ]
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        Task {
+            let _ = try? await URLSession.shared.data(for: request)
+            viewModel.fetchDepartments()
+        }
+    }
+
     private func saveNewDept() {
         let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
         let did = deptId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -301,6 +422,8 @@ public struct DepartmentManagerView: View {
         let isHd = deptType == "HELPDESK"
         let isInc = deptType == "IT"
         let isWh = deptType == "WAREHOUSE"
+        let respMin = Int(slaResponse) ?? 30
+        let resMin = Int(slaResolve) ?? 240
         
         let body: [String: Any] = [
             "fields": [
@@ -315,6 +438,8 @@ public struct DepartmentManagerView: View {
                 "isHelpDesk": ["booleanValue": isHd],
                 "isIncidentHandler": ["booleanValue": isInc],
                 "isWarehouse": ["booleanValue": isWh],
+                "slaResponseMinutes": ["integerValue": "\(respMin)"],
+                "slaResolveMinutes": ["integerValue": "\(resMin)"],
                 "companyId": ["stringValue": comp]
             ]
         ]
@@ -328,7 +453,7 @@ public struct DepartmentManagerView: View {
     
     private func updateDept() {
         let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments/\(editingDeptId)?updateMask.fieldPaths=departmentName&updateMask.fieldPaths=departmentType&updateMask.fieldPaths=managerName&updateMask.fieldPaths=managerEmail&updateMask.fieldPaths=hotline&updateMask.fieldPaths=location&updateMask.fieldPaths=isActive&updateMask.fieldPaths=isHelpDesk&updateMask.fieldPaths=isIncidentHandler&updateMask.fieldPaths=isWarehouse"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments/\(editingDeptId)?updateMask.fieldPaths=departmentName&updateMask.fieldPaths=departmentType&updateMask.fieldPaths=managerName&updateMask.fieldPaths=managerEmail&updateMask.fieldPaths=hotline&updateMask.fieldPaths=location&updateMask.fieldPaths=isActive&updateMask.fieldPaths=isHelpDesk&updateMask.fieldPaths=isIncidentHandler&updateMask.fieldPaths=isWarehouse&updateMask.fieldPaths=slaResponseMinutes&updateMask.fieldPaths=slaResolveMinutes"
         
         guard let url = URL(string: urlStr) else { return }
         var request = URLRequest(url: url)
@@ -339,6 +464,8 @@ public struct DepartmentManagerView: View {
         let isHd = deptType == "HELPDESK"
         let isInc = deptType == "IT"
         let isWh = deptType == "WAREHOUSE"
+        let respMin = Int(slaResponse) ?? 30
+        let resMin = Int(slaResolve) ?? 240
         
         let body: [String: Any] = [
             "fields": [
@@ -351,7 +478,9 @@ public struct DepartmentManagerView: View {
                 "isActive": ["booleanValue": isActive],
                 "isHelpDesk": ["booleanValue": isHd],
                 "isIncidentHandler": ["booleanValue": isInc],
-                "isWarehouse": ["booleanValue": isWh]
+                "isWarehouse": ["booleanValue": isWh],
+                "slaResponseMinutes": ["integerValue": "\(respMin)"],
+                "slaResolveMinutes": ["integerValue": "\(resMin)"]
             ]
         ]
         
