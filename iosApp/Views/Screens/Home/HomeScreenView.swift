@@ -444,7 +444,7 @@ public struct HomeScreenView: View {
             } else if viewModel.user.isManager {
                 return ("Quản lý phòng ban", Color.appSecondaryDarkBlue.opacity(0.12), Color.appSecondaryDarkBlue)
             } else {
-                return ("Nhân viên", Color(hex: "#F0F2F5"), Color.darkGray)
+                return ("Nhân viên", Color(hex: "#F0F2F5"), Color(hex: "#4B5563"))
             }
         }()
 

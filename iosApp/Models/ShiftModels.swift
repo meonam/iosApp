@@ -13,19 +13,35 @@ public struct ShiftCode {
     public static let nghiMat = "NM"      // Nghỉ mát
     public static let nghiLe = "NL"       // Nghỉ lễ
 
+    // Uppercase aliases
+    public static let SANG = sang
+    public static let CHIEU = chieu
+    public static let NGHI_CA = nghiCa
+    public static let CONG_TAC = congTac
+    public static let PHEP = phep
+    public static let HANH_CHANH = hanhChanh
+    public static let TRUC = truc
+    public static let HOP = hop
+    public static let NGHI_MAT = nghiMat
+    public static let NGHI_LE = nghiLe
+
     public static let allCodes: [String] = [
         sang, chieu, nghiCa, congTac, phep, hanhChanh, truc, hop, nghiMat, nghiLe
     ]
 
+    public static func label(_ code: String) -> String {
+        label(for: code)
+    }
+
     public static func label(for code: String) -> String {
         switch code.uppercased() {
-        case sang: return "Sáng"
-        case chieu: return "Chiều"
+        case sang: return "Ca 1 (Sáng)"
+        case chieu: return "Ca 2 (Chiều)"
         case nghiCa: return "Nghỉ ca"
         case congTac: return "Công tác"
         case phep: return "Nghỉ phép"
-        case hanhChanh: return "Hành chánh"
-        case truc: return "Trực HT"
+        case hanhChanh: return "Hành chính"
+        case truc: return "Ca 3 (Trực đêm)"
         case hop: return "Hội họp"
         case nghiMat: return "Nghỉ mát"
         case nghiLe: return "Nghỉ lễ"

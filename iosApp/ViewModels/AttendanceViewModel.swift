@@ -92,7 +92,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         clockTimer?.invalidate()
         updateClockStrings()
         clockTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.updateClockStrings()
             }
         }
@@ -289,7 +289,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 if cfg.standardCheckOutTime.isEmpty { cfg.standardCheckOutTime = "17:00" }
 
                 cfg.shift1CheckInTime = FirestoreHelper.getString(fields["shift1CheckInTime"] as? [String: Any])
-                if cfg.shift1Check1InTimeEmpty(cfg.shift1CheckInTime) { cfg.shift1CheckInTime = "07:00" }
+                if cfg.shift1CheckInTime.isEmpty { cfg.shift1CheckInTime = "07:00" }
                 cfg.shift1CheckOutTime = FirestoreHelper.getString(fields["shift1CheckOutTime"] as? [String: Any])
                 if cfg.shift1CheckOutTime.isEmpty { cfg.shift1CheckOutTime = "15:00" }
 

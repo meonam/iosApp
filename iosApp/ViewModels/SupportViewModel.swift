@@ -97,6 +97,14 @@ public class SupportViewModel: ObservableObject {
         UserDefaults.standard.set(Array(deletedTicketIds), forKey: "support_prefs_deleted_ids")
     }
 
+    public func toggleHideTicket(_ id: String) {
+        if deletedTicketIds.contains(id) {
+            unhideTicket(id: id)
+        } else {
+            hideTicket(id: id)
+        }
+    }
+
     public func cleanClosedTickets() {
         let closedIds = scopedTickets.filter { $0.isClosed }.map { $0.id }
         for id in closedIds {
@@ -1060,9 +1068,9 @@ public class SupportViewModel: ObservableObject {
                 rating: FirestoreHelper.getInt(fields["rating"] as? [String: Any]),
                 feedback: FirestoreHelper.getString(fields["feedback"] as? [String: Any]),
                 feedbackAt: FirestoreHelper.getInt64(fields["feedbackAt"] as? [String: Any]),
+                assignedDepartmentName: FirestoreHelper.getString(fields["assignedDepartmentName"] as? [String: Any]),
                 assignedToEmail: FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any]),
                 assignedToName: FirestoreHelper.getString(fields["assignedToName"] as? [String: Any]),
-                assignedDepartmentName: FirestoreHelper.getString(fields["assignedDepartmentName"] as? [String: Any]),
                 closedAt: FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any]),
                 isAutoRated: FirestoreHelper.getBool(fields["isAutoRated"] as? [String: Any]),
                 isInvalid: FirestoreHelper.getBool(fields["isInvalid"] as? [String: Any])

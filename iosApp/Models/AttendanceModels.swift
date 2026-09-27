@@ -1,36 +1,5 @@
 import Foundation
 
-// MARK: - SHIFT CODE DEFINITIONS (ĐỒNG BỘ 1:1 VỚI ATTENDANCEMODELS.KT TRÊN ANDROID)
-public struct ShiftCode {
-    public static let SANG = "S"
-    public static let CHIEU = "C"
-    public static let HANH_CHANH = "HC"
-    public static let TRUC = "TR"
-    public static let NGHI_CA = "NC"
-    public static let PHEP = "P"
-    public static let NGHI_LE = "NL"
-    public static let NGHI_MAT = "NM"
-    public static let CONG_TAC = "CT"
-    public static let HOP = "H"
-
-    public static func label(_ code: String) -> String {
-        let clean = code.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        switch clean {
-        case SANG: return "Ca 1 (Sáng)"
-        case CHIEU: return "Ca 2 (Chiều)"
-        case HANH_CHANH: return "Hành chính"
-        case TRUC: return "Ca 3 (Trực đêm)"
-        case NGHI_CA: return "Nghỉ ca"
-        case PHEP: return "Nghỉ phép"
-        case NGHI_LE: return "Nghỉ lễ"
-        case NGHI_MAT: return "Nghỉ mát"
-        case CONG_TAC: return "Đi công tác"
-        case HOP: return "Đi họp"
-        default: return code.isEmpty ? "Chưa xếp ca" : code
-        }
-    }
-}
-
 // MARK: - TRAVEL EXPENSE CONFIG (ĐỒNG BỘ 1:1 VỚI TRAVEL_EXPENSE_CONFIG TRÊN ANDROID)
 public struct TravelExpenseConfig: Codable {
     public var standardCheckInTime: String = "08:00"

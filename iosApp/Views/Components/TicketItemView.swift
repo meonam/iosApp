@@ -1,6 +1,6 @@
 import SwiftUI
 
-// MARK: - FLOW LAYOUT HELPER FOR TAGS / BADGES
+// MARK: - FLOW LAYOUT HELPER FOR TAGS / BADGES (iOS 15 COMPATIBLE)
 public struct FlowLayout<Content: View>: View {
     let spacing: CGFloat
     let content: Content
@@ -11,50 +11,10 @@ public struct FlowLayout<Content: View>: View {
     }
 
     public var body: some View {
-        _FlowLayout(spacing: spacing) {
-            content
-        }
-    }
-}
-
-private struct _FlowLayout: Layout {
-    var spacing: CGFloat
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let maxW = proposal.width ?? .infinity
-        var currentX: CGFloat = 0
-        var currentY: CGFloat = 0
-        var lineHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if currentX + size.width > maxW && currentX > 0 {
-                currentX = 0
-                currentY += lineHeight + spacing
-                lineHeight = 0
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: spacing) {
+                content
             }
-            currentX += size.width + spacing
-            lineHeight = max(lineHeight, size.height)
-        }
-
-        return CGSize(width: maxW, height: currentY + lineHeight)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var currentX = bounds.minX
-        var currentY = bounds.minY
-        var lineHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if currentX + size.width > bounds.maxX && currentX > bounds.minX {
-                currentX = bounds.minX
-                currentY += lineHeight + spacing
-                lineHeight = 0
-            }
-            subview.place(at: CGPoint(x: currentX, y: currentY), proposal: ProposedViewSize(size))
-            currentX += size.width + spacing
-            lineHeight = max(lineHeight, size.height)
         }
     }
 }

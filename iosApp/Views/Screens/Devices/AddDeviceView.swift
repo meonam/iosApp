@@ -144,7 +144,7 @@ public struct AddDeviceView: View {
         .sheet(isPresented: $showTypeManager) {
             DeviceTypeManagerView(
                 viewModel: viewModel,
-                onDismiss: { showTypeManager = false }
+                onBack: { showTypeManager = false }
             )
         }
     }

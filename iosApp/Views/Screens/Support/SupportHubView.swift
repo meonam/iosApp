@@ -91,156 +91,9 @@ public struct SupportHubView: View {
                 Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // 1. TOP BAR TRÀN TAI THỎ VỚI SAFE AREA
-                    VStack(spacing: 0) {
-                        Color.clear.frame(height: geometry.safeAreaInsets.top)
-
-                        HStack(spacing: 10) {
-                            Button(action: onBack) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 17, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-
-                            Text("Trung tâm hỗ trợ")
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundColor(.white)
-
-                            Spacer()
-
-                            // Nút 1: Hướng dẫn (Bóng đèn vàng)
-                            Button(action: { showGuideAlert = true }) {
-                                Image(systemName: "lightbulb.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(Color(hex: "#FBBF24"))
-                            }
-
-                            // Nút 2: Giám sát lộ trình KTV (Icon xe/người)
-                            Button(action: { showKtvMonitorSheet = true }) {
-                                Image(systemName: "figure.walk.motion")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(viewModel.rawTickets.contains { $0.isOpen } ? Color(hex: "#10B981") : .white)
-                            }
-
-                            // Nút 3: Dọn dẹp các yêu cầu đã đóng
-                            Button(action: {
-                                if closedTicketsToCleanCount == 0 {
-                                    // Không có ticket đã đóng để ẩn
-                                } else {
-                                    showConfirmCleanClosed = true
-                                }
-                            }) {
-                                Image(systemName: "tray.and.arrow.down.fill")
-                                    .font(.system(size: 15))
-                                    .foregroundColor(.white)
-                            }
-
-                            // Nút 4: Báo cáo SLA / Đánh giá
-                            Button(action: onOpenRatingReport) {
-                                Image(systemName: "chart.bar.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(.white)
-                            }
-
-                            // Nút 5: Làm mới
-                            Button(action: { viewModel.fetchTickets() }) {
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 15, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                    }
-                    .background(Color.appTopBarColor)
-
-                    // 2. 4 SEGMENTED FILTER TABS + SEARCH
-                    VStack(spacing: 10) {
-                        filterTabsView
-
-                        // Search field
-                        HStack(spacing: 8) {
-                            Image(systemName: "magnifyingglass")
-                                .foregroundColor(Color.appTextSecondary)
-                            TextField("Tìm mã phiếu, tiêu đề, người gửi, đơn vị...", text: $viewModel.searchQuery)
-                                .font(.system(size: 13.5))
-                            if !viewModel.searchQuery.isEmpty {
-                                Button(action: { viewModel.searchQuery = "" }) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundColor(Color.appTextSecondary)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
-                        .background(Color.white)
-                        .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-
-                    // 3. DANH SÁCH TICKETS GROUP THEO NGÀY
-                    if viewModel.isLoading && viewModel.rawTickets.isEmpty {
-                        Spacer()
-                        ProgressView("Đang tải dữ liệu...")
-                            .font(.system(size: 14))
-                        Spacer()
-                    } else if viewModel.filteredTickets.isEmpty {
-                        VStack(spacing: 12) {
-                            Spacer()
-                            Image(systemName: "tray.fill")
-                                .font(.system(size: 48))
-                                .foregroundColor(Color.appTextSecondary.opacity(0.6))
-                            Text(emptyStateText)
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color.appTextSecondary)
-                            Spacer()
-                        }
-                    } else {
-                        ScrollView {
-                            LazyVStack(spacing: 12, pinnedViews: [.sectionHeaders]) {
-                                ForEach(groupedTickets, id: \.key) { group in
-                                    let openInGroup = group.tickets.filter { $0.isOpen && $0.closedAt <= 0 }.count
-                                    let isCollapsed = isGroupCollapsed(key: group.key, openCountInGroup: openInGroup)
-
-                                    Section(
-                                        header: groupHeader(
-                                            title: group.key,
-                                            totalCount: group.tickets.count,
-                                            openCount: openInGroup,
-                                            isCollapsed: isCollapsed
-                                        )
-                                        .onTapGesture {
-                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                toggleGroupCollapse(key: group.key, openCountInGroup: openInGroup)
-                                            }
-                                        }
-                                    ) {
-                                        if !isCollapsed {
-                                            ForEach(group.tickets) { ticket in
-                                                TicketItemView(
-                                                    ticket: ticket,
-                                                    isHidden: viewModel.filterTab == "HIDDEN",
-                                                    onClick: {
-                                                        onSelectTicket(ticket)
-                                                    },
-                                                    onToggleHide: {
-                                                        viewModel.toggleHideTicket(ticket.id)
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                        }
-                        .refreshable {
-                            viewModel.fetchTickets()
-                        }
-                    }
+                    topBarView(safeAreaTop: geometry.safeAreaInsets.top)
+                    searchAndFilterBar
+                    ticketListView
                 }
             }
             .ignoresSafeArea(edges: .top)
@@ -396,4 +249,159 @@ public struct SupportHubView: View {
         .cornerRadius(8)
     }
 
+    // MARK: - SUBVIEWS
+    @ViewBuilder
+    private func topBarView(safeAreaTop: CGFloat) -> some View {
+        VStack(spacing: 0) {
+            Color.clear.frame(height: safeAreaTop)
+
+            HStack(spacing: 10) {
+                Button(action: onBack) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(.white)
+                }
+
+                Text("Trung tâm hỗ trợ")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(.white)
+
+                Spacer()
+
+                // Nút 1: Hướng dẫn
+                Button(action: { showGuideAlert = true }) {
+                    Image(systemName: "lightbulb.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(Color(hex: "#FBBF24"))
+                }
+
+                // Nút 2: Giám sát lộ trình KTV
+                Button(action: { showKtvMonitorSheet = true }) {
+                    Image(systemName: "figure.walk.motion")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(viewModel.rawTickets.contains { $0.isOpen } ? Color(hex: "#10B981") : .white)
+                }
+
+                // Nút 3: Dọn dẹp các yêu cầu đã đóng
+                Button(action: {
+                    if closedTicketsToCleanCount > 0 {
+                        showConfirmCleanClosed = true
+                    }
+                }) {
+                    Image(systemName: "tray.and.arrow.down.fill")
+                        .font(.system(size: 15))
+                        .foregroundColor(.white)
+                }
+
+                // Nút 4: Báo cáo SLA / Đánh giá
+                Button(action: onOpenRatingReport) {
+                    Image(systemName: "chart.bar.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                }
+
+                // Nút 5: Làm mới
+                Button(action: { viewModel.fetchTickets() }) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(.white)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+        }
+        .background(Color.appTopBarColor)
+    }
+
+    @ViewBuilder
+    private var searchAndFilterBar: some View {
+        VStack(spacing: 10) {
+            filterTabsView
+
+            // Search field
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(Color.appTextSecondary)
+                TextField("Tìm mã phiếu, tiêu đề, người gửi, đơn vị...", text: $viewModel.searchQuery)
+                    .font(.system(size: 13.5))
+                if !viewModel.searchQuery.isEmpty {
+                    Button(action: { viewModel.searchQuery = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(Color.appTextSecondary)
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(Color.white)
+            .cornerRadius(10)
+            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+    }
+
+    @ViewBuilder
+    private var ticketListView: some View {
+        if viewModel.isLoading && viewModel.rawTickets.isEmpty {
+            Spacer()
+            ProgressView("Đang tải dữ liệu...")
+                .font(.system(size: 14))
+            Spacer()
+        } else if viewModel.filteredTickets.isEmpty {
+            VStack(spacing: 12) {
+                Spacer()
+                Image(systemName: "tray.fill")
+                    .font(.system(size: 48))
+                    .foregroundColor(Color.appTextSecondary.opacity(0.6))
+                Text(emptyStateText)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color.appTextSecondary)
+                Spacer()
+            }
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 12, pinnedViews: [.sectionHeaders]) {
+                    ForEach(groupedTickets, id: \.key) { group in
+                        let openInGroup = group.tickets.filter { $0.isOpen && $0.closedAt <= 0 }.count
+                        let isCollapsed = isGroupCollapsed(key: group.key, openCountInGroup: openInGroup)
+
+                        Section(
+                            header: groupHeader(
+                                title: group.key,
+                                totalCount: group.tickets.count,
+                                openCount: openInGroup,
+                                isCollapsed: isCollapsed
+                            )
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    toggleGroupCollapse(key: group.key, openCountInGroup: openInGroup)
+                                }
+                            }
+                        ) {
+                            if !isCollapsed {
+                                ForEach(group.tickets) { ticket in
+                                    TicketItemView(
+                                        ticket: ticket,
+                                        isHidden: viewModel.filterTab == "HIDDEN",
+                                        onClick: {
+                                            onSelectTicket(ticket)
+                                        },
+                                        onToggleHide: {
+                                            viewModel.toggleHideTicket(ticket.id)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+            }
+            .refreshable {
+                viewModel.fetchTickets()
+            }
+        }
+    }
 }

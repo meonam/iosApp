@@ -546,6 +546,10 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         return (eventTimeMs - finishTime) <= windowMs
     }
 
+    public var remainingQualityTrackingHours: Int64 {
+        getRemainingQualityTrackingHours()
+    }
+
     public func getRemainingQualityTrackingHours(eventTimeMs: Int64 = Int64(Date().timeIntervalSince1970 * 1000)) -> Int64 {
         let finishTime = closedAt > 0 ? closedAt : (resolvedAt > 0 ? resolvedAt : 0)
         if finishTime <= 0 { return getQualityTrackingWindowHours() }
