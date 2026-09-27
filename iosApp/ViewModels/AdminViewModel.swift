@@ -11,6 +11,8 @@ public class AdminViewModel: ObservableObject {
     @Published public var departments: [Department] = []
     @Published public var units: [DonVi] = []
     @Published public var regions: [KhuVuc] = []
+    @Published public var userCountByDept: [String: Int] = [:]
+    @Published public var deviceCountByDept: [String: Int] = [:]
     @Published public var deviceTypes: [String] = [
         "Laptop", "Máy tính để bàn (PC)", "Máy in laser", "Máy in nhiệt",
         "Máy quét Barcode", "Thiết bị mạng (Router/Switch)", "Màn hình (Monitor)", "Bộ lưu điện (UPS)", "Khác"
@@ -85,10 +87,14 @@ public class AdminViewModel: ObservableObject {
     }
 
     private func parseUsers(from documents: [[String: Any]]) -> [User] {
-        return documents.compactMap { doc in
+        let users: [User] = documents.compactMap { doc in
             guard let name = doc["name"] as? String,
                   let fields = doc["fields"] as? [String: Any] else { return nil }
             let email = name.components(separatedBy: "/").last ?? ""
+            let rawDept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
+            let rawPb = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
+            let finalDept = rawDept.isEmpty ? rawPb : rawDept
+
             return User(
                 maNhanVien: FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
                 email: email,
@@ -97,7 +103,7 @@ public class AdminViewModel: ObservableObject {
                 phone: FirestoreHelper.getString(fields["phone"] as? [String: Any]),
                 donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
                 companyId: FirestoreHelper.getString(fields["companyId"] as? [String: Any]),
-                departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
+                departmentId: finalDept,
                 status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
                 avatarUrl: FirestoreHelper.getString(fields["avatarUrl"] as? [String: Any]),
                 createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
@@ -106,9 +112,23 @@ public class AdminViewModel: ObservableObject {
                 toNghiepVu: FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any]),
                 lastActiveAt: FirestoreHelper.getInt64(fields["lastActiveAt"] as? [String: Any]),
                 isOnline: FirestoreHelper.getBool(fields["isOnline"] as? [String: Any]),
-                permissions: FirestoreHelper.getStringArray(fields["permissions"] as? [String: Any])
+                permissions: FirestoreHelper.getStringArray(fields["permissions"] as? [String: Any]),
+                disabledReason: FirestoreHelper.getString(fields["disabledReason"] as? [String: Any])
             )
         }
+
+        var uMap: [String: Int] = [:]
+        for u in users {
+            let key = u.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !key.isEmpty {
+                uMap[key, default: 0] += 1
+            }
+        }
+        if !uMap.isEmpty {
+            self.userCountByDept = uMap
+        }
+
+        return users
     }
 
     private func patchUserDocument(email: String, fields: [String: Any], updateMasks: [String]) async {
@@ -210,17 +230,26 @@ public class AdminViewModel: ObservableObject {
     }
 
     // MARK: - DISABLE / ENABLE USER
-    public func disableUser(email: String, disable: Bool) {
+    public func disableUser(email: String, disable: Bool, reason: String = "") {
         isLoading = true
         Task {
             let newStatus = disable ? "DISABLED" : "ACTIVE"
-            let patchFields: [String: Any] = [
+            var patchFields: [String: Any] = [
                 "status": FirestoreHelper.valueToFirestore(newStatus)
             ]
-            await patchUserDocument(email: email, fields: patchFields, updateMasks: ["status"])
+            var updateMasks = ["status"]
+            if disable {
+                patchFields["disabledReason"] = FirestoreHelper.valueToFirestore(reason)
+                updateMasks.append("disabledReason")
+            } else {
+                patchFields["disabledReason"] = FirestoreHelper.valueToFirestore("")
+                updateMasks.append("disabledReason")
+            }
+            await patchUserDocument(email: email, fields: patchFields, updateMasks: updateMasks)
 
             if let idx = allUsers.firstIndex(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame }) {
                 allUsers[idx].status = newStatus
+                allUsers[idx].disabledReason = disable ? reason : ""
             }
             self.isLoading = false
             self.successMessage = disable ? "Đã khóa tài khoản: \(email)" : "Đã mở khóa tài khoản: \(email)"
@@ -483,6 +512,47 @@ public class AdminViewModel: ObservableObject {
             } else {
                 self.departments = []
             }
+
+            // Đồng bộ 1:1 Android: Nạp thống kê số NV và thiết bị theo phòng ban
+            let usersUrlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/users?pageSize=300"
+            if let uUrl = URL(string: usersUrlString) {
+                var uReq = URLRequest(url: uUrl)
+                if !self.idToken.isEmpty { uReq.addValue("Bearer \(self.idToken)", forHTTPHeaderField: "Authorization") }
+                if let (uData, uResp) = await FirestoreHelper.executeSafeRequest(uReq), uResp.statusCode == 200,
+                   let uJson = try? JSONSerialization.jsonObject(with: uData) as? [String: Any],
+                   let uDocs = uJson["documents"] as? [[String: Any]] {
+                    var uMap: [String: Int] = [:]
+                    for doc in uDocs {
+                        if let fields = doc["fields"] as? [String: Any] {
+                            let deptId = FirestoreHelper.getString(fields["departmentId"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                            let pb = FirestoreHelper.getString(fields["phongBan"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                            if !deptId.isEmpty { uMap[deptId, default: 0] += 1 }
+                            if !pb.isEmpty && pb != deptId { uMap[pb, default: 0] += 1 }
+                        }
+                    }
+                    self.userCountByDept = uMap
+                }
+            }
+
+            let devUrlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/devices?pageSize=300"
+            if let dUrl = URL(string: devUrlString) {
+                var dReq = URLRequest(url: dUrl)
+                if !self.idToken.isEmpty { dReq.addValue("Bearer \(self.idToken)", forHTTPHeaderField: "Authorization") }
+                if let (dData, dResp) = await FirestoreHelper.executeSafeRequest(dReq), dResp.statusCode == 200,
+                   let dJson = try? JSONSerialization.jsonObject(with: dData) as? [String: Any],
+                   let dDocs = dJson["documents"] as? [[String: Any]] {
+                    var dMap: [String: Int] = [:]
+                    for doc in dDocs {
+                        if let fields = doc["fields"] as? [String: Any] {
+                            let pb = FirestoreHelper.getString(fields["phongBan"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                            let dId = FirestoreHelper.getString(fields["departmentId"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                            if !pb.isEmpty { dMap[pb, default: 0] += 1 }
+                            if !dId.isEmpty && dId != pb { dMap[dId, default: 0] += 1 }
+                        }
+                    }
+                    self.deviceCountByDept = dMap
+                }
+            }
         }
     }
 
@@ -685,6 +755,81 @@ public class AdminViewModel: ObservableObject {
 
         if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200 {
             fetchDepartments()
+        }
+    }
+
+    public func saveDepartment(_ dept: Department, isEdit: Bool) async -> Bool {
+        let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
+        let cleanId = dept.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanId.isEmpty else { return false }
+
+        let urlString: String
+        let method: String
+        if isEdit {
+            urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments/\(cleanId)"
+            method = "PATCH"
+        } else {
+            urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments?documentId=\(cleanId)"
+            method = "POST"
+        }
+        guard let url = URL(string: urlString) else { return false }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+
+        let fields: [String: Any] = [
+            "departmentId": ["stringValue": cleanId],
+            "deptId": ["stringValue": cleanId],
+            "departmentName": ["stringValue": dept.departmentName],
+            "deptName": ["stringValue": dept.departmentName],
+            "departmentType": ["stringValue": dept.departmentType],
+            "isHelpDesk": ["booleanValue": dept.isHelpDesk],
+            "isIncidentHandler": ["booleanValue": dept.isIncidentHandler],
+            "isWarehouse": ["booleanValue": dept.isWarehouse],
+            "isApplicationSupport": ["booleanValue": dept.isApplicationSupport],
+            "managerEmail": ["stringValue": dept.managerEmail],
+            "managerName": ["stringValue": dept.managerName],
+            "hotline": ["stringValue": dept.hotline],
+            "location": ["stringValue": dept.location],
+            "slaResponseMinutes": ["integerValue": String(dept.slaResponseMinutes)],
+            "slaResolveMinutes": ["integerValue": String(dept.slaResolveMinutes)],
+            "isActive": ["booleanValue": dept.isActive],
+            "colorHex": ["stringValue": dept.colorHex],
+            "companyId": ["stringValue": comp]
+        ]
+        let body: [String: Any] = ["fields": fields]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request), (httpResponse.statusCode == 200 || httpResponse.statusCode == 204) {
+            fetchDepartments()
+            return true
+        }
+        return false
+    }
+
+    public func toggleDepartmentActive(_ dept: Department) async {
+        let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
+        let newStatus = !dept.isActive
+        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments/\(dept.departmentId)?updateMask.fieldPaths=isActive"
+        guard let url = URL(string: urlString) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+
+        let body: [String: Any] = [
+            "fields": [
+                "isActive": ["booleanValue": newStatus]
+            ]
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request), (httpResponse.statusCode == 200 || httpResponse.statusCode == 204) {
+            if let idx = departments.firstIndex(where: { $0.departmentId == dept.departmentId }) {
+                departments[idx].isActive = newStatus
+            }
         }
     }
 

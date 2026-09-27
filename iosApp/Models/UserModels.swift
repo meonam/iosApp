@@ -47,6 +47,7 @@ public struct User: Identifiable, Codable, Hashable {
     public var lastActiveAt: Int64
     public var isOnline: Bool
     public var permissions: [String]
+    public var disabledReason: String
 
     public init(
         maNhanVien: String = "",
@@ -65,7 +66,8 @@ public struct User: Identifiable, Codable, Hashable {
         toNghiepVu: String = "",
         lastActiveAt: Int64 = 0,
         isOnline: Bool = false,
-        permissions: [String] = []
+        permissions: [String] = [],
+        disabledReason: String = ""
     ) {
         self.maNhanVien = maNhanVien
         self.email = email
@@ -84,6 +86,7 @@ public struct User: Identifiable, Codable, Hashable {
         self.lastActiveAt = lastActiveAt
         self.isOnline = isOnline
         self.permissions = permissions
+        self.disabledReason = disabledReason
     }
 
     // Computed Properties phân quyền chuẩn xác 1:1 theo User.kt

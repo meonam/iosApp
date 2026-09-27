@@ -1,26 +1,31 @@
 import SwiftUI
 
+// MARK: - DEPARTMENT MANAGER VIEW (ĐỒNG BỘ 1:1 THEO ANDROID DEPARTMENTMANAGERSCREEN.KT)
 public struct DepartmentManagerView: View {
     @ObservedObject var viewModel: AdminViewModel
     var onBack: () -> Void
 
     @State private var searchQuery: String = ""
-    @State private var showAddSheet: Bool = false
-    @State private var showEditSheet: Bool = false
-    
-    // Add/Edit states
-    @State private var deptName: String = ""
-    @State private var deptId: String = ""
-    @State private var deptType: String = "GENERAL"
-    @State private var managerName: String = ""
-    @State private var managerEmail: String = ""
-    @State private var hotline: String = ""
-    @State private var location: String = ""
-    @State private var isActive: Bool = true
-    @State private var slaResponse: String = "30"
-    @State private var slaResolve: String = "240"
-    
-    @State private var editingDeptId: String = ""
+    @State private var showEditDialog: Bool = false
+    @State private var isEditingExisting: Bool = false
+
+    // Form states (matching Android)
+    @State private var editDeptId: String = ""
+    @State private var editDeptName: String = ""
+    @State private var editDeptType: String = "GENERAL"
+    @State private var editDeptSlaEnabled: Bool = false
+    @State private var editDeptSlaResponse: String = "30"
+    @State private var editDeptSlaResolve: String = "240"
+    @State private var editManagerName: String = ""
+    @State private var editManagerEmail: String = ""
+    @State private var editHotline: String = ""
+    @State private var editLocation: String = ""
+    @State private var editIsActive: Bool = true
+    @State private var isSaving: Bool = false
+
+    // Delete confirmation
+    @State private var deptToDelete: Department? = nil
+    @State private var showDeleteConfirm: Bool = false
 
     public init(viewModel: AdminViewModel, onBack: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -32,90 +37,157 @@ public struct DepartmentManagerView: View {
             searchQuery.isEmpty ||
             d.departmentName.localizedCaseInsensitiveContains(searchQuery) ||
             d.departmentId.localizedCaseInsensitiveContains(searchQuery) ||
-            d.hotline.contains(searchQuery)
+            d.hotline.contains(searchQuery) ||
+            d.managerName.localizedCaseInsensitiveContains(searchQuery)
         }
     }
-    
-    private func getUserCount(for deptId: String) -> Int {
-        return viewModel.allUsers.filter { $0.departmentId.caseInsensitiveCompare(deptId) == .orderedSame || $0.departmentId.caseInsensitiveCompare(deptId.replacingOccurrences(of: "DEPT_", with: "")) == .orderedSame }.count
+
+    private func getMemberCount(for dept: Department) -> Int {
+        let dKey = dept.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let dNameKey = dept.departmentName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let count = viewModel.userCountByDept[dKey], count > 0 { return count }
+        if let count = viewModel.userCountByDept[dNameKey], count > 0 { return count }
+        let cleanDKey = dKey.replacingOccurrences(of: "dept_", with: "")
+        return viewModel.allUsers.filter { user in
+            let uDept = user.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            return !uDept.isEmpty && (
+                uDept == dKey ||
+                uDept == dNameKey ||
+                uDept == cleanDKey ||
+                dNameKey.contains(uDept) ||
+                uDept.contains(dNameKey)
+            )
+        }.count
+    }
+
+    private func getDeviceCount(for dept: Department) -> Int {
+        let dKey = dept.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let dNameKey = dept.departmentName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let count = viewModel.deviceCountByDept[dKey], count > 0 { return count }
+        if let count = viewModel.deviceCountByDept[dNameKey], count > 0 { return count }
+        return 0
     }
 
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color.appBackground.ignoresSafeArea()
+                Color(hex: "#F8FAFC").ignoresSafeArea()
 
                 VStack(spacing: 0) {
+                    // TOP BAR (Đồng bộ Android: Nền xanh đậm, Tiêu đề, nút back, nút icon cụm & thêm)
                     VStack(spacing: 0) {
                         Color.clear.frame(height: SafeAreaHelper.top(geometry))
 
                         HStack(spacing: 12) {
                             Button(action: onBack) {
-                                Image(systemName: "chevron.left")
+                                Image(systemName: "arrow.left")
                                     .font(.system(size: 18, weight: .bold))
                                     .foregroundColor(.white)
                             }
 
-                            Text("Quản lý phòng ban (\(viewModel.departments.count))")
-                                .font(.system(size: 17, weight: .bold))
+                            Text("Quản lý Phòng ban")
+                                .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(.white)
 
                             Spacer()
 
-                            Button(action: { resetForm(); showAddSheet = true }) {
-                                Image(systemName: "plus")
-                                    .font(.system(size: 18, weight: .bold))
+                            Button(action: { openAdd() }) {
+                                Image(systemName: "plus.circle")
+                                    .font(.system(size: 20, weight: .semibold))
                                     .foregroundColor(.white)
                             }
                         }
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 12)
                     }
                     .background(Color.appTopBarColor)
 
-                    HStack(spacing: 8) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(Color.appTextSecondary)
-                        TextField("Tìm kiếm phòng ban...", text: $searchQuery)
-                            .font(.system(size: 14))
-                    }
-                    .padding(10)
-                    .background(Color.white)
-                    .cornerRadius(10)
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
-                    .padding(12)
+                    // SEARCH BAR VÀ NÚT "+ THÊM" (Đồng bộ 1:1 Android)
+                    HStack(spacing: 10) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundColor(Color(hex: "#64748B"))
+                                .font(.system(size: 15))
+                            TextField("Tìm kiếm phòng ban...", text: $searchQuery)
+                                .font(.system(size: 14))
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
 
+                        Button(action: { openAdd() }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 13, weight: .bold))
+                                Text("Thêm")
+                                    .font(.system(size: 13, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Color.appPrimaryPink)
+                            .cornerRadius(10)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 6)
+
+                    // TIÊU ĐỀ DANH SÁCH PHÒNG BAN (X)
+                    HStack {
+                        Text("Danh sách phòng ban (\(filteredDepts.count))")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+
+                    // NỘI DUNG DANH SÁCH PHÒNG BAN
                     if viewModel.isLoading {
                         Spacer()
-                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: Color.appPrimary))
+                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: Color.appPrimaryPink))
                         Spacer()
                     } else if filteredDepts.isEmpty {
                         Spacer()
-                        Text("Không tìm thấy phòng ban nào").foregroundColor(.gray)
+                        VStack(spacing: 8) {
+                            Image(systemName: "building.2.slash")
+                                .font(.system(size: 40))
+                                .foregroundColor(.gray.opacity(0.5))
+                            Text("Không tìm thấy phòng ban nào")
+                                .font(.system(size: 14))
+                                .foregroundColor(.gray)
+                        }
                         Spacer()
                     } else {
-                        List {
-                            ForEach(filteredDepts) { dept in
-                                deptCard(dept)
-                                    .onTapGesture {
-                                        openEdit(dept)
-                                    }
-                                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                        Button(role: .destructive) {
-                                            deleteDept(deptId: dept.id)
-                                        } label: {
-                                            Label("Xóa", systemImage: "trash")
-                                        }
-                                    }
+                        ScrollView {
+                            LazyVStack(spacing: 10) {
+                                ForEach(filteredDepts) { dept in
+                                    deptCardView(dept)
+                                }
                             }
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
                         }
-                        .listStyle(PlainListStyle())
                         .refreshable {
                             await refreshData()
                         }
                     }
+                }
+
+                // DIALOG CHỈNH SỬA / THÊM PHÒNG BAN (Đồng bộ 1:1 Android)
+                if showEditDialog {
+                    Color.black.opacity(0.4)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            if !isSaving { showEditDialog = false }
+                        }
+
+                    deptEditDialog
+                        .transition(.scale(scale: 0.95).combined(with: .opacity))
+                        .padding(.horizontal, 20)
                 }
             }
             .ignoresSafeArea(edges: .top)
@@ -128,96 +200,83 @@ public struct DepartmentManagerView: View {
                 viewModel.fetchUsers()
             }
         }
-        .sheet(isPresented: $showAddSheet) {
-            deptFormSheet(isEdit: false)
-        }
-        .sheet(isPresented: $showEditSheet) {
-            deptFormSheet(isEdit: true)
+        .alert(isPresented: $showDeleteConfirm) {
+            Alert(
+                title: Text("Xác nhận xóa phòng ban"),
+                message: Text("Bạn có chắc chắn muốn xóa phòng ban \"\(deptToDelete?.departmentName ?? "")\"? Hành động này không thể hoàn tác."),
+                primaryButton: .destructive(Text("Xóa")) {
+                    if let d = deptToDelete {
+                        Task {
+                            await viewModel.deleteDepartment(deptId: d.departmentId)
+                        }
+                    }
+                },
+                secondaryButton: .cancel(Text("Hủy"))
+            )
         }
     }
 
-    private func deptRoleBadge(_ dept: Department) -> some View {
-        let (icon, label, colorHex): (String, String, String) = {
-            if dept.isHelpDesk || dept.departmentType == "HELPDESK" {
-                return ("🎧", "HelpDesk", "#0284C7")
-            } else if dept.isIncidentHandler || dept.departmentType == "IT" {
-                return ("🛠️", "Xử lý sự cố", "#7E22CE")
-            } else if dept.isApplicationSupport {
-                return ("💻", "Khối ứng dụng", "#6D28D9")
-            } else if dept.isWarehouse || dept.departmentType == "WAREHOUSE" {
-                return ("📦", "Kho thiết bị", "#B45309")
-            } else {
-                return ("🏢", "Chuyên môn", "#64748B")
-            }
-        }()
-        let color = Color(hex: colorHex)
-        return Text("\(icon) \(label)")
-            .font(.system(size: 10.5, weight: .bold))
-            .foregroundColor(color)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2.5)
-            .background(color.opacity(0.12))
-            .cornerRadius(6)
-    }
+    // MARK: - THẺ PHÒNG BAN (DEPARTMENT CARD - ĐỒNG BỘ 1:1 ANDROID)
+    private func deptCardView(_ dept: Department) -> some View {
+        let memberCount = getMemberCount(for: dept)
+        let deviceCount = getDeviceCount(for: dept)
 
-    private func deptCard(_ dept: Department) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Header: Dept ID chip + Dept Name + Toggle Active
+        return VStack(alignment: .leading, spacing: 7) {
+            // Hàng 1: Mã PB + Tên phòng ban + Switch Bật/Tắt trạng thái
             HStack(spacing: 8) {
                 Text(dept.departmentId)
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(dept.isActive ? Color.appSecondaryDarkBlue : Color.gray)
                     .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
+                    .padding(.vertical, 2.5)
                     .background(dept.isActive ? Color(hex: "#EFF6FF") : Color(hex: "#F1F5F9"))
                     .cornerRadius(6)
 
                 Text(dept.departmentName)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(dept.isActive ? Color(hex: "#0F172A") : Color.gray)
+                    .font(.system(size: 14.5, weight: .bold))
+                    .foregroundColor(dept.isActive ? Color.appSecondaryDarkBlue : Color.gray)
                     .lineLimit(1)
 
                 Spacer()
 
-                Button(action: { toggleActive(dept) }) {
-                    ZStack(alignment: dept.isActive ? .trailing : .leading) {
-                        Capsule()
-                            .fill(dept.isActive ? Color.appPrimaryPink : Color.gray.opacity(0.3))
-                            .frame(width: 38, height: 22)
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 18, height: 18)
-                            .padding(.horizontal, 2)
-                            .shadow(radius: 1)
+                // Switch Bật/Tắt đồng bộ Android
+                Toggle("", isOn: Binding(
+                    get: { dept.isActive },
+                    set: { _ in
+                        Task {
+                            await viewModel.toggleDepartmentActive(dept)
+                        }
                     }
-                }
-                .buttonStyle(PlainButtonStyle())
+                ))
+                .labelsHidden()
+                .toggleStyle(SwitchToggleStyle(tint: Color.appPrimaryPink))
             }
 
-            // Badges: Loại phòng ban / Vai trò
+            // Hàng 2: Badges Phân loại nghiệp vụ (1:1 Android)
             HStack(spacing: 6) {
-                deptRoleBadge(dept)
+                deptTypeBadge(dept)
                 if !dept.isActive {
                     Text("🔒 Đã khóa")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.red)
+                        .foregroundColor(Color(hex: "#DC2626"))
                         .padding(.horizontal, 6)
-                        .padding(.vertical, 2.5)
-                        .background(Color.red.opacity(0.1))
-                        .cornerRadius(6)
+                        .padding(.vertical, 2)
+                        .background(Color(hex: "#FEE2E2"))
+                        .cornerRadius(4)
                 }
             }
 
-            // Thông tin chi tiết: Trưởng phòng, Hotline, Vị trí, SLA
+            // Hàng 3: Chi tiết Trưởng phòng, Hotline, Vị trí, SLA
             let detailParts: [String] = {
-                var parts: [String] = []
-                if !dept.managerName.isEmpty { parts.append("👤 \(dept.managerName)") }
-                if !dept.hotline.isEmpty { parts.append("📞 \(dept.hotline)") }
-                if !dept.location.isEmpty { parts.append("📍 \(dept.location)") }
-                if dept.isHelpDesk || dept.isIncidentHandler || dept.isApplicationSupport {
-                    parts.append("⏱️ SLA: \(dept.slaResponseMinutes)p/\(max(1, dept.slaResolveMinutes / 60))h")
+                var list: [String] = []
+                if !dept.managerName.isEmpty { list.append("👤 \(dept.managerName)") }
+                if !dept.hotline.isEmpty { list.append("📞 \(dept.hotline)") }
+                if !dept.location.isEmpty { list.append("📍 \(dept.location)") }
+                if dept.isHelpDesk || dept.isIncidentHandler || dept.isApplicationSupport || dept.departmentType == "HELPDESK" || dept.departmentType == "IT" {
+                    let resH = max(0, dept.slaResolveMinutes / 60)
+                    list.append("⏱ SLA: \(dept.slaResponseMinutes)p/\(resH)h")
                 }
-                return parts
+                return list
             }()
 
             if !detailParts.isEmpty {
@@ -228,281 +287,461 @@ public struct DepartmentManagerView: View {
             }
 
             Divider()
+                .padding(.vertical, 1)
 
-            // Footer: Thống kê NV & Thao tác Sửa / Xóa
+            // Hàng 4: Thống kê số NV & Thiết bị + Nút Sửa / Xóa
             HStack(spacing: 8) {
-                Text("👥 \(getUserCount(for: dept.departmentId)) NV")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color(hex: "#1D4ED8"))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color(hex: "#EFF6FF"))
-                    .cornerRadius(6)
+                // Badge Nhân viên: 👥 X NV
+                HStack(spacing: 4) {
+                    Text("👥")
+                        .font(.system(size: 11))
+                    Text("\(memberCount) NV")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(Color(hex: "#1D4ED8"))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Color(hex: "#EFF6FF"))
+                .cornerRadius(6)
+
+                // Badge Thiết bị: 💻 X Thiết bị
+                HStack(spacing: 4) {
+                    Text("💻")
+                        .font(.system(size: 11))
+                    Text("\(deviceCount) Thiết bị")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundColor(Color(hex: "#15803D"))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Color(hex: "#F0FDF4"))
+                .cornerRadius(6)
 
                 Spacer()
 
+                // Nút Sửa
                 Button(action: { openEdit(dept) }) {
                     Image(systemName: "pencil")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(Color.appSecondaryDarkBlue)
-                        .frame(width: 30, height: 30)
-                        .background(Color(hex: "#F1F5F9"))
-                        .cornerRadius(6)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
                 }
 
-                Button(action: { deleteDept(deptId: dept.id) }) {
+                // Nút Xóa
+                Button(action: {
+                    deptToDelete = dept
+                    showDeleteConfirm = true
+                }) {
                     Image(systemName: "trash")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundColor(Color.red)
-                        .frame(width: 30, height: 30)
-                        .background(Color.red.opacity(0.1))
-                        .cornerRadius(6)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
                 }
             }
         }
         .padding(12)
         .background(Color.white)
         .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
-        .opacity(dept.isActive ? 1.0 : 0.65)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+        .opacity(dept.isActive ? 1.0 : 0.7)
     }
 
-    private func deptFormSheet(isEdit: Bool) -> some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Thông tin cơ bản")) {
-                    TextField("Tên phòng ban (*)", text: $deptName)
-                        .onChange(of: deptName) { newValue in
-                            if !isEdit && (deptId.isEmpty || deptId.starts(with: "DEPT_")) {
-                                let slug = newValue.uppercased().replacingOccurrences(of: " ", with: "_")
-                                    .replacingOccurrences(of: "Đ", with: "D")
-                                    .filter { $0.isLetter || $0.isNumber || $0 == "_" }
-                                deptId = String(slug.prefix(20))
-                                if !deptId.starts(with: "DEPT_") {
-                                    deptId = "DEPT_" + deptId
+    private func deptTypeBadge(_ dept: Department) -> some View {
+        let (icon, label, colorHex, bgHex): (String, String, String, String) = {
+            let t = dept.departmentType.uppercased()
+            if dept.isHelpDesk || t == "HELPDESK" {
+                return ("🎧", "Tổng đài tiếp nhận HelpDesk", "#0284C7", "#E0F2FE")
+            } else if dept.isIncidentHandler || t == "IT" || t == "INCIDENT_HANDLER" {
+                return ("🛠️", "Kỹ thuật & Xử lý sự cố", "#7E22CE", "#F3E8FF")
+            } else if dept.isApplicationSupport || t == "APPLICATION_SUPPORT" {
+                return ("💻", "Khối ứng dụng", "#6D28D9", "#EDE9FE")
+            } else if dept.isWarehouse || t == "WAREHOUSE" {
+                return ("📦", "Kho thiết bị", "#B45309", "#FEF3C7")
+            } else {
+                return ("🏢", "Phòng ban chuyên môn", "#64748B", "#F1F5F9")
+            }
+        }()
+
+        return HStack(spacing: 4) {
+            Text(icon)
+                .font(.system(size: 10.5))
+            Text(label)
+                .font(.system(size: 10.5, weight: .bold))
+        }
+        .foregroundColor(Color(hex: colorHex))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2.5)
+        .background(Color(hex: bgHex))
+        .cornerRadius(4)
+    }
+
+    // MARK: - POPUP DIALOG CHỈNH SỬA / THÊM PHÒNG BAN (ĐỒNG BỘ 1:1 ANDROID DIALOG)
+    private var deptEditDialog: some View {
+        VStack(spacing: 12) {
+            // Tiêu đề
+            HStack {
+                Text(isEditingExisting ? "Chỉnh sửa phòng ban" : "Thêm phòng ban mới")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+                Spacer()
+            }
+            .padding(.top, 4)
+
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 12) {
+                    // Hàng 1: Mã PB * và Tên phòng ban * (Đặt cạnh nhau 1:1 Android)
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 2) {
+                                Text("Mã PB")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                Text("*")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.red)
+                            }
+                            TextField("Mã PB", text: $editDeptId)
+                                .font(.system(size: 13, weight: .semibold))
+                                .disabled(isEditingExisting)
+                                .padding(8)
+                                .background(isEditingExisting ? Color(hex: "#F1F5F9") : Color.white)
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 2) {
+                                Text("Tên phòng ban")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                Text("*")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.red)
+                            }
+                            TextField("Tên phòng ban", text: $editDeptName)
+                                .font(.system(size: 13))
+                                .padding(8)
+                                .background(Color.white)
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    // Hàng 2: Phân loại nghiệp vụ * -> Loại phòng ban (Dropdown)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 2) {
+                            Text("🏷️ Phân loại nghiệp vụ")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                            Text("*")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.red)
+                        }
+
+                        Menu {
+                            Button("🎧 Tổng đài tiếp nhận HelpDesk") { editDeptType = "HELPDESK" }
+                            Button("🛠️ Kỹ thuật & Xử lý sự cố") { editDeptType = "IT" }
+                            Button("💻 Khối ứng dụng") { editDeptType = "APPLICATION_SUPPORT" }
+                            Button("📦 Kho thiết bị") { editDeptType = "WAREHOUSE" }
+                            Button("🏢 Phòng ban chuyên môn") { editDeptType = "GENERAL" }
+                        } label: {
+                            HStack {
+                                Text(displayTypeName(for: editDeptType))
+                                    .font(.system(size: 13))
+                                    .foregroundColor(Color.appTextPrimary)
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.gray)
+                            }
+                            .padding(9)
+                            .background(Color.white)
+                            .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        }
+                    }
+
+                    // Hàng 3: Khung SLA nếu là loại Kỹ thuật/HelpDesk/Ứng dụng
+                    let isTechRole = editDeptType == "HELPDESK" || editDeptType == "IT" || editDeptType == "APPLICATION_SUPPORT"
+                    if isTechRole {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Button(action: { editDeptSlaEnabled.toggle() }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: editDeptSlaEnabled ? "checkmark.square.fill" : "square")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(editDeptSlaEnabled ? Color.appPrimaryPink : .gray)
+
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text("⏱️ Cam kết thời gian xử lý (SLA)")
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundColor(Color.appSecondaryDarkBlue)
+                                        Text(editDeptSlaEnabled ? "Đo lường thời gian tiếp nhận & xử lý sự cố" : "Đang tắt (phù hợp nội bộ, không áp KPI)")
+                                            .font(.system(size: 10.5))
+                                            .foregroundColor(.gray)
+                                    }
+                                    Spacer()
                                 }
                             }
+                            .buttonStyle(PlainButtonStyle())
+
+                            if editDeptSlaEnabled {
+                                HStack(spacing: 8) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Tiếp nhận (phút)")
+                                            .font(.system(size: 10.5))
+                                            .foregroundColor(.gray)
+                                        TextField("30", text: $editDeptSlaResponse)
+                                            .keyboardType(.numberPad)
+                                            .font(.system(size: 13))
+                                            .padding(6)
+                                            .background(Color.white)
+                                            .cornerRadius(6)
+                                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                                    }
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Xử lý (phút)")
+                                            .font(.system(size: 10.5))
+                                            .foregroundColor(.gray)
+                                        TextField("240", text: $editDeptSlaResolve)
+                                            .keyboardType(.numberPad)
+                                            .font(.system(size: 13))
+                                            .padding(6)
+                                            .background(Color.white)
+                                            .cornerRadius(6)
+                                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                                    }
+                                }
+                                .padding(.top, 2)
+                            }
                         }
-                    TextField("Mã phòng ban (*)", text: $deptId)
-                        .disabled(isEdit)
-                    
-                    Picker("Loại phòng ban", selection: $deptType) {
-                        Text("Chung (GENERAL)").tag("GENERAL")
-                        Text("IT / Kỹ thuật").tag("IT")
-                        Text("Kho vận").tag("WAREHOUSE")
-                        Text("Hỗ trợ (HELPDESK)").tag("HELPDESK")
-                        Text("Đơn vị (UNIT)").tag("UNIT")
+                        .padding(10)
+                        .background(Color(hex: "#F8FAFC"))
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
                     }
+
+                    // Hàng 4: Trưởng phòng / Phụ trách Dropdown
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("👤 Trưởng phòng / Phụ trách")
+                            .font(.system(size: 11.5, weight: .semibold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+
+                        Menu {
+                            Button("(Chưa chỉ định trưởng phòng)") {
+                                editManagerEmail = ""
+                                editManagerName = ""
+                            }
+                            Divider()
+                            ForEach(viewModel.allUsers) { u in
+                                Button("\(u.fullName.isEmpty ? u.email : u.fullName) (\(u.email))") {
+                                    editManagerEmail = u.email
+                                    editManagerName = u.fullName.isEmpty ? u.email : u.fullName
+                                }
+                            }
+                        } label: {
+                            HStack {
+                                Text(editManagerName.isEmpty ? "(Chưa chỉ định trưởng phòng)" : "\(editManagerName) (\(editManagerEmail))")
+                                    .font(.system(size: 12.5))
+                                    .foregroundColor(editManagerName.isEmpty ? .gray : Color.appTextPrimary)
+                                    .lineLimit(1)
+                                Spacer()
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.gray)
+                            }
+                            .padding(9)
+                            .background(Color.white)
+                            .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        }
+                    }
+
+                    // Hàng 5: Hotline & Vị trí (Đặt cạnh nhau 1:1 Android)
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("📞 Hotline")
+                                .font(.system(size: 11.5, weight: .semibold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                            TextField("101, 090...", text: $editHotline)
+                                .font(.system(size: 13))
+                                .padding(8)
+                                .background(Color.white)
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("📍 Vị trí")
+                                .font(.system(size: 11.5, weight: .semibold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                            TextField("Tầng 2, Nhà A", text: $editLocation)
+                                .font(.system(size: 13))
+                                .padding(8)
+                                .background(Color.white)
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+
+                    // Hàng 6: Switch trạng thái hoạt động (Khung xanh lá 1:1 Android)
+                    HStack(alignment: .center, spacing: 10) {
+                        Toggle("", isOn: $editIsActive)
+                            .labelsHidden()
+                            .toggleStyle(SwitchToggleStyle(tint: Color.appPrimaryPink))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(editIsActive ? "🟢 Đang hoạt động" : "🔒 Tạm khóa nhận việc")
+                                .font(.system(size: 12.5, weight: .bold))
+                                .foregroundColor(editIsActive ? Color(hex: "#166534") : Color(hex: "#475569"))
+                            Text(editIsActive ? "Được phân bổ sự cố bình thường" : "Tạm ngưng điều phối sự cố mới")
+                                .font(.system(size: 10.5))
+                                .foregroundColor(Color(hex: "#64748B"))
+                        }
+                        Spacer()
+                    }
+                    .padding(10)
+                    .background(editIsActive ? Color(hex: "#DCFCE7") : Color(hex: "#F1F5F9"))
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(editIsActive ? Color(hex: "#86EFAC") : Color(hex: "#CBD5E1"), lineWidth: 1))
                 }
-                
-                Section(header: Text("Người quản lý")) {
-                    TextField("Tên người quản lý", text: $managerName)
-                    TextField("Email người quản lý", text: $managerEmail)
-                        .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
-                }
-                
-                Section(header: Text("Liên hệ & Vị trí")) {
-                    TextField("Hotline", text: $hotline)
-                        .keyboardType(.phonePad)
-                    TextField("Vị trí (vd: Tầng 2)", text: $location)
+                .padding(.vertical, 4)
+            }
+            .frame(maxHeight: 420)
+
+            // HÀNG NÚT: HỦY VÀ LƯU THAY ĐỔI (1:1 ANDROID)
+            HStack(spacing: 12) {
+                Button(action: { showEditDialog = false }) {
+                    Text("Hủy")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(Color.appPrimaryPink)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 16)
                 }
 
-                Section(header: Text("Cấu hình SLA (Hỗ trợ kỹ thuật)")) {
-                    HStack {
-                        Text("SLA Phản hồi (phút):")
-                        Spacer()
-                        TextField("30", text: $slaResponse)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                    }
-                    HStack {
-                        Text("SLA Xử lý (phút):")
-                        Spacer()
-                        TextField("240", text: $slaResolve)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.trailing)
-                    }
-                }
-                
-                if isEdit {
-                    Section {
-                        Toggle("Hoạt động", isOn: $isActive)
+                Spacer()
+
+                Button(action: { saveDepartmentChanges() }) {
+                    if isSaving {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .frame(width: 80, height: 20)
+                    } else {
+                        Text(isEditingExisting ? "Lưu thay đổi" : "Tạo phòng ban")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            .background(Color.appPrimaryPink)
+                            .cornerRadius(20)
                     }
                 }
+                .disabled(isSaving || editDeptId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || editDeptName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .navigationTitle(isEdit ? "Cập nhật phòng ban" : "Thêm phòng ban")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(leading: Button("Hủy") {
-                        showAddSheet = false
-                        showEditSheet = false
-                    }
-                , trailing: Button("Lưu") {
-                        if !deptName.isEmpty && !deptId.isEmpty {
-                            if isEdit {
-                                updateDept()
-                            } else {
-                                saveNewDept()
-                            }
-                            showAddSheet = false
-                            showEditSheet = false
-                        }
-                    }
-                    .font(.headline)
-                    .foregroundColor(Color.appPrimaryPink))
+            .padding(.top, 4)
+        }
+        .padding(18)
+        .background(Color.white)
+        .cornerRadius(18)
+        .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+    }
+
+    private func displayTypeName(for type: String) -> String {
+        switch type.uppercased() {
+        case "HELPDESK": return "🎧 Tổng đài tiếp nhận HelpDesk"
+        case "IT", "INCIDENT_HANDLER": return "🛠️ Kỹ thuật & Xử lý sự cố"
+        case "APPLICATION_SUPPORT": return "💻 Khối ứng dụng"
+        case "WAREHOUSE": return "📦 Kho thiết bị"
+        default: return "🏢 Phòng ban chuyên môn"
         }
     }
-    
-    private func resetForm() {
-        deptName = ""
-        deptId = ""
-        deptType = "GENERAL"
-        managerName = ""
-        managerEmail = ""
-        hotline = ""
-        location = ""
-        isActive = true
-        slaResponse = "30"
-        slaResolve = "240"
+
+    private func openAdd() {
+        isEditingExisting = false
+        editDeptId = ""
+        editDeptName = ""
+        editDeptType = "GENERAL"
+        editDeptSlaEnabled = false
+        editDeptSlaResponse = "30"
+        editDeptSlaResolve = "240"
+        editManagerName = ""
+        editManagerEmail = ""
+        editHotline = ""
+        editLocation = ""
+        editIsActive = true
+        showEditDialog = true
     }
-    
+
     private func openEdit(_ dept: Department) {
-        editingDeptId = dept.id
-        deptName = dept.departmentName
-        deptId = dept.departmentId
-        deptType = dept.departmentType
-        managerName = dept.managerName
-        managerEmail = dept.managerEmail
-        hotline = dept.hotline
-        location = dept.location
-        isActive = dept.isActive
-        slaResponse = "\(dept.slaResponseMinutes)"
-        slaResolve = "\(dept.slaResolveMinutes)"
-        showEditSheet = true
+        isEditingExisting = true
+        editDeptId = dept.departmentId
+        editDeptName = dept.departmentName
+        editDeptType = dept.departmentType.isEmpty ? "GENERAL" : dept.departmentType
+        let hasSla = dept.slaResponseMinutes > 0 || dept.slaResolveMinutes > 0
+        editDeptSlaEnabled = hasSla
+        editDeptSlaResponse = hasSla ? "\(dept.slaResponseMinutes)" : "30"
+        editDeptSlaResolve = hasSla ? "\(dept.slaResolveMinutes)" : "240"
+        editManagerName = dept.managerName
+        editManagerEmail = dept.managerEmail
+        editHotline = dept.hotline
+        editLocation = dept.location
+        editIsActive = dept.isActive
+        showEditDialog = true
+    }
+
+    private func saveDepartmentChanges() {
+        let cleanId = editDeptId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let cleanName = editDeptName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanId.isEmpty, !cleanName.isEmpty else { return }
+
+        let isHd = editDeptType == "HELPDESK"
+        let isInc = editDeptType == "IT" || editDeptType == "INCIDENT_HANDLER"
+        let isApp = editDeptType == "APPLICATION_SUPPORT"
+        let isWh = editDeptType == "WAREHOUSE"
+        let isTech = isHd || isInc || isApp
+
+        let slaResp = (isTech && editDeptSlaEnabled) ? (Int(editDeptSlaResponse) ?? 30) : 0
+        let slaRes = (isTech && editDeptSlaEnabled) ? (Int(editDeptSlaResolve) ?? 240) : 0
+
+        let dept = Department(
+            departmentId: cleanId,
+            companyId: viewModel.companyId,
+            departmentName: cleanName,
+            departmentType: editDeptType,
+            isHelpDesk: isHd,
+            isIncidentHandler: isInc,
+            isWarehouse: isWh,
+            isApplicationSupport: isApp,
+            managerEmail: editManagerEmail.trimmingCharacters(in: .whitespacesAndNewlines),
+            managerName: editManagerName.trimmingCharacters(in: .whitespacesAndNewlines),
+            hotline: editHotline.trimmingCharacters(in: .whitespacesAndNewlines),
+            location: editLocation.trimmingCharacters(in: .whitespacesAndNewlines),
+            assignedRegionId: "",
+            slaResponseMinutes: slaResp,
+            slaResolveMinutes: slaRes,
+            isActive: editIsActive,
+            parentDepartmentId: "",
+            colorHex: isHd ? "#0284C7" : (isInc ? "#7E22CE" : (isApp ? "#6D28D9" : (isWh ? "#B45309" : "#64748B"))),
+            khuVucPhuTrach: []
+        )
+
+        isSaving = true
+        Task {
+            _ = await viewModel.saveDepartment(dept, isEdit: isEditingExisting)
+            await MainActor.run {
+                isSaving = false
+                showEditDialog = false
+            }
+        }
     }
 
     private func refreshData() async {
         viewModel.fetchDepartments()
         viewModel.fetchUsers()
     }
-    
-    // REST API Helpers
-    private func toggleActive(_ dept: Department) {
-        let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
-        let newActive = !dept.isActive
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments/\(dept.departmentId)?updateMask.fieldPaths=isActive"
-        guard let url = URL(string: urlStr) else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "PATCH"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !viewModel.idToken.isEmpty { request.addValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization") }
-        let body: [String: Any] = [
-            "fields": [
-                "isActive": ["booleanValue": newActive]
-            ]
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        Task {
-            let _ = try? await URLSession.shared.data(for: request)
-            viewModel.fetchDepartments()
-        }
-    }
-
-    private func saveNewDept() {
-        let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
-        let did = deptId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments?documentId=\(did)"
-        
-        guard let url = URL(string: urlStr) else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !viewModel.idToken.isEmpty { request.addValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization") }
-        
-        let isHd = deptType == "HELPDESK"
-        let isInc = deptType == "IT"
-        let isWh = deptType == "WAREHOUSE"
-        let respMin = Int(slaResponse) ?? 30
-        let resMin = Int(slaResolve) ?? 240
-        
-        let body: [String: Any] = [
-            "fields": [
-                "departmentId": ["stringValue": did],
-                "departmentName": ["stringValue": deptName.trimmingCharacters(in: .whitespacesAndNewlines)],
-                "departmentType": ["stringValue": deptType],
-                "managerName": ["stringValue": managerName.trimmingCharacters(in: .whitespacesAndNewlines)],
-                "managerEmail": ["stringValue": managerEmail.trimmingCharacters(in: .whitespacesAndNewlines)],
-                "hotline": ["stringValue": hotline.trimmingCharacters(in: .whitespacesAndNewlines)],
-                "location": ["stringValue": location.trimmingCharacters(in: .whitespacesAndNewlines)],
-                "isActive": ["booleanValue": true],
-                "isHelpDesk": ["booleanValue": isHd],
-                "isIncidentHandler": ["booleanValue": isInc],
-                "isWarehouse": ["booleanValue": isWh],
-                "slaResponseMinutes": ["integerValue": "\(respMin)"],
-                "slaResolveMinutes": ["integerValue": "\(resMin)"],
-                "companyId": ["stringValue": comp]
-            ]
-        ]
-        
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        Task {
-            let _ = try? await URLSession.shared.data(for: request)
-            viewModel.fetchDepartments()
-        }
-    }
-    
-    private func updateDept() {
-        let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments/\(editingDeptId)?updateMask.fieldPaths=departmentName&updateMask.fieldPaths=departmentType&updateMask.fieldPaths=managerName&updateMask.fieldPaths=managerEmail&updateMask.fieldPaths=hotline&updateMask.fieldPaths=location&updateMask.fieldPaths=isActive&updateMask.fieldPaths=isHelpDesk&updateMask.fieldPaths=isIncidentHandler&updateMask.fieldPaths=isWarehouse&updateMask.fieldPaths=slaResponseMinutes&updateMask.fieldPaths=slaResolveMinutes"
-        
-        guard let url = URL(string: urlStr) else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "PATCH"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !viewModel.idToken.isEmpty { request.addValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization") }
-        
-        let isHd = deptType == "HELPDESK"
-        let isInc = deptType == "IT"
-        let isWh = deptType == "WAREHOUSE"
-        let respMin = Int(slaResponse) ?? 30
-        let resMin = Int(slaResolve) ?? 240
-        
-        let body: [String: Any] = [
-            "fields": [
-                "departmentName": ["stringValue": deptName.trimmingCharacters(in: .whitespacesAndNewlines)],
-                "departmentType": ["stringValue": deptType],
-                "managerName": ["stringValue": managerName.trimmingCharacters(in: .whitespacesAndNewlines)],
-                "managerEmail": ["stringValue": managerEmail.trimmingCharacters(in: .whitespacesAndNewlines)],
-                "hotline": ["stringValue": hotline.trimmingCharacters(in: .whitespacesAndNewlines)],
-                "location": ["stringValue": location.trimmingCharacters(in: .whitespacesAndNewlines)],
-                "isActive": ["booleanValue": isActive],
-                "isHelpDesk": ["booleanValue": isHd],
-                "isIncidentHandler": ["booleanValue": isInc],
-                "isWarehouse": ["booleanValue": isWh],
-                "slaResponseMinutes": ["integerValue": "\(respMin)"],
-                "slaResolveMinutes": ["integerValue": "\(resMin)"]
-            ]
-        ]
-        
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        Task {
-            let _ = try? await URLSession.shared.data(for: request)
-            viewModel.fetchDepartments()
-        }
-    }
-    
-    private func deleteDept(deptId: String) {
-        let comp = viewModel.companyId.isEmpty ? "SGCOOP" : viewModel.companyId
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/departments/\(deptId)"
-        guard let url = URL(string: urlStr) else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
-        if !viewModel.idToken.isEmpty { request.addValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization") }
-        Task {
-            let _ = try? await URLSession.shared.data(for: request)
-            viewModel.fetchDepartments()
-        }
-    }
 }
-
-

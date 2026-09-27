@@ -10,10 +10,12 @@ public struct UserManagementView: View {
 
     // Tab 1: Danh sách User
     @State private var searchText: String = ""
-    @State private var filterRole: String = "ALL"
-    @State private var filterStatus: String = "ALL" // ALL, ACTIVE, LOCKED
+    @State private var filterStatus: String = "ALL" // ALL, ACTIVE, PENDING, DISABLED
     @State private var userToDelete: User? = nil
     @State private var showDeleteAlert: Bool = false
+    @State private var lockTargetUser: User? = nil
+    @State private var lockReasonInput: String = ""
+    @State private var unlockTargetUser: User? = nil
 
     // Tab 0: Thêm User mới
     @State private var addFullName: String = ""
@@ -64,31 +66,30 @@ public struct UserManagementView: View {
     // Lọc danh sách User ở Tab 1
     private var filteredUsers: [User] {
         viewModel.allUsers.filter { u in
-            let matchSearch = searchText.isEmpty ||
-                u.fullName.localizedCaseInsensitiveContains(searchText) ||
-                u.email.localizedCaseInsensitiveContains(searchText) ||
-                u.phone.contains(searchText) ||
-                u.maNhanVien.localizedCaseInsensitiveContains(searchText)
-
-            let matchRole: Bool
-            if filterRole == "ALL" {
-                matchRole = true
-            } else {
-                matchRole = u.role.caseInsensitiveCompare(filterRole) == .orderedSame
-            }
+            let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let matchSearch = q.isEmpty ||
+                u.fullName.localizedCaseInsensitiveContains(q) ||
+                u.email.localizedCaseInsensitiveContains(q) ||
+                u.phone.contains(q) ||
+                u.maNhanVien.localizedCaseInsensitiveContains(q) ||
+                u.donVi.localizedCaseInsensitiveContains(q) ||
+                u.departmentId.localizedCaseInsensitiveContains(q)
 
             let matchStatus: Bool
+            let st = u.status.uppercased()
             if filterStatus == "ALL" {
                 matchStatus = true
             } else if filterStatus == "ACTIVE" {
-                matchStatus = u.status.uppercased() == "ACTIVE"
-            } else if filterStatus == "LOCKED" {
-                matchStatus = u.status.uppercased() == "DISABLED" || u.status.uppercased() == "LOCKED"
+                matchStatus = st == "ACTIVE" || st == "APPROVED"
+            } else if filterStatus == "PENDING" {
+                matchStatus = st == "PENDING"
+            } else if filterStatus == "DISABLED" {
+                matchStatus = st == "DISABLED" || st == "LOCKED"
             } else {
                 matchStatus = true
             }
 
-            return matchSearch && matchRole && matchStatus
+            return matchSearch && matchStatus
         }
     }
 
@@ -98,41 +99,64 @@ public struct UserManagementView: View {
                 Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // TOP BAR
+                    // TOP BAR (ĐỒNG BỘ 1:1 THEO ANDROID TOPAPPBAR)
                     VStack(spacing: 0) {
                         Color.clear.frame(height: SafeAreaHelper.top(geometry))
 
-                        HStack(spacing: 12) {
+                        HStack(spacing: 6) {
                             Button(action: onBack) {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 18, weight: .bold))
                                     .foregroundColor(.white)
                             }
 
-                            Text("Quản lý người dùng (\(viewModel.allUsers.count))")
-                                .font(.system(size: 17, weight: .bold))
+                            Text("Quản lý người dùng")
+                                .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.white)
 
                             Spacer()
 
+                            // 4 actions switching tabs
                             Button(action: {
-                                viewModel.fetchUsers()
-                                viewModel.fetchDepartments()
-                                viewModel.fetchUnitsAndRegions()
-                                Task { await viewModel.fetchSpecialistTeams() }
+                                withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 0 }
                             }) {
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 17))
-                                    .foregroundColor(.white)
+                                Image(systemName: "person.badge.plus")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(selectedTab == 0 ? Color.appPrimaryPink : .white.opacity(0.65))
+                                    .frame(width: 32, height: 32)
+                            }
+
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 1 }
+                            }) {
+                                Image(systemName: "person.3.fill")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(selectedTab == 1 ? Color.appPrimaryPink : .white.opacity(0.65))
+                                    .frame(width: 32, height: 32)
+                            }
+
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 2 }
+                            }) {
+                                Image(systemName: "shield.lefthalf.filled")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(selectedTab == 2 ? Color.appPrimaryPink : .white.opacity(0.65))
+                                    .frame(width: 32, height: 32)
+                            }
+
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 3 }
+                            }) {
+                                Image(systemName: "clock.arrow.circlepath")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(selectedTab == 3 ? Color.appPrimaryPink : .white.opacity(0.65))
+                                    .frame(width: 32, height: 32)
                             }
                         }
-                        .padding(.horizontal, 16)
+                        .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                     }
                     .background(Color.appTopBarColor)
-
-                    // 4 TABS SEGMENTED BAR (ĐỒNG BỘ 1:1 THEO ANDROID)
-                    tabNavigationBar
 
                     // TAB CONTENT
                     if selectedTab == 0 {
@@ -143,6 +167,79 @@ public struct UserManagementView: View {
                         permissionTab
                     } else {
                         resetPasswordTab
+                    }
+                }
+
+                // DIALOG KHÓA TÀI KHOẢN (ĐỒNG BỘ 1:1 ANDROID)
+                if let target = lockTargetUser {
+                    ZStack {
+                        Color.black.opacity(0.45).ignoresSafeArea()
+
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "lock.fill")
+                                    .font(.system(size: 20, weight: .bold))
+                                    .foregroundColor(Color(hex: "#DC2626"))
+                                Text("Vô hiệu hóa tài khoản")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(Color(hex: "#DC2626"))
+                            }
+
+                            Text("Bạn có chắc chắn muốn vô hiệu hóa tài khoản của \(target.fullName.isEmpty ? target.email : target.fullName) (\(target.email))?")
+                                .font(.system(size: 13.5))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+
+                            Text("⚠️ Người dùng này sẽ bị đẩy ra khỏi ứng dụng ngay lập tức trên mọi thiết bị và không thể đăng nhập cho đến khi được mở khóa.")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color(hex: "#991B1B"))
+                                .padding(8)
+                                .background(Color(hex: "#FEF2F2"))
+                                .cornerRadius(8)
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Lý do vô hiệu hóa (tùy chọn)")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(.gray)
+                                TextField("vd: Nghỉ việc, Tạm đình chỉ, Vi phạm...", text: $lockReasonInput)
+                                    .font(.system(size: 13))
+                                    .padding(9)
+                                    .background(Color(hex: "#F8FAFC"))
+                                    .cornerRadius(8)
+                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                            }
+
+                            HStack(spacing: 10) {
+                                Button("Hủy") {
+                                    lockTargetUser = nil
+                                    lockReasonInput = ""
+                                }
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.gray)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 38)
+                                .background(Color(hex: "#F1F5F9"))
+                                .cornerRadius(8)
+
+                                Button("Khóa tài khoản") {
+                                    let email = target.email
+                                    let reason = lockReasonInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    viewModel.disableUser(email: email, disable: true, reason: reason)
+                                    lockTargetUser = nil
+                                    lockReasonInput = ""
+                                }
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 38)
+                                .background(Color(hex: "#DC2626"))
+                                .cornerRadius(8)
+                            }
+                        }
+                        .padding(16)
+                        .background(Color.white)
+                        .cornerRadius(14)
+                        .shadow(radius: 10)
+                        .padding(.horizontal, 24)
                     }
                 }
             }
@@ -172,45 +269,14 @@ public struct UserManagementView: View {
                 secondaryButton: .cancel(Text("Hủy"))
             )
         }
-    }
-
-    // MARK: - 4 TABS NAVIGATION BAR
-    private var tabNavigationBar: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                tabButton(title: "Thêm mới", icon: "person.badge.plus", tag: 0)
-                tabButton(title: "Danh sách (\(viewModel.allUsers.count))", icon: "person.3.fill", tag: 1)
-                tabButton(title: "Phân quyền", icon: "shield.checkered", tag: 2)
-                tabButton(title: "Đặt lại MK", icon: "key.fill", tag: 3)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-        }
-        .background(Color.white)
-        .overlay(Divider(), alignment: .bottom)
-    }
-
-    private func tabButton(title: String, icon: String, tag: Int) -> some View {
-        let isSel = selectedTab == tag
-        return Button(action: {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                selectedTab = tag
-            }
-        }) {
-            HStack(spacing: 5) {
-                Image(systemName: icon)
-                    .font(.system(size: 13, weight: isSel ? .bold : .medium))
-                Text(title)
-                    .font(.system(size: 12.5, weight: isSel ? .bold : .medium))
-            }
-            .foregroundColor(isSel ? .white : Color.appSecondaryDarkBlue)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(isSel ? Color.appSecondaryDarkBlue : Color.white)
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSel ? Color.appSecondaryDarkBlue : Color(hex: "#CBD5E1"), lineWidth: 1)
+        .alert(item: $unlockTargetUser) { target in
+            Alert(
+                title: Text("Mở khóa tài khoản"),
+                message: Text("Bạn có chắc chắn muốn mở khóa cho tài khoản \"\(target.fullName.isEmpty ? target.email : target.fullName)\"?"),
+                primaryButton: .default(Text("Mở khóa")) {
+                    viewModel.disableUser(email: target.email, disable: false)
+                },
+                secondaryButton: .cancel(Text("Hủy"))
             )
         }
     }
@@ -481,265 +547,418 @@ public struct UserManagementView: View {
         }
     }
 
-    // MARK: - TAB 1: DANH SÁCH USER
+    // MARK: - TAB 1: DANH SÁCH USER (ĐỒNG BỘ 1:1 THEO ANDROID)
     private var userListTab: some View {
-        VStack(spacing: 8) {
-            // Search Bar
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(Color.gray)
-                TextField("Tìm theo tên, email, SĐT, mã NV...", text: $searchText)
-                    .font(.system(size: 13.5))
-                if !searchText.isEmpty {
-                    Button(action: { searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(Color.gray)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                // 1. BANNER THÊM USER MỚI
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 0 }
+                }) {
+                    HStack(spacing: 6) {
+                        Text("Muốn thêm User mới? Vui lòng chọn")
+                            .font(.system(size: 12.5, weight: .bold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+
+                        HStack {
+                            Image(systemName: "person.badge.plus")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(Color.appPrimaryPink)
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.appTopBarColor)
+                        .cornerRadius(8)
+
+                        Text("trên thanh tiêu đề")
+                            .font(.system(size: 12.5, weight: .bold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color.appSecondaryDarkBlue.opacity(0.08))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(PlainButtonStyle())
+
+                // 2. SEARCH BAR
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                    TextField("Tìm kiếm...", text: $searchText)
+                        .font(.system(size: 14))
+                    if !searchText.isEmpty {
+                        Button(action: { searchText = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
+                        }
                     }
                 }
-            }
-            .padding(9)
-            .background(Color.white)
-            .cornerRadius(10)
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
-            .padding(.horizontal, 14)
-            .padding(.top, 8)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 11)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
 
-            // Role chips
-            ScrollView(.horizontal, showsIndicators: false) {
+                // 3. HORIZONTAL SCROLL STATUS FILTER CHIPS
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        let allCount = viewModel.allUsers.count
+                        let activeCount = viewModel.allUsers.filter { $0.status.uppercased() == "ACTIVE" || $0.status.uppercased() == "APPROVED" }.count
+                        let pendingCount = viewModel.allUsers.filter { $0.status.uppercased() == "PENDING" }.count
+                        let disabledCount = viewModel.allUsers.filter { $0.status.uppercased() == "DISABLED" || $0.status.uppercased() == "LOCKED" }.count
+
+                        statusFilterChip(
+                            title: "Tất cả (\(allCount))",
+                            isSelected: filterStatus == "ALL",
+                            selectedBg: Color(hex: "#EEF2FF"),
+                            selectedText: Color(hex: "#1D4ED8"),
+                            selectedBorder: Color(hex: "#C7D2FE")
+                        ) {
+                            filterStatus = "ALL"
+                        }
+
+                        statusFilterChip(
+                            title: "● Hoạt động (\(activeCount))",
+                            isSelected: filterStatus == "ACTIVE",
+                            selectedBg: Color(hex: "#16A34A"),
+                            selectedText: .white,
+                            selectedBorder: Color(hex: "#16A34A")
+                        ) {
+                            filterStatus = "ACTIVE"
+                        }
+
+                        statusFilterChip(
+                            title: "⏳ Chờ (\(pendingCount))",
+                            isSelected: filterStatus == "PENDING",
+                            selectedBg: Color(hex: "#D97706"),
+                            selectedText: .white,
+                            selectedBorder: Color(hex: "#D97706")
+                        ) {
+                            filterStatus = "PENDING"
+                        }
+
+                        statusFilterChip(
+                            title: "🔒 Khóa (\(disabledCount))",
+                            isSelected: filterStatus == "DISABLED",
+                            selectedBg: Color(hex: "#DC2626"),
+                            selectedText: .white,
+                            selectedBorder: Color(hex: "#DC2626")
+                        ) {
+                            filterStatus = "DISABLED"
+                        }
+                    }
+                }
+
+                // 4. SECTION HEADER
                 HStack(spacing: 6) {
-                    roleChip(title: "Tất cả", tag: "ALL")
-                    roleChip(title: "Admin", tag: "ADMIN")
-                    roleChip(title: "Helpdesk", tag: "HELPDESK")
-                    roleChip(title: "Trưởng phòng", tag: "PHONGBAN")
-                    roleChip(title: "Kỹ thuật", tag: "TECHNICIAN")
-                    roleChip(title: "Chuyên viên", tag: "CHUYENVIEN")
-                    roleChip(title: "Nhân viên", tag: "STAFF")
+                    Image(systemName: "person.2.fill")
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                    Text("Danh sách người dùng (\(filteredUsers.count))")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
                 }
-                .padding(.horizontal, 14)
-            }
+                .padding(.top, 4)
 
-            // Status filter chips
-            HStack(spacing: 8) {
-                statusChip(title: "Toàn bộ (\(viewModel.allUsers.count))", tag: "ALL")
-                statusChip(title: "Hoạt động", tag: "ACTIVE")
-                statusChip(title: "Đã khóa", tag: "LOCKED")
-                Spacer()
-            }
-            .padding(.horizontal, 14)
-
-            // User list
-            if filteredUsers.isEmpty {
-                VStack(spacing: 12) {
-                    Spacer().frame(height: 40)
-                    Image(systemName: "person.crop.circle.badge.xmark")
-                        .font(.system(size: 40))
-                        .foregroundColor(.gray.opacity(0.5))
-                    Text("Không tìm thấy người dùng phù hợp")
-                        .font(.system(size: 13.5))
-                        .foregroundColor(.gray)
-                    Spacer()
-                }
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 10) {
+                // 5. USER LIST OR EMPTY STATE
+                if filteredUsers.isEmpty {
+                    VStack(spacing: 12) {
+                        Spacer().frame(height: 30)
+                        Image(systemName: "person.crop.circle.badge.xmark")
+                            .font(.system(size: 40))
+                            .foregroundColor(.gray.opacity(0.5))
+                        Text("Không tìm thấy người dùng phù hợp")
+                            .font(.system(size: 13.5))
+                            .foregroundColor(.gray)
+                        Spacer()
+                    }
+                    .frame(maxWidth: .infinity)
+                } else {
+                    LazyVStack(spacing: 12) {
                         ForEach(filteredUsers) { u in
                             userListItemCard(u)
                         }
                     }
-                    .padding(14)
                 }
             }
+            .padding(14)
         }
     }
 
-    private func roleChip(title: String, tag: String) -> some View {
-        let isSel = filterRole == tag
-        return Button(action: { filterRole = tag }) {
+    private func statusFilterChip(
+        title: String,
+        isSelected: Bool,
+        selectedBg: Color,
+        selectedText: Color,
+        selectedBorder: Color,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
             Text(title)
-                .font(.system(size: 11.5, weight: isSel ? .bold : .medium))
-                .foregroundColor(isSel ? .white : Color.primary)
+                .font(.system(size: 11, weight: isSelected ? .bold : .normal))
+                .foregroundColor(isSelected ? selectedText : Color(hex: "#475569"))
                 .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(isSel ? Color.appSecondaryDarkBlue : Color.white)
-                .cornerRadius(7)
-                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
-        }
-    }
-
-    private func statusChip(title: String, tag: String) -> some View {
-        let isSel = filterStatus == tag
-        return Button(action: { filterStatus = tag }) {
-            Text(title)
-                .font(.system(size: 11, weight: isSel ? .bold : .medium))
-                .foregroundColor(isSel ? Color.appSecondaryDarkBlue : .gray)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(isSel ? Color.appSecondaryDarkBlue.opacity(0.1) : Color.clear)
-                .cornerRadius(6)
+                .padding(.vertical, 6)
+                .background(isSelected ? selectedBg : Color.white)
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isSelected ? selectedBorder : Color(hex: "#CBD5E1"), lineWidth: 1)
+                )
         }
     }
 
     private func userListItemCard(_ u: User) -> some View {
         let isLocked = u.status.uppercased() == "DISABLED" || u.status.uppercased() == "LOCKED"
         let isPending = u.status.uppercased() == "PENDING"
+        let isSpecialist = u.isSpecialist || !u.toNghiepVu.isEmpty || u.maKhuVuc.hasPrefix("TO_") || u.departmentId.uppercased().hasPrefix("TO_") || u.departmentId.uppercased().contains("NGHIỆP VỤ") || u.departmentId.uppercased().contains("ỨNG DỤNG")
+        let roleLower = u.role.lowercased()
+        let isTargetAdmin = roleLower == "admin" || u.isAdmin
 
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
-                // Avatar
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                // Avatar (Circle avatar or initials)
                 ZStack {
                     Circle()
-                        .fill(isLocked ? Color.red.opacity(0.8) : Color.appSecondaryDarkBlue)
+                        .fill(Color.appSecondaryDarkBlue.opacity(0.1))
                         .frame(width: 42, height: 42)
-                    Text((u.fullName.isEmpty ? String(u.email.prefix(1)) : String(u.fullName.prefix(1))).uppercased())
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
+
+                    let initial = (u.fullName.isEmpty ? String(u.email.prefix(1)) : String(u.fullName.prefix(1))).uppercased()
+                    Text(initial)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
                 }
 
-                // Info
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
-                        Text(u.fullName.isEmpty ? u.email : u.fullName)
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(Color.appTextPrimary)
+                // Middle Info Column
+                VStack(alignment: .leading, spacing: 4) {
+                    // Row 1: Name, MNV badge, Role badge
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Text(u.fullName.isEmpty ? u.email : u.fullName)
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .lineLimit(1)
 
-                        if isPending {
-                            Text("CHỜ DUYỆT")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundColor(.orange)
+                            // MNV Badge
+                            Text("MNV: \(u.mnvDisplay)")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(Color(hex: "#1D4ED8"))
                                 .padding(.horizontal, 5)
-                                .padding(.vertical, 1.5)
-                                .background(Color.orange.opacity(0.15))
+                                .padding(.vertical, 2)
+                                .background(Color(hex: "#EFF6FF"))
                                 .cornerRadius(4)
-                        } else if isLocked {
-                            Text("ĐÃ KHÓA")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundColor(.red)
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 1.5)
-                                .background(Color.red.opacity(0.15))
-                                .cornerRadius(4)
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(hex: "#BFDBFE"), lineWidth: 1))
+
+                            // Role Badge
+                            userRoleBadge(u, isSpecialist: isSpecialist)
+                        }
+
+                        // Row 2: Tổ nghiệp vụ / Cụm & Status Pill
+                        HStack(spacing: 6) {
+                            if isSpecialist || !u.toNghiepVu.isEmpty || !u.maKhuVuc.isEmpty {
+                                if isSpecialist {
+                                    let teamCode = u.toNghiepVu.isEmpty ? u.maKhuVuc : u.toNghiepVu
+                                    let teamName = viewModel.specialistTeams.first(where: { $0.teamId == teamCode })?.teamName ?? teamCode
+                                    Text("💻 Tổ: \(teamName)")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(Color(hex: "#7E22CE"))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color(hex: "#F3E8FF"))
+                                        .cornerRadius(6)
+                                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#D8B4FE"), lineWidth: 1))
+                                } else if !u.maKhuVuc.isEmpty {
+                                    Text("Cụm: \(u.maKhuVuc)")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(Color(hex: "#1D4ED8"))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color(hex: "#EFF6FF"))
+                                        .cornerRadius(6)
+                                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#BFDBFE"), lineWidth: 1))
+                                }
+                            }
+
+                            // Status Pill
+                            if isLocked {
+                                Text("🔒 Đã khóa")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(Color(hex: "#DC2626"))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color(hex: "#FEF2F2"))
+                                    .cornerRadius(6)
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#FECACA"), lineWidth: 1))
+                            } else if isPending {
+                                Text("⏳ Chờ duyệt")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(Color(hex: "#D97706"))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color(hex: "#FFFBEB"))
+                                    .cornerRadius(6)
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#FDE68A"), lineWidth: 1))
+                            } else {
+                                Text("● Hoạt động")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(Color(hex: "#16A34A"))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color(hex: "#F0FDF4"))
+                                    .cornerRadius(6)
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#BBF7D0"), lineWidth: 1))
+                            }
                         }
                     }
 
-                    Text(u.email)
+                    Spacer().frame(height: 2)
+
+                    // Email
+                    Text("📧 \(u.email)")
                         .font(.system(size: 12))
                         .foregroundColor(.gray)
 
-                    HStack(spacing: 8) {
-                        if !u.phone.isEmpty {
-                            Label(u.phone, systemImage: "phone.fill")
-                                .font(.system(size: 11))
-                                .foregroundColor(.gray)
-                        }
-                        if !u.maNhanVien.isEmpty {
-                            Label(u.maNhanVien, systemImage: "person.text.rectangle")
-                                .font(.system(size: 11))
-                                .foregroundColor(.gray)
-                        }
+                    // Phone in PrimaryPink Bold
+                    if !u.phone.isEmpty {
+                        Text("📞 SĐT: \(u.phone)")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(Color.appPrimaryPink)
+                    }
+
+                    // Department
+                    let displayDept = u.departmentId.isEmpty ? "Chưa gán" : u.departmentId
+                    Text("🏛️ Phòng ban: \(displayDept)")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+
+                    // Unit
+                    let uDonVi = u.donVi
+                    let displayUnit = uDonVi.isEmpty ? (u.isAdmin ? "Tất cả đơn vị (SGCOOP)" : "Chưa gán") : uDonVi
+                    Text("🏢 Đơn vị: \(displayUnit)")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+
+                    // Disabled Reason
+                    if isLocked && !u.disabledReason.isEmpty {
+                        Text("⚠️ Lý do khóa: \(u.disabledReason)")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(Color(hex: "#DC2626"))
                     }
                 }
 
                 Spacer()
 
-                // Role Badge
-                Text(roleDisplayName(u.role))
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(Color.appSecondaryDarkBlue)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.appSecondaryDarkBlue.opacity(0.1))
-                    .cornerRadius(6)
-            }
-
-            // Don vi & Phong ban
-            if !u.donVi.isEmpty || !u.departmentId.isEmpty {
-                HStack(spacing: 12) {
-                    if !u.donVi.isEmpty {
-                        Label(u.donVi, systemImage: "building.2")
-                            .font(.system(size: 11))
-                            .foregroundColor(.gray)
-                            .lineLimit(1)
+                // Action Buttons Column (Trailing)
+                VStack(alignment: .trailing, spacing: 6) {
+                    // Phân quyền
+                    Button(action: {
+                        selectUserForPermission(u)
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            selectedTab = 2
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "shield.lefthalf.filled")
+                                .font(.system(size: 11))
+                            Text("Phân quyền")
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        .foregroundColor(Color.appPrimaryPink)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Color.white)
+                        .cornerRadius(8)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appPrimaryPink, lineWidth: 1))
                     }
-                    if !u.departmentId.isEmpty {
-                        Label(u.departmentId, systemImage: "folder")
-                            .font(.system(size: 11))
-                            .foregroundColor(.gray)
-                            .lineLimit(1)
+
+                    // Khóa / Mở khóa
+                    if !isTargetAdmin {
+                        if isLocked {
+                            Button(action: {
+                                unlockTargetUser = u
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "lock.open.fill")
+                                        .font(.system(size: 11))
+                                    Text("Mở khóa")
+                                        .font(.system(size: 11, weight: .bold))
+                                }
+                                .foregroundColor(Color(hex: "#16A34A"))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(Color.white)
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#16A34A"), lineWidth: 1))
+                            }
+                        } else {
+                            Button(action: {
+                                lockTargetUser = u
+                                lockReasonInput = ""
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 11))
+                                    Text("Khóa")
+                                        .font(.system(size: 11, weight: .bold))
+                                }
+                                .foregroundColor(Color(hex: "#DC2626"))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(Color.white)
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#DC2626"), lineWidth: 1))
+                            }
+                        }
                     }
-                    Spacer()
-                }
-            }
-
-            Divider()
-
-            // Quick Action Buttons (Phân quyền, Khóa/Mở, Xóa)
-            HStack(spacing: 8) {
-                // Button 1: Phân quyền -> Chuyển sang Tab 2 với User này
-                Button(action: {
-                    selectUserForPermission(u)
-                    selectedTab = 2
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "shield.checkered")
-                        Text("Phân quyền")
-                    }
-                    .font(.system(size: 11.5, weight: .bold))
-                    .foregroundColor(Color.appSecondaryDarkBlue)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.appSecondaryDarkBlue.opacity(0.08))
-                    .cornerRadius(6)
-                }
-
-                // Button 2: Đặt lại MK -> Chuyển sang Tab 3 với User này
-                Button(action: {
-                    selectUserForResetPassword(u)
-                    selectedTab = 3
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "key.fill")
-                        Text("Đặt lại MK")
-                    }
-                    .font(.system(size: 11.5, weight: .bold))
-                    .foregroundColor(Color.blue)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.blue.opacity(0.08))
-                    .cornerRadius(6)
-                }
-
-                Spacer()
-
-                // Button 3: Khóa / Mở khóa
-                Button(action: {
-                    viewModel.disableUser(email: u.email, disable: !isLocked)
-                }) {
-                    Image(systemName: isLocked ? "lock.open.fill" : "lock.fill")
-                        .font(.system(size: 13))
-                        .foregroundColor(isLocked ? .green : .orange)
-                        .padding(6)
-                        .background((isLocked ? Color.green : Color.orange).opacity(0.1))
-                        .clipShape(Circle())
-                }
-
-                // Button 4: Xóa
-                Button(action: {
-                    userToDelete = u
-                    showDeleteAlert = true
-                }) {
-                    Image(systemName: "trash.fill")
-                        .font(.system(size: 13))
-                        .foregroundColor(.red)
-                        .padding(6)
-                        .background(Color.red.opacity(0.1))
-                        .clipShape(Circle())
                 }
             }
+            .padding(14)
         }
-        .padding(12)
         .background(Color.white)
         .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+    }
+
+    private func userRoleBadge(_ u: User, isSpecialist: Bool) -> some View {
+        let roleLower = u.role.lowercased()
+        let bg: Color
+        let fg: Color
+        let text: String
+
+        if roleLower == "admin" || u.isAdmin {
+            bg = Color.appPrimaryPink.opacity(0.12)
+            fg = Color.appPrimaryPink
+            text = "Quản trị viên (Admin)"
+        } else if roleLower == "helpdesk" || u.isHelpDesk {
+            bg = Color(hex: "#E0F2FE")
+            fg = Color(hex: "#0369A1")
+            text = "Phòng Helpdesk"
+        } else if roleLower == "kythuat" || roleLower == "technician" || roleLower == "ktv" || (u.isTechnician && !isSpecialist) {
+            bg = Color(hex: "#DCFCE7")
+            fg = Color(hex: "#15803D")
+            text = "Kỹ thuật viên"
+        } else if isSpecialist {
+            bg = Color(hex: "#F3E8FF")
+            fg = Color(hex: "#7E22CE")
+            text = "Chuyên viên nghiệp vụ"
+        } else if roleLower == "phongban" || roleLower == "quanly" || u.isManager {
+            bg = Color.appSecondaryDarkBlue.opacity(0.12)
+            fg = Color.appSecondaryDarkBlue
+            text = "Quản lý phòng ban"
+        } else {
+            bg = Color.gray.opacity(0.12)
+            fg = Color.gray
+            text = "Nhân viên"
+        }
+
+        return Text(text)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundColor(fg)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(bg)
+            .cornerRadius(6)
     }
 
     // MARK: - TAB 2: PHÂN QUYỀN (1:1 VỚI ANDROID PHÂN QUYỀN USER)
