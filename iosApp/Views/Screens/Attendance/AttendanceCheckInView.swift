@@ -190,7 +190,7 @@ public struct AttendanceCheckInView: View {
                                 TimeCardView(
                                     title: "GIO VAO",
                                     time: formatTime(checkInTime),
-                                    isDone: checkInTime != nil && checkInTime! > 0,
+                                    isDone: (checkInTime ?? 0) > 0,
                                     color: .green
                                 )
                                 
@@ -198,7 +198,7 @@ public struct AttendanceCheckInView: View {
                                 TimeCardView(
                                     title: "GIO RA",
                                     time: formatTime(checkOutTime),
-                                    isDone: checkOutTime != nil && checkOutTime! > 0,
+                                    isDone: (checkOutTime ?? 0) > 0,
                                     color: .orange
                                 )
                             }
@@ -209,8 +209,8 @@ public struct AttendanceCheckInView: View {
                                     ProgressView("Dang xu ly...")
                                         .padding()
                                 } else {
-                                    let hasCheckIn = viewModel.todayRecord?.checkInTime != nil && viewModel.todayRecord!.checkInTime! > 0
-                                    let hasCheckOut = viewModel.todayRecord?.checkOutTime != nil && viewModel.todayRecord!.checkOutTime! > 0
+                                    let hasCheckIn = (viewModel.todayRecord?.checkInTime ?? 0) > 0
+                                    let hasCheckOut = (viewModel.todayRecord?.checkOutTime ?? 0) > 0
                                     
                                     if !hasCheckIn {
                                         Button(action: {

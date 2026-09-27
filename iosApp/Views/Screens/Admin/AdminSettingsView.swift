@@ -1,5 +1,36 @@
 import SwiftUI
-import PhotosUI
+
+struct AdminLogoImagePicker: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .photoLibrary
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let parent: AdminLogoImagePicker
+        
+        init(_ parent: AdminLogoImagePicker) {
+            self.parent = parent
+        }
+        
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let img = info[.originalImage] as? UIImage {
+                self.parent.image = img
+            }
+            picker.dismiss(animated: true)
+        }
+    }
+}
 
 struct AdminSettingsView: View {
     let companyId: String
@@ -20,7 +51,8 @@ struct AdminSettingsView: View {
     @State private var showMessage = false
     @State private var messageText = ""
     
-    @State private var selectedItem: PhotosPickerItem? = nil
+    @State private var showingImagePicker = false
+    @State private var pickedLogoImage: UIImage? = nil
     
     var body: some View {
         VStack(spacing: 0) {
@@ -46,7 +78,9 @@ struct AdminSettingsView: View {
                     SettingsSectionView(title: "Thông tin Doanh nghiệp", icon: "building.2.fill") {
                         VStack(spacing: 12) {
                             HStack {
-                                PhotosPicker(selection: $selectedItem, matching: .images) {
+                                Button(action: {
+                                    showingImagePicker = true
+                                }) {
                                     ZStack {
                                         RoundedRectangle(cornerRadius: 12)
                                             .fill(Color.blue.opacity(0.05))
@@ -82,22 +116,23 @@ struct AdminSettingsView: View {
                                         }
                                     }
                                 }
-                                .onChange(of: selectedItem) { newItem in
+                                .sheet(isPresented: $showingImagePicker) {
+                                    AdminLogoImagePicker(image: $pickedLogoImage)
+                                }
+                                .onChange(of: pickedLogoImage) { newImage in
+                                    guard let img = newImage, let data = img.jpegData(compressionQuality: 0.7) else { return }
+                                    isUploadingLogo = true
+                                    let base64 = data.base64EncodedString()
+                                    let dataUrl = "data:image/jpeg;base64,\(base64)"
                                     Task {
-                                        if let data = try? await newItem?.loadTransferable(type: Data.self) {
-                                            isUploadingLogo = true
-                                            let base64 = data.base64EncodedString()
-                                            let dataUrl = "data:image/jpeg;base64,\(base64)"
-                                            
-                                            do {
-                                                try await updateLogoUrl(dataUrl)
-                                                logoUrl = dataUrl
-                                                showMessage(text: "✅ Cập nhật Logo thành công")
-                                            } catch {
-                                                showMessage(text: "Lỗi: \(error.localizedDescription)")
-                                            }
-                                            isUploadingLogo = false
+                                        do {
+                                            try await updateLogoUrl(dataUrl)
+                                            logoUrl = dataUrl
+                                            showMessage(text: "✅ Cập nhật Logo thành công")
+                                        } catch {
+                                            showMessage(text: "Lỗi: \(error.localizedDescription)")
                                         }
+                                        isUploadingLogo = false
                                     }
                                 }
                                 

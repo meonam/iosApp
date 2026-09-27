@@ -281,7 +281,7 @@ public struct MainContainerView: View {
 
         case .deviceTypes:
             DeviceTypeManagerView(
-                viewModel: AdminViewModel(user: user, companyId: compId, idToken: token),
+                authViewModel: authViewModel,
                 onBack: { currentDestination = .home }
             )
 
