@@ -125,7 +125,7 @@ public struct PendingApprovalView: View {
     private func checkApprovalStatus() {
         let companyId = authViewModel.currentUser?.companyId ?? ""
         let userId = authViewModel.currentUser?.id ?? ""
-        let token = authViewModel.currentIdToken ?? ""
+        let token = authViewModel.currentIdToken
         
         guard !companyId.isEmpty, !userId.isEmpty, !token.isEmpty else { return }
         
@@ -146,7 +146,7 @@ public struct PendingApprovalView: View {
                     if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
                         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                            let fields = json["fields"] as? [String: Any] {
-                            let isApproved = FirestoreHelper.getBool(fields, "isApproved")
+                            let isApproved = FirestoreHelper.getBool(fields["isApproved"] as? [String: Any])
                             if isApproved {
                                 self.onApproved()
                             }

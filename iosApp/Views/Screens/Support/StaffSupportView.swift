@@ -297,7 +297,7 @@ struct CreateTicketView: View {
         let companyId = authViewModel.currentUser?.companyId ?? ""
         let token = authViewModel.currentIdToken ?? ""
         let userId = authViewModel.currentUser?.id ?? ""
-        let userName = authViewModel.currentUser?.name ?? ""
+        let userName = authViewModel.currentUser?.fullName ?? ""
         
         guard !companyId.isEmpty, !token.isEmpty else { return }
         let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/tickets"

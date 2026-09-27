@@ -90,8 +90,8 @@ public struct AttendanceHistoryView: View {
     
     private var summaryStats: some View {
         let total = records.count
-        let onTime = records.filter { $0.status == "on_time" }.count
-        let late = records.filter { $0.status == "late" }.count
+        let onTime = records.filter { $0.status == "ON_TIME" }.count
+        let late = records.filter { $0.status == "LATE" }.count
         
         return HStack {
             VStack {
@@ -121,7 +121,7 @@ public struct AttendanceHistoryView: View {
         .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
     }
     
-    private func recordRow(_ record: AttendanceRecord) -> some View {
+    private func recordRow(_ record: AttendanceHistoryItem) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(formatDateOnly(record.checkInTime))
@@ -140,12 +140,12 @@ public struct AttendanceHistoryView: View {
             }
             Spacer()
             VStack(alignment: .trailing) {
-                Text(record.checkInStatus == "ON_TIME" ? "Đúng giờ" : (record.checkInStatus == "LATE" ? "Trễ" : "Vắng"))
+                Text(record.status == "ON_TIME" ? "Đúng giờ" : (record.status == "LATE" ? "Trễ" : "Vắng"))
                     .font(.caption)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background((record.checkInStatus == "ON_TIME" ? Color.green : Color.orange).opacity(0.2))
-                    .foregroundColor(record.checkInStatus == "ON_TIME" ? .green : .orange)
+                    .background((record.status == "ON_TIME" ? Color.green : Color.orange).opacity(0.2))
+                    .foregroundColor(record.status == "ON_TIME" ? .green : .orange)
                     .cornerRadius(8)
                 
                 if record.workDuration > 0 {
@@ -195,8 +195,8 @@ public struct AttendanceHistoryView: View {
                                     id: docId,
                                     checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
                                     checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
-                                    status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
-                                    workDuration: FirestoreHelper.getInt(fields["workDuration"] as? [String: Any])
+                                    status: FirestoreHelper.getString(fields["checkInStatus"] as? [String: Any]),
+                                    workDuration: FirestoreHelper.getInt(fields["totalWorkMinutes"] as? [String: Any])
                                 )
                                 loaded.append(rec)
                             }
