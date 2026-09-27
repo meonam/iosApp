@@ -121,7 +121,7 @@ public class AdminViewModel: ObservableObject {
     }
 
     private func parseUsers(from documents: [[String: Any]]) -> [User] {
-        let users: [User] = documents.compactMap { doc in
+        let users: [User] = documents.compactMap { doc -> User? in
             guard let name = doc["name"] as? String,
                   let fields = doc["fields"] as? [String: Any] else { return nil }
             let email = name.components(separatedBy: "/").last ?? ""
@@ -517,7 +517,7 @@ public class AdminViewModel: ObservableObject {
             if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let documents = json["documents"] as? [[String: Any]] {
-                let parsed: [Department] = documents.compactMap { doc in
+                let parsed: [Department] = documents.compactMap { doc -> Department? in
                     guard let name = doc["name"] as? String,
                           let fields = doc["fields"] as? [String: Any] else { return nil }
                     let id = name.components(separatedBy: "/").last ?? ""
@@ -606,7 +606,7 @@ public class AdminViewModel: ObservableObject {
                 if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let documents = json["documents"] as? [[String: Any]] {
-                    let parsed: [DonVi] = documents.compactMap { doc in
+                    let parsed: [DonVi] = documents.compactMap { doc -> DonVi? in
                         guard let name = doc["name"] as? String,
                               let fields = doc["fields"] as? [String: Any] else { return nil }
                         let id = doc["id"] as? String ?? name.components(separatedBy: "/").last ?? ""
@@ -636,7 +636,7 @@ public class AdminViewModel: ObservableObject {
                 if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(regRequest), httpResponse.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let documents = json["documents"] as? [[String: Any]] {
-                    let parsed: [KhuVuc] = documents.compactMap { doc in
+                    let parsed: [KhuVuc] = documents.compactMap { doc -> KhuVuc? in
                         guard let name = doc["name"] as? String,
                               let fields = doc["fields"] as? [String: Any] else { return nil }
                         let docId = name.components(separatedBy: "/").last ?? ""
