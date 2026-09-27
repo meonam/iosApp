@@ -85,6 +85,8 @@ public struct MainContainerView: View {
                             AppSidebarDrawer(
                                 user: user,
                                 pendingStaffCount: 0,
+                                openTicketsCount: 0,
+                                currentDestination: currentDestination,
                                 onSelect: { dest in
                                     withAnimation(.easeInOut(duration: 0.25)) {
                                         isDrawerOpen = false

@@ -1,6 +1,6 @@
-﻿import SwiftUI
+import SwiftUI
 
-// MARK: - DRAWER ITEM DEFINITION
+// MARK: - DRAWER ITEM DEFINITION (ĐỒNG BỘ 1:1 THEO MAINACTIVITY.KT TRÊN ANDROID)
 public enum DrawerDestination: Identifiable {
     case home
     case deviceList
@@ -65,25 +65,27 @@ public enum DrawerDestination: Identifiable {
     }
 }
 
-// MARK: - APP SIDEBAR DRAWER (Äá»’NG Bá»˜ 1:1 THEO APPSIDEBARDRAWER.KT TRÃŠN ANDROID)
+// MARK: - APP SIDEBAR DRAWER (ĐỒNG BỘ 1:1 THEO APPSIDEBARDRAWER.KT TRÊN ANDROID)
 public struct AppSidebarDrawer: View {
     var user: User
     var pendingStaffCount: Int
     var openTicketsCount: Int = 0
+    var currentDestination: DrawerDestination = .home
     var onSelect: (DrawerDestination) -> Void
     var onLogout: () -> Void
     var onCloseDrawer: () -> Void
 
-    // Accordion group expand states matching Android
+    // Trạng thái thu gọn/mở rộng các nhóm accordion (mặc định mở giống Android)
     @State private var isDeviceExpanded: Bool = true
-    @State private var isSupportExpanded: Bool = true
+    @State private var isPersonnelExpanded: Bool = true
     @State private var isAttendanceExpanded: Bool = true
-    @State private var isSystemExpanded: Bool = true
+    @State private var isSystemExpanded: Bool = false
 
     public init(
         user: User,
         pendingStaffCount: Int = 0,
         openTicketsCount: Int = 0,
+        currentDestination: DrawerDestination = .home,
         onSelect: @escaping (DrawerDestination) -> Void,
         onLogout: @escaping () -> Void,
         onCloseDrawer: @escaping () -> Void = {}
@@ -91,36 +93,83 @@ public struct AppSidebarDrawer: View {
         self.user = user
         self.pendingStaffCount = pendingStaffCount
         self.openTicketsCount = openTicketsCount
+        self.currentDestination = currentDestination
         self.onSelect = onSelect
         self.onLogout = onLogout
         self.onCloseDrawer = onCloseDrawer
     }
 
+    // MARK: - XỬ LÝ PHÂN QUYỀN (ĐỒNG BỘ 1:1 VỚI APPSIDEBARDRAWER.KT)
+    private var cleanRole: String {
+        user.role.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private var isSuperAdmin: Bool {
+        user.isSuperAdmin
+    }
+
+    private var isAdmin: Bool {
+        user.isAdmin || isSuperAdmin
+    }
+
+    private var isHelpDesk: Bool {
+        user.isHelpDesk
+    }
+
+    private var isManager: Bool {
+        user.isManager || cleanRole == "phongban" || cleanRole == "quanly"
+    }
+
+    private var isManagerOrAdmin: Bool {
+        isAdmin || isHelpDesk || isManager
+    }
+
+    private var isIncidentHandler: Bool {
+        user.isTechnician ||
+        user.departmentName.localizedCaseInsensitiveContains("XỬ LÝ") ||
+        user.departmentName.localizedCaseInsensitiveContains("SỰ CỐ") ||
+        user.departmentName.localizedCaseInsensitiveContains("KỸ THUẬT") ||
+        cleanRole.contains("kythuat") ||
+        cleanRole.contains("tech") ||
+        cleanRole.contains("support")
+    }
+
+    private var isSpecialist: Bool {
+        !isManagerOrAdmin && !isIncidentHandler && (
+            user.isSpecialist ||
+            cleanRole.contains("chuyenvien") ||
+            cleanRole.contains("specialist") ||
+            user.departmentName.localizedCaseInsensitiveContains("NGHIỆP VỤ") ||
+            user.departmentName.localizedCaseInsensitiveContains("ỨNG DỤNG")
+        )
+    }
+
+    // Nhãn vai trò hiển thị (Badge tiếng Việt chuẩn với Emoji)
     private var roleDisplayBadge: String {
-        if user.isAdmin || user.isSuperAdmin {
-            return "ðŸ‘‘ Quáº£n trá»‹ viÃªn"
-        } else if user.isHelpDesk {
-            return "ðŸŽ§ HelpDesk"
-        } else if user.isTechnician {
-            return "ðŸ› ï¸ Ká»¹ thuáº­t viÃªn"
-        } else if user.isSpecialist {
-            return "ðŸ’» ChuyÃªn viÃªn"
-        } else if user.isManager {
-            return "ðŸ›ï¸ Quáº£n lÃ½ phÃ²ng"
+        if isSuperAdmin || isAdmin {
+            return "👑 Quản trị viên"
+        } else if isHelpDesk {
+            return "🎧 HelpDesk"
+        } else if isIncidentHandler {
+            return "🛠️ Kỹ thuật viên"
+        } else if isSpecialist {
+            return "💻 Chuyên viên"
+        } else if isManager {
+            return "🏛️ Quản lý phòng"
         } else {
-            return "ðŸ‘¤ NhÃ¢n viÃªn"
+            return "👤 Nhân viên"
         }
     }
 
     public var body: some View {
         GeometryReader { geometry in
             VStack(alignment: .leading, spacing: 0) {
-                // === 1. DRAWER HEADER (2 HÃ€NG: CÃ”NG TY & NGÆ¯á»œI DÃ™NG) ===
-                VStack(alignment: .leading, spacing: 10) {
-                    // Khoáº£ng Ä‘á»‡m trÃ¡nh Notch tai thá» / Dynamic Island
+                // === 1. DRAWER HEADER (2 HÀNG: CÔNG TY & HỒ SƠ NGƯỜI DÙNG) ===
+                VStack(alignment: .leading, spacing: 12) {
+                    // Khoảng đệm tránh Notch tai thỏ / Dynamic Island
                     Color.clear.frame(height: max(geometry.safeAreaInsets.top, 24))
 
-                    // HÃ€NG 1: LOGO + TÃŠN á»¨NG Dá»¤NG / CÃ”NG TY + MÃƒ DN + NÃšT ÄÃ“NG (X)
+                    // HÀNG 1: LOGO + TÊN ỨNG DỤNG / CÔNG TY + MÃ DN + NÚT ĐÓNG (X)
                     HStack(alignment: .center, spacing: 10) {
                         Image("logo_app")
                             .resizable()
@@ -129,23 +178,23 @@ public struct AppSidebarDrawer: View {
                             .cornerRadius(8)
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Dá»‹ch vá»¥ IT & Quáº£n lÃ½ thiáº¿t bá»‹")
+                            Text(user.companyName.isEmpty ? "Dịch vụ IT & Quản lý thiết bị" : user.companyName)
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(.white)
                                 .lineLimit(2)
 
                             let compCode = user.companyId.isEmpty ? "SGCOOP" : user.companyId
-                            Text("MÃ£ DN: \(compCode)")
+                            Text("Mã DN: \(compCode)")
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(Color(hex: "#93C5FD"))
                         }
 
                         Spacer()
 
-                        // NÃºt ÄÃ³ng (X)
+                        // Nút Đóng (X)
                         Button(action: onCloseDrawer) {
                             Image(systemName: "xmark")
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(.white.opacity(0.85))
                                 .padding(7)
                                 .background(Color.white.opacity(0.15))
@@ -155,23 +204,21 @@ public struct AppSidebarDrawer: View {
 
                     Divider().background(Color.white.opacity(0.18))
 
-                    // HÃ€NG 2: THáºº Há»’ SÆ  NGÆ¯á»œI DÃ™NG (AVATAR + TÃŠN + EMAIL + VAI TRÃ’)
+                    // HÀNG 2: THẺ HỒ SƠ NGƯỜI DÙNG (AVATAR + TÊN + EMAIL + VAI TRÒ)
                     HStack(alignment: .center, spacing: 10) {
                         ZStack {
                             Circle()
                                 .fill(Color.appPrimaryPink)
                                 .frame(width: 42, height: 42)
 
-                            Image("logo_app")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 36, height: 36)
-                                .clipShape(Circle())
+                            Text(String(user.fullName.isEmpty ? (user.email.first ?? "U") : (user.fullName.first ?? "U")).uppercased())
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
                         }
 
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(!user.fullName.isEmpty ? user.fullName : "admin")
-                                .font(.system(size: 14, weight: .bold))
+                            Text(!user.fullName.isEmpty ? user.fullName : user.email.components(separatedBy: "@").first ?? "Người dùng")
+                                .font(.system(size: 13.5, weight: .bold))
                                 .foregroundColor(.white)
                                 .lineLimit(1)
 
@@ -180,7 +227,7 @@ public struct AppSidebarDrawer: View {
                                 .foregroundColor(Color(hex: "#CBD5E1"))
                                 .lineLimit(1)
 
-                            // NhÃ£n vai trÃ² mÃ u vÃ ng ná»•i báº­t
+                            // Nhãn vai trò màu vàng nổi bật
                             Text(roleDisplayBadge)
                                 .font(.system(size: 10.5, weight: .semibold))
                                 .foregroundColor(Color(hex: "#FDE68A"))
@@ -190,213 +237,383 @@ public struct AppSidebarDrawer: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 12)
+                .padding(.bottom, 14)
                 .background(Color.appSecondaryDarkBlue)
 
-                // === 2. DANH SÃCH MENU ÄIá»€U HÆ¯á»šNG CUá»˜N (ACCORDIONS) ===
+                // === 2. DANH SÁCH MENU ĐIỀU HƯỚNG CUỘN (ACCORDIONS) ===
                 ScrollView {
                     VStack(alignment: .leading, spacing: 2) {
-                        // Má»¥c chÃ­nh: Trang chá»§
-                        drawerItemRow(title: "Trang chá»§", icon: "house.fill", color: Color(hex: "#0284C7")) {
+                        // Mục chính 1: Trang chủ
+                        drawerItemRow(
+                            title: "Trang chủ",
+                            icon: "house.fill",
+                            color: Color(hex: "#0284C7"),
+                            isSelected: currentDestination == .home
+                        ) {
                             onSelect(.home)
                         }
 
-                        // Má»¥c chÃ­nh: Há»— trá»£ ká»¹ thuáº­t
+                        // Mục chính 2: Hỗ trợ kỹ thuật
+                        let supportRoute: DrawerDestination = (isAdmin || isHelpDesk) ? .supportHub : .staffSupport
                         drawerItemRow(
-                            title: "Há»— trá»£ ká»¹ thuáº­t",
+                            title: "Hỗ trợ kỹ thuật",
                             icon: "headphones",
                             color: Color(hex: "#EC4899"),
-                            badge: openTicketsCount > 0 ? "\(openTicketsCount)" : "99+"
+                            badge: openTicketsCount > 0 ? "\(openTicketsCount)" : nil,
+                            isSelected: currentDestination == .supportHub || currentDestination == .staffSupport
                         ) {
-                            onSelect(.supportHub)
+                            onSelect(supportRoute)
                         }
 
-                        // --- NHÃ“M 1: QUáº¢N LÃ THIáº¾T Bá»Š ---
-                        accordionHeader(title: "QUáº¢N LÃ THIáº¾T Bá»Š", color: Color(hex: "#059669"), isExpanded: $isDeviceExpanded)
+                        // --- NHÓM 1: QUẢN LÝ THIẾT BỊ ---
+                        DrawerSectionHeader(
+                            title: "QUẢN LÝ THIẾT BỊ",
+                            headerColor: Color(hex: "#059669"),
+                            isExpanded: $isDeviceExpanded
+                        )
                         if isDeviceExpanded {
                             VStack(spacing: 2) {
-                                drawerItemRow(title: "Danh sÃ¡ch thiáº¿t bá»‹", icon: "desktopcomputer", color: Color(hex: "#10B981")) {
+                                drawerItemRow(
+                                    title: "Danh sách thiết bị",
+                                    icon: "laptopcomputer.and.iphone",
+                                    color: Color(hex: "#10B981"),
+                                    isSelected: currentDestination == .deviceList
+                                ) {
                                     onSelect(.deviceList)
                                 }
-                                drawerItemRow(title: "ThÃªm thiáº¿t bá»‹ má»›i", icon: "plus.circle.fill", color: Color(hex: "#8B5CF6")) {
+                                drawerItemRow(
+                                    title: "Thêm thiết bị mới",
+                                    icon: "plus.circle.fill",
+                                    color: Color(hex: "#8B5CF6"),
+                                    isSelected: currentDestination == .addDevice
+                                ) {
                                     onSelect(.addDevice)
                                 }
-                                drawerItemRow(title: "In tem mÃ£ QR / Barcode", icon: "printer.fill", color: Color(hex: "#0284C7")) {
-                                    onSelect(.printBarcode)
-                                }
-                                drawerItemRow(title: "Quáº£n lÃ½ loáº¡i thiáº¿t bá»‹", icon: "tag.fill", color: Color(hex: "#F59E0B")) {
+                                drawerItemRow(
+                                    title: "Danh mục loại thiết bị",
+                                    icon: "tag.fill",
+                                    color: Color(hex: "#0EA5E9"),
+                                    isSelected: currentDestination == .deviceTypes
+                                ) {
                                     onSelect(.deviceTypes)
                                 }
-                                drawerItemRow(title: "Thá»‘ng kÃª & BÃ¡o cÃ¡o tÃ i sáº£n", icon: "chart.pie.fill", color: Color(hex: "#EC4899")) {
+                                drawerItemRow(
+                                    title: "In ấn & Tem nhãn QR",
+                                    icon: "printer.fill",
+                                    color: Color(hex: "#A855F7"),
+                                    isSelected: currentDestination == .printBarcode
+                                ) {
+                                    onSelect(.printBarcode)
+                                }
+                                drawerItemRow(
+                                    title: "Thống kê thiết bị",
+                                    icon: "chart.pie.fill",
+                                    color: Color(hex: "#14B8A6"),
+                                    isSelected: currentDestination == .statistics
+                                ) {
                                     onSelect(.statistics)
                                 }
-                            }
-                            .padding(.leading, 6)
-                        }
-
-                        // --- NHÃ“M 2: TRUNG TÃ‚M Há»– TRá»¢ (TICKET) ---
-                        accordionHeader(title: "TRUNG TÃ‚M Há»– TRá»¢ (TICKET)", color: Color(hex: "#F43F5E"), isExpanded: $isSupportExpanded)
-                        if isSupportExpanded {
-                            VStack(spacing: 2) {
-                                if user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isTechnician {
-                                    drawerItemRow(title: "YÃªu cáº§u há»— trá»£ (Ticket)", icon: "headphones", color: Color(hex: "#F43F5E")) {
-                                        onSelect(.supportHub)
-                                    }
-                                    drawerItemRow(title: "BÃ¡o cÃ¡o Ä‘Ã¡nh giÃ¡ SLA KTV", icon: "star.fill", color: Color(hex: "#F59E0B")) {
-                                        onSelect(.supportRating)
-                                    }
-                                    drawerItemRow(title: "Quáº£n lÃ½ Ä‘á»™i chuyÃªn viÃªn", icon: "person.3.fill", color: Color(hex: "#0284C7")) {
-                                        onSelect(.specialistTeams)
-                                    }
-                                    drawerItemRow(title: "GiÃ¡m sÃ¡t KTV trá»±c tuyáº¿n (Map)", icon: "map.fill", color: Color(hex: "#10B981")) {
-                                        onSelect(.ktvMonitor)
-                                    }
-                                } else {
-                                    drawerItemRow(title: "YÃªu cáº§u há»— trá»£ (IT Support)", icon: "headphones", color: Color(hex: "#F43F5E")) {
-                                        onSelect(.staffSupport)
-                                    }
+                                drawerItemRow(
+                                    title: "Nhật ký thiết bị",
+                                    icon: "clock.arrow.circlepath",
+                                    color: Color(hex: "#8B5CF6"),
+                                    isSelected: currentDestination == .lichSu
+                                ) {
+                                    onSelect(.lichSu)
                                 }
                             }
                             .padding(.leading, 6)
                         }
 
-                        // --- NHÃ“M 3: CHáº¤M CÃ”NG & Lá»ŠCH CA ---
-                        accordionHeader(title: "CHáº¤M CÃ”NG & Lá»ŠCH CA", color: Color(hex: "#0D9488"), isExpanded: $isAttendanceExpanded)
-                        if isAttendanceExpanded {
-                            VStack(spacing: 2) {
-                                drawerItemRow(title: "Äiá»ƒm danh cháº¥m cÃ´ng", icon: "person.badge.shield.checkmark.fill", color: Color(hex: "#10B981")) {
-                                    onSelect(.attendance)
-                                }
-                                drawerItemRow(title: "BÃ¡o cÃ¡o cÃ´ng & TÄƒng ca", icon: "calendar.badge.clock", color: Color(hex: "#F59E0B")) {
-                                    onSelect(.attendanceReport)
-                                }
-                                drawerItemRow(title: "Nhật ký chấm công", icon: "clock.fill", color: Color(hex: "#10B981")) {
-                                    onSelect(.attendanceHistory)
-                                }
-                                drawerItemRow(title: "Lá»‹ch phÃ¢n ca tuáº§n", icon: "calendar", color: Color(hex: "#8B5CF6")) {
-                                    onSelect(.shiftSchedule)
-                                }
-                            }
-                            .padding(.leading, 6)
-                        }
-
-                        // --- NHÃ“M 4: QUáº¢N TRá»Š Há»† THá»NG (ADMIN) ---
-                        if user.isAdmin || user.isSuperAdmin {
-                            accordionHeader(title: "QUáº¢N TRá»Š Há»† THá»NG", color: Color(hex: "#002A8F"), isExpanded: $isSystemExpanded)
-                            if isSystemExpanded {
+                        // --- NHÓM 2: QUẢN LÝ NHÂN SỰ & TỔ CHỨC (ADMIN & QUẢN LÝ) ---
+                        if isManagerOrAdmin {
+                            DrawerSectionHeader(
+                                title: "QUẢN LÝ NHÂN SỰ & TỔ CHỨC",
+                                headerColor: Color(hex: "#6366F1"),
+                                isExpanded: $isPersonnelExpanded
+                            )
+                            if isPersonnelExpanded {
                                 VStack(spacing: 2) {
-                                    drawerItemRow(title: "Quáº£n lÃ½ tÃ i khoáº£n ngÆ°á»i dÃ¹ng", icon: "person.2.fill", color: Color(hex: "#002A8F")) {
+                                    drawerItemRow(
+                                        title: "Quản lý người dùng",
+                                        icon: "person.2.fill",
+                                        color: Color(hex: "#3B82F6"),
+                                        isSelected: currentDestination == .userManagement
+                                    ) {
                                         onSelect(.userManagement)
                                     }
                                     drawerItemRow(
-                                        title: "Duyá»‡t nhÃ¢n viÃªn má»›i",
+                                        title: "Duyệt nhân viên mới",
                                         icon: "person.badge.plus",
                                         color: Color.appPrimaryPink,
-                                        badge: pendingStaffCount > 0 ? "\(pendingStaffCount)" : nil
+                                        badge: pendingStaffCount > 0 ? "\(pendingStaffCount)" : nil,
+                                        isSelected: currentDestination == .approveStaff
                                     ) {
                                         onSelect(.approveStaff)
                                     }
-                                    drawerItemRow(title: "Quáº£n lÃ½ phÃ²ng ban", icon: "folder.fill", color: Color(hex: "#8B5CF6")) {
+                                    drawerItemRow(
+                                        title: "Quản lý phòng ban",
+                                        icon: "folder.fill",
+                                        color: Color(hex: "#818CF8"),
+                                        isSelected: currentDestination == .departmentManagement
+                                    ) {
                                         onSelect(.departmentManagement)
                                     }
-                                    drawerItemRow(title: "Quáº£n lÃ½ Ä‘Æ¡n vá»‹ / Chi nhÃ¡nh", icon: "building.2.fill", color: Color(hex: "#10B981")) {
+                                    drawerItemRow(
+                                        title: "Quản lý đơn vị",
+                                        icon: "building.2.fill",
+                                        color: Color(hex: "#6366F1"),
+                                        isSelected: currentDestination == .unitManagement
+                                    ) {
                                         onSelect(.unitManagement)
                                     }
-                                    drawerItemRow(title: "Quáº£n lÃ½ khu vá»±c / Cá»¥m", icon: "map.circle.fill", color: Color(hex: "#0284C7")) {
-                                        onSelect(.regionManagement)
-                                    }
-                                    drawerItemRow(title: "Cáº¥u hÃ¬nh há»‡ thá»‘ng & Báº£n quyá»n", icon: "gearshape.fill", color: Color(hex: "#64748B")) {
-                                        onSelect(.systemSettings)
-                                    }
-                                    drawerItemRow(
-                                        title: "Danh sach Ticket (Admin)",
-                                        icon: "ticket.fill",
-                                        color: Color(hex: "#DC2626"),
-                                        badge: openTicketsCount > 0 ? "\(openTicketsCount)" : nil
-                                    ) {
-                                        onSelect(.adminTicketList)
-                                    }
-                                    if user.isSuperAdmin {
+                                    if isAdmin || isHelpDesk {
                                         drawerItemRow(
-                                            title: "Super Admin Portal",
-                                            icon: "shield.checkered",
-                                            color: Color(hex: "#7C3AED")
+                                            title: "Quản lý khu vực",
+                                            icon: "map.circle.fill",
+                                            color: Color(hex: "#F59E0B"),
+                                            isSelected: currentDestination == .regionManagement
                                         ) {
-                                            onSelect(.superAdmin)
+                                            onSelect(.regionManagement)
                                         }
-                                    }                                }
+                                        drawerItemRow(
+                                            title: "Quản lý tổ nghiệp vụ",
+                                            icon: "person.3.fill",
+                                            color: Color(hex: "#8B5CF6"),
+                                            isSelected: currentDestination == .specialistTeams
+                                        ) {
+                                            onSelect(.specialistTeams)
+                                        }
+                                    }
+                                }
                                 .padding(.leading, 6)
                             }
                         }
 
-                        // --- NHÃ“M 5: NGOáº I VI & CÃ€I Äáº¶T ---
-                        drawerItemRow(title: "Ngoáº¡i vi & CÃ i Ä‘áº·t mÃ¡y in / quÃ©t", icon: "printer.dotmatrix.fill", color: Color(hex: "#0284C7")) {
-                            onSelect(.peripherals)
+                        // --- NHÓM 3: CHẤM CÔNG & ĐIỀU PHỐI (KTV, SỰ CỐ, CHUYÊN VIÊN, QUẢN LÝ) ---
+                        if isManagerOrAdmin || isIncidentHandler || isSpecialist {
+                            DrawerSectionHeader(
+                                title: "CHẤM CÔNG & ĐIỀU PHỐI",
+                                headerColor: Color(hex: "#F97316"),
+                                isExpanded: $isAttendanceExpanded
+                            )
+                            if isAttendanceExpanded {
+                                VStack(spacing: 2) {
+                                    drawerItemRow(
+                                        title: "Điểm danh Chấm công GPS",
+                                        icon: "clock.fill",
+                                        color: Color(hex: "#06B6D4"),
+                                        isSelected: currentDestination == .attendance
+                                    ) {
+                                        onSelect(.attendance)
+                                    }
+                                    let reportTitle = ((isIncidentHandler || isSpecialist) && !isManagerOrAdmin) ? "Báo cáo chấm công của tôi" : "Báo cáo công & OSRM"
+                                    drawerItemRow(
+                                        title: reportTitle,
+                                        icon: "calendar.badge.clock",
+                                        color: Color(hex: "#FB923C"),
+                                        isSelected: currentDestination == .attendanceReport
+                                    ) {
+                                        onSelect(.attendanceReport)
+                                    }
+                                    drawerItemRow(
+                                        title: "Nhật ký chấm công",
+                                        icon: "clock.arrow.circlepath",
+                                        color: Color(hex: "#10B981"),
+                                        isSelected: currentDestination == .attendanceHistory
+                                    ) {
+                                        onSelect(.attendanceHistory)
+                                    }
+                                    drawerItemRow(
+                                        title: "Lịch trực & Phân ca",
+                                        icon: "calendar",
+                                        color: Color(hex: "#8B5CF6"),
+                                        isSelected: currentDestination == .shiftSchedule
+                                    ) {
+                                        onSelect(.shiftSchedule)
+                                    }
+                                    if isAdmin || isHelpDesk || isIncidentHandler {
+                                        drawerItemRow(
+                                            title: "Theo dõi KTV Online (Bản đồ)",
+                                            icon: "map.fill",
+                                            color: Color(hex: "#10B981"),
+                                            isSelected: currentDestination == .ktvMonitor
+                                        ) {
+                                            onSelect(.ktvMonitor)
+                                        }
+                                    }
+                                    if isAdmin || isHelpDesk {
+                                        drawerItemRow(
+                                            title: "Báo cáo đánh giá SLA KTV",
+                                            icon: "star.fill",
+                                            color: Color(hex: "#F59E0B"),
+                                            isSelected: currentDestination == .supportRating
+                                        ) {
+                                            onSelect(.supportRating)
+                                        }
+                                    }
+                                }
+                                .padding(.leading, 6)
+                            }
                         }
-                        drawerItemRow(title: "Nhat ky thiet bi", icon: "clock.arrow.circlepath", color: Color(hex: "#8B5CF6")) {
-                            onSelect(.lichSu)
+
+                        // --- NHÓM 4: HỆ THỐNG & BẢN QUYỀN ---
+                        DrawerSectionHeader(
+                            title: "HỆ THỐNG & BẢN QUYỀN",
+                            headerColor: Color(hex: "#64748B"),
+                            isExpanded: $isSystemExpanded
+                        )
+                        if isSystemExpanded {
+                            VStack(spacing: 2) {
+                                drawerItemRow(
+                                    title: "Cài đặt máy in / máy quét",
+                                    icon: "printer.dotmatrix.fill",
+                                    color: Color(hex: "#64748B"),
+                                    isSelected: currentDestination == .peripherals
+                                ) {
+                                    onSelect(.peripherals)
+                                }
+                                if isAdmin {
+                                    drawerItemRow(
+                                        title: "Cấu hình hệ thống",
+                                        icon: "gearshape.fill",
+                                        color: Color(hex: "#475569"),
+                                        isSelected: currentDestination == .systemSettings
+                                    ) {
+                                        onSelect(.systemSettings)
+                                    }
+                                }
+                                if isSuperAdmin {
+                                    drawerItemRow(
+                                        title: "Quản trị Nền tảng (Super Admin)",
+                                        icon: "shield.checkered",
+                                        color: Color(hex: "#4338CA"),
+                                        isSelected: currentDestination == .superAdmin
+                                    ) {
+                                        onSelect(.superAdmin)
+                                    }
+                                }
+                                drawerItemRow(
+                                    title: "Gói cước & Bản quyền",
+                                    icon: "crown.fill",
+                                    color: Color(hex: "#F59E0B"),
+                                    isSelected: currentDestination == .paywallLicense
+                                ) {
+                                    onSelect(.paywallLicense)
+                                }
+                                drawerItemRow(
+                                    title: "Cẩm nang trợ giúp",
+                                    icon: "questionmark.circle.fill",
+                                    color: Color(hex: "#FBBF24"),
+                                    isSelected: currentDestination == .help
+                                ) {
+                                    onSelect(.help)
+                                }
+                                drawerItemRow(
+                                    title: "Thông tin ứng dụng",
+                                    icon: "info.circle.fill",
+                                    color: Color(hex: "#64748B"),
+                                    isSelected: currentDestination == .appInfo
+                                ) {
+                                    onSelect(.appInfo)
+                                }
+                            }
+                            .padding(.leading, 6)
                         }
 
                         Spacer(minLength: 16)
 
-                        // NÃºt ÄÄƒng xuáº¥t mÃ u Ä‘á»
-                        Divider().padding(.vertical, 4)
-                        drawerItemRow(title: "Tro giup & FAQ", icon: "questionmark.circle.fill", color: Color(hex: "#0284C7")) {
-                            onSelect(.help)
-                        }
-                        drawerItemRow(title: "ÄÄƒng xuáº¥t", icon: "rectangle.portrait.and.arrow.right", color: Color(hex: "#DC2626")) {
-                            onLogout()
-                        }
-
-                        // Khoáº£ng Ä‘á»‡m cho Home indicator á»Ÿ cáº¡nh dÆ°á»›i iPhone
+                        // Khoảng đệm cho Home indicator
                         Color.clear.frame(height: max(geometry.safeAreaInsets.bottom, 20))
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
                 }
+
+                // === 3. FOOTER: ĐĂNG XUẤT & PHIÊN BẢN (ĐỒNG BỘ 1:1 ANDROID) ===
+                Divider().background(Color.gray.opacity(0.2))
+                HStack {
+                    Button(action: onLogout) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "rectangle.portrait.and.arrow.right")
+                                .font(.system(size: 14, weight: .bold))
+                            Text("Đăng xuất")
+                                .font(.system(size: 12.5, weight: .bold))
+                        }
+                        .foregroundColor(Color(hex: "#DC2626"))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(Color(hex: "#FEF2F2"))
+                        .cornerRadius(8)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#FCA5A5"), lineWidth: 1))
+                    }
+
+                    Spacer()
+
+                    Text("v1.2.0")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color.gray)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .padding(.bottom, max(geometry.safeAreaInsets.bottom - 4, 4))
+                .background(Color.white)
             }
             .frame(width: min(geometry.size.width * 0.82, 320))
-            .background(Color.white)
+            .background(Color(hex: "#F8FAFC"))
             .ignoresSafeArea(edges: .all)
         }
     }
 
-    // MARK: - ACCORDION HEADER
-    private func accordionHeader(title: String, color: Color, isExpanded: Binding<Bool>) -> some View {
-        Button(action: {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isExpanded.wrappedValue.toggle()
-            }
-        }) {
-            HStack {
-                Text(title)
-                    .font(.system(size: 11, weight: .heavy))
-                    .foregroundColor(color)
+    // MARK: - DRAWER SECTION HEADER (ACCORDION)
+    private struct DrawerSectionHeader: View {
+        let title: String
+        let headerColor: Color
+        @Binding var isExpanded: Bool
 
-                Spacer()
+        var body: some View {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack {
+                    Text(title)
+                        .font(.system(size: 11, weight: .heavy))
+                        .foregroundColor(headerColor)
 
-                Image(systemName: isExpanded.wrappedValue ? "chevron.up" : "chevron.down")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(color)
+                    Spacer()
+
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(headerColor)
+                }
+                .padding(.horizontal, 12)
+                .padding(.top, 12)
+                .padding(.bottom, 4)
             }
-            .padding(.horizontal, 12)
-            .padding(.top, 10)
-            .padding(.bottom, 4)
         }
     }
 
     // MARK: - DRAWER ITEM ROW
-    private func drawerItemRow(title: String, icon: String, color: Color, badge: String? = nil, action: @escaping () -> Void) -> some View {
+    private func drawerItemRow(
+        title: String,
+        icon: String,
+        color: Color,
+        badge: String? = nil,
+        isSelected: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 16))
+                    .font(.system(size: 15))
                     .foregroundColor(color)
-                    .frame(width: 24)
+                    .frame(width: 22)
 
                 Text(title)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(Color.appTextPrimary)
+                    .font(.system(size: 13, weight: isSelected ? .bold : .medium))
+                    .foregroundColor(isSelected ? Color.appSecondaryDarkBlue : Color.appTextPrimary)
                     .lineLimit(1)
 
                 Spacer()
@@ -406,18 +623,16 @@ public struct AppSidebarDrawer: View {
                         .font(.system(size: 9.5, weight: .bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 6)
-                        .padding(.vertical, 1.5)
+                        .padding(.vertical, 2)
                         .background(Color.appPrimaryPink)
                         .clipShape(Capsule())
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(Color.clear)
+            .background(isSelected ? Color.white : Color.clear)
             .cornerRadius(8)
+            .shadow(color: isSelected ? Color.black.opacity(0.04) : Color.clear, radius: 2, y: 1)
         }
     }
 }
-
-
-
