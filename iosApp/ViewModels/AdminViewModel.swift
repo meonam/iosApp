@@ -315,7 +315,6 @@ public class AdminViewModel: ObservableObject {
             allUsers[idx].role = cleanRole
             allUsers[idx].permissions = permissions
             allUsers[idx].departmentId = cleanDept
-            allUsers[idx].unitId = unitId
             allUsers[idx].donVi = cleanUnit
             allUsers[idx].phone = cleanPhone
             allUsers[idx].maNhanVien = cleanMnv

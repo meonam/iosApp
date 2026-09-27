@@ -590,7 +590,7 @@ public struct UserManagementView: View {
                     Circle()
                         .fill(isLocked ? Color.red.opacity(0.8) : Color.appSecondaryDarkBlue)
                         .frame(width: 42, height: 42)
-                    Text(String(u.fullName.prefix(1)).uppercased().ifBlank { String(u.email.prefix(1)).uppercased() })
+                    Text((u.fullName.isEmpty ? String(u.email.prefix(1)) : String(u.fullName.prefix(1))).uppercased())
                         .font(.system(size: 17, weight: .bold))
                         .foregroundColor(.white)
                 }
