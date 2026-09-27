@@ -1408,6 +1408,12 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let body: [String: Any] = [
                 "structuredQuery": [
                     "from": [["collectionId": "attendances"]],
+                    "orderBy": [
+                        [
+                            "field": ["fieldPath": "date"],
+                            "direction": "DESCENDING"
+                        ]
+                    ],
                     "limit": 500
                 ]
             ]
@@ -1466,6 +1472,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
         // Tính startMillis và endMillis cho targetMonth (yyyy-MM)
         let dfTime = DateFormatter()
+        dfTime.locale = Locale(identifier: "en_US_POSIX")
+        dfTime.calendar = Calendar(identifier: .gregorian)
         dfTime.dateFormat = "yyyy-MM"
         dfTime.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
         var startMillis: Int64 = 0
@@ -1512,6 +1520,12 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                                     ]
                                 ]
                             ]
+                        ]
+                    ],
+                    "orderBy": [
+                        [
+                            "field": ["fieldPath": "timestamp"],
+                            "direction": "DESCENDING"
                         ]
                     ],
                     "limit": 1000
@@ -1640,6 +1654,12 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                             ]
                         ]
                     ],
+                    "orderBy": [
+                        [
+                            "field": ["fieldPath": "createdAt"],
+                            "direction": "DESCENDING"
+                        ]
+                    ],
                     "limit": 1000
                 ]
             ]
@@ -1711,6 +1731,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         }
 
         let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.calendar = Calendar(identifier: .gregorian)
         df.dateFormat = "yyyy-MM-dd"
         df.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
 
