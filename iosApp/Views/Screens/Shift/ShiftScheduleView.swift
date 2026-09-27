@@ -825,7 +825,8 @@ public struct ShiftScheduleView: View {
             Text(day.name)
                 .font(.system(size: 13, weight: .bold))
                 .foregroundColor(isSel ? .white : Color(hex: "#475569"))
-                .frame(maxWidth: .infinity, height: 38)
+                .frame(maxWidth: .infinity)
+                .frame(height: 38)
                 .background(isSel ? Color.appSecondaryDarkBlue : Color(hex: "#F1F5F9"))
                 .cornerRadius(8)
         }
