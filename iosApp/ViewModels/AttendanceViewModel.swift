@@ -1997,6 +1997,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     self.isSavingReportConfig = false
                     self.errorMessage = "Lỗi lưu cấu hình định mức!"
                 }
+            }
         }
     }
 
