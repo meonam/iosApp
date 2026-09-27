@@ -237,7 +237,7 @@ public struct HomeScreenView: View {
                     idToken: viewModel.idToken
                 ),
                 onDismiss: { showAddDeviceSheet = false },
-                onSuccess: { viewModel.loadDashboardData() }
+                onSuccess: { _ in viewModel.loadDashboardData() }
             )
         }
         // Sheet In tem QR

@@ -102,6 +102,10 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         locationManager.startUpdatingLocation()
     }
 
+    public func requestLocation() {
+        startUpdatingLocation()
+    }
+
     public nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let loc = locations.last else { return }
         Task { @MainActor in

@@ -184,7 +184,7 @@ public class DeviceViewModel: ObservableObject {
                 self.nextPageToken = json["nextPageToken"] as? String
                 self.hasMore = self.nextPageToken != nil
                 
-                let list: [ThietBi] = documents.compactMap { doc in
+                let list: [ThietBi] = documents.compactMap { (doc: [String: Any]) -> ThietBi? in
                     guard let name = doc["name"] as? String,
                           let fields = doc["fields"] as? [String: Any] else { return nil }
                     let id = name.components(separatedBy: "/").last ?? ""

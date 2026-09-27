@@ -32,6 +32,12 @@ public struct AddDeviceView: View {
         self.onSuccess = onSuccess
     }
 
+    public init(viewModel: DeviceViewModel, onDismiss: @escaping () -> Void, onSuccess: ((String) -> Void)? = nil) {
+        self.viewModel = viewModel
+        self.onBack = onDismiss
+        self.onSuccess = onSuccess
+    }
+
     public var body: some View {
         GeometryReader { geometry in
             ZStack {

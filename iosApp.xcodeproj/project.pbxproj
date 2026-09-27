@@ -63,6 +63,12 @@
 		2200104A2C12345600000001 /* LichSuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200004A2C12345600000001 /* LichSuView.swift */; };
 		2200104B2C12345600000001 /* SuperAdminPortalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200004B2C12345600000001 /* SuperAdminPortalView.swift */; };
 		2200104C2C12345600000001 /* ResetPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200004C2C12345600000001 /* ResetPasswordView.swift */; };
+		220010502C12345600000001 /* WebRtcCallManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000502C12345600000001 /* WebRtcCallManager.swift */; };
+		220010512C12345600000001 /* CallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000512C12345600000001 /* CallView.swift */; };
+		220010522C12345600000001 /* DeviceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000522C12345600000001 /* DeviceDetailView.swift */; };
+		220010532C12345600000001 /* EnterpriseFeatureLockedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000532C12345600000001 /* EnterpriseFeatureLockedView.swift */; };
+		220010542C12345600000001 /* AdminSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000542C12345600000001 /* AdminSettingsView.swift */; };
+		220010552C12345600000001 /* PhanQuyenAdminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000552C12345600000001 /* PhanQuyenAdminView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -123,6 +129,12 @@
 		2200004A2C12345600000001 /* LichSuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LichSuView.swift; sourceTree = "<group>"; };
 		2200004B2C12345600000001 /* SuperAdminPortalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperAdminPortalView.swift; sourceTree = "<group>"; };
 		2200004C2C12345600000001 /* ResetPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetPasswordView.swift; sourceTree = "<group>"; };
+		220000502C12345600000001 /* WebRtcCallManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRtcCallManager.swift; sourceTree = "<group>"; };
+		220000512C12345600000001 /* CallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallView.swift; sourceTree = "<group>"; };
+		220000522C12345600000001 /* DeviceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceDetailView.swift; sourceTree = "<group>"; };
+		220000532C12345600000001 /* EnterpriseFeatureLockedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnterpriseFeatureLockedView.swift; sourceTree = "<group>"; };
+		220000542C12345600000001 /* AdminSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminSettingsView.swift; sourceTree = "<group>"; };
+		220000552C12345600000001 /* PhanQuyenAdminView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhanQuyenAdminView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -154,6 +166,7 @@
 				220001032C12345600000001 /* Services */,
 				220001042C12345600000001 /* ViewModels */,
 				220001052C12345600000001 /* Views */,
+				220001202C12345600000001 /* WebRTC */,
 				110000022C12345600000001 /* iOSApp.swift */,
 				110000062C12345600000001 /* Info.plist */,
 				110000162C12345600000001 /* Assets.xcassets */,
@@ -169,12 +182,21 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		220001202C12345600000001 /* WebRTC */ = {
+			isa = PBXGroup;
+			children = (
+				220000502C12345600000001 /* WebRtcCallManager.swift */,
+			);
+			path = WebRTC;
+			sourceTree = "<group>";
+		};
 		220001002C12345600000001 /* App */ = {
 			isa = PBXGroup;
 			children = (
 				220000002C12345600000001 /* MainContainerView.swift */,
 				220000462C12345600000001 /* InfoView.swift */,
 				220000492C12345600000001 /* HelpView.swift */,
+				220000532C12345600000001 /* EnterpriseFeatureLockedView.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -279,6 +301,7 @@
 				220000292C12345600000001 /* PrintQrLabelView.swift */,
 				220000392C12345600000001 /* DeviceTypeManagerView.swift */,
 				2200004A2C12345600000001 /* LichSuView.swift */,
+				220000522C12345600000001 /* DeviceDetailView.swift */,
 			);
 			path = Devices;
 			sourceTree = "<group>";
@@ -292,6 +315,7 @@
 				220000412C12345600000001 /* SupportRatingReportView.swift */,
 				220000422C12345600000001 /* OnlineKtvMonitorView.swift */,
 				220000432C12345600000001 /* StaffSupportView.swift */,
+				220000512C12345600000001 /* CallView.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -364,6 +388,8 @@
 				220000382C12345600000001 /* PaywallLicenseView.swift */,
 				220000482C12345600000001 /* AdminTicketListView.swift */,
 				2200004B2C12345600000001 /* SuperAdminPortalView.swift */,
+				220000542C12345600000001 /* AdminSettingsView.swift */,
+				220000552C12345600000001 /* PhanQuyenAdminView.swift */,
 			);
 			path = Admin;
 			sourceTree = "<group>";
@@ -505,6 +531,12 @@
 				2200104A2C12345600000001 /* LichSuView.swift in Sources */,
 				2200104B2C12345600000001 /* SuperAdminPortalView.swift in Sources */,
 				2200104C2C12345600000001 /* ResetPasswordView.swift in Sources */,
+				220010502C12345600000001 /* WebRtcCallManager.swift in Sources */,
+				220010512C12345600000001 /* CallView.swift in Sources */,
+				220010522C12345600000001 /* DeviceDetailView.swift in Sources */,
+				220010532C12345600000001 /* EnterpriseFeatureLockedView.swift in Sources */,
+				220010542C12345600000001 /* AdminSettingsView.swift in Sources */,
+				220010552C12345600000001 /* PhanQuyenAdminView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

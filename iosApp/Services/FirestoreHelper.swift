@@ -57,6 +57,39 @@ public struct FirestoreHelper {
         return [:]
     }
 
+    // MARK: - 2-Parameter Convenience Overloads (dictionary + key)
+    public static func getString(_ fields: [String: Any]?, _ key: String) -> String {
+        return getString(fields?[key] as? [String: Any])
+    }
+
+    public static func getInt64(_ fields: [String: Any]?, _ key: String) -> Int64 {
+        return getInt64(fields?[key] as? [String: Any])
+    }
+
+    public static func getInt(_ fields: [String: Any]?, _ key: String) -> Int {
+        return getInt(fields?[key] as? [String: Any])
+    }
+
+    public static func getDouble(_ fields: [String: Any]?, _ key: String) -> Double {
+        return getDouble(fields?[key] as? [String: Any])
+    }
+
+    public static func getBool(_ fields: [String: Any]?, _ key: String) -> Bool {
+        return getBool(fields?[key] as? [String: Any])
+    }
+
+    public static func getArray(_ fields: [String: Any]?, _ key: String) -> [[String: Any]] {
+        return getArray(fields?[key] as? [String: Any])
+    }
+
+    public static func getStringArray(_ fields: [String: Any]?, _ key: String) -> [String] {
+        return getStringArray(fields?[key] as? [String: Any])
+    }
+
+    public static func getMap(_ fields: [String: Any]?, _ key: String) -> [String: Any] {
+        return getMap(fields?[key] as? [String: Any])
+    }
+
     // Tiện ích đóng gói Swift Value sang Firestore REST format
     public static func valueToFirestore(_ value: Any) -> [String: Any] {
         if let str = value as? String {

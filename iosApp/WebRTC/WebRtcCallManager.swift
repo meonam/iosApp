@@ -27,7 +27,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     private var remoteAudioTrack: RTCAudioTrack?
     private var iceServers: [RTCIceServer] = []
     
-    private let companyId = AppConfig.companyId
+    public var companyId: String = "SGCOOP"
     private let firestoreBaseUrl = FirebaseConfig.firestoreBaseUrl
     
     private var signalingTimer: AnyCancellable?

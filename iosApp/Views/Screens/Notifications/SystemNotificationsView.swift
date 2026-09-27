@@ -45,6 +45,7 @@ public struct SystemNotificationsView: View {
         self.onBack = onBack
     }
 
+    @MainActor
     public init(authViewModel: AuthViewModel, onBack: @escaping () -> Void = {}) {
         self.companyId = authViewModel.currentUser?.companyId ?? ""
         self.idToken = authViewModel.currentIdToken
@@ -333,8 +334,9 @@ public struct SystemNotificationsView: View {
                         }
                     }
                     loaded.sort { $0.createdAt > $1.createdAt }
+                    let finalLoaded = loaded
                     await MainActor.run {
-                        self.notifications = loaded
+                        self.notifications = finalLoaded
                         self.isLoading = false
                     }
                 }
@@ -366,8 +368,9 @@ public struct SystemNotificationsView: View {
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
+        let req = request
         Task {
-            let _ = try? await URLSession.shared.data(for: request)
+            let _ = try? await URLSession.shared.data(for: req)
         }
     }
 
@@ -387,8 +390,9 @@ public struct SystemNotificationsView: View {
         request.httpMethod = "DELETE"
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         
+        let req = request
         Task {
-            let _ = try? await URLSession.shared.data(for: request)
+            let _ = try? await URLSession.shared.data(for: req)
         }
     }
 }

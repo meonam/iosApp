@@ -87,7 +87,7 @@ public struct AttendanceCheckInView: View {
                                         .foregroundColor(.appTextPrimary)
                                     Spacer()
                                     Button(action: {
-                                        viewModel.requestLocation()
+                                        viewModel.startUpdatingLocation()
                                     }) {
                                         Image(systemName: "arrow.triangle.2.circlepath")
                                             .foregroundColor(.blue)
@@ -303,7 +303,7 @@ public struct AttendanceCheckInView: View {
         .ignoresSafeArea(edges: .top)
         .onAppear {
             viewModel.fetchTravelExpenseConfig()
-            viewModel.requestLocation()
+            viewModel.startUpdatingLocation()
             viewModel.fetchTodayAttendance()
             viewModel.fetchAttendanceHistory(month: Date())
         }
