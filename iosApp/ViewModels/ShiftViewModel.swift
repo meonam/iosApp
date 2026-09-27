@@ -158,8 +158,8 @@ public class ShiftViewModel: ObservableObject {
                 request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
 
-            guard let (data, response) = try? await URLSession.shared.data(for: request),
-                  let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+            guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+                  httpResponse.statusCode == 200,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let fields = json["fields"] as? [String: Any] else {
                 self.isLoading = false
@@ -380,8 +380,8 @@ public class ShiftViewModel: ObservableObject {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         }
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let documents = json["documents"] as? [[String: Any]] else {
             isLoading = false
@@ -452,8 +452,8 @@ public class ShiftViewModel: ObservableObject {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         }
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let fields = json["fields"] as? [String: Any] else {
             isLoading = false
@@ -565,17 +565,11 @@ public class ShiftViewModel: ObservableObject {
             ]
         ]
 
-        do {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
-                self.successMessage = "✅ Đã lưu phân ca tuần thành công!"
-            } else {
-                let respStr = String(data: data, encoding: .utf8) ?? ""
-                self.errorMessage = "Lỗi lưu: \(respStr)"
-            }
-        } catch {
-            self.errorMessage = "Lỗi mạng khi lưu: \(error.localizedDescription)"
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let (_, httpResp) = await FirestoreHelper.executeSafeRequest(request), httpResp.statusCode == 200 {
+            self.successMessage = "✅ Đã lưu phân ca tuần thành công!"
+        } else {
+            self.errorMessage = "Lỗi lưu phân ca tuần."
         }
         isSaving = false
     }

@@ -364,23 +364,10 @@ public class SupportViewModel: ObservableObject {
             var responseData: Data? = nil
             var isSuccess = false
 
-            if let (data, response) = try? await URLSession.shared.data(for: request),
-               let httpResponse = response as? HTTPURLResponse {
-                if httpResponse.statusCode == 200 {
-                    responseData = data
-                    isSuccess = true
-                } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-                    // Retry without Authorization header if token expired or rejected
-                    var retryReq = URLRequest(url: url)
-                    retryReq.httpMethod = "POST"
-                    retryReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    retryReq.httpBody = bodyData
-                    if let (retryData, retryResp) = try? await URLSession.shared.data(for: retryReq),
-                       let retryHttp = retryResp as? HTTPURLResponse, retryHttp.statusCode == 200 {
-                        responseData = retryData
-                        isSuccess = true
-                    }
-                }
+            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+               httpResponse.statusCode == 200 {
+                responseData = data
+                isSuccess = true
             }
 
             // Fallback: Nếu runQuery bị lỗi hoặc không có dữ liệu, dùng trực tiếp document listing
@@ -391,29 +378,14 @@ public class SupportViewModel: ObservableObject {
                     if !idToken.isEmpty {
                         listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
                     }
-                    if let (lData, lResp) = try? await URLSession.shared.data(for: listReq),
-                       let lHttp = lResp as? HTTPURLResponse {
-                        if lHttp.statusCode == 200 {
-                            if let json = try? JSONSerialization.jsonObject(with: lData) as? [String: Any],
-                               let docs = json["documents"] as? [[String: Any]] {
-                                let wrappedDocs = docs.map { ["document": $0] }
-                                if let wrappedData = try? JSONSerialization.data(withJSONObject: wrappedDocs) {
-                                    responseData = wrappedData
-                                    isSuccess = true
-                                }
-                            }
-                        } else if lHttp.statusCode == 401 || lHttp.statusCode == 403 {
-                            var retryListReq = URLRequest(url: listUrl)
-                            if let (rData, rResp) = try? await URLSession.shared.data(for: retryListReq),
-                               let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
-                                if let json = try? JSONSerialization.jsonObject(with: rData) as? [String: Any],
-                                   let docs = json["documents"] as? [[String: Any]] {
-                                    let wrappedDocs = docs.map { ["document": $0] }
-                                    if let wrappedData = try? JSONSerialization.data(withJSONObject: wrappedDocs) {
-                                        responseData = wrappedData
-                                        isSuccess = true
-                                    }
-                                }
+                    if let (lData, lHttp) = await FirestoreHelper.executeSafeRequest(listReq),
+                       lHttp.statusCode == 200 {
+                        if let json = try? JSONSerialization.jsonObject(with: lData) as? [String: Any],
+                           let docs = json["documents"] as? [[String: Any]] {
+                            let wrappedDocs = docs.map { ["document": $0] }
+                            if let wrappedData = try? JSONSerialization.data(withJSONObject: wrappedDocs) {
+                                responseData = wrappedData
+                                isSuccess = true
                             }
                         }
                     }
@@ -587,8 +559,8 @@ public class SupportViewModel: ObservableObject {
         let body: [String: Any] = ["fields": fields]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let name = json["name"] as? String else { return nil }
 
@@ -644,8 +616,8 @@ public class SupportViewModel: ObservableObject {
             var request = URLRequest(url: url)
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-            guard let (data, response) = try? await URLSession.shared.data(for: request),
-                  let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+            guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+                  httpResponse.statusCode == 200,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let documents = json["documents"] as? [[String: Any]] else {
                 return
@@ -702,7 +674,7 @@ public class SupportViewModel: ObservableObject {
                 ]
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             // Update ticket lastMessage & lastMessageAt
             let patchUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
@@ -718,7 +690,7 @@ public class SupportViewModel: ObservableObject {
                     ]
                 ]
                 pReq.httpBody = try? JSONSerialization.data(withJSONObject: pBody)
-                _ = try? await URLSession.shared.data(for: pReq)
+                _ = await FirestoreHelper.executeSafeRequest(pReq)
             }
 
             self.isSendingMessage = false
@@ -747,7 +719,7 @@ public class SupportViewModel: ObservableObject {
                 ]
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
             self.fetchTickets()
         }
     }
@@ -774,7 +746,7 @@ public class SupportViewModel: ObservableObject {
                 ]
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             let msg = method == "REMOTE"
                 ? "💻 KTV \(user.fullName) đã tiếp nhận và chọn phương án Xử lý từ xa (UltraViewer / ĐT)"
@@ -807,7 +779,7 @@ public class SupportViewModel: ObservableObject {
                 ]
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             let msg = "🛠️ KTV \(user.fullName) báo cáo ĐÃ XỬ LÝ XONG: \(note). Mời bạn nghiệm thu & đánh giá chất lượng."
             sendMessage(ticketId: ticketId, text: msg)
@@ -848,7 +820,7 @@ public class SupportViewModel: ObservableObject {
 
             let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             let closeMsg = !note.isEmpty ? "🔒 Yêu cầu hỗ trợ đã được đóng bởi \(user.fullName): \(note)" : "🔒 Yêu cầu hỗ trợ đã được đóng bởi \(user.fullName)."
             sendMessage(ticketId: ticketId, text: closeMsg)
@@ -904,7 +876,7 @@ public class SupportViewModel: ObservableObject {
 
             let body: [String: Any] = ["fields": fields]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             sendMessage(ticketId: ticketId, text: finalRejectMsg)
             self.fetchTickets()
@@ -940,7 +912,7 @@ public class SupportViewModel: ObservableObject {
                 ]
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             let msg = "🔄 \(user.fullName) đã MỞ LẠI yêu cầu hỗ trợ (Lần \(ticket.reopenCount + 1)): \(reason)"
             sendMessage(ticketId: ticketId, text: msg)
@@ -974,7 +946,7 @@ public class SupportViewModel: ObservableObject {
                 ]
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             let stars = String(repeating: "⭐", count: rating)
             let commentPart = feedback.isEmpty ? "" : " • Nhận xét: \"\(feedback)\""
@@ -1012,7 +984,7 @@ public class SupportViewModel: ObservableObject {
 
             let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             let clusterMsg = cluster.isEmpty ? "" : " (Cụm: \(cluster))"
             let noteMsg = note.isEmpty ? "" : " - Ghi chú: \(note)"
@@ -1020,7 +992,6 @@ public class SupportViewModel: ObservableObject {
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
-        }
     }
 
     // MARK: - ĐIỀU PHỐI TICKET ĐỒNG BỘ 1:1 ANDROID (assignTicket)
@@ -1087,7 +1058,7 @@ public class SupportViewModel: ObservableObject {
 
             let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             sendMessage(ticketId: ticketId, text: dispatchMsg)
             self.fetchTickets()
@@ -1146,7 +1117,7 @@ public class SupportViewModel: ObservableObject {
             ]
 
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
@@ -1176,7 +1147,7 @@ public class SupportViewModel: ObservableObject {
             ]
 
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
@@ -1205,7 +1176,7 @@ public class SupportViewModel: ObservableObject {
             ]
 
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
@@ -1235,7 +1206,7 @@ public class SupportViewModel: ObservableObject {
             ]
 
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
 
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
@@ -1256,8 +1227,8 @@ public class SupportViewModel: ObservableObject {
             var request = URLRequest(url: url)
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-            guard let (data, response) = try? await URLSession.shared.data(for: request),
-                  let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+            guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+                  httpResponse.statusCode == 200,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let docs = json["documents"] as? [[String: Any]] else {
                 self.isLoadingKtvs = false
@@ -1437,8 +1408,8 @@ public class SupportViewModel: ObservableObject {
         guard let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) else { return nil }
         request.httpBody = bodyData
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
               let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
             return nil
         }

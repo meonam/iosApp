@@ -55,8 +55,8 @@ public class AdminViewModel: ObservableObject {
             }
 
             // Thử subcollection theo companyId trước, nếu không có thì fallback ra root `users`
-            if let (data, response) = try? await URLSession.shared.data(for: request),
-               let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+            if let (data, response) = await FirestoreHelper.executeSafeRequest(request),
+               response.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let documents = json["documents"] as? [[String: Any]], !documents.isEmpty {
                 self.allUsers = parseUsers(from: documents)
@@ -71,8 +71,8 @@ public class AdminViewModel: ObservableObject {
                 rootRequest.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
 
-            if let (data, response) = try? await URLSession.shared.data(for: rootRequest),
-               let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+            if let (data, response) = await FirestoreHelper.executeSafeRequest(rootRequest),
+               response.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let documents = json["documents"] as? [[String: Any]] {
                 self.allUsers = parseUsers(from: documents)
@@ -128,7 +128,7 @@ public class AdminViewModel: ObservableObject {
             request.addValue("application/json", forHTTPHeaderField: "Content-Type")
             if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": fields])
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
         }
     }
 
@@ -342,7 +342,7 @@ public class AdminViewModel: ObservableObject {
             var request = URLRequest(url: url)
             request.httpMethod = "DELETE"
             if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
         }
         allUsers.removeAll { $0.email.caseInsensitiveCompare(email) == .orderedSame }
         self.isLoading = false
@@ -416,7 +416,7 @@ public class AdminViewModel: ObservableObject {
             request.addValue("application/json", forHTTPHeaderField: "Content-Type")
             if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": fields])
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
         }
 
         let newUser = User(
@@ -451,8 +451,7 @@ public class AdminViewModel: ObservableObject {
             var request = URLRequest(url: url)
             if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-            if let (data, response) = try? await URLSession.shared.data(for: request),
-               let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let documents = json["documents"] as? [[String: Any]] {
                 self.departments = documents.compactMap { doc in
@@ -497,8 +496,7 @@ public class AdminViewModel: ObservableObject {
                 var request = URLRequest(url: unitUrl)
                 if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-                if let (data, response) = try? await URLSession.shared.data(for: request),
-                   let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+                if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let documents = json["documents"] as? [[String: Any]] {
                     self.units = documents.compactMap { doc in
@@ -527,8 +525,7 @@ public class AdminViewModel: ObservableObject {
                 var regRequest = URLRequest(url: regUrl)
                 if !idToken.isEmpty { regRequest.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-                if let (data, response) = try? await URLSession.shared.data(for: regRequest),
-                   let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+                if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(regRequest), httpResponse.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let documents = json["documents"] as? [[String: Any]] {
                     self.regions = documents.compactMap { doc in
@@ -575,8 +572,7 @@ public class AdminViewModel: ObservableObject {
         var request = URLRequest(url: url)
         if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-        if let (data, response) = try? await URLSession.shared.data(for: request),
-           let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+        if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200,
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let documents = json["documents"] as? [[String: Any]] {
             let teams = documents.compactMap { doc -> SpecialistTeam? in
@@ -648,7 +644,7 @@ public class AdminViewModel: ObservableObject {
             ]
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        _ = try? await URLSession.shared.data(for: request)
+        _ = await FirestoreHelper.executeSafeRequest(request)
         await fetchSpecialistTeams()
     }
 
@@ -661,7 +657,7 @@ public class AdminViewModel: ObservableObject {
         request.httpMethod = "DELETE"
         if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-        _ = try? await URLSession.shared.data(for: request)
+        _ = await FirestoreHelper.executeSafeRequest(request)
         await fetchSpecialistTeams()
     }
 
@@ -687,8 +683,7 @@ public class AdminViewModel: ObservableObject {
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-        if let (_, response) = try? await URLSession.shared.data(for: request),
-           let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+        if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200 {
             fetchDepartments()
         }
     }
@@ -702,8 +697,7 @@ public class AdminViewModel: ObservableObject {
         request.httpMethod = "DELETE"
         if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-        if let (_, response) = try? await URLSession.shared.data(for: request),
-           let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+        if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200 {
             fetchDepartments()
         }
     }
@@ -736,7 +730,7 @@ public class AdminViewModel: ObservableObject {
             ]
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        _ = try? await URLSession.shared.data(for: request)
+        _ = await FirestoreHelper.executeSafeRequest(request)
         fetchUnitsAndRegions()
     }
 
@@ -760,7 +754,7 @@ public class AdminViewModel: ObservableObject {
             ]
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        _ = try? await URLSession.shared.data(for: request)
+        _ = await FirestoreHelper.executeSafeRequest(request)
         fetchUnitsAndRegions()
     }
 
@@ -773,7 +767,7 @@ public class AdminViewModel: ObservableObject {
         request.httpMethod = "DELETE"
         if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-        _ = try? await URLSession.shared.data(for: request)
+        _ = await FirestoreHelper.executeSafeRequest(request)
         fetchUnitsAndRegions()
     }
 
@@ -804,7 +798,7 @@ public class AdminViewModel: ObservableObject {
             ]
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        _ = try? await URLSession.shared.data(for: request)
+        _ = await FirestoreHelper.executeSafeRequest(request)
         fetchUnitsAndRegions()
     }
 
@@ -830,7 +824,7 @@ public class AdminViewModel: ObservableObject {
             ]
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        _ = try? await URLSession.shared.data(for: request)
+        _ = await FirestoreHelper.executeSafeRequest(request)
         fetchUnitsAndRegions()
     }
 
@@ -843,7 +837,7 @@ public class AdminViewModel: ObservableObject {
         request.httpMethod = "DELETE"
         if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-        _ = try? await URLSession.shared.data(for: request)
+        _ = await FirestoreHelper.executeSafeRequest(request)
     }
 
     // MARK: - SYSTEM SETTINGS
@@ -860,25 +854,20 @@ public class AdminViewModel: ObservableObject {
         request.httpMethod = "GET"
         if !idToken.isEmpty { request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
         
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let fields = json["fields"] as? [String: Any] {
-                self.systemConfig = SystemConfig(
-                    companyName: FirestoreHelper.getString(fields["companyName"] as? [String: Any]),
-                    gpsRadiusMeters: FirestoreHelper.getInt(fields["gpsRadiusMeters"] as? [String: Any]),
-                    slaUrgentHours: FirestoreHelper.getInt(fields["slaUrgentHours"] as? [String: Any]),
-                    slaHighHours: FirestoreHelper.getInt(fields["slaHighHours"] as? [String: Any]),
-                    slaNormalHours: FirestoreHelper.getInt(fields["slaNormalHours"] as? [String: Any]),
-                    allowRemoteCheckin: FirestoreHelper.getBool(fields["allowRemoteCheckin"] as? [String: Any])
-                )
-            } else {
-                // Default if not found
-                self.systemConfig = SystemConfig(companyName: "Công ty mặc định", gpsRadiusMeters: 150, slaUrgentHours: 2, slaHighHours: 4, slaNormalHours: 8, allowRemoteCheckin: false)
-            }
-        } catch {
-            print("Error fetching config: \(error)")
+        if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let fields = json["fields"] as? [String: Any] {
+            self.systemConfig = SystemConfig(
+                companyName: FirestoreHelper.getString(fields["companyName"] as? [String: Any]),
+                gpsRadiusMeters: FirestoreHelper.getInt(fields["gpsRadiusMeters"] as? [String: Any]),
+                slaUrgentHours: FirestoreHelper.getInt(fields["slaUrgentHours"] as? [String: Any]),
+                slaHighHours: FirestoreHelper.getInt(fields["slaHighHours"] as? [String: Any]),
+                slaNormalHours: FirestoreHelper.getInt(fields["slaNormalHours"] as? [String: Any]),
+                allowRemoteCheckin: FirestoreHelper.getBool(fields["allowRemoteCheckin"] as? [String: Any])
+            )
+        } else {
+            // Default if not found
+            self.systemConfig = SystemConfig(companyName: "Công ty mặc định", gpsRadiusMeters: 150, slaUrgentHours: 2, slaHighHours: 4, slaNormalHours: 8, allowRemoteCheckin: false)
         }
         self.isLoadingConfig = false
     }
@@ -904,19 +893,14 @@ public class AdminViewModel: ObservableObject {
         ]
         
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        
-        do {
-            let _ = try await URLSession.shared.data(for: request)
-            if self.systemConfig != nil {
-                self.systemConfig?.companyName = companyName
-                self.systemConfig?.gpsRadiusMeters = gpsRadius
-                self.systemConfig?.slaUrgentHours = slaUrgentHours
-                self.systemConfig?.slaNormalHours = slaNormalHours
-            }
-            self.successMessage = "Lưu cấu hình thành công"
-        } catch {
-            print("Error saving config: \(error)")
+        _ = await FirestoreHelper.executeSafeRequest(request)
+        if self.systemConfig != nil {
+            self.systemConfig?.companyName = companyName
+            self.systemConfig?.gpsRadiusMeters = gpsRadius
+            self.systemConfig?.slaUrgentHours = slaUrgentHours
+            self.systemConfig?.slaNormalHours = slaNormalHours
         }
+        self.successMessage = "Lưu cấu hình thành công"
         self.isLoadingConfig = false
     }
 
@@ -934,27 +918,22 @@ public class AdminViewModel: ObservableObject {
         request.httpMethod = "GET"
         if !idToken.isEmpty { request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
         
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let documents = json["documents"] as? [[String: Any]] {
-                self.notifications = documents.compactMap { doc in
-                    guard let name = doc["name"] as? String,
-                          let fields = doc["fields"] as? [String: Any] else { return nil }
-                    let id = name.components(separatedBy: "/").last ?? ""
-                    let title = FirestoreHelper.getString(fields["title"] as? [String: Any])
-                    let body = FirestoreHelper.getString(fields["body"] as? [String: Any])
-                    let targetRole = FirestoreHelper.getString(fields["targetRole"] as? [String: Any])
-                    let createdAt = FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
-                    let createdByEmail = FirestoreHelper.getString(fields["createdByEmail"] as? [String: Any])
-                    return AppNotification(id: id, title: title, body: body, targetRole: targetRole, createdAt: Date(timeIntervalSince1970: TimeInterval(createdAt) / 1000.0), createdByEmail: createdByEmail)
-                }
-                // Sort by date descending
-                self.notifications.sort { $0.createdAt > $1.createdAt }
+        if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let documents = json["documents"] as? [[String: Any]] {
+            self.notifications = documents.compactMap { doc in
+                guard let name = doc["name"] as? String,
+                      let fields = doc["fields"] as? [String: Any] else { return nil }
+                let id = name.components(separatedBy: "/").last ?? ""
+                let title = FirestoreHelper.getString(fields["title"] as? [String: Any])
+                let body = FirestoreHelper.getString(fields["body"] as? [String: Any])
+                let targetRole = FirestoreHelper.getString(fields["targetRole"] as? [String: Any])
+                let createdAt = FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
+                let createdByEmail = FirestoreHelper.getString(fields["createdByEmail"] as? [String: Any])
+                return AppNotification(id: id, title: title, body: body, targetRole: targetRole, createdAt: Date(timeIntervalSince1970: TimeInterval(createdAt) / 1000.0), createdByEmail: createdByEmail)
             }
-        } catch {
-            print("Error fetching notifications: \(error)")
+            // Sort by date descending
+            self.notifications.sort { $0.createdAt > $1.createdAt }
         }
         self.isLoadingNotifications = false
     }
@@ -983,18 +962,13 @@ public class AdminViewModel: ObservableObject {
         
         request.httpBody = try? JSONSerialization.data(withJSONObject: docBody)
         
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let name = json["name"] as? String {
-                let id = name.components(separatedBy: "/").last ?? ""
-                let newNotif = AppNotification(id: id, title: title, body: body, targetRole: targetRole ?? "ALL", createdAt: Date(), createdByEmail: self.currentUser.email)
-                self.notifications.insert(newNotif, at: 0)
-                self.successMessage = "Đã gửi thông báo"
-            }
-        } catch {
-            print("Error sending notification: \(error)")
+        if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request), httpResponse.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let name = json["name"] as? String {
+            let id = name.components(separatedBy: "/").last ?? ""
+            let newNotif = AppNotification(id: id, title: title, body: body, targetRole: targetRole ?? "ALL", createdAt: Date(), createdByEmail: self.currentUser.email)
+            self.notifications.insert(newNotif, at: 0)
+            self.successMessage = "Đã gửi thông báo"
         }
         self.isLoadingNotifications = false
     }
@@ -1008,13 +982,9 @@ public class AdminViewModel: ObservableObject {
         request.httpMethod = "DELETE"
         if !idToken.isEmpty { request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
         
-        do {
-            let _ = try await URLSession.shared.data(for: request)
-            self.notifications.removeAll { $0.id == notifId }
-            self.successMessage = "Đã xóa thông báo"
-        } catch {
-            print("Error deleting notification: \(error)")
-        }
+        _ = await FirestoreHelper.executeSafeRequest(request)
+        self.notifications.removeAll { $0.id == notifId }
+        self.successMessage = "Đã xóa thông báo"
     }
 }
 

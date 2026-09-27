@@ -223,15 +223,9 @@ public class DeviceViewModel: ObservableObject {
             var request = URLRequest(url: url)
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-                      let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    self.isLoading = false
-                    self.isFetchingMore = false
-                    self.errorMessage = "Không thể tải danh sách thiết bị"
-                    return
-                }
+            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+               httpResponse.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
 
                 let documents = json["documents"] as? [[String: Any]] ?? []
                 self.nextPageToken = json["nextPageToken"] as? String
@@ -272,10 +266,10 @@ public class DeviceViewModel: ObservableObject {
                 self.isFetchingMore = false
                 self.autoExpandAllGroups()
 
-            } catch {
+            } else {
                 self.isLoading = false
                 self.isFetchingMore = false
-                self.errorMessage = error.localizedDescription
+                self.errorMessage = "Không thể tải danh sách thiết bị"
             }
         }
     }
@@ -294,36 +288,32 @@ public class DeviceViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-                  let doc = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let fields = doc["fields"] as? [String: Any] else {
-                return nil
-            }
-
-            return ThietBi(
-                id: cleanId,
-                ten: FirestoreHelper.getString(fields, "ten"),
-                tenDonVi: FirestoreHelper.getString(fields, "tenDonVi"),
-                trangThai: FirestoreHelper.getString(fields, "trangThai"),
-                createdAt: FirestoreHelper.getInt64(fields, "createdAt"),
-                role: FirestoreHelper.getString(fields, "role"),
-                loai: FirestoreHelper.getString(fields, "loai"),
-                phongBan: FirestoreHelper.getString(fields, "phongBan"),
-                moTa: FirestoreHelper.getString(fields, "moTa"),
-                createdBy: FirestoreHelper.getString(fields, "createdBy"),
-                companyId: FirestoreHelper.getString(fields, "companyId"),
-                synced: true,
-                donViMuon: FirestoreHelper.getString(fields, "donViMuon"),
-                phongBanMuon: FirestoreHelper.getString(fields, "phongBanMuon"),
-                nguoiMuon: FirestoreHelper.getString(fields, "nguoiMuon"),
-                ngayMuon: FirestoreHelper.getString(fields, "ngayMuon"),
-                ngayHenTra: FirestoreHelper.getString(fields, "ngayHenTra")
-            )
-        } catch {
+        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
+              let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let fields = doc["fields"] as? [String: Any] else {
             return nil
         }
+
+        return ThietBi(
+            id: cleanId,
+            ten: FirestoreHelper.getString(fields, "ten"),
+            tenDonVi: FirestoreHelper.getString(fields, "tenDonVi"),
+            trangThai: FirestoreHelper.getString(fields, "trangThai"),
+            createdAt: FirestoreHelper.getInt64(fields, "createdAt"),
+            role: FirestoreHelper.getString(fields, "role"),
+            loai: FirestoreHelper.getString(fields, "loai"),
+            phongBan: FirestoreHelper.getString(fields, "phongBan"),
+            moTa: FirestoreHelper.getString(fields, "moTa"),
+            createdBy: FirestoreHelper.getString(fields, "createdBy"),
+            companyId: FirestoreHelper.getString(fields, "companyId"),
+            synced: true,
+            donViMuon: FirestoreHelper.getString(fields, "donViMuon"),
+            phongBanMuon: FirestoreHelper.getString(fields, "phongBanMuon"),
+            nguoiMuon: FirestoreHelper.getString(fields, "nguoiMuon"),
+            ngayMuon: FirestoreHelper.getString(fields, "ngayMuon"),
+            ngayHenTra: FirestoreHelper.getString(fields, "ngayHenTra")
+        )
     }
 
     public func checkDeviceExists(_ id: String) async -> Bool {
@@ -337,8 +327,8 @@ public class DeviceViewModel: ObservableObject {
             if let deptUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/departments") {
                 var req = URLRequest(url: deptUrl)
                 req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                if let (data, resp) = try? await URLSession.shared.data(for: req),
-                   let http = resp as? HTTPURLResponse, http.statusCode == 200,
+                if let (data, http) = await FirestoreHelper.executeSafeRequest(req),
+                   http.statusCode == 200,
                    let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                    let docs = json["documents"] as? [[String: Any]] {
                     var dList: [String] = []
@@ -360,8 +350,8 @@ public class DeviceViewModel: ObservableObject {
             if let unitUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/units") {
                 var req = URLRequest(url: unitUrl)
                 req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                if let (data, resp) = try? await URLSession.shared.data(for: req),
-                   let http = resp as? HTTPURLResponse, http.statusCode == 200,
+                if let (data, http) = await FirestoreHelper.executeSafeRequest(req),
+                   http.statusCode == 200,
                    let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                    let docs = json["documents"] as? [[String: Any]] {
                     var uList: [String] = []
@@ -392,13 +382,9 @@ public class DeviceViewModel: ObservableObject {
             var request = URLRequest(url: url)
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-                      let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                    self.setDefaultDeviceTypes()
-                    return
-                }
+            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+               httpResponse.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
 
                 let documents = json["documents"] as? [[String: Any]] ?? []
                 let typesList: [DeviceType] = documents.compactMap { doc in
@@ -416,7 +402,7 @@ public class DeviceViewModel: ObservableObject {
                 } else {
                     self.deviceTypes = typesList.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                 }
-            } catch {
+            } else {
                 self.setDefaultDeviceTypes()
             }
         }
@@ -456,19 +442,15 @@ public class DeviceViewModel: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": fields])
 
         Task {
-            do {
-                let (_, response) = try await URLSession.shared.data(for: request)
-                if let http = response as? HTTPURLResponse, http.statusCode >= 200 && http.statusCode < 300 {
-                    let newType = DeviceType(id: docId, name: cleanName, phongBan: phongBan, companyId: self.companyId)
-                    self.deviceTypes.append(newType)
-                    self.deviceTypes.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-                    self.successMessage = "Đã thêm loại thiết bị: \(cleanName)"
-                    completion(.success(newType))
-                } else {
-                    completion(.failure(NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Lỗi thêm loại thiết bị"])))
-                }
-            } catch {
-                completion(.failure(error))
+            if let (_, http) = await FirestoreHelper.executeSafeRequest(request),
+               (200...299).contains(http.statusCode) {
+                let newType = DeviceType(id: docId, name: cleanName, phongBan: phongBan, companyId: self.companyId)
+                self.deviceTypes.append(newType)
+                self.deviceTypes.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                self.successMessage = "Đã thêm loại thiết bị: \(cleanName)"
+                completion(.success(newType))
+            } else {
+                completion(.failure(NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Lỗi thêm loại thiết bị"])))
             }
         }
     }
@@ -489,19 +471,15 @@ public class DeviceViewModel: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         Task {
-            do {
-                let (_, response) = try await URLSession.shared.data(for: request)
-                if let http = response as? HTTPURLResponse, http.statusCode >= 200 && http.statusCode < 300 {
-                    if let idx = self.deviceTypes.firstIndex(where: { $0.id == typeId }) {
-                        self.deviceTypes[idx].name = cleanName
-                    }
-                    self.successMessage = "Đã cập nhật loại thiết bị: \(cleanName)"
-                    completion(.success(()))
-                } else {
-                    completion(.failure(NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Lỗi cập nhật"])))
+            if let (_, http) = await FirestoreHelper.executeSafeRequest(request),
+               (200...299).contains(http.statusCode) {
+                if let idx = self.deviceTypes.firstIndex(where: { $0.id == typeId }) {
+                    self.deviceTypes[idx].name = cleanName
                 }
-            } catch {
-                completion(.failure(error))
+                self.successMessage = "Đã cập nhật loại thiết bị: \(cleanName)"
+                completion(.success(()))
+            } else {
+                completion(.failure(NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Lỗi cập nhật"])))
             }
         }
     }
@@ -515,17 +493,13 @@ public class DeviceViewModel: ObservableObject {
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
         Task {
-            do {
-                let (_, response) = try await URLSession.shared.data(for: request)
-                if let http = response as? HTTPURLResponse, http.statusCode >= 200 && http.statusCode < 300 {
-                    self.deviceTypes.removeAll { $0.id == typeId }
-                    self.successMessage = "Đã xóa loại thiết bị"
-                    completion(.success(()))
-                } else {
-                    completion(.failure(NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Lỗi xóa"])))
-                }
-            } catch {
-                completion(.failure(error))
+            if let (_, http) = await FirestoreHelper.executeSafeRequest(request),
+               (200...299).contains(http.statusCode) {
+                self.deviceTypes.removeAll { $0.id == typeId }
+                self.successMessage = "Đã xóa loại thiết bị"
+                completion(.success(()))
+            } else {
+                completion(.failure(NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Lỗi xóa"])))
             }
         }
     }
@@ -538,7 +512,7 @@ public class DeviceViewModel: ObservableObject {
                     var req = URLRequest(url: url)
                     req.httpMethod = "DELETE"
                     req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                    _ = try? await URLSession.shared.data(for: req)
+                    _ = await FirestoreHelper.executeSafeRequest(req)
                 }
             }
             self.deviceTypes.removeAll()
@@ -608,20 +582,15 @@ public class DeviceViewModel: ObservableObject {
 
         isLoading = true
         Task {
-            do {
-                let (data, response) = try await URLSession.shared.data(for: request)
-                self.isLoading = false
-                if let http = response as? HTTPURLResponse, http.statusCode >= 200 && http.statusCode < 300 {
-                    self.successMessage = "Đã thêm thiết bị thành công"
-                    self.fetchDevices()
-                    completion(.success(cleanId))
-                } else {
-                    let errMsg = String(data: data, encoding: .utf8) ?? "Lỗi thêm thiết bị"
-                    completion(.failure(NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: errMsg])))
-                }
-            } catch {
-                self.isLoading = false
-                completion(.failure(error))
+            let res = await FirestoreHelper.executeSafeRequest(request)
+            self.isLoading = false
+            if let (data, http) = res, (200...299).contains(http.statusCode) {
+                self.successMessage = "Đã thêm thiết bị thành công"
+                self.fetchDevices()
+                completion(.success(cleanId))
+            } else {
+                let errMsg = res != nil ? (String(data: res!.0, encoding: .utf8) ?? "Lỗi thêm thiết bị") : "Lỗi kết nối máy chủ"
+                completion(.failure(NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: errMsg])))
             }
         }
     }
@@ -718,7 +687,7 @@ public class DeviceViewModel: ObservableObject {
                     "createdAt": ["integerValue": "\(now)"]
                 ]
                 histReq.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": histFields])
-                _ = try? await URLSession.shared.data(for: histReq)
+                _ = await FirestoreHelper.executeSafeRequest(histReq)
             }
 
             // 2. Compute New Status
@@ -778,7 +747,7 @@ public class DeviceViewModel: ObservableObject {
                 devReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
                 devReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 devReq.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": devFields])
-                _ = try? await URLSession.shared.data(for: devReq)
+                _ = await FirestoreHelper.executeSafeRequest(devReq)
             }
 
             self.successMessage = "Đã cập nhật trạng thái: \(newStatus) (\(finalMoTa))"
@@ -812,7 +781,7 @@ public class DeviceViewModel: ObservableObject {
                     req.setValue("application/json", forHTTPHeaderField: "Content-Type")
                     let body = ["fields": ["ten": ["stringValue": cleanTen]]]
                     req.httpBody = try? JSONSerialization.data(withJSONObject: body)
-                    _ = try? await URLSession.shared.data(for: req)
+                    _ = await FirestoreHelper.executeSafeRequest(req)
                 }
             } else {
                 // Fetch old doc
@@ -838,7 +807,7 @@ public class DeviceViewModel: ObservableObject {
                         if let m = oldDev.moTa { fields["moTa"] = ["stringValue": m] }
 
                         req.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": fields])
-                        _ = try? await URLSession.shared.data(for: req)
+                        _ = await FirestoreHelper.executeSafeRequest(req)
 
                         // Delete old doc
                         let delUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(cleanOldId)"
@@ -846,7 +815,7 @@ public class DeviceViewModel: ObservableObject {
                             var delReq = URLRequest(url: delUrl)
                             delReq.httpMethod = "DELETE"
                             delReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                            _ = try? await URLSession.shared.data(for: delReq)
+                            _ = await FirestoreHelper.executeSafeRequest(delReq)
                         }
                     }
                 }
@@ -872,7 +841,7 @@ public class DeviceViewModel: ObservableObject {
             request.httpMethod = "DELETE"
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-            _ = try? await URLSession.shared.data(for: request)
+            _ = await FirestoreHelper.executeSafeRequest(request)
             self.successMessage = "Đã xóa thiết bị \(deviceId)"
             self.fetchDevices()
         }

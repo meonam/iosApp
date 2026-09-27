@@ -71,11 +71,11 @@ public class AuthService {
         }
 
         // 1. Quét nhanh trong companies/SGCOOP/users
-        let compUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/SGCOOP/users?pageSize=100"
+        let compUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/SGCOOP/users?pageSize=300"
         if let compUrl = URL(string: compUrlStr) {
             let req = URLRequest(url: compUrl)
-            if let (data, resp) = try? await URLSession.shared.data(for: req),
-               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+            if let (data, resp) = await FirestoreHelper.executeSafeRequest(req),
+               resp.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let docs = json["documents"] as? [[String: Any]] {
                 for doc in docs {
@@ -94,11 +94,11 @@ public class AuthService {
         }
 
         // 2. Fallback quét qua root users
-        let rootUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/users?pageSize=100"
+        let rootUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/users?pageSize=300"
         if let rootUrl = URL(string: rootUrlStr) {
             let req = URLRequest(url: rootUrl)
-            if let (data, resp) = try? await URLSession.shared.data(for: req),
-               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+            if let (data, resp) = await FirestoreHelper.executeSafeRequest(req),
+               resp.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let docs = json["documents"] as? [[String: Any]] {
                 for doc in docs {
@@ -299,32 +299,14 @@ public class AuthService {
         guard let url = URL(string: urlStr) else { return nil }
         
         var request = URLRequest(url: url)
-        if !idToken.isEmpty && idToken.hasPrefix("ey") {
+        if !idToken.isEmpty {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         }
 
-        var resData: Data? = nil
-        var resFields: [String: Any]? = nil
-
-        if let (data, response) = try? await URLSession.shared.data(for: request),
-           let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let fields = json["fields"] as? [String: Any] {
-            resData = data
-            resFields = fields
-        } else {
-            // Fallback: Thử đọc trực tiếp không kèm Authorization header (đối với Firestore public rule)
-            let noAuthReq = URLRequest(url: url)
-            if let (data2, resp2) = try? await URLSession.shared.data(for: noAuthReq),
-               let http2 = resp2 as? HTTPURLResponse, http2.statusCode == 200,
-               let json2 = try? JSONSerialization.jsonObject(with: data2) as? [String: Any],
-               let fields2 = json2["fields"] as? [String: Any] {
-                resData = data2
-                resFields = fields2
-            }
-        }
-
-        guard let fields = resFields else {
+        guard let (data, response) = await FirestoreHelper.executeSafeRequest(request),
+              response.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let fields = json["fields"] as? [String: Any] else {
             return nil
         }
 
@@ -395,5 +377,27 @@ public class AuthService {
             let message = errorObj?["message"] as? String ?? "Không thể đổi mật khẩu"
             throw NSError(domain: "AuthService", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: message])
         }
+    }
+
+    // 5. Làm mới Firebase ID Token khi hết hạn
+    public func refreshToken(refreshToken: String) async -> (idToken: String, newRefreshToken: String)? {
+        let clean = refreshToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty, !clean.starts(with: "refresh_") else { return nil }
+        guard let url = URL(string: "https://securetoken.googleapis.com/v1/token?key=\(FirebaseConfig.apiKey)") else { return nil }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let bodyString = "grant_type=refresh_token&refresh_token=\(clean)"
+        req.httpBody = bodyString.data(using: .utf8)
+
+        guard let (data, resp) = try? await URLSession.shared.data(for: req),
+              let http = resp as? HTTPURLResponse, http.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let newId = json["id_token"] as? String else {
+            return nil
+        }
+        let nextRefresh = (json["refresh_token"] as? String) ?? clean
+        return (newId, nextRefresh)
     }
 }

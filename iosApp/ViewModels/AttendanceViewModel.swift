@@ -318,28 +318,17 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             guard let url = URL(string: urlStr) else { return }
 
             var req = URLRequest(url: url)
-            if !idToken.isEmpty && idToken.hasPrefix("ey") {
+            if !idToken.isEmpty {
                 req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
 
-            var resData: Data? = nil
             var resFields: [String: Any]? = nil
 
-            if let (data, resp) = try? await URLSession.shared.data(for: req),
-               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+            if let (data, http) = await FirestoreHelper.executeSafeRequest(req),
+               http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
-                resData = data
                 resFields = fields
-            } else {
-                let noAuthReq = URLRequest(url: url)
-                if let (data2, resp2) = try? await URLSession.shared.data(for: noAuthReq),
-                   let http2 = resp2 as? HTTPURLResponse, http2.statusCode == 200,
-                   let json2 = try? JSONSerialization.jsonObject(with: data2) as? [String: Any],
-                   let fields2 = json2["fields"] as? [String: Any] {
-                    resData = data2
-                    resFields = fields2
-                }
             }
 
             if let fields = resFields {
@@ -377,10 +366,10 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
-            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            if !idToken.isEmpty { request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-            if let (data, response) = try? await URLSession.shared.data(for: request),
-               let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+               httpResponse.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
 
@@ -482,10 +471,10 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             guard let url = URL(string: urlStr) else { return }
 
             var req = URLRequest(url: url)
-            req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-            if let (data, resp) = try? await URLSession.shared.data(for: req),
-               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+            if let (data, http) = await FirestoreHelper.executeSafeRequest(req),
+               http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any],
                let entriesArray = (fields["entries"] as? [String: Any])?["arrayValue"] as? [String: Any],
@@ -624,10 +613,10 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 guard let url = URL(string: urlStr) else { continue }
 
                 var req = URLRequest(url: url)
-                req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-                if let (data, resp) = try? await URLSession.shared.data(for: req),
-                   let http = resp as? HTTPURLResponse, http.statusCode == 200,
+                if let (data, http) = await FirestoreHelper.executeSafeRequest(req),
+                   http.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let fields = json["fields"] as? [String: Any] {
 
@@ -684,10 +673,10 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             guard let url = URL(string: listUrlStr) else { return }
 
             var req = URLRequest(url: url)
-            req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-            if let (data, resp) = try? await URLSession.shared.data(for: req),
-               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+            if let (data, http) = await FirestoreHelper.executeSafeRequest(req),
+               http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let docs = json["documents"] as? [[String: Any]] {
 
@@ -807,8 +796,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             ]
             req.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (_, resp) = try? await URLSession.shared.data(for: req),
-               let http = resp as? HTTPURLResponse, http.statusCode == 200 {
+            if let (_, http) = await FirestoreHelper.executeSafeRequest(req), http.statusCode == 200 {
 
                 await MainActor.run {
                     self.isSubmitting = false
@@ -898,7 +886,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 if let tUrl = URL(string: tUrlStr) {
                     var tReq = URLRequest(url: tUrl)
                     tReq.httpMethod = "POST"
-                    tReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                    if !idToken.isEmpty { tReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
                     tReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
                     let tBody: [String: Any] = [
@@ -916,8 +904,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     ]
                     tReq.httpBody = try? JSONSerialization.data(withJSONObject: tBody)
 
-                    if let (tData, tResp) = try? await URLSession.shared.data(for: tReq),
-                       let tHttp = tResp as? HTTPURLResponse, tHttp.statusCode == 200,
+                    if let (tData, tHttp) = await FirestoreHelper.executeSafeRequest(tReq),
+                       tHttp.statusCode == 200,
                        let tArr = try? JSONSerialization.jsonObject(with: tData) as? [[String: Any]] {
                         for tResult in tArr {
                             if let doc = tResult["document"] as? [String: Any],
@@ -970,7 +958,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
             var patchReq = URLRequest(url: patchUrl)
             patchReq.httpMethod = "PATCH"
-            patchReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            if !idToken.isEmpty { patchReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
             patchReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             let patchBody: [String: Any] = [
@@ -987,8 +975,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             ]
             patchReq.httpBody = try? JSONSerialization.data(withJSONObject: patchBody)
 
-            if let (_, resp) = try? await URLSession.shared.data(for: patchReq),
-               let http = resp as? HTTPURLResponse, http.statusCode == 200 {
+            if let (_, http) = await FirestoreHelper.executeSafeRequest(patchReq),
+               http.statusCode == 200 {
 
                 await MainActor.run {
                     self.isSubmitting = false
@@ -1056,8 +1044,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             qRequest.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
             var records: [AttendanceRecord] = []
-            if let (data, response) = try? await URLSession.shared.data(for: qRequest),
-               let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(qRequest),
+               httpResponse.statusCode == 200,
                let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
 
                 for docResult in jsonArray {
@@ -1107,9 +1095,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances?pageSize=300"
                 if let listUrl = URL(string: listUrlStr) {
                     var listReq = URLRequest(url: listUrl)
-                    listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                    if let (data, response) = try? await URLSession.shared.data(for: listReq),
-                       let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+                    if !idToken.isEmpty { listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                    if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(listReq),
+                       httpResponse.statusCode == 200,
                        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                        let docs = json["documents"] as? [[String: Any]] {
                         for doc in docs {
@@ -1181,11 +1169,11 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             }
 
             var listReq = URLRequest(url: listUrl)
-            listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            if !idToken.isEmpty { listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
             var records: [AttendanceRecord] = []
-            if let (data, resp) = try? await URLSession.shared.data(for: listReq),
-               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+            if let (data, http) = await FirestoreHelper.executeSafeRequest(listReq),
+               http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let docs = json["documents"] as? [[String: Any]] {
 
@@ -1458,7 +1446,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             ]
             qReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (data, resp) = try? await URLSession.shared.data(for: qReq),
+            if let (data, resp) = try? await FirestoreHelper.executeSafeRequest(request: qReq, fallbackIdToken: idToken),
                let http = resp as? HTTPURLResponse, http.statusCode == 200,
                let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
                 for docResult in jsonArray {
@@ -1480,7 +1468,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/attendances?pageSize=300"
             if let listUrl = URL(string: listUrlStr) {
                 var listReq = URLRequest(url: listUrl)
-                if let (data, resp) = try? await URLSession.shared.data(for: listReq),
+                if let (data, resp) = try? await FirestoreHelper.executeSafeRequest(request: listReq, fallbackIdToken: idToken),
                    let http = resp as? HTTPURLResponse, http.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let docs = json["documents"] as? [[String: Any]] {
@@ -1532,7 +1520,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         let expGetUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/travel_expenses?pageSize=300"
         if let expGetUrl = URL(string: expGetUrlStr) {
             var expReq = URLRequest(url: expGetUrl)
-            if let (expData, expResp) = try? await URLSession.shared.data(for: expReq),
+            if let (expData, expResp) = try? await FirestoreHelper.executeSafeRequest(request: expReq, fallbackIdToken: idToken),
                let httpExp = expResp as? HTTPURLResponse, httpExp.statusCode == 200,
                let expJson = try? JSONSerialization.jsonObject(with: expData) as? [String: Any],
                let expDocs = expJson["documents"] as? [[String: Any]] {
@@ -1590,7 +1578,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             ]
             tixReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (tixData, tixResp) = try? await URLSession.shared.data(for: tixReq),
+            if let (tixData, tixResp) = try? await FirestoreHelper.executeSafeRequest(request: tixReq, fallbackIdToken: idToken),
                let httpTix = tixResp as? HTTPURLResponse, httpTix.statusCode == 200,
                let tixArray = try? JSONSerialization.jsonObject(with: tixData) as? [[String: Any]] {
                 for item in tixArray {
@@ -1610,7 +1598,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             for listUrlStr in listUrls {
                 guard tixDocsList.isEmpty, let listUrl = URL(string: listUrlStr) else { continue }
                 let listReq = URLRequest(url: listUrl)
-                if let (data, resp) = try? await URLSession.shared.data(for: listReq),
+                if let (data, resp) = try? await FirestoreHelper.executeSafeRequest(request: listReq, fallbackIdToken: idToken),
                    let http = resp as? HTTPURLResponse, http.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let docs = json["documents"] as? [[String: Any]] {
@@ -1801,28 +1789,10 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         guard let url = URL(string: urlStr) else { return TravelExpenseConfig() }
 
         var request = URLRequest(url: url)
-        if !idToken.isEmpty {
-            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-        }
-
         var responseData: Data? = nil
-        if let (data, response) = try? await URLSession.shared.data(for: request),
-           let httpResponse = response as? HTTPURLResponse {
-            if httpResponse.statusCode == 200 {
-                responseData = data
-            } else if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-                var retryReq = URLRequest(url: url)
-                if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
-                   let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
-                    responseData = rData
-                }
-            }
-        } else {
-            var retryReq = URLRequest(url: url)
-            if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
-               let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
-                responseData = rData
-            }
+        if let (data, response) = try? await FirestoreHelper.executeSafeRequest(request: request, fallbackIdToken: idToken),
+           let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+            responseData = data
         }
 
         if let data = responseData,
@@ -1915,9 +1885,6 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
             var request = URLRequest(url: url)
             request.httpMethod = "PATCH"
-            if !idToken.isEmpty {
-                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-            }
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             let pKm = Double(cfgPricePerKm) ?? 1500.0
@@ -1951,8 +1918,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let body = ["fields": fields]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (_, resp) = try? await URLSession.shared.data(for: request),
-               let http = resp as? HTTPURLResponse, http.statusCode == 200 {
+            if let (_, resp) = try? await FirestoreHelper.executeSafeRequest(request: request, fallbackIdToken: idToken),
+               let http = resp as? HTTPURLResponse, (http.statusCode == 200 || http.statusCode == 204) {
                 await MainActor.run {
                     self.travelConfig.pricePerKm = pKm
                     self.travelConfig.tripBaseAllowance = tAllow
@@ -1995,9 +1962,6 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
             var request = URLRequest(url: url)
             request.httpMethod = "PATCH"
-            if !idToken.isEmpty {
-                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-            }
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             var fields: [String: Any] = [
@@ -2011,8 +1975,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let body = ["fields": fields]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (_, resp) = try? await URLSession.shared.data(for: request),
-               let http = resp as? HTTPURLResponse, http.statusCode == 200 {
+            if let (_, resp) = try? await FirestoreHelper.executeSafeRequest(request: request, fallbackIdToken: idToken),
+               let http = resp as? HTTPURLResponse, (http.statusCode == 200 || http.statusCode == 204) {
                 await MainActor.run {
                     self.fetchMonthlyReport(monthStr: self.selectedReportMonth)
                     self.successMessage = "Đã cập nhật chuyến đi thành công!"
@@ -2034,9 +1998,6 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
                 var request = URLRequest(url: url)
                 request.httpMethod = "PATCH"
-                if !idToken.isEmpty {
-                    request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                }
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
                 let fields: [String: Any] = [
@@ -2046,7 +2007,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 ]
                 let body = ["fields": fields]
                 request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-                _ = try? await URLSession.shared.data(for: request)
+                _ = try? await FirestoreHelper.executeSafeRequest(request: request, fallbackIdToken: idToken)
             }
             await MainActor.run {
                 self.fetchMonthlyReport(monthStr: self.selectedReportMonth)

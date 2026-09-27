@@ -13,6 +13,7 @@ public class AuthViewModel: ObservableObject {
     @Published public var currentUser: User? = nil
     @Published public var currentCompanyId: String = "SGCOOP"
     @Published public var currentIdToken: String = ""
+    @Published public var currentRefreshToken: String = ""
     @Published public var isAuthenticated: Bool = false
 
     // State đổi mật khẩu bắt buộc
@@ -63,6 +64,7 @@ public class AuthViewModel: ObservableObject {
                 }
 
                 self.currentIdToken = session.idToken
+                self.currentRefreshToken = session.refreshToken
                 self.currentCompanyId = self.normalizeCompanyId(compId)
                 self.currentUser = profile ?? User(email: session.email)
 
@@ -119,10 +121,12 @@ public class AuthViewModel: ObservableObject {
         self.isAuthenticated = false
         self.currentUser = nil
         self.currentIdToken = ""
+        self.currentRefreshToken = ""
         self.password = ""
         UserDefaults.standard.removeObject(forKey: "saved_auth_email")
         UserDefaults.standard.removeObject(forKey: "saved_auth_company_id")
         UserDefaults.standard.removeObject(forKey: "saved_auth_token")
+        UserDefaults.standard.removeObject(forKey: "saved_auth_refresh_token")
         UserDefaults.standard.removeObject(forKey: "saved_auth_user_data")
     }
 
@@ -130,6 +134,7 @@ public class AuthViewModel: ObservableObject {
         UserDefaults.standard.set(currentUser?.email, forKey: "saved_auth_email")
         UserDefaults.standard.set(currentCompanyId, forKey: "saved_auth_company_id")
         UserDefaults.standard.set(currentIdToken, forKey: "saved_auth_token")
+        UserDefaults.standard.set(currentRefreshToken, forKey: "saved_auth_refresh_token")
         if let u = currentUser, let data = try? JSONEncoder().encode(u) {
             UserDefaults.standard.set(data, forKey: "saved_auth_user_data")
         }
@@ -141,11 +146,25 @@ public class AuthViewModel: ObservableObject {
             let savedComp = UserDefaults.standard.string(forKey: "saved_auth_company_id") ?? "SGCOOP"
             self.currentCompanyId = normalizeCompanyId(savedComp)
             self.currentIdToken = UserDefaults.standard.string(forKey: "saved_auth_token") ?? ""
+            self.currentRefreshToken = UserDefaults.standard.string(forKey: "saved_auth_refresh_token") ?? ""
             
             if let data = UserDefaults.standard.data(forKey: "saved_auth_user_data"),
                let savedUser = try? JSONDecoder().decode(User.self, from: data) {
                 self.currentUser = savedUser
                 self.isAuthenticated = true
+            }
+
+            // Tự động làm mới ID Token nếu có Refresh Token hợp lệ
+            if !currentRefreshToken.isEmpty && !currentRefreshToken.starts(with: "refresh_") {
+                Task {
+                    if let refreshed = await AuthService.shared.refreshToken(refreshToken: self.currentRefreshToken) {
+                        await MainActor.run {
+                            self.currentIdToken = refreshed.idToken
+                            self.currentRefreshToken = refreshed.newRefreshToken
+                            self.saveSession()
+                        }
+                    }
+                }
             }
         }
     }

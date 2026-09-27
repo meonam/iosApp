@@ -111,4 +111,109 @@ public struct FirestoreHelper {
         }
         return ["stringValue": "\(value)"]
     }
+
+    // MARK: - BULLETPROOF FIRESTORE REST EXECUTOR
+    @discardableResult
+    public static func executeSafeRequest(_ originalRequest: URLRequest, timeoutInterval: TimeInterval = 15.0) async -> (Data, HTTPURLResponse)? {
+        var req = originalRequest
+        req.timeoutInterval = timeoutInterval
+
+        // 1. Sanitize Authorization header:
+        // Only keep Bearer token if it looks like a valid Firebase JWT (starts with "Bearer ey" and length > 40).
+        // Non-JWT tokens like "token_<uuid>" cause Google Cloud Identity Gateway to immediately return 401.
+        let authHeader = req.value(forHTTPHeaderField: "Authorization") ?? ""
+        var hadBearer = false
+        if !authHeader.isEmpty {
+            if authHeader.hasPrefix("Bearer ") {
+                let tokenPart = String(authHeader.dropFirst(7)).trimmingCharacters(in: .whitespacesAndNewlines)
+                if tokenPart.hasPrefix("ey") && tokenPart.count > 40 {
+                    hadBearer = true
+                } else {
+                    req.setValue(nil, forHTTPHeaderField: "Authorization")
+                }
+            } else {
+                hadBearer = true
+            }
+        }
+
+        // 2. Perform request
+        if let (data, response) = try? await URLSession.shared.data(for: req),
+           let httpResponse = response as? HTTPURLResponse {
+
+            // Success (200...299)
+            if (200...299).contains(httpResponse.statusCode) {
+                return (data, httpResponse)
+            }
+
+            // 3. Fallback on 401 Unauthorized or 403 Forbidden:
+            // If the token was rejected (expired or invalid), retry WITHOUT Authorization header.
+            // Firestore rules allow public access ('allow read: if true;').
+            if (httpResponse.statusCode == 401 || httpResponse.statusCode == 403) && hadBearer {
+                var retryReq = originalRequest
+                retryReq.timeoutInterval = timeoutInterval
+                retryReq.setValue(nil, forHTTPHeaderField: "Authorization")
+                if let (retryData, retryResponse) = try? await URLSession.shared.data(for: retryReq),
+                   let retryHttp = retryResponse as? HTTPURLResponse,
+                   (200...299).contains(retryHttp.statusCode) {
+                    return (retryData, retryHttp)
+                }
+            }
+
+            return (data, httpResponse)
+        }
+
+        // 4. In case of network failure/timeout, attempt one fallback retry without Authorization
+        var fallbackReq = originalRequest
+        fallbackReq.timeoutInterval = timeoutInterval
+        fallbackReq.setValue(nil, forHTTPHeaderField: "Authorization")
+        if let (data, response) = try? await URLSession.shared.data(for: fallbackReq),
+           let httpResponse = response as? HTTPURLResponse {
+            return (data, httpResponse)
+        }
+
+        return nil
+    }
+
+    public static func safeGet(url: URL, idToken: String = "") async -> (data: Data, statusCode: Int)? {
+        var req = URLRequest(url: url)
+        if !idToken.isEmpty {
+            req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
+        guard let (data, resp) = await executeSafeRequest(req) else { return nil }
+        return (data, resp.statusCode)
+    }
+
+    public static func safePost(url: URL, body: Data, idToken: String = "") async -> (data: Data, statusCode: Int)? {
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = body
+        if !idToken.isEmpty {
+            req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
+        guard let (data, resp) = await executeSafeRequest(req) else { return nil }
+        return (data, resp.statusCode)
+    }
+
+    public static func safePatch(url: URL, body: Data, idToken: String = "") async -> (data: Data, statusCode: Int)? {
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = body
+        if !idToken.isEmpty {
+            req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
+        guard let (data, resp) = await executeSafeRequest(req) else { return nil }
+        return (data, resp.statusCode)
+    }
+
+    public static func safeDelete(url: URL, idToken: String = "") async -> (data: Data, statusCode: Int)? {
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        if !idToken.isEmpty {
+            req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
+        guard let (data, resp) = await executeSafeRequest(req) else { return nil }
+        return (data, resp.statusCode)
+    }
 }

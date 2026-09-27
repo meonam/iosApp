@@ -46,6 +46,7 @@ public class HomeViewModel: ObservableObject {
     }
 
     // MARK: - TẢI CẤU HÌNH BANNER DOANH NGHIỆP
+    // MARK: - TẢI CẤU HÌNH BANNER DOANH NGHIỆP
     public func fetchCompanyBanner() async {
         guard !companyId.isEmpty else { return }
         let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)"
@@ -56,8 +57,8 @@ public class HomeViewModel: ObservableObject {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         }
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let fields = json["fields"] as? [String: Any] else {
             return
@@ -83,8 +84,8 @@ public class HomeViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let fields = json["fields"] as? [String: Any] else {
             return
@@ -133,8 +134,8 @@ public class HomeViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let documents = json["documents"] as? [[String: Any]] else {
             return
@@ -179,31 +180,55 @@ public class HomeViewModel: ObservableObject {
 
     // MARK: - 3. TẢI SỐ LƯỢNG TICKET ĐANG MỞ (SỰ CỐ MỞ)
     private func fetchOpenTickets() async {
+        var docsList: [[String: Any]] = []
+
+        // Thử lấy qua :runQuery trước
         let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId):runQuery"
-        guard let url = URL(string: urlStr) else { return }
+        if let url = URL(string: urlStr) {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let queryPayload: [String: Any] = [
-            "structuredQuery": [
-                "from": [["collectionId": "support_tickets"]],
-                "orderBy": [
-                    ["field": ["fieldPath": "createdAt"], "direction": "DESCENDING"]
-                ],
-                "limit": 300
+            let queryPayload: [String: Any] = [
+                "structuredQuery": [
+                    "from": [["collectionId": "support_tickets"]],
+                    "orderBy": [
+                        ["field": ["fieldPath": "createdAt"], "direction": "DESCENDING"]
+                    ],
+                    "limit": 300
+                ]
             ]
-        ]
 
-        guard let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) else { return }
-        request.httpBody = bodyData
+            if let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) {
+                request.httpBody = bodyData
+                if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+                   httpResponse.statusCode == 200,
+                   let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                    for item in results {
+                        if let doc = item["document"] as? [String: Any] {
+                            docsList.append(doc)
+                        }
+                    }
+                }
+            }
+        }
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
-              let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            return
+        // Fallback sang document listing nếu runQuery không có kết quả
+        if docsList.isEmpty {
+            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets?pageSize=300"
+            if let listUrl = URL(string: listUrlStr) {
+                var listReq = URLRequest(url: listUrl)
+                if !idToken.isEmpty {
+                    listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                }
+                if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(listReq),
+                   httpResponse.statusCode == 200,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let documents = json["documents"] as? [[String: Any]] {
+                    docsList = documents
+                }
+            }
         }
 
         let deletedTicketIds = Set(UserDefaults.standard.stringArray(forKey: "support_prefs_deleted_ids") ?? [])
@@ -219,9 +244,8 @@ public class HomeViewModel: ObservableObject {
             return !p.isEmpty && !emailPrefix.isEmpty && p == emailPrefix
         }
 
-        let openCount = results.filter { item in
-            guard let doc = item["document"] as? [String: Any],
-                  let fields = doc["fields"] as? [String: Any] else { return false }
+        let openCount = docsList.filter { doc in
+            guard let fields = doc["fields"] as? [String: Any] else { return false }
 
             let name = doc["name"] as? String ?? ""
             let id = name.components(separatedBy: "/").last ?? ""
@@ -266,8 +290,8 @@ public class HomeViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let documents = json["documents"] as? [[String: Any]] else {
             return
@@ -302,8 +326,8 @@ public class HomeViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let documents = json["documents"] as? [[String: Any]] else {
             return
@@ -340,8 +364,8 @@ public class HomeViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let documents = json["documents"] as? [[String: Any]] else {
             return (false, nil)
@@ -388,8 +412,8 @@ public class HomeViewModel: ObservableObject {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
-        let (_, response) = try await URLSession.shared.data(for: request)
-        if let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
+        if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+           (200...299).contains(httpResponse.statusCode) {
             self.user.fullName = cleanName
         }
     }
@@ -431,8 +455,8 @@ public class HomeViewModel: ObservableObject {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
-        let (_, response) = try await URLSession.shared.data(for: request)
-        if let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
+        if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+           (200...299).contains(httpResponse.statusCode) {
             self.user.phone = cleanPhone
 
             // Đồng bộ sang technician_locations
@@ -450,7 +474,7 @@ public class HomeViewModel: ObservableObject {
                     ]
                 ]
                 locReq.httpBody = try? JSONSerialization.data(withJSONObject: locPayload)
-                _ = try? await URLSession.shared.data(for: locReq)
+                _ = await FirestoreHelper.executeSafeRequest(locReq)
             }
         }
     }
@@ -481,8 +505,8 @@ public class HomeViewModel: ObservableObject {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
-        let (_, response) = try await URLSession.shared.data(for: request)
-        if let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
+        if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+           (200...299).contains(httpResponse.statusCode) {
             self.user.avatarUrl = uploadedUrl
         }
     }
@@ -531,6 +555,6 @@ public class HomeViewModel: ObservableObject {
             ]
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
-        _ = try? await URLSession.shared.data(for: request)
+        _ = await FirestoreHelper.executeSafeRequest(request)
     }
 }
