@@ -18,6 +18,25 @@ public class ShiftViewModel: ObservableObject {
         self.user = user
         self.companyId = companyId.isEmpty ? "SGCOOP" : companyId
         self.idToken = idToken
+
+        // Khởi tạo ngay lập tức với DEFAULT_KTVS để màn hình KHÔNG BAO GIỜ bị rỗng khi vừa mở
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2
+        cal.minimumDaysInFirstWeek = 4
+        let now = Date()
+        let weekday = cal.component(.weekday, from: now)
+        let daysFromMonday = (weekday + 5) % 7
+        let thisMonday = cal.date(byAdding: .day, value: -daysFromMonday, to: cal.startOfDay(for: now)) ?? now
+        let year = cal.component(.yearForWeekOfYear, from: thisMonday)
+        let week = cal.component(.weekOfYear, from: thisMonday)
+        let wId = String(format: "%04d-W%02d", year, week)
+
+        self.currentWeekSchedule = ShiftSchedule(
+            id: wId,
+            companyId: self.companyId,
+            weekStart: Int64(thisMonday.timeIntervalSince1970 * 1000),
+            entries: DEFAULT_KTVS
+        )
     }
 
     // Phân quyền chuẩn Android

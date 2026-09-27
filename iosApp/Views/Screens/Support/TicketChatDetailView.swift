@@ -124,9 +124,21 @@ public struct TicketChatDetailView: View {
         .sheet(isPresented: $showReopenSheet) {
             reopenSheetView
         }
-        // Sheet Điều phối KTV
+        // Sheet Điều phối KTV (DispatchTicketSheet đồng bộ 1:1 Android)
         .sheet(isPresented: $showAssignKtvSheet) {
-            assignKtvSheetView
+            DispatchTicketSheet(ticket: ticket, viewModel: viewModel, onDismiss: {
+                showAssignKtvSheet = false
+            })
+        }
+        // Sheet Bản đồ lộ trình KTV (LiveTrackingMapView đồng bộ 1:1 Android)
+        .sheet(isPresented: $showLiveTrackingModal) {
+            LiveTrackingMapView(
+                ticket: ticket,
+                viewModel: viewModel,
+                onDismiss: { showLiveTrackingModal = false },
+                onSelfResolved: { showSelfResolvedAlert = true },
+                onTechResolve: { showTechResolveSheet = true }
+            )
         }
         // Alert Tự xử lý xong
         .alert(isPresented: $showSelfResolvedAlert) {
@@ -178,6 +190,16 @@ public struct TicketChatDetailView: View {
                 }
 
                 Spacer()
+
+                // Nút Bản đồ lộ trình KTV (Live Tracking Map)
+                Button(action: { showLiveTrackingModal = true }) {
+                    Image(systemName: "figure.outdoor.cycle")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(6)
+                        .background(Color(hex: "#002A8F"))
+                        .clipShape(Circle())
+                }
 
                 // Nút Gọi WebRTC
                 if !isCreator && !ticket.creatorEmail.isEmpty {
@@ -699,38 +721,6 @@ public struct TicketChatDetailView: View {
                 }
                 .disabled(reopenReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             )
-        }
-    }
-
-    // MARK: - SHEET: ĐIỀU PHỐI KTV
-    private var assignKtvSheetView: some View {
-        NavigationView {
-            List(viewModel.ktvTechnicians) { ktv in
-                Button(action: {
-                    viewModel.assignKtv(ticketId: ticket.id, ktvEmail: ktv.email, ktvName: ktv.name) { success in
-                        if success { showAssignKtvSheet = false }
-                    }
-                }) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(ktv.name.isEmpty ? ktv.email : ktv.name)
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(Color.appSecondaryDarkBlue)
-                            Text("\(ktv.email) • \(ktv.unitName.isEmpty ? "Toàn khu vực" : ktv.unitName)")
-                                .font(.system(size: 11))
-                                .foregroundColor(Color.gray)
-                        }
-                        Spacer()
-                        if ktv.email == ticket.assignedToEmail {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(Color(hex: "#10B981"))
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Chọn Kỹ thuật viên")
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(leading: Button("Hủy") { showAssignKtvSheet = false })
         }
     }
 

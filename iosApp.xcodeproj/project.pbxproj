@@ -74,6 +74,8 @@
 		220010562C12345600000001 /* CloudinaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000562C12345600000001 /* CloudinaryService.swift */; };
 		220010572C12345600000001 /* TicketItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000572C12345600000001 /* TicketItemView.swift */; };
 		220010582C12345600000001 /* ScannerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000582C12345600000001 /* ScannerSettingsView.swift */; };
+		220010612C12345600000001 /* DispatchTicketSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000612C12345600000001 /* DispatchTicketSheet.swift */; };
+		220010622C12345600000001 /* LiveTrackingMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000622C12345600000001 /* LiveTrackingMapView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -145,6 +147,8 @@
 		220000562C12345600000001 /* CloudinaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudinaryService.swift; sourceTree = "<group>"; };
 		220000572C12345600000001 /* TicketItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TicketItemView.swift; sourceTree = "<group>"; };
 		220000582C12345600000001 /* ScannerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerSettingsView.swift; sourceTree = "<group>"; };
+		220000612C12345600000001 /* DispatchTicketSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DispatchTicketSheet.swift; sourceTree = "<group>"; };
+		220000622C12345600000001 /* LiveTrackingMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTrackingMapView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -327,6 +331,8 @@
 				220000422C12345600000001 /* OnlineKtvMonitorView.swift */,
 				220000432C12345600000001 /* StaffSupportView.swift */,
 				220000512C12345600000001 /* CallView.swift */,
+				220000612C12345600000001 /* DispatchTicketSheet.swift */,
+				220000622C12345600000001 /* LiveTrackingMapView.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -557,6 +563,8 @@
 				220010562C12345600000001 /* CloudinaryService.swift in Sources */,
 				220010572C12345600000001 /* TicketItemView.swift in Sources */,
 				220010582C12345600000001 /* ScannerSettingsView.swift in Sources */,
+				220010612C12345600000001 /* DispatchTicketSheet.swift in Sources */,
+				220010622C12345600000001 /* LiveTrackingMapView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

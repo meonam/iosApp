@@ -79,10 +79,16 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     @Published public var cfgMaxLateMinutes: String = "15"
     @Published public var cfgGeofenceRadius: String = "250"
     @Published public var cfgTargetAddress: String = ""
+    @Published public var cfgTargetLatitude: String = ""
+    @Published public var cfgTargetLongitude: String = ""
+    @Published public var cfgArrivalRadius: String = "150"
     @Published public var cfgPricePerKm: String = "5000"
     @Published public var cfgTripBaseAllowance: String = "50000"
     @Published public var cfgOvertimeMultiplier: String = "0"
     @Published public var isSavingReportConfig: Bool = false
+    @Published public var isGettingCurrentLocation: Bool = false
+    @Published public var rejectTripTarget: TravelExpenseRecord? = nil
+    @Published public var rejectReasonInput: String = ""
 
     // Role permissions (Đồng bộ Android lines 293-338)
     public var canViewAllReports: Bool {
@@ -95,6 +101,10 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
     public var canAccessConfigTab: Bool {
         user.isAdmin || user.isSuperAdmin
+    }
+
+    public var canApproveExpense: Bool {
+        user.isAdmin || user.isSuperAdmin || (user.isManager && !user.isTechnician)
     }
 
     // Computed Stats
@@ -1533,6 +1543,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             cfg.tripBaseAllowance = tAllow > 0 ? tAllow : 50000.0
             cfg.overtimeMultiplier = FirestoreHelper.getDouble(fields["overtimeMultiplier"] as? [String: Any])
 
+            let arrR = FirestoreHelper.getDouble(fields["arrivalRadiusMeters"] as? [String: Any])
+            cfg.arrivalRadiusMeters = arrR > 0 ? arrR : 150.0
+
             await MainActor.run {
                 self.travelConfig = cfg
                 self.cfgStandardCheckIn = cfg.standardCheckInTime
@@ -1546,6 +1559,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 self.cfgMaxLateMinutes = "\(cfg.maxCheckInLateMinutes)"
                 self.cfgGeofenceRadius = "\(Int(cfg.geofenceRadiusMeters))"
                 self.cfgTargetAddress = cfg.targetAddress
+                self.cfgTargetLatitude = cfg.targetLatitude != 0 ? String(format: "%.6f", cfg.targetLatitude) : ""
+                self.cfgTargetLongitude = cfg.targetLongitude != 0 ? String(format: "%.6f", cfg.targetLongitude) : ""
+                self.cfgArrivalRadius = "\(Int(cfg.arrivalRadiusMeters))"
                 self.cfgPricePerKm = "\(Int(cfg.pricePerKm))"
                 self.cfgTripBaseAllowance = "\(Int(cfg.tripBaseAllowance))"
                 self.cfgOvertimeMultiplier = cfg.overtimeMultiplier > 0 ? "\(cfg.overtimeMultiplier)" : "0"
@@ -1579,6 +1595,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let oMulti = Double(cfgOvertimeMultiplier) ?? 0.0
             let maxLate = Int(cfgMaxLateMinutes) ?? 15
             let geofenceR = Double(cfgGeofenceRadius) ?? 250.0
+            let lat = Double(cfgTargetLatitude) ?? 0.0
+            let lng = Double(cfgTargetLongitude) ?? 0.0
+            let arrRadius = Double(cfgArrivalRadius) ?? 150.0
 
             let fields: [String: Any] = [
                 "standardCheckInTime": ["stringValue": cfgStandardCheckIn],
@@ -1592,6 +1611,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 "maxCheckInLateMinutes": ["integerValue": String(maxLate)],
                 "geofenceRadiusMeters": ["doubleValue": geofenceR],
                 "targetAddress": ["stringValue": cfgTargetAddress],
+                "targetLatitude": ["doubleValue": lat],
+                "targetLongitude": ["doubleValue": lng],
+                "arrivalRadiusMeters": ["doubleValue": arrRadius],
                 "pricePerKm": ["doubleValue": pKm],
                 "tripBaseAllowance": ["doubleValue": tAllow],
                 "overtimeMultiplier": ["doubleValue": oMulti]
@@ -1615,6 +1637,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     self.travelConfig.maxCheckInLateMinutes = maxLate
                     self.travelConfig.geofenceRadiusMeters = geofenceR
                     self.travelConfig.targetAddress = cfgTargetAddress
+                    self.travelConfig.targetLatitude = lat
+                    self.travelConfig.targetLongitude = lng
+                    self.travelConfig.arrivalRadiusMeters = arrRadius
                     self.isSavingReportConfig = false
                     self.successMessage = "Đã lưu cấu hình định mức & khung giờ thành công!"
                 }
@@ -1623,6 +1648,101 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     self.isSavingReportConfig = false
                     self.errorMessage = "Lỗi lưu cấu hình định mức!"
                 }
+            }
+        }
+    }
+
+    // MARK: - UPDATE TRIP EXPENSE STATUS (ĐỒNG BỘ ANDROID AttendanceReportScreen.kt lines 266-276)
+    public func updateTripStatus(tripId: String, status: String, rejectReason: String = "") {
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanComp.isEmpty, !tripId.isEmpty else { return }
+
+        Task {
+            let mask = "updateMask.fieldPaths=status&updateMask.fieldPaths=approvedBy&updateMask.fieldPaths=approvedAt" + (rejectReason.isEmpty ? "" : "&updateMask.fieldPaths=rejectReason")
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/travel_expenses/\(tripId)?\(mask)"
+            guard let url = URL(string: urlStr) else { return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            if !idToken.isEmpty {
+                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            }
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            var fields: [String: Any] = [
+                "status": ["stringValue": status],
+                "approvedBy": ["stringValue": user.email],
+                "approvedAt": ["integerValue": String(Int64(Date().timeIntervalSince1970 * 1000))]
+            ]
+            if !rejectReason.isEmpty {
+                fields["rejectReason"] = ["stringValue": rejectReason]
+            }
+            let body = ["fields": fields]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+            if let (_, resp) = try? await URLSession.shared.data(for: request),
+               let http = resp as? HTTPURLResponse, http.statusCode == 200 {
+                await MainActor.run {
+                    self.fetchMonthlyReport(monthStr: self.selectedReportMonth)
+                    self.successMessage = "Đã cập nhật chuyến đi thành công!"
+                }
+            }
+        }
+    }
+
+    // MARK: - BATCH UPDATE TRIP EXPENSE STATUS (ĐỒNG BỘ ANDROID AttendanceReportScreen.kt lines 278-288)
+    public func updateBatchTripStatus(tripIds: [String], status: String) {
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanComp.isEmpty, !tripIds.isEmpty else { return }
+
+        Task {
+            for tripId in tripIds {
+                let mask = "updateMask.fieldPaths=status&updateMask.fieldPaths=approvedBy&updateMask.fieldPaths=approvedAt"
+                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/travel_expenses/\(tripId)?\(mask)"
+                guard let url = URL(string: urlStr) else { continue }
+
+                var request = URLRequest(url: url)
+                request.httpMethod = "PATCH"
+                if !idToken.isEmpty {
+                    request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                }
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+                let fields: [String: Any] = [
+                    "status": ["stringValue": status],
+                    "approvedBy": ["stringValue": user.email],
+                    "approvedAt": ["integerValue": String(Int64(Date().timeIntervalSince1970 * 1000))]
+                ]
+                let body = ["fields": fields]
+                request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+                _ = try? await URLSession.shared.data(for: request)
+            }
+            await MainActor.run {
+                self.fetchMonthlyReport(monthStr: self.selectedReportMonth)
+                self.successMessage = "Đã xử lý đồng loạt \(tripIds.count) chuyến đi thành công!"
+            }
+        }
+    }
+
+    // MARK: - CAPTURE CURRENT LOCATION AS ANCHOR GPS
+    public func captureCurrentLocationAsAnchor() {
+        isGettingCurrentLocation = true
+        locationManager.requestLocation()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+            guard let self = self else { return }
+            if let loc = self.locationManager.location {
+                self.cfgTargetLatitude = String(format: "%.6f", loc.coordinate.latitude)
+                self.cfgTargetLongitude = String(format: "%.6f", loc.coordinate.longitude)
+                let geocoder = CLGeocoder()
+                geocoder.reverseGeocodeLocation(loc) { placemarks, _ in
+                    if let pm = placemarks?.first {
+                        let lines = [pm.name, pm.thoroughfare, pm.subLocality, pm.locality, pm.administrativeArea].compactMap { $0 }
+                        self.cfgTargetAddress = lines.joined(separator: ", ")
+                    }
+                    self.isGettingCurrentLocation = false
+                }
+            } else {
+                self.isGettingCurrentLocation = false
             }
         }
     }

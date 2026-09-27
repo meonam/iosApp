@@ -43,6 +43,16 @@ public class SupportViewModel: ObservableObject {
 
     @Published public var deletedTicketIds: Set<String> = []
 
+    public func getActiveTicketCount(email: String) -> Int {
+        guard !email.isEmpty else { return 0 }
+        let clean = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return rawTickets.filter { t in
+            !t.isClosed && !t.isResolved && t.rating == 0 &&
+            (t.assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == clean ||
+             t.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == clean)
+        }.count
+    }
+
     public struct KtvStat: Identifiable {
         public var id: String { email }
         public var email: String
@@ -945,6 +955,226 @@ public class SupportViewModel: ObservableObject {
             let clusterMsg = cluster.isEmpty ? "" : " (Cụm: \(cluster))"
             let noteMsg = note.isEmpty ? "" : " - Ghi chú: \(note)"
             let msg = "📌 Ticket đã được điều phối cho KTV \(ktvName)\(clusterMsg)\(noteMsg)"
+            sendMessage(ticketId: ticketId, text: msg)
+            self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
+        }
+    }
+
+    // MARK: - ĐIỀU PHỐI TICKET ĐỒNG BỘ 1:1 ANDROID (assignTicket)
+    public func assignTicket(
+        ticketId: String,
+        deptId: String,
+        deptName: String,
+        techEmail: String,
+        techName: String,
+        note: String = "",
+        assignedCluster: String = "",
+        assignedRegion: String = "",
+        assignedApplication: String = "",
+        assignedRole: String = "TECH",
+        completion: ((Bool) -> Void)? = nil
+    ) {
+        Task {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let isSpecialist = assignedRole.uppercased() == "SPECIALIST" || deptId.hasPrefix("TO_")
+            let rolePrefix = isSpecialist ? "Chuyên viên" : "KTV"
+            let finalDeptName = deptName.isEmpty ? "IT TẬP TRUNG" : deptName
+
+            let maskFields = [
+                "assignedDepartmentId", "assignedDepartmentName", "toNghiepVu",
+                "assignedToEmail", "assignedToName", "assignedCluster", "assignedRegion",
+                "assignedApplication", "assignedRole", "scope", "isSpecialistAssigned",
+                "assignedByEmail", "assignedAt", "dispatchNote", "lastMessage", "lastMessageAt",
+                "isAcknowledged"
+            ]
+            let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
+            guard let url = URL(string: urlStr) else { completion?(false); return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            var f: [String: Any] = [
+                "assignedDepartmentId": ["stringValue": deptId],
+                "assignedDepartmentName": ["stringValue": finalDeptName],
+                "toNghiepVu": ["stringValue": isSpecialist ? deptId : ""],
+                "assignedToEmail": ["stringValue": techEmail],
+                "assignedToName": ["stringValue": techName],
+                "assignedCluster": ["stringValue": isSpecialist ? "" : assignedCluster],
+                "assignedRegion": ["stringValue": isSpecialist ? "" : assignedRegion],
+                "assignedApplication": ["stringValue": assignedApplication],
+                "assignedRole": ["stringValue": isSpecialist ? "SPECIALIST" : "TECH"],
+                "scope": ["stringValue": isSpecialist ? "DEPARTMENT" : "UNIT"],
+                "isSpecialistAssigned": ["booleanValue": isSpecialist],
+                "assignedByEmail": ["stringValue": user.email],
+                "assignedAt": ["integerValue": String(now)],
+                "dispatchNote": ["stringValue": note],
+                "isAcknowledged": ["booleanValue": false]
+            ]
+
+            let techInfo = techName.isEmpty ? "" : " (\(rolePrefix): \(techName))"
+            let appInfo = assignedApplication.isEmpty ? "" : " • Ứng dụng: \(assignedApplication)"
+            let noteInfo = note.isEmpty ? "" : " • Ghi chú: \(note)"
+            let dispatchMsg = "🔄 [Điều phối] HelpDesk đã chuyển giao yêu cầu cho \(finalDeptName)\(techInfo)\(appInfo)\(noteInfo)"
+
+            f["lastMessage"] = ["stringValue": dispatchMsg]
+            f["lastMessageAt"] = ["integerValue": String(now)]
+
+            let body: [String: Any] = ["fields": f]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            _ = try? await URLSession.shared.data(for: request)
+
+            sendMessage(ticketId: ticketId, text: dispatchMsg)
+            self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
+        }
+    }
+
+    // MARK: - LIVE TRACKING METHODS (ĐỒNG BỘ 1:1 VỚI LIVETRACKINGMAP.KT)
+    public func startTrip(
+        ticketId: String,
+        startLat: Double,
+        startLng: Double,
+        startAddress: String,
+        destLat: Double,
+        destLng: Double,
+        destAddress: String,
+        distanceKm: Double = 0.0,
+        etaMinutes: Int = 0,
+        completion: ((Bool) -> Void)? = nil
+    ) {
+        Task {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let mask = "updateMask.fieldPaths=tracking.status&updateMask.fieldPaths=tracking.ticketId&updateMask.fieldPaths=tracking.technicianEmail&updateMask.fieldPaths=tracking.technicianName&updateMask.fieldPaths=tracking.technicianPhone&updateMask.fieldPaths=tracking.currentLat&updateMask.fieldPaths=tracking.currentLng&updateMask.fieldPaths=tracking.startLat&updateMask.fieldPaths=tracking.startLng&updateMask.fieldPaths=tracking.startAddress&updateMask.fieldPaths=tracking.destLat&updateMask.fieldPaths=tracking.destLng&updateMask.fieldPaths=tracking.destAddress&updateMask.fieldPaths=tracking.distanceKm&updateMask.fieldPaths=tracking.etaMinutes&updateMask.fieldPaths=tracking.lastUpdatedAt&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            guard let url = URL(string: urlStr) else { completion?(false); return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let trackingMap: [String: Any] = [
+                "ticketId": ["stringValue": ticketId],
+                "technicianEmail": ["stringValue": user.email],
+                "technicianName": ["stringValue": user.fullName],
+                "technicianPhone": ["stringValue": user.phone],
+                "status": ["stringValue": "EN_ROUTE"],
+                "currentLat": ["doubleValue": startLat],
+                "currentLng": ["doubleValue": startLng],
+                "startLat": ["doubleValue": startLat],
+                "startLng": ["doubleValue": startLng],
+                "startAddress": ["stringValue": startAddress],
+                "destLat": ["doubleValue": destLat],
+                "destLng": ["doubleValue": destLng],
+                "destAddress": ["stringValue": destAddress],
+                "distanceKm": ["doubleValue": distanceKm],
+                "etaMinutes": ["integerValue": String(etaMinutes)],
+                "lastUpdatedAt": ["integerValue": String(now)]
+            ]
+
+            let msg = "🛵 KTV \(user.fullName) đã bắt đầu di chuyển tới điểm hỗ trợ"
+            let f: [String: Any] = [
+                "tracking": ["mapValue": ["fields": trackingMap]],
+                "lastMessage": ["stringValue": msg],
+                "lastMessageAt": ["integerValue": String(now)]
+            ]
+
+            request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
+            _ = try? await URLSession.shared.data(for: request)
+
+            sendMessage(ticketId: ticketId, text: msg)
+            self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
+        }
+    }
+
+    public func markArrived(ticketId: String, completion: ((Bool) -> Void)? = nil) {
+        Task {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let mask = "updateMask.fieldPaths=tracking.status&updateMask.fieldPaths=tracking.isArrivedVerified&updateMask.fieldPaths=tracking.lastUpdatedAt&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            guard let url = URL(string: urlStr) else { completion?(false); return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let msg = "✅ KTV \(user.fullName) đã đến điểm hỗ trợ an toàn"
+            let f: [String: Any] = [
+                "tracking.status": ["stringValue": "ARRIVED"],
+                "tracking.isArrivedVerified": ["booleanValue": true],
+                "tracking.lastUpdatedAt": ["integerValue": String(now)],
+                "lastMessage": ["stringValue": msg],
+                "lastMessageAt": ["integerValue": String(now)]
+            ]
+
+            request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
+            _ = try? await URLSession.shared.data(for: request)
+
+            sendMessage(ticketId: ticketId, text: msg)
+            self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
+        }
+    }
+
+    public func switchToRemote(ticketId: String, completion: ((Bool) -> Void)? = nil) {
+        Task {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let mask = "updateMask.fieldPaths=handlingMethod&updateMask.fieldPaths=tracking.status&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            guard let url = URL(string: urlStr) else { completion?(false); return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let msg = "💻 [Tiếp nhận ca] KTV \(user.fullName) đã chọn phương án: XỬ LÝ TỪ XA."
+            let f: [String: Any] = [
+                "handlingMethod": ["stringValue": "REMOTE"],
+                "tracking.status": ["stringValue": "CANCELLED"],
+                "lastMessage": ["stringValue": msg],
+                "lastMessageAt": ["integerValue": String(now)]
+            ]
+
+            request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
+            _ = try? await URLSession.shared.data(for: request)
+
+            sendMessage(ticketId: ticketId, text: msg)
+            self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
+        }
+    }
+
+    public func cancelTrip(ticketId: String, reason: String = "HelpDesk hủy chuyến", completion: ((Bool) -> Void)? = nil) {
+        Task {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let mask = "updateMask.fieldPaths=tracking.status&updateMask.fieldPaths=tracking.cancelReason&updateMask.fieldPaths=tracking.cancelledAt&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            guard let url = URL(string: urlStr) else { completion?(false); return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let msg = "🛑 Chuyến đi đã bị hủy: \(reason)"
+            let f: [String: Any] = [
+                "tracking.status": ["stringValue": "CANCELLED"],
+                "tracking.cancelReason": ["stringValue": reason],
+                "tracking.cancelledAt": ["integerValue": String(now)],
+                "lastMessage": ["stringValue": msg],
+                "lastMessageAt": ["integerValue": String(now)]
+            ]
+
+            request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
+            _ = try? await URLSession.shared.data(for: request)
+
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
