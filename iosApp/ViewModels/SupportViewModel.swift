@@ -116,7 +116,7 @@ public class SupportViewModel: ObservableObject {
     }
 
     public func cleanClosedTickets() {
-        let closedIds = scopedTickets.filter { $0.isClosed }.map { $0.id }
+        let closedIds = scopedTickets.filter { $0.isClosed || $0.isRejected }.map { $0.id }
         for id in closedIds {
             deletedTicketIds.insert(id)
         }
@@ -177,21 +177,26 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
+    // MARK: - CHECK TICKET HIDDEN (BỊ XÓA HOẶC TỪ CHỐI/KHÔNG PHÙ HỢP)
+    public func isTicketHidden(_ t: SupportTicket) -> Bool {
+        deletedTicketIds.contains(t.id) || t.isRejected
+    }
+
     // MARK: - TAB COUNTS
     public var allCount: Int {
-        scopedTickets.filter { !deletedTicketIds.contains($0.id) }.count
+        scopedTickets.filter { !isTicketHidden($0) }.count
     }
 
     public var openCount: Int {
-        scopedTickets.filter { !deletedTicketIds.contains($0.id) && $0.isOpen }.count
+        scopedTickets.filter { !isTicketHidden($0) && $0.isOpen }.count
     }
 
     public var closedCount: Int {
-        scopedTickets.filter { !deletedTicketIds.contains($0.id) && $0.isClosed }.count
+        scopedTickets.filter { !isTicketHidden($0) && $0.isClosed }.count
     }
 
     public var hiddenCount: Int {
-        scopedTickets.filter { deletedTicketIds.contains($0.id) }.count
+        scopedTickets.filter { isTicketHidden($0) }.count
     }
 
     public func isDeptTicket(_ t: SupportTicket) -> Bool {
@@ -208,7 +213,7 @@ public class SupportViewModel: ObservableObject {
 
     public var appCount: Int {
         scopedTickets.filter { t in
-            !deletedTicketIds.contains(t.id) &&
+            !isTicketHidden(t) &&
             (t.source.isEmpty || t.source.uppercased() == "APP") &&
             !isDeptTicket(t)
         }.count
@@ -216,7 +221,7 @@ public class SupportViewModel: ObservableObject {
 
     public var emailCount: Int {
         scopedTickets.filter { t in
-            !deletedTicketIds.contains(t.id) &&
+            !isTicketHidden(t) &&
             (t.source.uppercased() == "EMAIL" || t.externalSenderId.contains("@")) &&
             !isDeptTicket(t)
         }.count
@@ -224,7 +229,7 @@ public class SupportViewModel: ObservableObject {
 
     public var deptCount: Int {
         scopedTickets.filter { t in
-            !deletedTicketIds.contains(t.id) &&
+            !isTicketHidden(t) &&
             isDeptTicket(t)
         }.count
     }
@@ -243,10 +248,11 @@ public class SupportViewModel: ObservableObject {
         }
 
         let statusFiltered = baseList.filter { t in
+            let hidden = isTicketHidden(t)
             if filterStatus == "HIDDEN" {
-                return deletedTicketIds.contains(t.id)
+                return hidden
             } else {
-                if deletedTicketIds.contains(t.id) { return false }
+                if hidden { return false }
                 switch filterStatus {
                 case "OPEN": return t.isOpen
                 case "CLOSED": return t.isClosed
@@ -530,6 +536,7 @@ public class SupportViewModel: ObservableObject {
             await MainActor.run {
                 self.rawTickets = sortedTickets
                 self.isLoading = false
+                VoiceNotificationHelper.shared.processTicketUpdates(tickets: sortedTickets, currentUser: self.user)
             }
         }
     }
@@ -845,6 +852,61 @@ public class SupportViewModel: ObservableObject {
 
             let closeMsg = !note.isEmpty ? "🔒 Yêu cầu hỗ trợ đã được đóng bởi \(user.fullName): \(note)" : "🔒 Yêu cầu hỗ trợ đã được đóng bởi \(user.fullName)."
             sendMessage(ticketId: ticketId, text: closeMsg)
+            self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
+        }
+    }
+
+    // MARK: - TỪ CHỐI TICKET (ĐỒNG BỘ 1:1 VỚI rejectTicket TRÊN ANDROID)
+    public func rejectTicket(ticketId: String, reason: String, completion: ((Bool) -> Void)? = nil) {
+        Task {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let finalReason = reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Yêu cầu không phù hợp" : reason.trimmingCharacters(in: .whitespacesAndNewlines)
+            let roleTitle = user.isAdmin ? "Admin" : (user.isHelpDesk ? "HelpDesk" : (user.isManager ? "Quản lý phòng ban" : "HelpDesk"))
+            let name = !user.fullName.isEmpty ? user.fullName : user.email
+            let finalRejectMsg = "🚫 [\(roleTitle): \(name)] Đã đóng yêu cầu (Không phù hợp): \(finalReason)"
+
+            var mask = "updateMask.fieldPaths=status"
+            mask += "&updateMask.fieldPaths=isInvalid"
+            mask += "&updateMask.fieldPaths=invalidReason"
+            mask += "&updateMask.fieldPaths=isAutoRated"
+            mask += "&updateMask.fieldPaths=rating"
+            mask += "&updateMask.fieldPaths=ratingRequested"
+            mask += "&updateMask.fieldPaths=lastMessage"
+            mask += "&updateMask.fieldPaths=lastMessageAt"
+            mask += "&updateMask.fieldPaths=closedByEmail"
+            mask += "&updateMask.fieldPaths=closedByName"
+            mask += "&updateMask.fieldPaths=closedByRole"
+            mask += "&updateMask.fieldPaths=closedAt"
+
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            guard let url = URL(string: urlStr) else { completion?(false); return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let fields: [String: Any] = [
+                "status": ["stringValue": "CLOSED"],
+                "isInvalid": ["booleanValue": true],
+                "invalidReason": ["stringValue": finalReason],
+                "isAutoRated": ["booleanValue": false],
+                "rating": ["integerValue": "0"],
+                "ratingRequested": ["booleanValue": false],
+                "lastMessage": ["stringValue": finalRejectMsg],
+                "lastMessageAt": ["integerValue": String(now)],
+                "closedByEmail": ["stringValue": user.email],
+                "closedByName": ["stringValue": name],
+                "closedByRole": ["stringValue": user.role],
+                "closedAt": ["integerValue": String(now)]
+            ]
+
+            let body: [String: Any] = ["fields": fields]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            _ = try? await URLSession.shared.data(for: request)
+
+            sendMessage(ticketId: ticketId, text: finalRejectMsg)
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
         }

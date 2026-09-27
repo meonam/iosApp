@@ -65,16 +65,20 @@ public struct StaffSupportView: View {
         }
     }
 
+    private func isTicketHidden(_ t: SupportTicket) -> Bool {
+        deletedTicketIds.contains(t.id) || t.isRejected
+    }
+
     private var visibleTickets: [SupportTicket] {
         myScopedTickets.filter { ticket in
+            let hidden = isTicketHidden(ticket)
             // Filter by hidden
             if filterStatus == "HIDDEN" {
-                if !deletedTicketIds.contains(ticket.id) { return false }
+                if !hidden { return false }
             } else {
-                if deletedTicketIds.contains(ticket.id) { return false }
-                let isClosed = ticket.status.uppercased() == "CLOSED" || ticket.closedAt > 0
-                if filterStatus == "OPEN" && isClosed { return false }
-                if filterStatus == "CLOSED" && !isClosed { return false }
+                if hidden { return false }
+                if filterStatus == "OPEN" && !ticket.isOpen { return false }
+                if filterStatus == "CLOSED" && !ticket.isClosed { return false }
             }
 
             // Channel filter
@@ -294,22 +298,22 @@ public struct StaffSupportView: View {
     // MARK: - SEGMENTED TABS BAR
     private var segmentedTabsBar: some View {
         HStack(spacing: 4) {
-            tabButton(title: "Tất cả", count: myScopedTickets.filter { !deletedTicketIds.contains($0.id) }.count, tag: "ALL")
+            tabButton(title: "Tất cả", count: myScopedTickets.filter { !isTicketHidden($0) }.count, tag: "ALL")
             tabButton(
                 title: "Đang mở",
-                count: myScopedTickets.filter { !deletedTicketIds.contains($0.id) && $0.isOpen }.count,
+                count: myScopedTickets.filter { !isTicketHidden($0) && $0.isOpen }.count,
                 tag: "OPEN",
                 activeColor: Color(hex: "#16A34A"),
                 activeBg: Color(hex: "#DCFCE7")
             )
             tabButton(
                 title: "Đã đóng",
-                count: myScopedTickets.filter { !deletedTicketIds.contains($0.id) && !$0.isOpen }.count,
+                count: myScopedTickets.filter { !isTicketHidden($0) && $0.isClosed }.count,
                 tag: "CLOSED"
             )
             tabButton(
                 title: "Đã ẩn",
-                count: deletedTicketIds.count,
+                count: myScopedTickets.filter { isTicketHidden($0) }.count,
                 tag: "HIDDEN",
                 activeColor: Color(hex: "#B91C1C"),
                 activeBg: Color(hex: "#FEE2E2")

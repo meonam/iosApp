@@ -453,32 +453,48 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         self.toNghiepVu = toNghiepVu
     }
 
+    public var isRejected: Bool {
+        isInvalid || !invalidReason.isEmpty || status.uppercased() == "REJECTED" || status.uppercased() == "TU_CHOI"
+    }
+
     public var isOpen: Bool {
-        status.uppercased() != "CLOSED" && closedAt <= 0
+        !isRejected && status.uppercased() != "CLOSED" && closedAt <= 0
     }
 
     public var isClosed: Bool {
-        status.uppercased() == "CLOSED" || closedAt > 0
+        !isRejected && (status.uppercased() == "CLOSED" || closedAt > 0)
     }
 
     public var isReopenedActive: Bool {
-        !isClosed && (reopenCount > 0 || reopenedAt > 0) &&
+        !isRejected && !isClosed && (reopenCount > 0 || reopenedAt > 0) &&
         status.uppercased() != "RESOLVED" &&
         !(reopenedAt > 0 && resolvedAt > reopenedAt)
     }
 
     public var isResolved: Bool {
-        !isClosed && !isReopenedActive && (
+        !isRejected && !isClosed && !isReopenedActive && (
             status.uppercased() == "RESOLVED" ||
             (reopenCount == 0 && reopenedAt <= 0 && resolvedAt > 0) ||
             (reopenedAt > 0 && resolvedAt > reopenedAt)
         )
     }
 
+    public var isAutoRateEligible: Bool {
+        if isRejected || isInvalid || !invalidReason.isEmpty || status.uppercased() == "CANCELED" { return false }
+        if rating >= 1 && rating <= 5 { return false }
+        let isDone = status.uppercased() == "CLOSED" || resolvedAt > 0 || ratingRequested || ratingEmailSent
+        if !isDone { return false }
+        let finishTime = ratingRequestedAt > 0 ? ratingRequestedAt : (ratingEmailSentAt > 0 ? ratingEmailSentAt : (resolvedAt > 0 ? resolvedAt : (closedAt > 0 ? closedAt : (lastMessageAt > 0 ? lastMessageAt : 0))))
+        if finishTime <= 0 { return false }
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let elapsed = now - finishTime
+        return elapsed >= (24 * 3600 * 1000) && isQualityPassed && reopenCount == 0
+    }
+
     public var effectiveRating: Int {
-        if isInvalid { return 0 }
+        if isRejected || isInvalid || !invalidReason.isEmpty || status.uppercased() == "CANCELED" { return 0 }
         if rating >= 1 && rating <= 5 { return rating }
-        if isAutoRated { return 5 }
+        if isAutoRated || isAutoRateEligible { return 5 }
         return 0
     }
 

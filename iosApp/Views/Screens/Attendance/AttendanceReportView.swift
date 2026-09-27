@@ -236,6 +236,17 @@ public struct AttendanceReportView: View {
         return "\(numStr) VNĐ"
     }
 
+    private func formatDistanceKm(_ km: Double) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = 1
+        f.maximumFractionDigits = 1
+        f.decimalSeparator = ","
+        f.groupingSeparator = "."
+        let s = f.string(from: NSNumber(value: km)) ?? String(format: "%.1f", km)
+        return "\(s) km"
+    }
+
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -907,7 +918,7 @@ public struct AttendanceReportView: View {
                     )
                     kpiCard(
                         title: "TỔNG KM",
-                        value: String(format: "%.1f km", effectiveExpenseReport.totalDistanceKm),
+                        value: formatDistanceKm(effectiveExpenseReport.totalDistanceKm),
                         color: Color(hex: "#16A34A")
                     )
                     kpiCard(
@@ -945,7 +956,7 @@ public struct AttendanceReportView: View {
                                             Text(tech.technicianName)
                                                 .font(.system(size: 13, weight: .bold))
                                                 .foregroundColor(Color.appSecondaryDarkBlue)
-                                            Text("\(tech.totalTrips) chuyến • \(String(format: "%.1f km", tech.totalDistanceKm))")
+                                            Text("\(tech.totalTrips) chuyến • \(formatDistanceKm(tech.totalDistanceKm))")
                                                 .font(.system(size: 11))
                                                 .foregroundColor(.gray)
                                         }
@@ -1035,7 +1046,7 @@ public struct AttendanceReportView: View {
                         }
 
                         HStack {
-                            Text("Quãng đường: \(String(format: "%.1f km", exp.distanceKm))")
+                            Text("Quãng đường: \(formatDistanceKm(exp.distanceKm))")
                                 .font(.system(size: 11))
                                 .foregroundColor(.gray)
                             Spacer()

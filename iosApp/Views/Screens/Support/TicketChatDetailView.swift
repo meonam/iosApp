@@ -19,6 +19,8 @@ public struct TicketChatDetailView: View {
     @State private var showLiveTrackingModal: Bool = false
     @State private var showAssignKtvSheet: Bool = false
     @State private var showCallView: Bool = false
+    @State private var showRejectReasonSheet: Bool = false
+    @State private var rejectReasonText: String = ""
 
     // SLA countdown timer
     @State private var slaCountdown: String = ""
@@ -94,8 +96,10 @@ public struct TicketChatDetailView: View {
                     // ── 4. CHAT MESSAGES LIST ───────────────────────────
                     messagesListView
 
-                    // ── 5. INPUT BAR (hoặc banner Đã đóng) ──────────────
-                    if isOpen {
+                    // ── 5. INPUT BAR (hoặc banner Đã đóng / Đã từ chối) ──────────────
+                    if ticket.isRejected {
+                        ticketRejectedBar
+                    } else if isOpen {
                         chatInputBar
                     } else {
                         closedTicketFooter
@@ -139,6 +143,10 @@ public struct TicketChatDetailView: View {
                 onSelfResolved: { showSelfResolvedAlert = true },
                 onTechResolve: { showTechResolveSheet = true }
             )
+        }
+        // Sheet Từ chối phiếu (Admin/HelpDesk)
+        .sheet(isPresented: $showRejectReasonSheet) {
+            rejectTicketSheetView
         }
         // Alert Tự xử lý xong
         .alert(isPresented: $showSelfResolvedAlert) {
@@ -250,6 +258,22 @@ public struct TicketChatDetailView: View {
                     }
                 }
 
+                // Nút Từ chối phiếu (Admin/HelpDesk)
+                if isOpen && isAdminOrHelpDesk {
+                    Button(action: {
+                        rejectReasonText = ""
+                        showRejectReasonSheet = true
+                    }) {
+                        Text("Từ chối")
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color(hex: "#DC2626"))
+                            .cornerRadius(6)
+                    }
+                }
+
                 // Nút Hoàn tất đóng phiếu (Admin/Manager)
                 if isOpen && isAdminOrHelpDesk {
                     Button(action: { showCloseTicketAlert = true }) {
@@ -299,6 +323,29 @@ public struct TicketChatDetailView: View {
     // MARK: - CONTEXTUAL ACTION BANNERS
     private var contextualActionBanners: some View {
         VStack(spacing: 6) {
+            // ── Banner 0: Phiếu đã bị từ chối ──
+            if ticket.isRejected {
+                HStack(spacing: 8) {
+                    Image(systemName: "xmark.octagon.fill")
+                        .foregroundColor(Color(hex: "#DC2626"))
+                        .font(.system(size: 16))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Yêu cầu đã bị từ chối / Không phù hợp")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color(hex: "#991B1B"))
+                        let rz = ticket.invalidReason.isEmpty ? "Không thuộc phạm vi CNTT hoặc yêu cầu không hợp lệ" : ticket.invalidReason
+                        Text("Lý do: \(rz)")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "#B91C1C"))
+                    }
+                    Spacer()
+                }
+                .padding(10)
+                .background(Color(hex: "#FEE2E2"))
+                .cornerRadius(8)
+                .padding(.horizontal, 12)
+            }
+
             // ── Banner 1: Live Tracking KTV (cho Người tạo ticket khi KTV đang di chuyển / đã đến) ──
             if isCreator && isOpen && !isResolved, let tr = ticket.tracking, tr.status == "EN_ROUTE" || tr.status == "ARRIVED" {
                 Button(action: { showLiveTrackingModal = true }) {
@@ -613,6 +660,71 @@ public struct TicketChatDetailView: View {
         .padding(12)
         .frame(maxWidth: .infinity)
         .background(Color(hex: "#F1F5F9"))
+    }
+
+    private var ticketRejectedBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "xmark.octagon.fill")
+                .foregroundColor(Color(hex: "#DC2626"))
+            Text("Yêu cầu này đã bị từ chối / không tiếp nhận")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(Color(hex: "#DC2626"))
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(Color(hex: "#FEE2E2"))
+    }
+
+    // MARK: - SHEET: TỪ CHỐI PHIẾU
+    private var rejectTicketSheetView: some View {
+        NavigationView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Lý do từ chối yêu cầu (không phù hợp / ngoài phạm vi):")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(Color(hex: "#1E293B"))
+
+                TextEditor(text: $rejectReasonText)
+                    .frame(height: 110)
+                    .padding(8)
+                    .background(Color(hex: "#F8FAFC"))
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+
+                HStack(spacing: 8) {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(Color(hex: "#D97706"))
+                    Text("Phiếu sẽ chuyển ngay vào tab 'Đã ẩn'. Hệ thống KHÔNG tự động tính 5★ sau 24h và miễn trừ khỏi KPI.")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color(hex: "#92400E"))
+                }
+                .padding(10)
+                .background(Color(hex: "#FEF3C7"))
+                .cornerRadius(8)
+
+                Button(action: {
+                    let reason = rejectReasonText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Yêu cầu không phù hợp" : rejectReasonText
+                    viewModel.rejectTicket(ticketId: ticket.id, reason: reason) { _ in }
+                    showRejectReasonSheet = false
+                }) {
+                    HStack {
+                        Image(systemName: "xmark.circle.fill")
+                        Text("Từ chối & Đóng yêu cầu")
+                            .fontWeight(.bold)
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color(hex: "#DC2626"))
+                    .cornerRadius(10)
+                }
+
+                Spacer()
+            }
+            .padding(16)
+            .navigationTitle("Từ chối phiếu")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(leading: Button("Hủy") { showRejectReasonSheet = false })
+        }
     }
 
     // MARK: - SHEET: BÁO CÁO KTV HOÀN THÀNH
