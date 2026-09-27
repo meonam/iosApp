@@ -102,8 +102,12 @@ public struct AttendanceReportView: View {
 
     private let monthsList: [String] = {
         var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
         var list: [String] = []
         let sdf = DateFormatter()
+        sdf.locale = Locale(identifier: "en_US_POSIX")
+        sdf.calendar = Calendar(identifier: .gregorian)
+        sdf.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
         sdf.dateFormat = "yyyy-MM"
         var cur = Date()
         for _ in 0..<12 {
@@ -293,6 +297,7 @@ public struct AttendanceReportView: View {
             }
         }
         .onAppear {
+            viewModel.fetchUserProfileRealtime()
             viewModel.fetchMonthlyReport()
         }
         .sheet(isPresented: $showRejectDialog) {

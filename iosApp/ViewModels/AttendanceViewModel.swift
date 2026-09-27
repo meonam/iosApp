@@ -61,6 +61,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     @Published public var expenseReport: TravelExpenseReport = TravelExpenseReport()
     @Published public var selectedReportMonth: String = {
         let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.calendar = Calendar(identifier: .gregorian)
+        f.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
         f.dateFormat = "yyyy-MM"
         return f.string(from: Date())
     }()
@@ -90,21 +93,37 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     @Published public var rejectTripTarget: TravelExpenseRecord? = nil
     @Published public var rejectReasonInput: String = ""
 
-    // Role permissions (Đồng bộ Android lines 293-338)
+    // Role permissions (Đồng bộ Android lines 293-338 & SuperAdminConfig)
     public var canViewAllReports: Bool {
-        user.isAdmin || user.isSuperAdmin || user.isHelpDesk
+        let r = userRole.isEmpty ? user.role : userRole
+        let em = user.email
+        return SuperAdminConfig.isSuperAdmin(email: em, role: r) ||
+               user.isAdmin || user.isSuperAdmin || user.isHelpDesk ||
+               r.uppercased().contains("ADMIN") || r.uppercased().contains("HELPDESK") || r.uppercased() == "HD"
     }
 
     public var canAccessExpenseReport: Bool {
-        (user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isManager) && (!user.isTechnician || user.isAdmin || user.isHelpDesk)
+        let r = userRole.isEmpty ? user.role : userRole
+        let em = user.email
+        let isAdm = SuperAdminConfig.isSuperAdmin(email: em, role: r) || user.isAdmin || user.isSuperAdmin || r.uppercased().contains("ADMIN")
+        let isHd = user.isHelpDesk || r.uppercased().contains("HELPDESK") || r.uppercased() == "HD"
+        let isMgr = user.isManager || r.uppercased().contains("MANAGER") || r.uppercased().contains("QUANLY")
+        let isTech = user.isTechnician || r.uppercased().contains("KYTHUAT") || r.uppercased().contains("KTV")
+        return (isAdm || isHd || isMgr) && (!isTech || isAdm || isHd)
     }
 
     public var canAccessConfigTab: Bool {
-        user.isAdmin || user.isSuperAdmin
+        let r = userRole.isEmpty ? user.role : userRole
+        let em = user.email
+        return SuperAdminConfig.isSuperAdmin(email: em, role: r) || user.isAdmin || user.isSuperAdmin || r.uppercased().contains("ADMIN")
     }
 
     public var canApproveExpense: Bool {
-        user.isAdmin || user.isSuperAdmin || (user.isManager && !user.isTechnician)
+        let r = userRole.isEmpty ? user.role : userRole
+        let em = user.email
+        let isAdm = SuperAdminConfig.isSuperAdmin(email: em, role: r) || user.isAdmin || user.isSuperAdmin || r.uppercased().contains("ADMIN")
+        let isMgr = user.isManager || r.uppercased().contains("MANAGER") || r.uppercased().contains("QUANLY")
+        return isAdm || isMgr
     }
 
     // Computed Stats
@@ -1400,9 +1419,6 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         if let qUrl = URL(string: queryUrlStr) {
             var qReq = URLRequest(url: qUrl)
             qReq.httpMethod = "POST"
-            if !idToken.isEmpty {
-                qReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-            }
             qReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             let body: [String: Any] = [
@@ -1441,9 +1457,6 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/attendances?pageSize=300"
             if let listUrl = URL(string: listUrlStr) {
                 var listReq = URLRequest(url: listUrl)
-                if !idToken.isEmpty {
-                    listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                }
                 if let (data, resp) = try? await URLSession.shared.data(for: listReq),
                    let http = resp as? HTTPURLResponse, http.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -1471,99 +1484,37 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         var savedRejectReasonMap: [String: String] = [:]
 
         // Tính startMillis và endMillis cho targetMonth (yyyy-MM)
-        let dfTime = DateFormatter()
-        dfTime.locale = Locale(identifier: "en_US_POSIX")
-        dfTime.calendar = Calendar(identifier: .gregorian)
-        dfTime.dateFormat = "yyyy-MM"
-        dfTime.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
         var startMillis: Int64 = 0
         var endMillis: Int64 = Int64.max
-        if let targetDate = dfTime.date(from: targetMonth) {
+        let parts = targetMonth.components(separatedBy: "-")
+        if parts.count >= 2, let y = Int(parts[0]), let m = Int(parts[1]) {
             var cal = Calendar(identifier: .gregorian)
             cal.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? .current
-            if let startOfMonth = cal.date(from: cal.dateComponents([.year, .month], from: targetDate)) {
-                startMillis = Int64(startOfMonth.timeIntervalSince1970 * 1000)
-                if let nextMonth = cal.date(byAdding: .month, value: 1, to: startOfMonth) {
-                    endMillis = Int64(nextMonth.timeIntervalSince1970 * 1000) - 1
+            var startComps = DateComponents()
+            startComps.year = y
+            startComps.month = m
+            startComps.day = 1
+            startComps.hour = 0
+            startComps.minute = 0
+            startComps.second = 0
+            if let sDate = cal.date(from: startComps) {
+                startMillis = Int64(sDate.timeIntervalSince1970 * 1000)
+                if let nextM = cal.date(byAdding: .month, value: 1, to: sDate) {
+                    endMillis = Int64(nextM.timeIntervalSince1970 * 1000) - 1
                 }
             }
         }
 
-        // 1. Lấy danh sách duyệt travel_expenses qua runQuery (đồng bộ 1:1 Android)
-        let expUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp):runQuery"
-        if let expUrl = URL(string: expUrlStr) {
-            var expReq = URLRequest(url: expUrl)
-            expReq.httpMethod = "POST"
-            if !idToken.isEmpty {
-                expReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-            }
-            expReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            let body: [String: Any] = [
-                "structuredQuery": [
-                    "from": [["collectionId": "travel_expenses"]],
-                    "where": [
-                        "compositeFilter": [
-                            "op": "AND",
-                            "filters": [
-                                [
-                                    "fieldFilter": [
-                                        "field": ["fieldPath": "timestamp"],
-                                        "op": "GREATER_THAN_OR_EQUAL",
-                                        "value": ["integerValue": String(startMillis)]
-                                    ]
-                                ],
-                                [
-                                    "fieldFilter": [
-                                        "field": ["fieldPath": "timestamp"],
-                                        "op": "LESS_THAN_OR_EQUAL",
-                                        "value": ["integerValue": String(endMillis)]
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ],
-                    "orderBy": [
-                        [
-                            "field": ["fieldPath": "timestamp"],
-                            "direction": "DESCENDING"
-                        ]
-                    ],
-                    "limit": 1000
-                ]
-            ]
-            expReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-            var expResponseData: Data? = nil
+        // 1. Lấy danh sách duyệt travel_expenses (đồng bộ 1:1 Android: lấy danh sách duyệt)
+        let expGetUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/travel_expenses?pageSize=300"
+        if let expGetUrl = URL(string: expGetUrlStr) {
+            var expReq = URLRequest(url: expGetUrl)
             if let (expData, expResp) = try? await URLSession.shared.data(for: expReq),
-               let httpExp = expResp as? HTTPURLResponse {
-                if httpExp.statusCode == 200 {
-                    expResponseData = expData
-                } else if httpExp.statusCode == 401 || httpExp.statusCode == 403 {
-                    var retryReq = URLRequest(url: expUrl)
-                    retryReq.httpMethod = "POST"
-                    retryReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    retryReq.httpBody = expReq.httpBody
-                    if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
-                       let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
-                        expResponseData = rData
-                    }
-                }
-            } else {
-                var retryReq = URLRequest(url: expUrl)
-                retryReq.httpMethod = "POST"
-                retryReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                retryReq.httpBody = expReq.httpBody
-                if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
-                   let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
-                    expResponseData = rData
-                }
-            }
-
-            if let expData = expResponseData,
-               let expArray = try? JSONSerialization.jsonObject(with: expData) as? [[String: Any]] {
-                for item in expArray {
-                    if let doc = item["document"] as? [String: Any],
-                       let fields = doc["fields"] as? [String: Any],
+               let httpExp = expResp as? HTTPURLResponse, httpExp.statusCode == 200,
+               let expJson = try? JSONSerialization.jsonObject(with: expData) as? [String: Any],
+               let expDocs = expJson["documents"] as? [[String: Any]] {
+                for doc in expDocs {
+                    if let fields = doc["fields"] as? [String: Any],
                        let docName = doc["name"] as? String {
                         let docId = docName.components(separatedBy: "/").last ?? ""
                         let st = FirestoreHelper.getString(fields["status"] as? [String: Any])
@@ -1571,46 +1522,6 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                         if !docId.isEmpty {
                             savedExpenseStatusMap[docId] = st.isEmpty ? "PENDING" : st
                             if !rj.isEmpty { savedRejectReasonMap[docId] = rj }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Fallback travel_expenses qua GET nếu cần
-        if savedExpenseStatusMap.isEmpty {
-            let expGetUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/travel_expenses?pageSize=300"
-            if let expGetUrl = URL(string: expGetUrlStr) {
-                var expReq = URLRequest(url: expGetUrl)
-                if !idToken.isEmpty {
-                    expReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                }
-                var expGetData: Data? = nil
-                if let (expData, expResp) = try? await URLSession.shared.data(for: expReq),
-                   let httpExp = expResp as? HTTPURLResponse {
-                    if httpExp.statusCode == 200 {
-                        expGetData = expData
-                    } else if httpExp.statusCode == 401 || httpExp.statusCode == 403 {
-                        var retryReq = URLRequest(url: expGetUrl)
-                        if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
-                           let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
-                            expGetData = rData
-                        }
-                    }
-                }
-                if let expData = expGetData,
-                   let expJson = try? JSONSerialization.jsonObject(with: expData) as? [String: Any],
-                   let expDocs = expJson["documents"] as? [[String: Any]] {
-                    for doc in expDocs {
-                        if let fields = doc["fields"] as? [String: Any],
-                           let docName = doc["name"] as? String {
-                            let docId = docName.components(separatedBy: "/").last ?? ""
-                            let st = FirestoreHelper.getString(fields["status"] as? [String: Any])
-                            let rj = FirestoreHelper.getString(fields["rejectReason"] as? [String: Any])
-                            if !docId.isEmpty {
-                                savedExpenseStatusMap[docId] = st.isEmpty ? "PENDING" : st
-                                if !rj.isEmpty { savedRejectReasonMap[docId] = rj }
-                            }
                         }
                     }
                 }
@@ -1626,9 +1537,6 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         if let tixUrl = URL(string: tixUrlStr) {
             var tixReq = URLRequest(url: tixUrl)
             tixReq.httpMethod = "POST"
-            if !idToken.isEmpty {
-                tixReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-            }
             tixReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
             let body: [String: Any] = [
                 "structuredQuery": [
@@ -1654,78 +1562,18 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                             ]
                         ]
                     ],
-                    "orderBy": [
-                        [
-                            "field": ["fieldPath": "createdAt"],
-                            "direction": "DESCENDING"
-                        ]
-                    ],
                     "limit": 1000
                 ]
             ]
             tixReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            var tixResponseData: Data? = nil
             if let (tixData, tixResp) = try? await URLSession.shared.data(for: tixReq),
-               let httpTix = tixResp as? HTTPURLResponse {
-                if httpTix.statusCode == 200 {
-                    tixResponseData = tixData
-                } else if httpTix.statusCode == 401 || httpTix.statusCode == 403 {
-                    var retryReq = URLRequest(url: tixUrl)
-                    retryReq.httpMethod = "POST"
-                    retryReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    retryReq.httpBody = tixReq.httpBody
-                    if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
-                       let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
-                        tixResponseData = rData
-                    }
-                }
-            } else {
-                var retryReq = URLRequest(url: tixUrl)
-                retryReq.httpMethod = "POST"
-                retryReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                retryReq.httpBody = tixReq.httpBody
-                if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
-                   let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
-                    tixResponseData = rData
-                }
-            }
-
-            if let tixData = tixResponseData,
+               let httpTix = tixResp as? HTTPURLResponse, httpTix.statusCode == 200,
                let tixArray = try? JSONSerialization.jsonObject(with: tixData) as? [[String: Any]] {
                 for item in tixArray {
                     if let doc = item["document"] as? [String: Any] {
                         tixDocsList.append(doc)
                     }
-                }
-            }
-        }
-
-        // Fallback support_tickets qua GET nếu runQuery rỗng
-        if tixDocsList.isEmpty {
-            let tixGetUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=300"
-            if let tixGetUrl = URL(string: tixGetUrlStr) {
-                var tixReq = URLRequest(url: tixGetUrl)
-                if !idToken.isEmpty {
-                    tixReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                }
-                var tixGetData: Data? = nil
-                if let (tixData, tixResp) = try? await URLSession.shared.data(for: tixReq),
-                   let httpTix = tixResp as? HTTPURLResponse {
-                    if httpTix.statusCode == 200 {
-                        tixGetData = tixData
-                    } else if httpTix.statusCode == 401 || httpTix.statusCode == 403 {
-                        var retryReq = URLRequest(url: tixGetUrl)
-                        if let (rData, rResp) = try? await URLSession.shared.data(for: retryReq),
-                           let rHttp = rResp as? HTTPURLResponse, rHttp.statusCode == 200 {
-                            tixGetData = rData
-                        }
-                    }
-                }
-                if let tixData = tixGetData,
-                   let tixJson = try? JSONSerialization.jsonObject(with: tixData) as? [String: Any],
-                   let docs = tixJson["documents"] as? [[String: Any]] {
-                    tixDocsList = docs
                 }
             }
         }
@@ -1753,8 +1601,10 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                   let docName = doc["name"] as? String else { continue }
             let ticketId = docName.components(separatedBy: "/").last ?? ""
             let createdAt = FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
+            if createdAt > 0 && (createdAt < startMillis || createdAt > endMillis) {
+                continue
+            }
             let ticketDate = createdAt > 0 ? df.string(from: Date(timeIntervalSince1970: Double(createdAt) / 1000.0)) : ""
-            guard ticketDate.hasPrefix(targetMonth) else { continue }
 
             let trMap = FirestoreHelper.getMap(fields["tracking"] as? [String: Any])
 
