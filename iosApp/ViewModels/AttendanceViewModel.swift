@@ -308,18 +308,17 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         self.currentLocation = loc.coordinate
         self.calculateGeofenceDistance(loc: loc.coordinate)
 
-        // Lớp 1: Gọi Google Maps Geocoding API (nếu key hoạt động)
+        // Lớp 1: Gọi Google Maps Geocoding API — kết quả chính xác tuyệt đối như Android
         Self.fetchGoogleMapsAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] googleAddr in
             guard let self = self else { return }
             if let googleAddr = googleAddr, !googleAddr.isEmpty {
-                let clean = Self.sanitizeVietnameseAddress(googleAddr)
                 Task { @MainActor in
-                    self.currentAddress = clean
+                    self.currentAddress = googleAddr
                 }
             }
         }
 
-        // Lớp 2: Apple CLGeocoder trả về tức thì với format đã chuẩn hóa tên xã/huyện, lọc bỏ đường huyện
+        // Lớp 2: Apple CLGeocoder trả về tức thì làm tạm thời nếu Google chưa kịp trả về
         CLGeocoder().reverseGeocodeLocation(loc) { [weak self] placemarks, _ in
             guard let self = self else { return }
             var appleAddr = ""
@@ -331,23 +330,21 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             }
             let cleanApple = Self.sanitizeVietnameseAddress(appleAddr)
             Task { @MainActor in
+                // Chỉ cập nhật nếu Google chưa có kết quả (vẫn đang xác định hoặc tọa độ thô)
                 if self.currentAddress.contains("Đang xác định") || self.currentAddress.contains("Tọa độ:") {
                     self.currentAddress = cleanApple
                 }
             }
         }
 
-        // Lớp 3: OpenStreetMap Nominatim phân giải chi tiết Số nhà / Ấp / Thôn / Phường / Xã
+        // Lớp 3: OpenStreetMap Nominatim làm fallback dự phòng
         Self.fetchNominatimAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] osmAddress in
             guard let self = self else { return }
             if let osmAddress = osmAddress, !osmAddress.isEmpty {
                 let cleanOsm = Self.sanitizeVietnameseAddress(osmAddress)
                 Task { @MainActor in
-                    let cur = self.currentAddress
-                    let osmHasNumber = cleanOsm.first?.isNumber == true
-                    let curHasNumber = cur.first?.isNumber == true
-                    let curIsBasic = cur.contains("Tọa độ:") || cur.contains("Chưa có") || (!curHasNumber && osmHasNumber)
-                    if curIsBasic || cleanOsm.count > cur.count {
+                    // Chỉ cập nhật nếu chưa có kết quả chi tiết từ Google
+                    if self.currentAddress.contains("Tọa độ:") || self.currentAddress.contains("Chưa có") {
                         self.currentAddress = cleanOsm
                     }
                 }
@@ -379,16 +376,12 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         // 3. Xóa postcode ở cuối (5-6 chữ số: ", 85000")
         text = text.replacingOccurrences(of: #",\s*\d{5,6}$"#, with: "", options: .regularExpression)
 
-        // 4. Bỏ ", Việt Nam" / ", Vietnam" ở cuối
-        if text.hasSuffix(", Việt Nam") { text = String(text.dropLast(", Việt Nam".count)) }
-        if text.hasSuffix(", Vietnam") { text = String(text.dropLast(", Vietnam".count)) }
-
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - GOOGLE MAPS GEOCODING API (GIỐNG HỆT ANDROID Geocoder — CHUẨN NHẤT CHO VIỆT NAM)
     public static func fetchGoogleMapsAddress(latitude: Double, longitude: Double, completion: @escaping (String?) -> Void) {
-        let apiKey = "AIzaSyCgAfxXX-3MzpT0RT5BIDiww6iDwtkADzM"
+        let apiKey = "AIzaSyBORSbQb21mesn0lv5N4Wsl8QlSK2dfvi0"
         let urlString = "https://maps.googleapis.com/maps/api/geocode/json?latlng=\(latitude),\(longitude)&key=\(apiKey)&language=vi"
         guard let url = URL(string: urlString) else {
             completion(nil)
