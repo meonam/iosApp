@@ -102,7 +102,7 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
                     .replacingOccurrences(of: ">", with: "&gt;")
                     .replacingOccurrences(of: "\"", with: "&quot;")
                     .replacingOccurrences(of: "'", with: "&apos;")
-                let ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='vi-VN'><voice name='\(voice)'><prosody pitch='+0Hz' rate='+0%'>\(escaped)</prosody></voice></speak>"
+                let ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='vi-VN'><voice name='\(voice)'><prosody pitch='+0Hz' rate='+0%' volume='+100%'>\(escaped)</prosody></voice></speak>"
                 let ssmlMsg = "X-RequestId:\(reqId)\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n\(ssml)"
 
                 task.send(.string(ssmlMsg)) { sErr in
@@ -198,8 +198,10 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
         defer { playerLock.unlock() }
 
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.duckOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
+            try session.setActive(true)
+            try session.overrideOutputAudioPort(.speaker)
 
             audioPlayer?.stop()
             audioPlayer = try AVAudioPlayer(contentsOf: url)
@@ -209,7 +211,7 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
             audioPlayer?.play()
         } catch {
             print("[EdgeTtsClient] Play audio error: \(error)")
-            speakFallback(text: url.lastPathComponent)
+            speakFallback(text: url.deletingPathExtension().lastPathComponent)
         }
     }
 
@@ -220,6 +222,7 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: "vi-VN")
         utterance.rate = 0.50
+        utterance.volume = 1.0
         fallbackSynthesizer?.speak(utterance)
     }
 

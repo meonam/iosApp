@@ -38,6 +38,14 @@
         <string>UIInterfaceOrientationPortrait</string>
     </array>
 
+    <!-- CHẾ ĐỘ NỀN CHO ÂM THANH & CẢNH BÁO ĐIỀU PHỐI (BACKGROUND MODES) -->
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+        <string>fetch</string>
+        <string>remote-notification</string>
+    </array>
+
     <!-- QUYỀN CAMERA ĐỂ QUÉT MÃ VẠCH & MÃ QR -->
     <key>NSCameraUsageDescription</key>
     <string>Ứng dụng cần quyền truy cập camera để quét mã vạch thiết bị và chụp ảnh biên bản hỗ trợ kỹ thuật.</string>

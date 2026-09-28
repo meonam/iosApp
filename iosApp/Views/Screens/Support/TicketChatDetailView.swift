@@ -126,6 +126,7 @@ public struct TicketChatDetailView: View {
             .ignoresSafeArea(edges: .top)
         }
         .onAppear {
+            VoiceNotificationHelper.shared.stopAlert(ticketId: ticket.id)
             viewModel.fetchMessages(for: ticket.id)
             startSlaTimer()
         }

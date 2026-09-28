@@ -342,8 +342,19 @@ public class SupportViewModel: ObservableObject {
 
     public func fetchTicketsSilent() {
         guard !companyId.isEmpty else { return }
+        var bgTask: UIBackgroundTaskIdentifier = .invalid
+        bgTask = UIApplication.shared.beginBackgroundTask(withName: "QLTB_SilentFetch") {
+            if bgTask != .invalid {
+                UIApplication.shared.endBackgroundTask(bgTask)
+                bgTask = .invalid
+            }
+        }
         Task {
             await self.executeFetchTickets(showSpinner: false)
+            if bgTask != .invalid {
+                UIApplication.shared.endBackgroundTask(bgTask)
+                bgTask = .invalid
+            }
         }
     }
 
@@ -678,6 +689,7 @@ public class SupportViewModel: ObservableObject {
                     self.isLoading = false
                 }
                 VoiceNotificationHelper.shared.processTicketUpdates(tickets: sortedTickets, currentUser: self.user)
+                VoiceNotificationHelper.shared.syncAdminConfig(companyId: self.companyId, idToken: self.idToken)
             }
         }
 
@@ -894,6 +906,7 @@ public class SupportViewModel: ObservableObject {
 
     // MARK: - KTV TIẾP NHẬN / PHƯƠNG ÁN XỬ LÝ
     public func acknowledgeTicket(ticketId: String) {
+        VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=isAcknowledged&updateMask.fieldPaths=acknowledgedAt&updateMask.fieldPaths=acknowledgedBy&updateMask.fieldPaths=acknowledgedByName"
@@ -919,6 +932,7 @@ public class SupportViewModel: ObservableObject {
     }
 
     public func selectHandlingMethod(ticketId: String, method: String, completion: ((Bool) -> Void)? = nil) {
+        VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=handlingMethod&updateMask.fieldPaths=handlingMethodUpdatedAt&updateMask.fieldPaths=isAcknowledged&updateMask.fieldPaths=acknowledgedAt&updateMask.fieldPaths=acknowledgedBy&updateMask.fieldPaths=acknowledgedByName"

@@ -158,18 +158,15 @@ public struct MainContainerView: View {
                     }
                     .onChange(of: scenePhase) { newPhase in
                         if authViewModel.isAuthenticated, let user = authViewModel.currentUser {
-                            let isOnline = (newPhase == .active)
+                            let isForeground = (newPhase == .active)
                             PresenceHelper.shared.setPresence(
                                 companyId: authViewModel.currentCompanyId,
                                 email: user.email,
-                                isOnline: isOnline,
+                                isOnline: true,
                                 idToken: authViewModel.currentIdToken
                             )
-                            if isOnline {
-                                supportViewModel.startAutoPolling()
-                            } else {
-                                supportViewModel.stopAutoPolling()
-                            }
+                            // Duy trì auto-polling ngầm kể cả khi chạy nền để nhận lệnh điều phối và phát giọng nói / thả thông báo như Android
+                            supportViewModel.startAutoPolling(interval: isForeground ? 6.0 : 8.0)
                         }
                     }
                     }

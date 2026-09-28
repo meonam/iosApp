@@ -672,6 +672,7 @@ public struct LiveTrackingMapView: View {
             bottomInfoCard
         }
         .onAppear {
+            VoiceNotificationHelper.shared.stopAlert(ticketId: currentTicket.id)
             resolveDestination()
             fetchRoadRoute()
             startMapPolling()
