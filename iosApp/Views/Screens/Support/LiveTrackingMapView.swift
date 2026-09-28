@@ -622,7 +622,7 @@ public struct LiveTrackingMapView: View {
 
     private var displaySub: String {
         if isAssignedTech {
-            return currentTicket.donVi.isEmpty ? "Yêu cầu #\(currentTicket.id.suffix(6).uppercased())" : "Đơn vị: \(currentTicket.donVi)"
+            return currentTicket.donVi.isEmpty ? "Yêu cầu #TK-\(currentTicket.id.prefix(8).uppercased())" : "Đơn vị: \(currentTicket.donVi)"
         } else {
             return "Phụ trách: \(currentTicket.assignedDepartmentName.isEmpty ? (isSpecialist ? "Tổ nghiệp vụ / Chuyên viên" : "Bộ phận Kỹ thuật") : currentTicket.assignedDepartmentName)"
         }
@@ -879,7 +879,7 @@ public struct LiveTrackingMapView: View {
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(.white)
 
-                Text("Ticket #\(currentTicket.id.suffix(8).uppercased()) • \(currentTicket.subject)")
+                Text("Ticket #TK-\(currentTicket.id.prefix(8).uppercased()) • \(currentTicket.subject)")
                     .font(.system(size: 11))
                     .foregroundColor(Color.white.opacity(0.85))
                     .lineLimit(1)

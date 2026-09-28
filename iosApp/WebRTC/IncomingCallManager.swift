@@ -61,7 +61,13 @@ public class IncomingCallManager: NSObject, ObservableObject {
     // MARK: - START / STOP LISTENING
     public func startListening(user: User, companyId: String, idToken: String) {
         self.currentUserEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        self.isUserHelpDesk = user.isHelpDesk || user.role.lowercased().contains("helpdesk") || user.isAdmin
+        let isAdminUser = user.isAdmin || user.role.lowercased().contains("admin") || user.role.lowercased().contains("quantri")
+        if isAdminUser {
+            print("[IncomingCallManager] Bỏ qua lắng nghe cuộc gọi vì tài khoản Quản trị viên (Admin) không nhận cuộc gọi của ai.")
+            stopListening()
+            return
+        }
+        self.isUserHelpDesk = user.isHelpDesk || user.role.lowercased().contains("helpdesk")
         self.currentCompanyId = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         self.currentIdToken = idToken
 
@@ -108,8 +114,8 @@ public class IncomingCallManager: NSObject, ObservableObject {
                            (!targetEmail.isEmpty && currentUserEmail.contains(targetEmail)) ||
                            (!currentUserEmail.isEmpty && targetEmail.contains(currentUserEmail))
         let isHelpdeskCall = isUserHelpDesk && (
-            ["helpdesk", "hotline", "support", "admin", "all", ""].contains(targetEmail) ||
-            ["HELPDESK", "HOTLINE", "ADMIN"].contains(targetRole)
+            ["helpdesk", "hotline", "support", ""].contains(targetEmail) ||
+            ["HELPDESK", "HOTLINE"].contains(targetRole)
         )
 
         if isTargetToMe || isHelpdeskCall {
@@ -218,8 +224,8 @@ public class IncomingCallManager: NSObject, ObservableObject {
                                    (!targetEmail.isEmpty && self.currentUserEmail.contains(targetEmail)) ||
                                    (!self.currentUserEmail.isEmpty && targetEmail.contains(self.currentUserEmail))
                 let isHelpdeskCall = self.isUserHelpDesk && (
-                    ["helpdesk", "hotline", "support", "admin", "all", ""].contains(targetEmail) ||
-                    ["HELPDESK", "HOTLINE", "ADMIN"].contains(targetRole)
+                    ["helpdesk", "hotline", "support", ""].contains(targetEmail) ||
+                    ["HELPDESK", "HOTLINE"].contains(targetRole)
                 )
 
                 if isTargetToMe || isHelpdeskCall {

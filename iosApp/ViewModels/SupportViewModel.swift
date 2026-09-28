@@ -1437,6 +1437,99 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
+    // MARK: - BÀN GIAO CA / CHUYỂN TICKET (ĐỒNG BỘ 1:1 VỚI ANDROID handoverTicket)
+    public func handoverTicket(
+        ticketId: String,
+        toType: String, // "TECHNICIAN" or "HELPDESK"
+        targetTechEmail: String = "",
+        targetTechName: String = "",
+        targetCluster: String = "",
+        targetDeptId: String = "",
+        targetDeptName: String = "",
+        reason: String,
+        completion: ((Bool) -> Void)? = nil
+    ) {
+        Task {
+            let cleanReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleanReason.isEmpty else {
+                completion?(false)
+                return
+            }
+
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let fromName = !user.fullName.isEmpty ? user.fullName : user.email
+
+            var maskFields = [
+                "assignedByEmail", "assignedByName", "assignedAt",
+                "dispatchNote", "lastMessage", "lastMessageAt",
+                "isAcknowledged", "acknowledged", "acknowledgedAt",
+                "acknowledgedBy", "acknowledgedByName", "handlingMethod"
+            ]
+
+            var f: [String: Any] = [
+                "assignedByEmail": ["stringValue": user.email],
+                "assignedByName": ["stringValue": fromName],
+                "assignedAt": ["integerValue": String(now)],
+                "dispatchNote": ["stringValue": cleanReason],
+                "isAcknowledged": ["booleanValue": false],
+                "acknowledged": ["booleanValue": false],
+                "acknowledgedAt": ["integerValue": "0"],
+                "acknowledgedBy": ["stringValue": ""],
+                "acknowledgedByName": ["stringValue": ""],
+                "handlingMethod": ["stringValue": ""]
+            ]
+
+            let systemMsg: String
+
+            if toType == "TECHNICIAN" {
+                let cleanTargetEmail = targetTechEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let targetName = !targetTechName.isEmpty ? targetTechName : cleanTargetEmail
+                systemMsg = "🔄 [Bàn giao ca] KTV \(fromName) đã bàn giao yêu cầu cho KTV \(targetName). Lý do: \(cleanReason)"
+
+                maskFields.append(contentsOf: ["assignedToEmail", "assignedToName", "assignedCluster"])
+                f["assignedToEmail"] = ["stringValue": cleanTargetEmail]
+                f["assignedToName"] = ["stringValue": targetName]
+                f["assignedCluster"] = ["stringValue": targetCluster]
+                if !targetDeptId.isEmpty {
+                    maskFields.append("assignedDepartmentId")
+                    f["assignedDepartmentId"] = ["stringValue": targetDeptId]
+                }
+                if !targetDeptName.isEmpty {
+                    maskFields.append("assignedDepartmentName")
+                    f["assignedDepartmentName"] = ["stringValue": targetDeptName]
+                }
+            } else {
+                systemMsg = "↩️ [Chuyển về HelpDesk] KTV \(fromName) đã chuyển trả ticket cho HelpDesk tiếp nhận lại. Lý do: \(cleanReason)"
+
+                maskFields.append(contentsOf: ["status", "assignedToEmail", "assignedToName", "assignedCluster"])
+                f["status"] = ["stringValue": "OPEN"]
+                f["assignedToEmail"] = ["stringValue": ""]
+                f["assignedToName"] = ["stringValue": ""]
+                f["assignedCluster"] = ["stringValue": ""]
+            }
+
+            f["lastMessage"] = ["stringValue": systemMsg]
+            f["lastMessageAt"] = ["integerValue": String(now)]
+
+            let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
+            guard let url = URL(string: urlStr) else { completion?(false); return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
+
+            _ = await FirestoreHelper.executeSafeRequest(request)
+
+            sendMessage(ticketId: ticketId, text: systemMsg)
+            VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
+            self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
+        }
+    }
+
     // MARK: - LIVE TRACKING METHODS (ĐỒNG BỘ 1:1 VỚI LIVETRACKINGMAP.KT)
     public func startTrip(
         ticketId: String,

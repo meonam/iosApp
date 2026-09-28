@@ -20,6 +20,7 @@ public struct TicketChatDetailView: View {
     @State private var ratingComment: String = ""
     @State private var showLiveTrackingModal: Bool = false
     @State private var showAssignKtvSheet: Bool = false
+    @State private var showHandoverSheet: Bool = false
     @State private var showCallView: Bool = false
     @State private var showRejectReasonSheet: Bool = false
     @State private var rejectReasonText: String = ""
@@ -152,6 +153,10 @@ public struct TicketChatDetailView: View {
                 showAssignKtvSheet = false
             })
         }
+        // Sheet Bàn giao ca / Chuyển ticket (HandoverTicketSheetView đồng bộ 1:1 Android)
+        .sheet(isPresented: $showHandoverSheet) {
+            HandoverTicketSheetView(ticket: currentTicket, viewModel: viewModel)
+        }
         // Sheet Bản đồ lộ trình KTV (LiveTrackingMapView đồng bộ 1:1 Android)
         .sheet(isPresented: $showLiveTrackingModal) {
             LiveTrackingMapView(
@@ -249,7 +254,7 @@ public struct TicketChatDetailView: View {
                         .lineLimit(1)
 
                     let creatorDisp = ticket.creatorName.isEmpty ? ticket.creatorEmail : ticket.creatorName
-                    Text("#\(ticket.id.prefix(8).uppercased()) • \(creatorDisp)")
+                    Text("#TK-\(ticket.id.prefix(8).uppercased()) • \(creatorDisp)")
                         .font(.system(size: 10))
                         .foregroundColor(Color.white.opacity(0.85))
                         .lineLimit(1)
@@ -267,12 +272,17 @@ public struct TicketChatDetailView: View {
                         .clipShape(Circle())
                 }
 
-                // Nút Gọi WebRTC
-                if !isCreator && !ticket.creatorEmail.isEmpty {
+                // 1. Nút Gọi thoại trực tiếp giữa Người tạo <-> KTV (P2P In-App)
+                let callTargetEmail = isCreator ? ticket.assignedToEmail : ticket.creatorEmail
+                let callTargetName = isCreator
+                    ? (ticket.assignedToName.isEmpty ? "Kỹ thuật viên" : ticket.assignedToName)
+                    : (ticket.creatorName.isEmpty ? "Người gửi yêu cầu" : ticket.creatorName)
+
+                if !callTargetEmail.isEmpty && !isClosed {
                     Button(action: {
                         WebRtcCallManager.shared.startCall(
-                            targetEmail: ticket.creatorEmail,
-                            targetName: ticket.creatorName,
+                            targetEmail: callTargetEmail,
+                            targetName: callTargetName,
                             callerName: viewModel.user.fullName,
                             callerEmail: viewModel.user.email
                         )
@@ -282,7 +292,42 @@ public struct TicketChatDetailView: View {
                             .font(.system(size: 13))
                             .foregroundColor(.white)
                             .padding(6)
-                            .background(Color(hex: "#10B981"))
+                            .background(Color(hex: "#38BDF8"))
+                            .clipShape(Circle())
+                    }
+                }
+
+                // 2. Nút Gọi thoại Hàng đợi Trực ban HelpDesk
+                if !isClosed {
+                    Button(action: {
+                        WebRtcCallManager.shared.startCall(
+                            targetEmail: "helpdesk",
+                            targetName: "Trực ban HelpDesk",
+                            callerName: viewModel.user.fullName,
+                            callerEmail: viewModel.user.email
+                        )
+                        showCallView = true
+                    }) {
+                        Image(systemName: "headphones")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(6)
+                            .background(Color(hex: "#FBBF24"))
+                            .clipShape(Circle())
+                    }
+                }
+
+                // 3. Nút Bàn giao ca / Chuyển ticket (dành cho KTV được phân công)
+                if isAssignedTech && !isClosed && !isResolved {
+                    Button(action: {
+                        viewModel.fetchKtvTechnicians()
+                        showHandoverSheet = true
+                    }) {
+                        Image(systemName: "arrow.left.arrow.right")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(6)
+                            .background(Color(hex: "#6366F1"))
                             .clipShape(Circle())
                     }
                 }
