@@ -145,8 +145,8 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
 
             receiveNext()
 
-            // 4. Timeout safety 6.0s
-            DispatchQueue.global().asyncAfter(deadline: .now() + 6.0) {
+            // 4. Timeout safety 10.0s (tăng từ 6s để tránh timeout trên mạng yếu)
+            DispatchQueue.global().asyncAfter(deadline: .now() + 10.0) {
                 if !isFinished {
                     finish(success: false)
                 }
@@ -200,16 +200,20 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
 
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-            try session.setActive(true)
+            // Đặt category TRƯỚC KHI tạo player - đảm bảo phát qua loa ngoài, âm lượng tối đa
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .allowBluetooth])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
             try session.overrideOutputAudioPort(.speaker)
 
             audioPlayer?.stop()
+            audioPlayer = nil
             audioPlayer = try AVAudioPlayer(contentsOf: url)
             audioPlayer?.delegate = self
             audioPlayer?.volume = 1.0
+            audioPlayer?.numberOfLoops = 0
             audioPlayer?.prepareToPlay()
-            if audioPlayer?.play() != true {
+            let started = audioPlayer?.play() ?? false
+            if !started {
                 speakFallback(text: originalText)
             }
         } catch {

@@ -94,6 +94,15 @@ public class SupportViewModel: ObservableObject {
         self.idToken = idToken
         let saved = UserDefaults.standard.stringArray(forKey: "support_prefs_deleted_ids") ?? []
         self.deletedTicketIds = Set(saved)
+
+        // Lắng nghe tín hiệu background fetch / silent push từ AppDelegate → fetch ngay lập tức
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("QLTB_BackgroundFetch"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.fetchTicketsSilent()
+        }
     }
 
     // MARK: - HIDE / CLEAN CLOSED TICKETS
@@ -326,18 +335,96 @@ public class SupportViewModel: ObservableObject {
 
     // MARK: - REAL-TIME TICKET AUTO POLLING (ĐỒNG BỘ 1:1 VỚI FIRESTORE REALTIME LISTENER TRÊN ANDROID)
     private var autoPollingTimer: Timer?
+    private var firestoreListenTask: Task<Void, Never>?
 
-    public func startAutoPolling(interval: TimeInterval = 6.0) {
+    public func startAutoPolling(interval: TimeInterval = 3.0) {
         stopAutoPolling()
+        // 1. Polling nhanh 3 giây (fallback đảm bảo khi stream bị ngắt)
         autoPollingTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             self.fetchTicketsSilent()
         }
+        // 2. Firestore Listen stream (gần realtime như addSnapshotListener Android)
+        startFirestoreListen()
     }
 
     public func stopAutoPolling() {
         autoPollingTimer?.invalidate()
         autoPollingTimer = nil
+        firestoreListenTask?.cancel()
+        firestoreListenTask = nil
+    }
+
+    // MARK: - FIRESTORE LISTEN STREAM (SERVER-SENT EVENTS — GẦN REALTIME)
+    private func startFirestoreListen() {
+        firestoreListenTask?.cancel()
+        let compId = companyId
+        let token = idToken
+        guard !compId.isEmpty else { return }
+
+        firestoreListenTask = Task { [weak self] in
+            guard let self = self else { return }
+            // Firestore REST Listen endpoint: POST :listen với resumeToken
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(compId):listen"
+            guard let url = URL(string: urlStr) else { return }
+
+            let listenBody: [String: Any] = [
+                "addTarget": [
+                    "query": [
+                        "parent": "\(FirebaseConfig.firestoreBaseUrl)/companies/\(compId)",
+                        "structuredQuery": [
+                            "from": [["collectionId": "support_tickets"]],
+                            "orderBy": [["field": ["fieldPath": "createdAt"], "direction": "DESCENDING"]],
+                            "limit": 500
+                        ]
+                    ],
+                    "targetId": 1
+                ]
+            ]
+            guard let bodyData = try? JSONSerialization.data(withJSONObject: listenBody) else { return }
+
+            while !Task.isCancelled {
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                if !token.isEmpty {
+                    request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                }
+                request.httpBody = bodyData
+                request.timeoutInterval = 90  // server-sent stream — timeout lớn
+
+                do {
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    guard let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 else {
+                        try? await Task.sleep(nanoseconds: 5_000_000_000)
+                        continue
+                    }
+                    // Đọc từng dòng JSON từ stream
+                    var lineBuffer = ""
+                    for try await byte in bytes {
+                        if Task.isCancelled { break }
+                        let ch = Character(UnicodeScalar(byte))
+                        if ch == "\n" {
+                            let trimmed = lineBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !trimmed.isEmpty && trimmed != "[" && trimmed != "]" && trimmed != "," {
+                                // Khi nhận bất kỳ thay đổi nào từ stream → fetch ngay
+                                if trimmed.contains("documentChange") || trimmed.contains("documentDelete") {
+                                    await self.executeFetchTickets(showSpinner: false)
+                                }
+                            }
+                            lineBuffer = ""
+                        } else {
+                            lineBuffer.append(ch)
+                        }
+                    }
+                } catch {
+                    if !Task.isCancelled {
+                        // Kết nối bị ngắt → đợi 5 giây rồi reconnect
+                        try? await Task.sleep(nanoseconds: 5_000_000_000)
+                    }
+                }
+            }
+        }
     }
 
     public func fetchTicketsSilent() {
