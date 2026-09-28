@@ -113,10 +113,10 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         rtcAudioSession.lockForConfiguration()
         do {
             try rtcAudioSession.setCategory(
-                AVAudioSession.Category.playAndRecord.rawValue,
+                .playAndRecord,
                 with: [.allowBluetooth, .defaultToSpeaker]
             )
-            try rtcAudioSession.setMode(AVAudioSession.Mode.voiceChat.rawValue)
+            try rtcAudioSession.setMode(.voiceChat)
             try rtcAudioSession.setActive(true)
             self.isSpeakerOn = true
             print("[WebRtcCallManager] RTCAudioSession configured for voice chat (speaker default)")
