@@ -127,12 +127,12 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         speak(text: text)
     }
 
-    // MARK: - 2. ĐIỀU PHỐI KTV / CHUYÊN VIÊN
+    // MARK: - 2. ĐIỀU PHỐI KTV / CHUYÊN VIÊN (ĐỒNG BỘ 1:1 VỚI ANDROID VOICENOTIFICATIONHELPER.KT)
     public func notifyTechnicianDispatched(ticketId: String, donViName: String, subject: String, isSpecialist: Bool) {
-        let prefix = isSpecialist ? "Lệnh điều phối chuyên viên" : "Lệnh điều phối kỹ thuật viên"
-        let dv = donViName.isEmpty ? "điểm bán" : donViName
-        let sj = subject.isEmpty ? "Hỗ trợ sự cố" : subject
-        let text = "\(prefix). Hỗ trợ đơn vị \(dv). Sự cố: \(sj)"
+        let cleanDonVi = donViName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Hiện trường" : donViName
+        let text = isSpecialist ?
+            "Chuyên viên, bạn có yêu cầu hỗ trợ mới từ \(cleanDonVi)!" :
+            "Bạn có yêu cầu hỗ trợ mới từ \(cleanDonVi)!"
         speak(text: text)
     }
 
@@ -154,22 +154,24 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
     // MARK: - BỘ LỌC CHỐNG ĐỌC DỒN KHI MỞ NỀN TẢNG KHÁC (CROSS-PLATFORM DEDUPLICATION)
     public func processTicketUpdates(tickets: [SupportTicket], currentUser: User) {
         let now = Int64(Date().timeIntervalSince1970 * 1000)
-        let twoMinutesAgo = now - 120_000
+        let threeMinutesAgo = now - 180_000
 
-        // Lần đầu mở app: Ghi nhận trạng thái hiện tại, KHÔNG đọc dồn bất kỳ thông báo cũ nào
+        let cleanEmail = currentUser.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        // Lần đầu mở app: Ghi nhận các vé cũ hơn 3 phút để tránh đọc dồn lịch sử xa xưa
         if isFirstFetch {
             isFirstFetch = false
             for t in tickets {
                 seenTicketIds.insert(t.id)
-                if t.assignedAt > 0 { seenDispatches[t.id] = t.assignedAt }
+                // Chỉ đánh dấu đã xem nếu lệnh điều phối đã cũ (> 3 phút) hoặc KTV đã tiếp nhận
+                if t.assignedAt > 0 && (t.assignedAt < threeMinutesAgo || t.isAcknowledged) {
+                    seenDispatches[t.id] = t.assignedAt
+                }
                 let rateTime = t.feedbackAt > 0 ? t.feedbackAt : t.closedAt
                 if rateTime > 0 { seenRatings[t.id] = rateTime }
                 if t.resolvedAt > 0 { seenResolved[t.id] = t.resolvedAt }
             }
-            return
         }
-
-        let cleanEmail = currentUser.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
         for t in tickets {
             // Không xử lý ticket đã đóng, hủy hoặc bị từ chối
@@ -177,29 +179,38 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 continue
             }
 
-            // 1. SỰ CỐ MỚI GỬI LÊN
+            // 1. SỰ CỐ MỚI GỬI LÊN (Chỉ HelpDesk mới nhận)
             let isDispatched = !t.assignedTo.isEmpty || !t.assignedToEmail.isEmpty || t.assignedAt > 0 || !t.assignedDepartmentId.isEmpty
-            let isCreatedAfterStart = t.createdAt >= appStartTime && t.createdAt >= twoMinutesAgo
+            let isCreatedAfterStart = t.createdAt >= appStartTime && t.createdAt >= threeMinutesAgo
             let isNotSelf = t.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != cleanEmail
 
             if !seenTicketIds.contains(t.id) {
                 seenTicketIds.insert(t.id)
-                // NẾU ĐÃ ĐIỀU PHỐI RỒI TRÊN NỀN TẢNG KHÁC -> KHÔNG ĐƯỢC ĐỌC "SỰ CỐ MỚI"
-                // CHỈ HelpDesk mới nhận giọng đọc vé mới tạo (Chuyên viên, KTV, Quản lý, Admin không nhận):
                 if !isDispatched && isCreatedAfterStart && isNotSelf && currentUser.isHelpDesk {
                     notifyNewSupportRequest(ticketId: t.id, donViName: t.donVi, subject: t.subject, source: t.source)
                 }
             }
 
             // 2. LỆNH ĐIỀU PHỐI CHO KTV / CHUYÊN VIÊN
-            if t.isUserAssigned(email: cleanEmail) && !t.isAcknowledged && t.assignedAt > 0 {
-                let lastSeenAssign = seenDispatches[t.id] ?? 0
-                let isFreshDispatch = t.assignedAt > lastSeenAssign && t.assignedAt >= appStartTime && t.assignedAt >= twoMinutesAgo
-                let isNotAssigner = t.assignedByEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != cleanEmail
+            let isPrimary = t.isUserAssigned(email: cleanEmail)
+            let isSpecialistMatch = (t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST") && currentUser.isSpecialist && t.assignedToEmail.isEmpty && (
+                (!currentUser.toNghiepVu.isEmpty && currentUser.toNghiepVu == t.toNghiepVu) ||
+                (!currentUser.departmentId.isEmpty && currentUser.departmentId == t.assignedDepartmentId) ||
+                (!currentUser.departmentName.isEmpty && currentUser.departmentName == t.assignedDepartmentName)
+            )
+            let isClusterMatch = currentUser.isTechnician && t.assignedToEmail.isEmpty && !t.assignedCluster.isEmpty && (currentUser.khuVuc == t.assignedCluster)
 
-                if isFreshDispatch && isNotAssigner {
+            let isAssignedToMe = (isPrimary || isSpecialistMatch || isClusterMatch) && !t.isAcknowledged
+
+            if isAssignedToMe && t.assignedAt > 0 {
+                let lastSeenAssign = seenDispatches[t.id] ?? 0
+                let isFreshDispatch = (now - t.assignedAt) <= 180_000 // Trong vòng 3 phút
+                let hasNotAnnounced = lastSeenAssign == 0 || t.assignedAt > lastSeenAssign
+
+                if isFreshDispatch && hasNotAnnounced {
                     seenDispatches[t.id] = t.assignedAt
-                    notifyTechnicianDispatched(ticketId: t.id, donViName: t.donVi, subject: t.subject, isSpecialist: t.isSpecialistAssigned)
+                    let isSpecialist = t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST" || isSpecialistMatch
+                    notifyTechnicianDispatched(ticketId: t.id, donViName: t.donVi, subject: t.subject, isSpecialist: isSpecialist)
                 } else if lastSeenAssign == 0 {
                     seenDispatches[t.id] = t.assignedAt
                 }
@@ -209,7 +220,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             if t.rating > 0 {
                 let rateTime = t.feedbackAt > 0 ? t.feedbackAt : t.closedAt
                 let lastSeenRate = seenRatings[t.id] ?? 0
-                let isFreshRating = rateTime > lastSeenRate && rateTime >= appStartTime && rateTime >= twoMinutesAgo
+                let isFreshRating = rateTime > lastSeenRate && (rateTime >= appStartTime || rateTime >= threeMinutesAgo)
                 if isFreshRating {
                     seenRatings[t.id] = rateTime
                     notifyTicketRated(ticketId: t.id, rating: t.rating, feedback: t.feedback, donViName: t.donVi)
@@ -221,7 +232,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             // 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ
             if t.resolvedAt > 0 && t.isResolved && (currentUser.isAdmin || currentUser.isHelpDesk) {
                 let lastSeenRes = seenResolved[t.id] ?? 0
-                let isFreshResolved = t.resolvedAt > lastSeenRes && t.resolvedAt >= appStartTime && t.resolvedAt >= twoMinutesAgo
+                let isFreshResolved = t.resolvedAt > lastSeenRes && (t.resolvedAt >= appStartTime || t.resolvedAt >= threeMinutesAgo)
                 if isFreshResolved {
                     seenResolved[t.id] = t.resolvedAt
                     notifyTicketResolved(ticketId: t.id, donViName: t.donVi, subject: t.subject, techName: t.resolvedByName)

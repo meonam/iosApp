@@ -122,6 +122,10 @@ public struct MainContainerView: View {
                         supportViewModel.user = user
                         supportViewModel.companyId = compId
                         supportViewModel.idToken = token
+                        if authViewModel.isAuthenticated {
+                            supportViewModel.fetchTickets()
+                            supportViewModel.startAutoPolling()
+                        }
 
                         adminViewModel.currentUser = user
                         adminViewModel.companyId = compId
@@ -141,11 +145,15 @@ public struct MainContainerView: View {
                             supportViewModel.user = u
                             supportViewModel.companyId = cid
                             supportViewModel.idToken = tok
+                            supportViewModel.fetchTickets()
+                            supportViewModel.startAutoPolling()
 
                             adminViewModel.currentUser = u
                             adminViewModel.companyId = cid
                             adminViewModel.idToken = tok
                             adminViewModel.fetchAllDataIfNeeded()
+                        } else {
+                            supportViewModel.stopAutoPolling()
                         }
                     }
                     .onChange(of: scenePhase) { newPhase in
@@ -157,6 +165,11 @@ public struct MainContainerView: View {
                                 isOnline: isOnline,
                                 idToken: authViewModel.currentIdToken
                             )
+                            if isOnline {
+                                supportViewModel.startAutoPolling()
+                            } else {
+                                supportViewModel.stopAutoPolling()
+                            }
                         }
                     }
                     }
@@ -338,6 +351,7 @@ public struct MainContainerView: View {
 
         case .staffSupport:
             StaffSupportView(
+                viewModel: supportViewModel,
                 authViewModel: authViewModel,
                 onBack: { currentDestination = .home }
             )

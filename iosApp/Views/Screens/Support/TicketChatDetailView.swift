@@ -43,17 +43,24 @@ public struct TicketChatDetailView: View {
         self.onBack = onBack
     }
 
+    private var currentTicket: SupportTicket {
+        viewModel.tickets.first(where: { $0.id == ticket.id }) ?? ticket
+    }
+
     private var myEmail: String {
         viewModel.user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private var isCreator: Bool {
-        ticket.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == myEmail
+        let cEmail = currentTicket.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cUser = currentTicket.creatorUserId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let myId = viewModel.user.id.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return (!myEmail.isEmpty && cEmail == myEmail) || (!myId.isEmpty && cUser == myId)
     }
 
     private var isAssignedTech: Bool {
-        ticket.assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == myEmail ||
-        ticket.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == myEmail
+        if isCreator { return false }
+        return currentTicket.isUserAssigned(email: myEmail)
     }
 
     private var isAdminOrHelpDesk: Bool {
@@ -61,20 +68,20 @@ public struct TicketChatDetailView: View {
     }
 
     private var isClosed: Bool {
-        ticket.status.uppercased() == "CLOSED" || ticket.closedAt > 0
+        currentTicket.status.uppercased() == "CLOSED" || currentTicket.closedAt > 0
     }
 
     private var isReopenedActive: Bool {
-        !isClosed && (ticket.reopenCount > 0 || ticket.reopenedAt > 0) &&
-        ticket.status.uppercased() != "RESOLVED" &&
-        !(ticket.reopenedAt > 0 && ticket.resolvedAt > ticket.reopenedAt)
+        !isClosed && (currentTicket.reopenCount > 0 || currentTicket.reopenedAt > 0) &&
+        currentTicket.status.uppercased() != "RESOLVED" &&
+        !(currentTicket.reopenedAt > 0 && currentTicket.resolvedAt > currentTicket.reopenedAt)
     }
 
     private var isResolved: Bool {
         !isClosed && !isReopenedActive && (
-            ticket.status.uppercased() == "RESOLVED" ||
-            (ticket.reopenCount == 0 && ticket.reopenedAt <= 0 && ticket.resolvedAt > 0) ||
-            (ticket.reopenedAt > 0 && ticket.resolvedAt > ticket.reopenedAt)
+            currentTicket.status.uppercased() == "RESOLVED" ||
+            (currentTicket.reopenCount == 0 && currentTicket.reopenedAt <= 0 && currentTicket.resolvedAt > 0) ||
+            (currentTicket.reopenedAt > 0 && currentTicket.resolvedAt > currentTicket.reopenedAt)
         )
     }
 
@@ -140,14 +147,14 @@ public struct TicketChatDetailView: View {
         }
         // Sheet Điều phối KTV (DispatchTicketSheet đồng bộ 1:1 Android)
         .sheet(isPresented: $showAssignKtvSheet) {
-            DispatchTicketSheet(ticket: ticket, viewModel: viewModel, onDismiss: {
+            DispatchTicketSheet(ticket: currentTicket, viewModel: viewModel, onDismiss: {
                 showAssignKtvSheet = false
             })
         }
         // Sheet Bản đồ lộ trình KTV (LiveTrackingMapView đồng bộ 1:1 Android)
         .sheet(isPresented: $showLiveTrackingModal) {
             LiveTrackingMapView(
-                ticket: ticket,
+                ticket: currentTicket,
                 viewModel: viewModel,
                 onDismiss: { showLiveTrackingModal = false },
                 onSelfResolved: { showSelfResolvedAlert = true },

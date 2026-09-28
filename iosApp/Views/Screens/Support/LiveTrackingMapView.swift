@@ -213,7 +213,12 @@ struct LiveTrackingMKMapView: UIViewRepresentable {
         // Lần đầu mở: Tự động fit bounds
         if !context.coordinator.hasInitializedBounds && !annotationsToAdd.isEmpty {
             context.coordinator.hasInitializedBounds = true
-            uiView.showAnnotations(annotationsToAdd, animated: false)
+            if annotationsToAdd.count == 1, let single = annotationsToAdd.first {
+                let region = MKCoordinateRegion(center: single.coordinate, latitudinalMeters: 1000, longitudinalMeters: 1000)
+                uiView.setRegion(region, animated: false)
+            } else {
+                uiView.showAnnotations(annotationsToAdd, animated: false)
+            }
         }
     }
 
@@ -445,12 +450,18 @@ public struct LiveTrackingMapView: View {
     @State private var lastReportedLocation: CLLocationCoordinate2D? = nil
     @State private var lastReportedTime: Date = Date.distantPast
 
+    @State private var mapPollTimer: Timer?
+
+    private var currentTicket: SupportTicket {
+        viewModel.tickets.first(where: { $0.id == ticket.id }) ?? ticket
+    }
+
     private var myEmail: String {
         viewModel.user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private var isSpecialist: Bool {
-        ticket.isSpecialistAssigned || viewModel.user.isSpecialist
+        currentTicket.isSpecialistAssigned || currentTicket.assignedRole.uppercased() == "SPECIALIST" || viewModel.user.isSpecialist
     }
 
     private var rolePrefix: String {
@@ -462,39 +473,25 @@ public struct LiveTrackingMapView: View {
     }
 
     private var isCoTechUser: Bool {
-        ticket.coTechnicians.contains { $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == myEmail }
+        currentTicket.coTechnicians.contains { $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == myEmail } ||
+        currentTicket.collaboratorTrackings.values.contains { $0.technicianEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == myEmail }
     }
 
     private var isAssignedTech: Bool {
         if isCreator { return false }
-
         if isCoTechUser { return true }
 
-        let role = viewModel.user.role.uppercased()
-        let isTechOrSpecialist = viewModel.user.isTechnician || viewModel.user.isSpecialist ||
-                                 role.contains("KTV") || role.contains("TECHNICIAN") ||
-                                 role.contains("KYTHUAT") || role.contains("SPECIALIST") ||
-                                 role.contains("CHUYENVIEN") || role.contains("CHUYEN_VIEN") ||
-                                 !viewModel.user.toNghiepVu.isEmpty
+        let cleanMyEmail = myEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !cleanMyEmail.isEmpty else { return false }
 
-        if isTechOrSpecialist {
-            return true
-        }
-
-        let assignedEmail = ticket.assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let assignedName = ticket.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let myName = viewModel.user.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-        let isDirectlyAssigned = (assignedEmail == myEmail && !assignedEmail.isEmpty) ||
-                                 (assignedName == myEmail && !assignedName.isEmpty) ||
-                                 (assignedName == myName && !assignedName.isEmpty) ||
-                                 ticket.isUserAssigned(email: myEmail)
-
-        return isDirectlyAssigned
+        return currentTicket.isUserAssigned(email: cleanMyEmail)
     }
 
     private var isCreator: Bool {
-        ticket.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == myEmail
+        let cEmail = currentTicket.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cUser = currentTicket.creatorUserId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let myId = viewModel.user.id.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return (!myEmail.isEmpty && cEmail == myEmail) || (!myId.isEmpty && cUser == myId)
     }
 
     private var isHelpDeskOrAdmin: Bool {
@@ -502,46 +499,76 @@ public struct LiveTrackingMapView: View {
     }
 
     private var tracking: TicketTracking {
-        ticket.tracking ?? TicketTracking(ticketId: ticket.id)
+        currentTicket.tracking ?? TicketTracking(ticketId: currentTicket.id)
     }
 
     private var isEnRoute: Bool {
-        tracking.status == "EN_ROUTE" || ticket.collaboratorTrackings.values.contains { $0.status == "EN_ROUTE" }
+        tracking.status == "EN_ROUTE" || currentTicket.collaboratorTrackings.values.contains { $0.status == "EN_ROUTE" }
     }
 
     private var isArrived: Bool {
         tracking.status == "ARRIVED"
     }
 
-    // Tọa độ Điểm đến (Ưu tiên: 1. Đã phân giải qua CoopmartDirectory -> 2. Tọa độ creator -> 3. Tọa độ tracking -> 4. Fallback)
+    // Tọa độ Điểm đến (Ưu tiên: 1. Đã phân giải -> 2. Tọa độ creator -> 3. Tọa độ tracking -> 4. Phân giải nhanh qua CoopmartDirectory -> 5. Fallback)
     private var destCoordinate: CLLocationCoordinate2D {
         if let resolved = resolvedDestCoordinate {
             return resolved
         }
-        if ticket.creatorLat != 0 && ticket.creatorLng != 0 {
-            return CLLocationCoordinate2D(latitude: ticket.creatorLat, longitude: ticket.creatorLng)
+        if currentTicket.creatorLat != 0 && currentTicket.creatorLng != 0 {
+            return CLLocationCoordinate2D(latitude: currentTicket.creatorLat, longitude: currentTicket.creatorLng)
         }
         if tracking.destLat != 0 && tracking.destLng != 0 {
             return CLLocationCoordinate2D(latitude: tracking.destLat, longitude: tracking.destLng)
         }
+        if let store = CoopmartDirectory.resolveLocation(currentTicket.donVi) {
+            return CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng)
+        }
+        if let store = CoopmartDirectory.resolveLocation(currentTicket.creatorAddress) {
+            return CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng)
+        }
         return CLLocationCoordinate2D(latitude: 10.7769, longitude: 106.7009)
     }
 
-    // Tọa độ KTV / Chuyên viên (Ưu tiên: 1. GPS thực thiết bị nếu là KTV -> 2. Firestore -> 3. StartPoint -> 4. Fallback)
-    private var techCoordinate: CLLocationCoordinate2D {
-        if isAssignedTech, let devLoc = locationProvider.lastLocation, devLoc.latitude != 0, devLoc.longitude != 0 {
-            return devLoc
+    private var effectiveDestName: String {
+        if !resolvedDestName.isEmpty { return resolvedDestName }
+        if let store = CoopmartDirectory.resolveLocation(currentTicket.donVi) {
+            return store.name
         }
-        if tracking.currentLat != 0 && tracking.currentLng != 0 {
-            return CLLocationCoordinate2D(latitude: tracking.currentLat, longitude: tracking.currentLng)
+        if let store = CoopmartDirectory.resolveLocation(currentTicket.creatorAddress) {
+            return store.name
         }
-        if tracking.startLat != 0 && tracking.startLng != 0 {
-            return CLLocationCoordinate2D(latitude: tracking.startLat, longitude: tracking.startLng)
+        if !currentTicket.donVi.isEmpty { return currentTicket.donVi }
+        if !tracking.destAddress.isEmpty { return tracking.destAddress }
+        if !currentTicket.creatorAddress.isEmpty { return currentTicket.creatorAddress }
+        return "Điểm hỗ trợ"
+    }
+
+    // Tọa độ KTV / Chuyên viên (Chỉ trả về tọa độ KTV thực tế)
+    private var techCoordinate: CLLocationCoordinate2D? {
+        if isAssignedTech {
+            // Nếu người xem CHÍNH LÀ KTV/Chuyên viên phụ trách:
+            if let devLoc = locationProvider.lastLocation, devLoc.latitude != 0, devLoc.longitude != 0 {
+                return devLoc
+            }
+            if tracking.currentLat != 0 && tracking.currentLng != 0 {
+                return CLLocationCoordinate2D(latitude: tracking.currentLat, longitude: tracking.currentLng)
+            }
+            if tracking.startLat != 0 && tracking.startLng != 0 {
+                return CLLocationCoordinate2D(latitude: tracking.startLat, longitude: tracking.startLng)
+            }
+            return nil
+        } else {
+            // Nếu người xem là Khách hàng (Người gửi hỗ trợ) hoặc HelpDesk / Admin:
+            // TUYỆT ĐỐI KHÔNG dùng GPS thiết bị người xem! Chỉ hiển thị vị trí KTV gửi lên từ Firestore.
+            if tracking.currentLat != 0 && tracking.currentLng != 0 {
+                return CLLocationCoordinate2D(latitude: tracking.currentLat, longitude: tracking.currentLng)
+            }
+            if tracking.startLat != 0 && tracking.startLng != 0 {
+                return CLLocationCoordinate2D(latitude: tracking.startLat, longitude: tracking.startLng)
+            }
+            return nil
         }
-        if let devLoc = locationProvider.lastLocation, devLoc.latitude != 0, devLoc.longitude != 0 {
-            return devLoc
-        }
-        return CLLocationCoordinate2D(latitude: 10.7626, longitude: 106.6602)
     }
 
     private var startCoordinate: CLLocationCoordinate2D? {
@@ -554,7 +581,8 @@ public struct LiveTrackingMapView: View {
     private var effectiveDistanceKm: Double {
         if routeDistanceKm > 0.05 { return routeDistanceKm }
         if tracking.distanceKm > 0.05 { return tracking.distanceKm }
-        let loc1 = CLLocation(latitude: techCoordinate.latitude, longitude: techCoordinate.longitude)
+        guard let tech = techCoordinate else { return 0.0 }
+        let loc1 = CLLocation(latitude: tech.latitude, longitude: tech.longitude)
         let loc2 = CLLocation(latitude: destCoordinate.latitude, longitude: destCoordinate.longitude)
         return Double(round((loc1.distance(from: loc2) / 1000.0) * 10) / 10)
     }
@@ -563,30 +591,31 @@ public struct LiveTrackingMapView: View {
         if routeEtaMinutes > 0 { return routeEtaMinutes }
         if tracking.etaMinutes > 0 { return tracking.etaMinutes }
         let km = effectiveDistanceKm
+        if km <= 0.0 { return 0 }
         return max(1, Int(km / 25.0 * 60.0))
     }
 
     private var targetPhone: String {
         if isAssignedTech {
-            return ticket.creatorPhone
+            return currentTicket.creatorPhone
         } else {
-            return tracking.technicianPhone.isEmpty ? (ticket.assignedToEmail) : tracking.technicianPhone
+            return tracking.technicianPhone.isEmpty ? (currentTicket.assignedToEmail) : tracking.technicianPhone
         }
     }
 
     private var displayName: String {
         if isAssignedTech {
-            return ticket.creatorName.isEmpty ? (ticket.donVi.isEmpty ? ticket.creatorEmail : ticket.donVi) : ticket.creatorName
+            return currentTicket.creatorName.isEmpty ? (currentTicket.donVi.isEmpty ? currentTicket.creatorEmail : currentTicket.donVi) : currentTicket.creatorName
         } else {
-            return ticket.assignedToName.isEmpty ? (tracking.technicianName.isEmpty ? "\(fullRoleTitle) hỗ trợ" : tracking.technicianName) : ticket.assignedToName
+            return currentTicket.assignedToName.isEmpty ? (tracking.technicianName.isEmpty ? "\(fullRoleTitle) hỗ trợ" : tracking.technicianName) : currentTicket.assignedToName
         }
     }
 
     private var displaySub: String {
         if isAssignedTech {
-            return ticket.donVi.isEmpty ? "Yêu cầu #\(ticket.id.suffix(6).uppercased())" : "Đơn vị: \(ticket.donVi)"
+            return currentTicket.donVi.isEmpty ? "Yêu cầu #\(currentTicket.id.suffix(6).uppercased())" : "Đơn vị: \(currentTicket.donVi)"
         } else {
-            return "Phụ trách: \(ticket.assignedDepartmentName.isEmpty ? (isSpecialist ? "Tổ nghiệp vụ / Chuyên viên" : "Bộ phận Kỹ thuật") : ticket.assignedDepartmentName)"
+            return "Phụ trách: \(currentTicket.assignedDepartmentName.isEmpty ? (isSpecialist ? "Tổ nghiệp vụ / Chuyên viên" : "Bộ phận Kỹ thuật") : currentTicket.assignedDepartmentName)"
         }
     }
 
@@ -606,13 +635,13 @@ public struct LiveTrackingMapView: View {
                     techCoord: techCoordinate,
                     destCoord: destCoordinate,
                     startCoord: startCoordinate,
-                    destName: resolvedDestName.isEmpty ? (ticket.donVi.isEmpty ? ticket.subject : ticket.donVi) : resolvedDestName,
-                    techName: ticket.assignedToName.isEmpty ? (isAssignedTech ? (viewModel.user.fullName.isEmpty ? rolePrefix : viewModel.user.fullName) : rolePrefix) : ticket.assignedToName,
+                    destName: effectiveDestName,
+                    techName: currentTicket.assignedToName.isEmpty ? (isAssignedTech ? (viewModel.user.fullName.isEmpty ? rolePrefix : viewModel.user.fullName) : rolePrefix) : currentTicket.assignedToName,
                     isSpecialist: isSpecialist,
                     isEnRoute: isEnRoute,
                     isGpsLost: tracking.isGpsLost,
                     roadCoordinates: roadCoordinates,
-                    collaboratorTrackings: ticket.collaboratorTrackings,
+                    collaboratorTrackings: currentTicket.collaboratorTrackings,
                     arrivalRadiusMeters: arrivalRadiusMeters,
                     recenterTrigger: $recenterTrigger,
                     fitBoundsTrigger: $fitBoundsTrigger,
@@ -645,8 +674,15 @@ public struct LiveTrackingMapView: View {
         .onAppear {
             resolveDestination()
             fetchRoadRoute()
+            startMapPolling()
+        }
+        .onDisappear {
+            stopMapPolling()
         }
         .onChange(of: tracking.currentLat) { _ in
+            fetchRoadRoute()
+        }
+        .onChange(of: resolvedDestCoordinate?.latitude) { _ in
             fetchRoadRoute()
         }
         .onReceive(locationProvider.$lastLocation) { newLoc in
@@ -672,7 +708,7 @@ public struct LiveTrackingMapView: View {
                 lastReportedTime = now
 
                 viewModel.updateTripLocation(
-                    ticketId: ticket.id,
+                    ticketId: currentTicket.id,
                     currentLat: loc.latitude,
                     currentLng: loc.longitude,
                     distanceKm: effectiveDistanceKm,
@@ -694,7 +730,7 @@ public struct LiveTrackingMapView: View {
                 title: Text("Xác nhận hủy chuyến"),
                 message: Text("Bạn có chắc chắn muốn hủy chuyến đi của \(rolePrefix) \(displayName) từ xa?"),
                 primaryButton: .destructive(Text("Hủy chuyến")) {
-                    viewModel.cancelTrip(ticketId: ticket.id) { _ in
+                    viewModel.cancelTrip(ticketId: currentTicket.id) { _ in
                         onDismiss()
                     }
                 },
@@ -703,28 +739,41 @@ public struct LiveTrackingMapView: View {
         }
     }
 
+    // MARK: - MAP AUTO POLLING (CẬP NHẬT TỌA ĐỘ VÀ TRẠNG THÁI REALTIME)
+    private func startMapPolling() {
+        stopMapPolling()
+        mapPollTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
+            viewModel.fetchTicketsSilent()
+        }
+    }
+
+    private func stopMapPolling() {
+        mapPollTimer?.invalidate()
+        mapPollTimer = nil
+    }
+
     // MARK: - RESOLVE DESTINATION (COOPMART DIRECTORY + OSRM GEOCODE)
     private func resolveDestination() {
-        if ticket.creatorLat != 0 && ticket.creatorLng != 0 {
-            resolvedDestCoordinate = CLLocationCoordinate2D(latitude: ticket.creatorLat, longitude: ticket.creatorLng)
-            resolvedDestName = ticket.donVi.isEmpty ? ticket.subject : ticket.donVi
+        if currentTicket.creatorLat != 0 && currentTicket.creatorLng != 0 {
+            resolvedDestCoordinate = CLLocationCoordinate2D(latitude: currentTicket.creatorLat, longitude: currentTicket.creatorLng)
+            resolvedDestName = currentTicket.donVi.isEmpty ? currentTicket.subject : currentTicket.donVi
             return
         }
 
         if tracking.destLat != 0 && tracking.destLng != 0 {
             resolvedDestCoordinate = CLLocationCoordinate2D(latitude: tracking.destLat, longitude: tracking.destLng)
-            resolvedDestName = tracking.destAddress.isEmpty ? ticket.donVi : tracking.destAddress
+            resolvedDestName = tracking.destAddress.isEmpty ? currentTicket.donVi : tracking.destAddress
             return
         }
 
-        let query = ticket.donVi.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = currentTicket.donVi.trimmingCharacters(in: .whitespacesAndNewlines)
         if !query.isEmpty, let store = CoopmartDirectory.resolveLocation(query) {
             resolvedDestCoordinate = CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng)
             resolvedDestName = store.name
             return
         }
 
-        let addr = ticket.creatorAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        let addr = currentTicket.creatorAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         if !addr.isEmpty, let store = CoopmartDirectory.resolveLocation(addr) {
             resolvedDestCoordinate = CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng)
             resolvedDestName = store.name
@@ -785,7 +834,7 @@ public struct LiveTrackingMapView: View {
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(.white)
 
-                Text("Ticket #\(ticket.id.suffix(8).uppercased()) • \(ticket.subject)")
+                Text("Ticket #\(currentTicket.id.suffix(8).uppercased()) • \(currentTicket.subject)")
                     .font(.system(size: 11))
                     .foregroundColor(Color.white.opacity(0.85))
                     .lineLimit(1)
@@ -1019,21 +1068,21 @@ public struct LiveTrackingMapView: View {
             }
 
             // ROW 2.5: Danh sách KTV / Chuyên Viên Phối Hợp (chuẩn 1:1 Android)
-            if !ticket.coTechnicians.isEmpty {
+            if !currentTicket.coTechnicians.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         Image(systemName: "person.2.fill")
                             .font(.system(size: 13))
                             .foregroundColor(Color(hex: "#7C3AED"))
-                        Text("KTV / Chuyên Viên Phối Hợp (\(ticket.coTechnicians.count)):")
+                        Text("KTV / Chuyên Viên Phối Hợp (\(currentTicket.coTechnicians.count)):")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color(hex: "#6B21A8"))
                     }
 
-                    ForEach(ticket.coTechnicians) { co in
+                    ForEach(currentTicket.coTechnicians) { co in
                         let sKey = co.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                             .replacingOccurrences(of: "[^a-zA-Z0-9_]", with: "_", options: .regularExpression)
-                        let cTrack = ticket.collaboratorTrackings[sKey]
+                        let cTrack = currentTicket.collaboratorTrackings[sKey]
                         let statusText: String = {
                             if cTrack?.status == "ARRIVED" { return "✅ Đã đến" }
                             if cTrack?.status == "EN_ROUTE" {
@@ -1115,15 +1164,15 @@ public struct LiveTrackingMapView: View {
                 // Nút Bắt đầu di chuyển
                 Button(action: {
                     let dest = destCoordinate
-                    let tech = techCoordinate
+                    guard let tech = techCoordinate else { return }
                     viewModel.startTrip(
-                        ticketId: ticket.id,
+                        ticketId: currentTicket.id,
                         startLat: tech.latitude,
                         startLng: tech.longitude,
                         startAddress: "Vị trí xuất phát của \(rolePrefix)",
                         destLat: dest.latitude,
                         destLng: dest.longitude,
-                        destAddress: resolvedDestName.isEmpty ? ticket.donVi : resolvedDestName,
+                        destAddress: effectiveDestName,
                         distanceKm: effectiveDistanceKm,
                         etaMinutes: effectiveEtaMinutes,
                         isSpecialist: isSpecialist,
@@ -1146,7 +1195,7 @@ public struct LiveTrackingMapView: View {
 
                 // Nút Xử lý từ xa
                 Button(action: {
-                    viewModel.switchToRemote(ticketId: ticket.id, isSpecialist: isSpecialist) { _ in
+                    viewModel.switchToRemote(ticketId: currentTicket.id, isSpecialist: isSpecialist) { _ in
                         onDismiss()
                     }
                 }) {
@@ -1193,7 +1242,7 @@ public struct LiveTrackingMapView: View {
                     if effectiveDistanceKm > (arrivalRadiusMeters / 1000.0) {
                         showDistanceWarningDialog = true
                     } else {
-                        viewModel.markArrived(ticketId: ticket.id, isSpecialist: isSpecialist, isCoTech: isCoTechUser)
+                        viewModel.markArrived(ticketId: currentTicket.id, isSpecialist: isSpecialist, isCoTech: isCoTechUser)
                     }
                 }) {
                     HStack(spacing: 8) {
@@ -1210,7 +1259,7 @@ public struct LiveTrackingMapView: View {
 
                 // Dừng di chuyển & Đổi sang xử lý từ xa
                 Button(action: {
-                    viewModel.switchToRemote(ticketId: ticket.id, isSpecialist: isSpecialist) { _ in
+                    viewModel.switchToRemote(ticketId: currentTicket.id, isSpecialist: isSpecialist) { _ in
                         onDismiss()
                     }
                 }) {
@@ -1298,7 +1347,7 @@ public struct LiveTrackingMapView: View {
     // MARK: - CREATOR (USER) ACTIONS
     private var creatorActionButtons: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("📍 Điểm đến hỗ trợ: \(resolvedDestName.isEmpty ? (ticket.donVi.isEmpty ? "Tại văn phòng người gửi" : ticket.donVi) : resolvedDestName) (Bán kính \(Int(arrivalRadiusMeters))m)")
+            Text("📍 Điểm đến hỗ trợ: \(effectiveDestName) (Bán kính \(Int(arrivalRadiusMeters))m)")
                 .font(.system(size: 12))
                 .foregroundColor(Color(hex: "#64748B"))
 

@@ -586,13 +586,38 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
 
     public func isUserAssigned(email: String) -> Bool {
         let clean = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == clean ||
-           assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == clean {
+        guard !clean.isEmpty else { return false }
+        let cleanPrefix = clean.components(separatedBy: "@").first ?? clean
+
+        let aEmail = assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let aEmailPrefix = aEmail.components(separatedBy: "@").first ?? aEmail
+        if !aEmail.isEmpty && (aEmail == clean || (!cleanPrefix.isEmpty && aEmailPrefix == cleanPrefix)) {
             return true
         }
-        return coTechnicians.contains {
-            $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == clean
+
+        let aTo = assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let aToPrefix = aTo.components(separatedBy: "@").first ?? aTo
+        if !aTo.isEmpty && (aTo == clean || (!cleanPrefix.isEmpty && aToPrefix == cleanPrefix)) {
+            return true
         }
+
+        if coTechnicians.contains(where: {
+            let co = $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let coPrefix = co.components(separatedBy: "@").first ?? co
+            return co == clean || (!cleanPrefix.isEmpty && coPrefix == cleanPrefix)
+        }) {
+            return true
+        }
+
+        if collaboratorTrackings.values.contains(where: {
+            let co = $0.technicianEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let coPrefix = co.components(separatedBy: "@").first ?? co
+            return co == clean || (!cleanPrefix.isEmpty && coPrefix == cleanPrefix)
+        }) {
+            return true
+        }
+
+        return false
     }
 }
 

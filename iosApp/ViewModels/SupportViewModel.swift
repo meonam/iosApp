@@ -324,82 +324,124 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
+    // MARK: - REAL-TIME TICKET AUTO POLLING (ĐỒNG BỘ 1:1 VỚI FIRESTORE REALTIME LISTENER TRÊN ANDROID)
+    private var autoPollingTimer: Timer?
+
+    public func startAutoPolling(interval: TimeInterval = 6.0) {
+        stopAutoPolling()
+        autoPollingTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            self.fetchTicketsSilent()
+        }
+    }
+
+    public func stopAutoPolling() {
+        autoPollingTimer?.invalidate()
+        autoPollingTimer = nil
+    }
+
+    deinit {
+        stopAutoPolling()
+    }
+
+    public func fetchTicketsSilent() {
+        guard !companyId.isEmpty else { return }
+        Task {
+            await self.executeFetchTickets(showSpinner: false)
+        }
+    }
+
     // MARK: - FETCH ALL TICKETS (FIRESTORE RUN QUERY & DIRECT FALLBACK)
     public func fetchTickets() {
         guard !companyId.isEmpty else { return }
-        isLoading = true
-        errorMessage = nil
-
         Task {
-            let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp):runQuery"
-            guard let url = URL(string: urlStr) else {
-                await MainActor.run { self.isLoading = false }
-                return
-            }
+            await self.executeFetchTickets(showSpinner: true)
+        }
+    }
 
-            let queryPayload: [String: Any] = [
-                "structuredQuery": [
-                    "from": [["collectionId": "support_tickets"]],
-                    "orderBy": [
-                        ["field": ["fieldPath": "createdAt"], "direction": "DESCENDING"]
-                    ],
-                    "limit": 500
-                ]
+    private func executeFetchTickets(showSpinner: Bool) async {
+        if showSpinner {
+            await MainActor.run {
+                self.isLoading = true
+                self.errorMessage = nil
+            }
+        }
+
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp):runQuery"
+        guard let url = URL(string: urlStr) else {
+            if showSpinner {
+                await MainActor.run { self.isLoading = false }
+            }
+            return
+        }
+
+        let queryPayload: [String: Any] = [
+            "structuredQuery": [
+                "from": [["collectionId": "support_tickets"]],
+                "orderBy": [
+                    ["field": ["fieldPath": "createdAt"], "direction": "DESCENDING"]
+                ],
+                "limit": 500
             ]
+        ]
 
-            guard let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) else {
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) else {
+            if showSpinner {
                 await MainActor.run { self.isLoading = false }
-                return
             }
+            return
+        }
 
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            if !idToken.isEmpty {
-                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-            }
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = bodyData
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        if !idToken.isEmpty {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = bodyData
 
-            var responseData: Data? = nil
-            var isSuccess = false
+        var responseData: Data? = nil
+        var isSuccess = false
 
-            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
-               httpResponse.statusCode == 200 {
-                responseData = data
-                isSuccess = true
-            }
+        if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+           httpResponse.statusCode == 200 {
+            responseData = data
+            isSuccess = true
+        }
 
-            // Fallback: Nếu runQuery bị lỗi hoặc không có dữ liệu, dùng trực tiếp document listing
-            if !isSuccess {
-                let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=300"
-                if let listUrl = URL(string: listUrlStr) {
-                    var listReq = URLRequest(url: listUrl)
-                    if !idToken.isEmpty {
-                        listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                    }
-                    if let (lData, lHttp) = await FirestoreHelper.executeSafeRequest(listReq),
-                       lHttp.statusCode == 200 {
-                        if let json = try? JSONSerialization.jsonObject(with: lData) as? [String: Any],
-                           let docs = json["documents"] as? [[String: Any]] {
-                            let wrappedDocs = docs.map { ["document": $0] }
-                            if let wrappedData = try? JSONSerialization.data(withJSONObject: wrappedDocs) {
-                                responseData = wrappedData
-                                isSuccess = true
-                            }
+        // Fallback: Nếu runQuery bị lỗi hoặc không có dữ liệu, dùng trực tiếp document listing
+        if !isSuccess {
+            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=300"
+            if let listUrl = URL(string: listUrlStr) {
+                var listReq = URLRequest(url: listUrl)
+                if !idToken.isEmpty {
+                    listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                }
+                if let (lData, lHttp) = await FirestoreHelper.executeSafeRequest(listReq),
+                   lHttp.statusCode == 200 {
+                    if let json = try? JSONSerialization.jsonObject(with: lData) as? [String: Any],
+                       let docs = json["documents"] as? [[String: Any]] {
+                        let wrappedDocs = docs.map { ["document": $0] }
+                        if let wrappedData = try? JSONSerialization.data(withJSONObject: wrappedDocs) {
+                            responseData = wrappedData
+                            isSuccess = true
                         }
                     }
                 }
             }
+        }
 
-            guard isSuccess, let data = responseData,
-                  let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-                await MainActor.run {
+        guard isSuccess, let data = responseData,
+              let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
+            await MainActor.run {
+                if showSpinner {
                     self.isLoading = false
                     self.errorMessage = "Không thể tải danh sách phiếu hỗ trợ"
                 }
-                return
             }
+            return
+        }
 
             let parsed: [SupportTicket] = results.compactMap { item in
                 guard let doc = item["document"] as? [String: Any],
@@ -636,11 +678,12 @@ public class SupportViewModel: ObservableObject {
             let sortedTickets = parsed.sorted { $0.lastMessageAt.coerceAtLeast($0.createdAt) > $1.lastMessageAt.coerceAtLeast($1.createdAt) }
             await MainActor.run {
                 self.rawTickets = sortedTickets
-                self.isLoading = false
+                if showSpinner {
+                    self.isLoading = false
+                }
                 VoiceNotificationHelper.shared.processTicketUpdates(tickets: sortedTickets, currentUser: self.user)
             }
         }
-    }
 
     // MARK: - CREATE TICKET
     public func createTicket(
