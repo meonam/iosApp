@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - SUPPORT VIEW MODEL (ĐỒNG BỘ 1:1 VỚI ADMINSUPPORTVIEWMODEL.KT TRÊN ANDROID)
 @MainActor
@@ -353,6 +354,12 @@ public class SupportViewModel: ObservableObject {
         autoPollingTimer = nil
         firestoreListenTask?.cancel()
         firestoreListenTask = nil
+        bgPollingRenewalTask?.cancel()
+        bgPollingRenewalTask = nil
+        if bgPollingTaskId != .invalid {
+            UIApplication.shared.endBackgroundTask(bgPollingTaskId)
+            bgPollingTaskId = .invalid
+        }
     }
 
     // MARK: - FIRESTORE LISTEN STREAM (SERVER-SENT EVENTS — GẦN REALTIME)
@@ -445,6 +452,52 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
+    // MARK: - GIỮ POLLING HOẠT ĐỘNG KHI APP CHẠY NỀN (KHÔNG LOGOUT)
+    private var bgPollingTaskId: UIBackgroundTaskIdentifier = .invalid
+    private var bgPollingRenewalTask: Task<Void, Never>?
+
+    public func keepPollingInBackground() {
+        // Kết thúc background task cũ nếu có
+        if bgPollingTaskId != .invalid {
+            UIApplication.shared.endBackgroundTask(bgPollingTaskId)
+            bgPollingTaskId = .invalid
+        }
+        bgPollingRenewalTask?.cancel()
+
+        // iOS cho phép ~30 giây background execution — cần liên tục gia hạn
+        bgPollingTaskId = UIApplication.shared.beginBackgroundTask(withName: "QLTB_KeepPolling") { [weak self] in
+            guard let self = self else { return }
+            if self.bgPollingTaskId != .invalid {
+                UIApplication.shared.endBackgroundTask(self.bgPollingTaskId)
+                self.bgPollingTaskId = .invalid
+            }
+        }
+
+        // Vòng lặp gia hạn: mỗi 20 giây request một background task mới để iOS không suspend
+        bgPollingRenewalTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 20_000_000_000) // 20 giây
+                guard let self = self, !Task.isCancelled else { break }
+                guard self.autoPollingTimer != nil else { break } // Đã stop → dừng gia hạn
+                // Kết thúc task cũ
+                if self.bgPollingTaskId != .invalid {
+                    UIApplication.shared.endBackgroundTask(self.bgPollingTaskId)
+                    self.bgPollingTaskId = .invalid
+                }
+                // Bắt đầu task mới
+                self.bgPollingTaskId = UIApplication.shared.beginBackgroundTask(withName: "QLTB_KeepPolling") { [weak self] in
+                    guard let self = self else { return }
+                    if self.bgPollingTaskId != .invalid {
+                        UIApplication.shared.endBackgroundTask(self.bgPollingTaskId)
+                        self.bgPollingTaskId = .invalid
+                    }
+                }
+                // Trigger fetch ngay trong chu kỳ gia hạn
+                self.fetchTicketsSilent()
+            }
+        }
+    }
+
     // MARK: - FETCH ALL TICKETS (FIRESTORE RUN QUERY & DIRECT FALLBACK)
     public func fetchTickets() {
         guard !companyId.isEmpty else { return }
@@ -452,6 +505,7 @@ public class SupportViewModel: ObservableObject {
             await self.executeFetchTickets(showSpinner: true)
         }
     }
+
 
     private func executeFetchTickets(showSpinner: Bool) async {
         if showSpinner {

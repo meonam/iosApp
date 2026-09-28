@@ -157,16 +157,26 @@ public struct MainContainerView: View {
                         }
                     }
                     .onChange(of: scenePhase) { newPhase in
-                        if authViewModel.isAuthenticated, let user = authViewModel.currentUser {
-                            let isForeground = (newPhase == .active)
+                        guard authViewModel.isAuthenticated, let user = authViewModel.currentUser else { return }
+                        switch newPhase {
+                        case .active:
+                            // Foreground: cập nhật presence + restart stream
                             PresenceHelper.shared.setPresence(
                                 companyId: authViewModel.currentCompanyId,
                                 email: user.email,
                                 isOnline: true,
                                 idToken: authViewModel.currentIdToken
                             )
-                            // Duy trì auto-polling ngầm kể cả khi chạy nền để nhận lệnh điều phối và phát giọng nói / thả thông báo như Android
-                            supportViewModel.startAutoPolling(interval: isForeground ? 6.0 : 8.0)
+                            // Khởi động lại polling + Firestore Listen stream (3s)
+                            supportViewModel.startAutoPolling(interval: 3.0)
+                        case .background:
+                            // Background: giữ nguyên polling 3s — iOS sẽ giới hạn nhưng polling vẫn chạy
+                            // KHÔNG stopAutoPolling() — đây là yêu cầu bắt buộc: app nền vẫn nhận lệnh
+                            supportViewModel.keepPollingInBackground()
+                        case .inactive:
+                            break
+                        @unknown default:
+                            break
                         }
                     }
                     }
