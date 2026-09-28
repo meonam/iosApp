@@ -331,14 +331,22 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             if let osmAddress = osmAddress, !osmAddress.isEmpty {
                 Task { @MainActor in
                     let currentAddr = self.currentAddress
-                    // Nominatim chỉ thay CLGeocoder khi:
-                    // 1. Địa chỉ hiện tại là tọa độ thô (chưa geocode được)
-                    // 2. HOẶC Nominatim có số nhà (houseNum) — chi tiết hơn Apple Maps
-                    // 3. HOẶC Nominatim dài hơn ĐÁng kể (>20 ký tự) so với Apple
+                    // Nominatim thay CLGeocoder khi:
+                    // 1. Địa chỉ hiện tại là tọa độ thô / chưa có
+                    // 2. HOẶC Nominatim có số nhà (bắt đầu bằng chữ số)
+                    // 3. HOẶC Nominatim dài hơn đáng kể (>20 ký tự)
+                    // 4. HOẶC Apple trả về đường huyện/quốc lộ (xấu) còn Nominatim không có → Nominatim tốt hơn
                     let nominatimHasHouseNum = osmAddress.first?.isNumber == true
                     let nominatimMuchLonger = osmAddress.count > currentAddr.count + 20
                     let currentIsFallback = currentAddr.contains("Tọa độ:") || currentAddr.contains("Chưa có")
-                    if currentIsFallback || nominatimHasHouseNum || nominatimMuchLonger {
+                    let appleHasHighway = currentAddr.contains("Đường Huyện") || currentAddr.contains("Đường Tỉnh") ||
+                                         currentAddr.contains("Quốc Lộ") || currentAddr.contains("National Road") ||
+                                         currentAddr.contains("County Road") || currentAddr.contains("Highway") ||
+                                         currentAddr.contains("Tỉnh Lộ")
+                    let nominatimHasHighway = osmAddress.contains("Đường Huyện") || osmAddress.contains("Đường Tỉnh") ||
+                                              osmAddress.contains("Quốc Lộ") || osmAddress.contains("County Road")
+                    let appleHasHighwayNominatimBetter = appleHasHighway && !nominatimHasHighway
+                    if currentIsFallback || nominatimHasHouseNum || nominatimMuchLonger || appleHasHighwayNominatimBetter {
                         self.currentAddress = osmAddress
                     }
                 }
@@ -363,21 +371,47 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         let subNumber = p.subThoroughfare?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let street = p.thoroughfare?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let name = p.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let subLoc = p.subLocality?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let rawSubLoc = p.subLocality?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let subAdmin = p.subAdministrativeArea?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let loc = p.locality?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let admin = p.administrativeArea?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
+        // Chuẩn hóa viết tắt Apple Maps: "X. " → "Xã ", "P. " → "Phường ", "TT. " → "Thị Trấn "
+        var subLoc = rawSubLoc
+        if subLoc.hasPrefix("X. ") { subLoc = "Xã " + subLoc.dropFirst(3) }
+        else if subLoc.hasPrefix("X ") { subLoc = "Xã " + subLoc.dropFirst(2) }
+        else if subLoc.hasPrefix("P. ") { subLoc = "Phường " + subLoc.dropFirst(3) }
+        else if subLoc.hasPrefix("P ") { subLoc = "Phường " + subLoc.dropFirst(2) }
+        else if subLoc.hasPrefix("TT. ") { subLoc = "Thị Trấn " + subLoc.dropFirst(4) }
+
+        // Phát hiện đường huyện/tỉnh/quốc lộ trong thoroughfare — không phải tên đường dân sinh
+        let isHighwayStreet = street.hasPrefix("Đường Huyện") || street.hasPrefix("Đường Tỉnh") ||
+                              street.hasPrefix("Quốc Lộ") || street.hasPrefix("QL ") ||
+                              street.hasPrefix("ĐT ") || street.hasPrefix("ĐH ") ||
+                              street.hasPrefix("National Road") || street.hasPrefix("Provincial Road") ||
+                              street.hasPrefix("County Road") || street.hasPrefix("Highway") ||
+                              street.hasPrefix("Tỉnh Lộ")
+
         // 1. Số nhà & Tên đường
         var streetLine = ""
-        if !subNumber.isEmpty && !street.isEmpty {
-            streetLine = street.hasPrefix(subNumber) ? street : "\(subNumber) \(street)"
-        } else if !street.isEmpty {
-            streetLine = street
+        if isHighwayStreet {
+            // Bỏ tên đường huyện. Nếu có số nhà, ghép vào subLocality: "56 Xã Tân Long Hội"
+            if !subNumber.isEmpty && !subLoc.isEmpty {
+                streetLine = "\(subNumber) \(subLoc)"
+            } else if !subNumber.isEmpty {
+                streetLine = "Số \(subNumber)"
+            }
+            // Nếu không có số nhà → để trống, subLocality sẽ xuất hiện ở phần 2
+        } else {
+            if !subNumber.isEmpty && !street.isEmpty {
+                streetLine = street.hasPrefix(subNumber) ? street : "\(subNumber) \(street)"
+            } else if !street.isEmpty {
+                streetLine = street
+            }
         }
 
-        // Tên điểm / Tòa nhà / Ấp / Thôn nếu có trong name
-        if !name.isEmpty {
+        // Tên điểm / Tòa nhà / Ấp / Thôn nếu có trong name (và không trùng với streetLine)
+        if !name.isEmpty && !name.localizedCaseInsensitiveContains(street) {
             if streetLine.isEmpty {
                 streetLine = name
             } else if !streetLine.localizedCaseInsensitiveContains(name) && !name.localizedCaseInsensitiveContains(streetLine) {
@@ -389,10 +423,11 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             parts.append(streetLine)
         }
 
-        // 2. Phường / Xã (subLocality)
+        // 2. Phường / Xã (subLocality) — chỉ thêm nếu chưa nằm trong streetLine
         if !subLoc.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(subLoc) }) {
             parts.append(subLoc)
         }
+
 
         // 3. Quận / Huyện / Thị xã (subAdministrativeArea) — CỰC KỲ QUAN TRỌNG ĐỂ KHÔNG BỊ MẤT HUYỆN/QUẬN
         if !subAdmin.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(subAdmin) }) {
