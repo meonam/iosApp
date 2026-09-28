@@ -2,7 +2,23 @@ import Foundation
 import CryptoKit
 import AVFoundation
 
-public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocketDelegate {
+// MARK: - WEBSOCKET TASK DELEGATE CHO EDGE TTS
+private class EdgeTtsWebSocketDelegate: NSObject, URLSessionWebSocketDelegate {
+    var onOpen: (() -> Void)?
+    var onError: ((Error) -> Void)?
+
+    func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
+        onOpen?()
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        if let error = error {
+            onError?(error)
+        }
+    }
+}
+
+public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
     public static let shared = EdgeTtsClient()
 
     private let winEpoch: Int64 = 11644473600
@@ -55,10 +71,10 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
         let muid = UUID().uuidString.replacingOccurrences(of: "-", with: "").uppercased()
         request.setValue("muid=\(muid);", forHTTPHeaderField: "Cookie")
 
+        let wsDelegate = EdgeTtsWebSocketDelegate()
         let config = URLSessionConfiguration.default
-        let session = URLSession(configuration: config, delegate: nil, delegateQueue: nil)
+        let session = URLSession(configuration: config, delegate: wsDelegate, delegateQueue: nil)
         let task = session.webSocketTask(with: request)
-        task.resume()
 
         return await withCheckedContinuation { continuation in
             var audioBuffer = Data()
@@ -68,6 +84,7 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
                 guard !isFinished else { return }
                 isFinished = true
                 task.cancel(with: .normalClosure, reason: nil)
+                session.invalidateAndCancel()
 
                 // Khi tải thành công và có dữ liệu âm thanh > 500 bytes (tương tự Android)
                 if success && audioBuffer.count > 500 {
@@ -89,31 +106,39 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
                 continuation.resume(returning: false)
             }
 
-            // 1. Gửi cấu hình speech.config
-            let configMsg = "Content-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n" +
-                "{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"false\"},\"outputFormat\":\"audio-24khz-48kbitrate-mono-mp3\"}}}}"
-            task.send(.string(configMsg)) { err in
-                if let err = err {
-                    print("[EdgeTtsClient] send config error: \(err)")
-                    finish(success: false)
-                    return
-                }
+            wsDelegate.onError = { err in
+                print("[EdgeTtsClient] WebSocket connection error: \(err)")
+                finish(success: false)
+            }
 
-                // 2. Gửi SSML chuẩn cú pháp Microsoft Edge TTS
-                let reqId = UUID().uuidString.replacingOccurrences(of: "-", with: "")
-                let escaped = trimmed
-                    .replacingOccurrences(of: "&", with: "&amp;")
-                    .replacingOccurrences(of: "<", with: "&lt;")
-                    .replacingOccurrences(of: ">", with: "&gt;")
-                    .replacingOccurrences(of: "\"", with: "&quot;")
-                    .replacingOccurrences(of: "'", with: "&apos;")
-                let ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='vi-VN'><voice name='\(voice)'><prosody pitch='+0Hz' rate='+0%'>\(escaped)</prosody></voice></speak>"
-                let ssmlMsg = "X-RequestId:\(reqId)\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n\(ssml)"
-
-                task.send(.string(ssmlMsg)) { sErr in
-                    if let sErr = sErr {
-                        print("[EdgeTtsClient] send ssml error: \(sErr)")
+            // CHỈ GỬI CONFIG & SSML KHI WEBSOCKET ĐÃ KẾT NỐI HOÀN TẤT (didOpenWithProtocol)
+            wsDelegate.onOpen = {
+                // 1. Gửi speech.config
+                let configMsg = "Content-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n" +
+                    "{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"false\"},\"outputFormat\":\"audio-24khz-48kbitrate-mono-mp3\"}}}}"
+                task.send(.string(configMsg)) { err in
+                    if let err = err {
+                        print("[EdgeTtsClient] send config error: \(err)")
                         finish(success: false)
+                        return
+                    }
+
+                    // 2. Gửi SSML chuẩn cú pháp Microsoft Edge TTS
+                    let reqId = UUID().uuidString.replacingOccurrences(of: "-", with: "")
+                    let escaped = trimmed
+                        .replacingOccurrences(of: "&", with: "&amp;")
+                        .replacingOccurrences(of: "<", with: "&lt;")
+                        .replacingOccurrences(of: ">", with: "&gt;")
+                        .replacingOccurrences(of: "\"", with: "&quot;")
+                        .replacingOccurrences(of: "'", with: "&apos;")
+                    let ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='vi-VN'><voice name='\(voice)'><prosody pitch='+0Hz' rate='+0%'>\(escaped)</prosody></voice></speak>"
+                    let ssmlMsg = "X-RequestId:\(reqId)\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n\(ssml)"
+
+                    task.send(.string(ssmlMsg)) { sErr in
+                        if let sErr = sErr {
+                            print("[EdgeTtsClient] send ssml error: \(sErr)")
+                            finish(success: false)
+                        }
                     }
                 }
             }
@@ -150,6 +175,7 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
                 }
             }
 
+            task.resume()
             receiveNext()
 
             // 4. Timeout an toàn 10s
@@ -189,8 +215,51 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
         return false
     }
 
+    // MARK: - 3. PHÁT TỆP ÂM THANH VTV GỐC ĐÓNG GÓI SẴN TRONG BUNDLE (ĐỒNG BỘ 1:1 THEO ANDROID R.raw)
+    public func playBundledAudio(named name: String) -> Bool {
+        let cleanName = name.replacingOccurrences(of: ".mp3", with: "")
+        var fileUrl: URL? = nil
+
+        if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3", subdirectory: "Audio") {
+            fileUrl = url
+        } else if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3") {
+            fileUrl = url
+        } else if let path = Bundle.main.path(forResource: cleanName, ofType: "mp3") {
+            fileUrl = URL(fileURLWithPath: path)
+        }
+
+        guard let finalUrl = fileUrl else {
+            print("[EdgeTtsClient] Bundled audio not found: \(cleanName).mp3")
+            return false
+        }
+
+        playerLock.lock()
+        defer { playerLock.unlock() }
+
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .defaultToSpeaker])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            try session.overrideOutputAudioPort(.speaker)
+
+            audioPlayer?.stop()
+            audioPlayer = nil
+            audioPlayer = try AVAudioPlayer(contentsOf: finalUrl)
+            audioPlayer?.delegate = self
+            audioPlayer?.volume = 1.0
+            audioPlayer?.numberOfLoops = 0
+            audioPlayer?.prepareToPlay()
+            let started = audioPlayer?.play() ?? false
+            print("[EdgeTtsClient] Playing bundled audio '\(cleanName).mp3': \(started)")
+            return started
+        } catch {
+            print("[EdgeTtsClient] Play bundled audio error: \(error)")
+            return false
+        }
+    }
+
     // MARK: - SPEAK TEXT (CHUẨN GIỌNG NỮ BTV VTV HOÀI MY NHƯ TRÊN ANDROID)
-    public func speak(text: String, voice: String = "vi-VN-HoaiMyNeural") {
+    public func speak(text: String, fallbackBundledName: String? = nil, voice: String = "vi-VN-HoaiMyNeural") {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
 
@@ -217,22 +286,39 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
                 hasAudio = await self.synthesizeToFile(text: clean, outputFile: audioFile, voice: voice)
             }
 
-            // 2. Nếu Edge TTS bị chặn hoặc lỗi mạng, thử Google TTS tiếng Việt (giọng nữ trợ lý)
-            if !hasAudio {
-                hasAudio = await self.synthesizeGoogleTTS(text: clean, outputFile: audioFile)
-            }
-
-            // 3. Phát tệp âm thanh MP3
+            // 2. Nếu đã có file âm thanh Hoài My: Phát ngay lập tức
             if hasAudio && FileManager.default.fileExists(atPath: audioFile.path) {
                 await MainActor.run {
                     self.playAudioFile(url: audioFile, originalText: clean)
                 }
-            } else {
-                // 4. Dự phòng cuối cùng khi hoàn toàn mất kết nối Internet: AVSpeechSynthesizer
-                print("[EdgeTtsClient] Online TTS failed, using system TTS fallback")
-                await MainActor.run {
-                    self.speakFallback(text: clean)
+                return
+            }
+
+            // 3. Nếu chưa kịp tải hoặc offline: Ưu tiên phát TỆP ÂM THANH GỐC VTV ĐÓNG GÓI SẴN (ĐỒNG BỘ ANDROID)
+            if let bundled = fallbackBundledName {
+                let playedBundled = await MainActor.run {
+                    self.playBundledAudio(named: bundled)
                 }
+                if playedBundled {
+                    return
+                }
+            }
+
+            // 4. Dự phòng Online: Google TTS tiếng Việt (giọng nữ trợ lý)
+            if !hasAudio {
+                hasAudio = await self.synthesizeGoogleTTS(text: clean, outputFile: audioFile)
+            }
+            if hasAudio && FileManager.default.fileExists(atPath: audioFile.path) {
+                await MainActor.run {
+                    self.playAudioFile(url: audioFile, originalText: clean)
+                }
+                return
+            }
+
+            // 5. Dự phòng cuối cùng khi mất mạng hoàn toàn: AVSpeechSynthesizer
+            print("[EdgeTtsClient] Online TTS & bundled audio unavailable, using system TTS fallback")
+            await MainActor.run {
+                self.speakFallback(text: clean)
             }
         }
     }

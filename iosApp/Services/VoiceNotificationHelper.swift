@@ -263,7 +263,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     // MARK: - PHÁT GIỌNG ĐỌC NEURAL BTV VTV HOÀI MY (ÂM LƯỢNG LỚN TỐI ĐA)
-    public func speak(text: String) {
+    public func speak(text: String, fallbackBundledName: String? = nil) {
         guard isVoiceEnabled else { return }
         let cleanText = normalizeVietnameseSpeech(text)
         guard !cleanText.isEmpty else { return }
@@ -271,8 +271,8 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         // Cấu hình Session đảm bảo phát qua Loa Ngoài cực đại
         configureAudioSession()
 
-        // Ưu tiên chuẩn giọng Nữ BTV VTV (vi-VN-HoaiMyNeural)
-        EdgeTtsClient.shared.speak(text: cleanText, voice: "vi-VN-HoaiMyNeural")
+        // Ưu tiên chuẩn giọng Nữ BTV VTV (vi-VN-HoaiMyNeural) kết hợp tệp âm thanh gốc R.raw
+        EdgeTtsClient.shared.speak(text: cleanText, fallbackBundledName: fallbackBundledName, voice: "vi-VN-HoaiMyNeural")
     }
 
     // MARK: - VÒNG LẶP CẢNH BÁO LẶP LẠI (CHO ĐẾN KHI TIẾP NHẬN HOẶC THEO CẤU HÌNH ADMIN)
@@ -280,6 +280,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         ticketId: String,
         speechText: String,
         type: String,
+        fallbackBundledName: String? = "voice_dispatch_urgent",
         intervalSeconds: Double = 6.0
     ) {
         if activeAlertTicketId == ticketId && alertTask != nil {
@@ -307,9 +308,9 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 // 1. Rung máy mạnh mẽ
                 self.triggerVibration()
 
-                // 2. Đọc giọng nói
+                // 2. Đọc giọng nói (ưu tiên giọng VTV chuẩn và tệp âm thanh đóng gói)
                 if self.isVoiceEnabled && mode != "OFF" {
-                    self.speak(text: speechText)
+                    self.speak(text: speechText, fallbackBundledName: fallbackBundledName)
                 }
 
                 // 3. Nghỉ chu kỳ lặp lại (6 giây)
@@ -362,12 +363,13 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         )
 
         triggerVibration()
-        speak(text: text)
+        let fallback = source.uppercased() == "ZALO" ? "voice_new_ticket_zalo" : "voice_new_ticket"
+        speak(text: text, fallbackBundledName: fallback)
 
         if effectiveVoiceMode == "REPEAT" {
             Task {
                 try? await Task.sleep(nanoseconds: 1_200_000_000)
-                self.speak(text: text)
+                self.speak(text: text, fallbackBundledName: fallback)
             }
         }
     }
@@ -395,6 +397,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             ticketId: ticketId,
             speechText: text,
             type: "DISPATCH",
+            fallbackBundledName: "voice_dispatch_urgent",
             intervalSeconds: 6.0
         )
     }
@@ -413,12 +416,12 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         )
 
         triggerVibration()
-        speak(text: text)
+        speak(text: text, fallbackBundledName: "voice_rating_received")
 
         if effectiveVoiceMode == "REPEAT" {
             Task {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
-                self.speak(text: text)
+                self.speak(text: text, fallbackBundledName: "voice_rating_received")
             }
         }
     }
@@ -438,12 +441,12 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         )
 
         triggerVibration()
-        speak(text: text)
+        speak(text: text, fallbackBundledName: "voice_ticket_resolved")
 
         if effectiveVoiceMode == "REPEAT" {
             Task {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
-                self.speak(text: text)
+                self.speak(text: text, fallbackBundledName: "voice_ticket_resolved")
             }
         }
     }

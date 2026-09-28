@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		110000012C12345600000001 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 110000022C12345600000001 /* iOSApp.swift */; };
 		110000152C12345600000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 110000162C12345600000001 /* Assets.xcassets */; };
+		330000152C12345600000001 /* Audio in Resources */ = {isa = PBXBuildFile; fileRef = 330000162C12345600000001 /* Audio */; };
 		1DDF4886AAFE09765491FCBC /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = F05142899745976FC1D9F3D4 /* WebRTC */; };
 		220010002C12345600000001 /* MainContainerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000002C12345600000001 /* MainContainerView.swift */; };
 		220010012C12345600000001 /* AppColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000012C12345600000001 /* AppColors.swift */; };
@@ -89,6 +90,7 @@
 		110000052C12345600000001 /* QLTB.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QLTB.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		110000062C12345600000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		110000162C12345600000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		330000162C12345600000001 /* Audio */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Audio; sourceTree = "<group>"; };
 		220000002C12345600000001 /* MainContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainContainerView.swift; sourceTree = "<group>"; };
 		220000012C12345600000001 /* AppColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppColors.swift; sourceTree = "<group>"; };
 		220000022C12345600000001 /* UserModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserModels.swift; sourceTree = "<group>"; };
@@ -196,6 +198,7 @@
 				110000022C12345600000001 /* iOSApp.swift */,
 				110000062C12345600000001 /* Info.plist */,
 				110000162C12345600000001 /* Assets.xcassets */,
+				330000162C12345600000001 /* Audio */,
 			);
 			path = iosApp;
 			sourceTree = "<group>";
@@ -506,6 +509,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				110000152C12345600000001 /* Assets.xcassets in Resources */,
+				330000152C12345600000001 /* Audio in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
