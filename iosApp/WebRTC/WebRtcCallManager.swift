@@ -28,6 +28,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     private var iceServers: [RTCIceServer] = []
     
     public var companyId: String = "SGCOOP"
+    public var idToken: String = ""
     private let firestoreBaseUrl = FirebaseConfig.firestoreBaseUrl
     
     private var signalingTimer: AnyCancellable?
@@ -195,7 +196,10 @@ public class WebRtcCallManager: NSObject, ObservableObject {
             "fields": [
                 "callerEmail": ["stringValue": callerEmail],
                 "callerName": ["stringValue": callerName],
+                "callerRole": ["stringValue": "iOS User"],
                 "calleeEmail": ["stringValue": targetEmail],
+                "targetEmail": ["stringValue": targetEmail],
+                "companyId": ["stringValue": companyId],
                 "offer": [
                     "mapValue": [
                         "fields": [
@@ -204,7 +208,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                         ]
                     ]
                 ],
-                "status": ["stringValue": "calling"],
+                "status": ["stringValue": "RINGING"],
                 "createdAt": ["integerValue": "\(Int64(Date().timeIntervalSince1970 * 1000))"]
             ]
         ]
@@ -212,6 +216,9 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !idToken.isEmpty {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         URLSession.shared.dataTask(with: request).resume()
@@ -229,7 +236,13 @@ public class WebRtcCallManager: NSObject, ObservableObject {
             return
         }
         
-        URLSession.shared.dataTask(with: url) { data, _, _ in
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        if !idToken.isEmpty {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
+        
+        URLSession.shared.dataTask(with: request) { data, _, _ in
             guard let data = data else {
                 completion(nil)
                 return
@@ -251,12 +264,14 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     private func updateCallWithAnswer(sdp: RTCSessionDescription) {
         guard let callId = currentCallId else { return }
         
-        let urlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)?updateMask.fieldPaths=answer&updateMask.fieldPaths=status"
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let urlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)?updateMask.fieldPaths=answer&updateMask.fieldPaths=status&updateMask.fieldPaths=acceptedAt"
         guard let url = URL(string: urlStr) else { return }
         
         let body: [String: Any] = [
             "fields": [
-                "status": ["stringValue": "connected"],
+                "status": ["stringValue": "CONNECTED"],
+                "acceptedAt": ["integerValue": "\(now)"],
                 "answer": [
                     "mapValue": [
                         "fields": [
@@ -271,24 +286,32 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "PATCH"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !idToken.isEmpty {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         URLSession.shared.dataTask(with: request).resume()
     }
     
     private func updateCallStateEnded(callId: String) {
-        let urlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)?updateMask.fieldPaths=status"
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let urlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)?updateMask.fieldPaths=status&updateMask.fieldPaths=endedAt"
         guard let url = URL(string: urlStr) else { return }
         
         let body: [String: Any] = [
             "fields": [
-                "status": ["stringValue": "ended"]
+                "status": ["stringValue": "ENDED"],
+                "endedAt": ["integerValue": "\(now)"]
             ]
         ]
         
         var request = URLRequest(url: url)
         request.httpMethod = "PATCH"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !idToken.isEmpty {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         URLSession.shared.dataTask(with: request).resume()
@@ -311,6 +334,9 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !idToken.isEmpty {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
         URLSession.shared.dataTask(with: request).resume()
@@ -331,19 +357,24 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         // 1. Poll Call Document for status and answer (if caller)
         let callUrlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)"
         if let url = URL(string: callUrlStr) {
-            URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            var request = URLRequest(url: url)
+            if !idToken.isEmpty {
+                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            }
+            URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
                 guard let self = self, let data = data else { return }
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let fields = json["fields"] as? [String: Any] {
                     
                     if let statusObj = fields["status"] as? [String: Any],
                        let status = statusObj["stringValue"] as? String {
-                        if status == "ended" {
+                        let statusUpper = status.uppercased()
+                        if statusUpper == "ENDED" || statusUpper == "CANCELLED" || statusUpper == "REJECTED" || statusUpper == "TIMEOUT" {
                             DispatchQueue.main.async {
                                 self.endCall()
                             }
                             return
-                        } else if status == "connected" && self.isCaller && self.callState == .calling {
+                        } else if (statusUpper == "CONNECTED" || statusUpper == "ACCEPTED") && self.isCaller && self.callState == .calling {
                             DispatchQueue.main.async {
                                 self.callState = .connected
                             }
@@ -370,7 +401,11 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         let targetCollection = isCaller ? "calleeCandidates" : "callerCandidates"
         let candidatesUrlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)/\(targetCollection)"
         if let url = URL(string: candidatesUrlStr) {
-            URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            var request = URLRequest(url: url)
+            if !idToken.isEmpty {
+                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            }
+            URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
                 guard let self = self, let data = data else { return }
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let documents = json["documents"] as? [[String: Any]] {
@@ -380,11 +415,17 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                         if let fields = doc["fields"] as? [String: Any],
                            let sdpMidObj = fields["sdpMid"] as? [String: Any],
                            let sdpMid = sdpMidObj["stringValue"] as? String,
-                           let sdpMLineIndexObj = fields["sdpMLineIndex"] as? [String: Any],
-                           let sdpMLineIndexStr = sdpMLineIndexObj["integerValue"] as? String,
-                           let sdpMLineIndex = Int32(sdpMLineIndexStr),
                            let candidateObj = fields["candidate"] as? [String: Any],
                            let candidateStr = candidateObj["stringValue"] as? String {
+                            
+                            var sdpMLineIndex: Int32 = 0
+                            if let sdpMLineIndexObj = fields["sdpMLineIndex"] as? [String: Any] {
+                                if let strVal = sdpMLineIndexObj["integerValue"] as? String, let val = Int32(strVal) {
+                                    sdpMLineIndex = val
+                                } else if let numVal = sdpMLineIndexObj["doubleValue"] as? Double {
+                                    sdpMLineIndex = Int32(numVal)
+                                }
+                            }
                             
                             let candidate = RTCIceCandidate(sdp: candidateStr, sdpMLineIndex: sdpMLineIndex, sdpMid: sdpMid)
                             self.peerConnection?.add(candidate)

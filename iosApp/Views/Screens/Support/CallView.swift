@@ -51,6 +51,7 @@ public struct CallView: View {
                     // End Call
                     Button(action: {
                         callManager.endCall()
+                        IncomingCallManager.shared.isCallPresented = false
                         presentationMode.wrappedValue.dismiss()
                     }) {
                         Circle()
@@ -82,6 +83,7 @@ public struct CallView: View {
         }
         .onReceive(callManager.$callState) { state in
             if state == .ended {
+                IncomingCallManager.shared.isCallPresented = false
                 presentationMode.wrappedValue.dismiss()
             }
         }

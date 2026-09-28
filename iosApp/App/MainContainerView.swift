@@ -7,6 +7,7 @@ public struct MainContainerView: View {
     @StateObject private var homeViewModel = HomeViewModel(user: User(), companyId: "SGCOOP", idToken: "")
     @StateObject private var supportViewModel = SupportViewModel(user: User(), companyId: "SGCOOP", idToken: "")
     @StateObject private var adminViewModel = AdminViewModel(user: User(), companyId: "SGCOOP", idToken: "")
+    @StateObject private var incomingCallManager = IncomingCallManager.shared
     @State private var currentDestination: DrawerDestination = .home
     @State private var isDrawerOpen: Bool = false
     @State private var selectedTicketForChat: SupportTicket? = nil
@@ -47,6 +48,7 @@ public struct MainContainerView: View {
                                 authViewModel.currentUser?.role = role
                             },
                             onLogout: {
+                                incomingCallManager.stopListening()
                                 authViewModel.logout()
                             }
                         )
@@ -100,6 +102,7 @@ public struct MainContainerView: View {
                                 onLogout: {
                                     withAnimation {
                                         isDrawerOpen = false
+                                        incomingCallManager.stopListening()
                                         authViewModel.logout()
                                     }
                                 },
@@ -112,8 +115,28 @@ public struct MainContainerView: View {
                             .transition(.move(edge: .leading))
                             .zIndex(30)
                         }
+
+                        // 4. OVERLAY CUỘC GỌI ĐẾN (INCOMING CALL POPUP BANNER TOÀN CỤC)
+                        if let incomingCall = incomingCallManager.activeIncomingCall {
+                            IncomingCallBannerView(
+                                call: incomingCall,
+                                onAccept: {
+                                    incomingCallManager.acceptCall()
+                                },
+                                onReject: {
+                                    incomingCallManager.rejectCall()
+                                }
+                            )
+                        }
+                    }
+                    .fullScreenCover(isPresented: $incomingCallManager.isCallPresented) {
+                        CallView()
                     }
                     .onAppear {
+                        incomingCallManager.startListening(user: user, companyId: compId, idToken: token)
+                        WebRtcCallManager.shared.companyId = compId
+                        WebRtcCallManager.shared.idToken = token
+
                         homeViewModel.user = user
                         homeViewModel.companyId = compId
                         homeViewModel.idToken = token
@@ -137,6 +160,10 @@ public struct MainContainerView: View {
                             let cid = authViewModel.currentCompanyId
                             let tok = authViewModel.currentIdToken
 
+                            incomingCallManager.startListening(user: u, companyId: cid, idToken: tok)
+                            WebRtcCallManager.shared.companyId = cid
+                            WebRtcCallManager.shared.idToken = tok
+
                             homeViewModel.user = u
                             homeViewModel.companyId = cid
                             homeViewModel.idToken = tok
@@ -153,6 +180,7 @@ public struct MainContainerView: View {
                             adminViewModel.idToken = tok
                             adminViewModel.fetchAllDataIfNeeded()
                         } else {
+                            incomingCallManager.stopListening()
                             supportViewModel.stopAutoPolling()
                             BackgroundKeepAliveService.shared.stop()
                         }

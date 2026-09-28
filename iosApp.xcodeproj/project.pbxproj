@@ -68,6 +68,8 @@
 		2200104B2C12345600000001 /* SuperAdminPortalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200004B2C12345600000001 /* SuperAdminPortalView.swift */; };
 		2200104C2C12345600000001 /* ResetPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200004C2C12345600000001 /* ResetPasswordView.swift */; };
 		220010502C12345600000001 /* WebRtcCallManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000502C12345600000001 /* WebRtcCallManager.swift */; };
+		220010702C12345600000001 /* IncomingCallManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000702C12345600000001 /* IncomingCallManager.swift */; };
+		220010712C12345600000001 /* IncomingCallBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000712C12345600000001 /* IncomingCallBannerView.swift */; };
 		220010512C12345600000001 /* CallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000512C12345600000001 /* CallView.swift */; };
 		220010522C12345600000001 /* DeviceDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000522C12345600000001 /* DeviceDetailView.swift */; };
 		220010532C12345600000001 /* EnterpriseFeatureLockedView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000532C12345600000001 /* EnterpriseFeatureLockedView.swift */; };
@@ -149,6 +151,8 @@
 		2200004B2C12345600000001 /* SuperAdminPortalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SuperAdminPortalView.swift; sourceTree = "<group>"; };
 		2200004C2C12345600000001 /* ResetPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetPasswordView.swift; sourceTree = "<group>"; };
 		220000502C12345600000001 /* WebRtcCallManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRtcCallManager.swift; sourceTree = "<group>"; };
+		220000702C12345600000001 /* IncomingCallManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingCallManager.swift; sourceTree = "<group>"; };
+		220000712C12345600000001 /* IncomingCallBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncomingCallBannerView.swift; sourceTree = "<group>"; };
 		220000512C12345600000001 /* CallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CallView.swift; sourceTree = "<group>"; };
 		220000522C12345600000001 /* DeviceDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceDetailView.swift; sourceTree = "<group>"; };
 		220000532C12345600000001 /* EnterpriseFeatureLockedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnterpriseFeatureLockedView.swift; sourceTree = "<group>"; };
@@ -217,6 +221,7 @@
 			isa = PBXGroup;
 			children = (
 				220000502C12345600000001 /* WebRtcCallManager.swift */,
+				220000702C12345600000001 /* IncomingCallManager.swift */,
 			);
 			path = WebRTC;
 			sourceTree = "<group>";
@@ -357,6 +362,7 @@
 				220000512C12345600000001 /* CallView.swift */,
 				220000612C12345600000001 /* DispatchTicketSheet.swift */,
 				220000622C12345600000001 /* LiveTrackingMapView.swift */,
+				220000712C12345600000001 /* IncomingCallBannerView.swift */,
 			);
 			path = Support;
 			sourceTree = "<group>";
@@ -581,6 +587,8 @@
 				2200104B2C12345600000001 /* SuperAdminPortalView.swift in Sources */,
 				2200104C2C12345600000001 /* ResetPasswordView.swift in Sources */,
 				220010502C12345600000001 /* WebRtcCallManager.swift in Sources */,
+				220010702C12345600000001 /* IncomingCallManager.swift in Sources */,
+				220010712C12345600000001 /* IncomingCallBannerView.swift in Sources */,
 				220010512C12345600000001 /* CallView.swift in Sources */,
 				220010522C12345600000001 /* DeviceDetailView.swift in Sources */,
 				220010532C12345600000001 /* EnterpriseFeatureLockedView.swift in Sources */,

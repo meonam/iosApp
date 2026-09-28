@@ -109,9 +109,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
     ) {
-        // Server gửi silent push báo có ticket mới → fetch ngay, không đợi timer
-        print("[AppDelegate] Silent push received: \(userInfo)")
-        NotificationCenter.default.post(name: Notification.Name("QLTB_BackgroundFetch"), object: nil)
+        // Server gửi silent push báo có ticket mới hoặc cuộc gọi đến
+        print("[AppDelegate] Remote push received: \(userInfo)")
+        if let type = userInfo["type"] as? String, type == "INCOMING_CALL" {
+            IncomingCallManager.shared.handleIncomingCallFromPush(userInfo: userInfo)
+        } else {
+            NotificationCenter.default.post(name: Notification.Name("QLTB_BackgroundFetch"), object: nil)
+        }
 
         // Nếu có ticketId trong payload thì stop alert cũ nếu cần
         if let ticketId = userInfo["ticketId"] as? String, !ticketId.isEmpty {
