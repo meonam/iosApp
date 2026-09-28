@@ -439,11 +439,27 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                                     (addrDict["residential"] as? String) ??
                                     (addrDict["street"] as? String))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
+                        // Phát hiện đường huyện/tỉnh/quốc lộ — không phải tên đường dân sinh
+                        let isHighwayRoute = road.hasPrefix("Đường Huyện") || road.hasPrefix("Đường Tỉnh") ||
+                                             road.hasPrefix("Quốc Lộ") || road.hasPrefix("QL ") ||
+                                             road.hasPrefix("ĐT ") || road.hasPrefix("ĐH ") ||
+                                             road.hasPrefix("National Road") || road.hasPrefix("Provincial Road") ||
+                                             road.hasPrefix("County Road") || road.hasPrefix("Highway")
+
+                        // Lấy hamlet trước để quyết định có dùng road không
+                        let hamlet = ((addrDict["hamlet"] as? String) ??
+                                      (addrDict["neighbourhood"] as? String) ??
+                                      (addrDict["isolated_dwelling"] as? String) ??
+                                      (addrDict["allotments"] as? String))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+                        // Nếu road là đường huyện/quốc lộ VÀ đã có hamlet → bỏ road (hamlet mô tả vị trí tốt hơn)
+                        let effectiveRoad = (isHighwayRoute && !hamlet.isEmpty) ? "" : road
+
                         var streetPart = ""
-                        if !houseNum.isEmpty && !road.isEmpty {
-                            streetPart = "\(houseNum) \(road)"
-                        } else if !road.isEmpty {
-                            streetPart = road
+                        if !houseNum.isEmpty && !effectiveRoad.isEmpty {
+                            streetPart = "\(houseNum) \(effectiveRoad)"
+                        } else if !effectiveRoad.isEmpty {
+                            streetPart = effectiveRoad
                         } else if !houseNum.isEmpty {
                             streetPart = "Số \(houseNum)"
                         }
@@ -462,10 +478,6 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                         }
 
                         // 3. Ấp / Thôn / Xóm / Khu phố / Tổ (CỰC KỲ QUAN TRỌNG TẠI VIỆT NAM)
-                        let hamlet = ((addrDict["hamlet"] as? String) ??
-                                      (addrDict["neighbourhood"] as? String) ??
-                                      (addrDict["isolated_dwelling"] as? String) ??
-                                      (addrDict["allotments"] as? String))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                         if !hamlet.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(hamlet) }) {
                             parts.append(hamlet)
                         }
@@ -476,7 +488,19 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                                     (addrDict["quarter"] as? String) ??
                                     (addrDict["town"] as? String) ??
                                     (addrDict["municipality"] as? String))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                        let trimmedWard = ward.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                        // Chuẩn hóa viết tắt từ OSM: "X " → "Xã ", "P " → "Phường ", "TT " → "Thị Trấn "
+                        var normalizedWard = ward.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if normalizedWard.hasPrefix("X ") {
+                            normalizedWard = "Xã " + normalizedWard.dropFirst(2)
+                        } else if normalizedWard.hasPrefix("P ") {
+                            normalizedWard = "Phường " + normalizedWard.dropFirst(2)
+                        } else if normalizedWard.hasPrefix("P. ") {
+                            normalizedWard = "Phường " + normalizedWard.dropFirst(3)
+                        } else if normalizedWard.hasPrefix("TT ") {
+                            normalizedWard = "Thị Trấn " + normalizedWard.dropFirst(3)
+                        }
+                        let trimmedWard = normalizedWard
                         if !trimmedWard.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(trimmedWard) }) {
                             parts.append(trimmedWard)
                         }
