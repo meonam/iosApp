@@ -155,6 +155,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         content.userInfo = ["ticketId": ticketId, "actionType": actionType]
         if #available(iOS 15.0, *) {
             content.interruptionLevel = .timeSensitive
+            content.relevanceScore = 1.0
         }
         if !actionType.isEmpty {
             content.categoryIdentifier = actionType == "ACK_DISPATCH" ? "DISPATCH_ALERT" : "NEW_TICKET_ALERT"

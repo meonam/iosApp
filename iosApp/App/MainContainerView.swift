@@ -154,6 +154,7 @@ public struct MainContainerView: View {
                             adminViewModel.fetchAllDataIfNeeded()
                         } else {
                             supportViewModel.stopAutoPolling()
+                            BackgroundKeepAliveService.shared.stop()
                         }
                     }
                     .onChange(of: scenePhase) { newPhase in
@@ -167,11 +168,13 @@ public struct MainContainerView: View {
                                 isOnline: true,
                                 idToken: authViewModel.currentIdToken
                             )
-                            // Khởi động lại polling + Firestore Listen stream (3s)
-                            supportViewModel.startAutoPolling(interval: 3.0)
+                            // Khởi động lại polling nhanh 2s và kích hoạt keep-alive
+                            BackgroundKeepAliveService.shared.start()
+                            supportViewModel.startAutoPolling(interval: 2.0)
                         case .background:
-                            // Background: giữ nguyên polling 3s — iOS sẽ giới hạn nhưng polling vẫn chạy
+                            // Background: giữ nguyên polling 2s — KeepAlive duy trì tiến trình 24/7
                             // KHÔNG stopAutoPolling() — đây là yêu cầu bắt buộc: app nền vẫn nhận lệnh
+                            BackgroundKeepAliveService.shared.start()
                             supportViewModel.keepPollingInBackground()
                         case .inactive:
                             break

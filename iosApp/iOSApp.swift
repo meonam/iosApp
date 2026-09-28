@@ -59,7 +59,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
         center.setNotificationCategories([dispatchCategory, newTicketCategory])
 
-        center.requestAuthorization(options: [.alert, .sound, .badge, .provisional]) { granted, error in
+        center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
             print("[AppDelegate] Notification permission granted: \(granted), error: \(String(describing: error))")
         }
 

@@ -336,20 +336,39 @@ public class SupportViewModel: ObservableObject {
 
     // MARK: - REAL-TIME TICKET AUTO POLLING (ĐỒNG BỘ 1:1 VỚI FIRESTORE REALTIME LISTENER TRÊN ANDROID)
     private var autoPollingTimer: Timer?
+    private var pollingDispatchSource: DispatchSourceTimer?
     private var firestoreListenTask: Task<Void, Never>?
+    private var isFetchingSilent: Bool = false
 
-    public func startAutoPolling(interval: TimeInterval = 3.0) {
+    public func startAutoPolling(interval: TimeInterval = 2.0) {
         stopAutoPolling()
-        // 1. Polling nhanh 3 giây (fallback đảm bảo khi stream bị ngắt)
+        // 1. Kích hoạt Keep-Alive âm thanh chạy nền 24/7 để iOS không bao giờ suspend tiến trình
+        BackgroundKeepAliveService.shared.start()
+
+        // 2. Sử dụng DispatchSourceTimer trên background queue để không phụ thuộc vào RunLoop mode
+        let queue = DispatchQueue.global(qos: .userInitiated)
+        let timer = DispatchSource.makeTimerSource(queue: queue)
+        timer.schedule(deadline: .now(), repeating: interval, leeway: .milliseconds(150))
+        timer.setEventHandler { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.fetchTicketsSilent()
+            }
+        }
+        timer.resume()
+        self.pollingDispatchSource = timer
+
+        // 3. Dự phòng thêm 1 Timer truyền thống trên RunLoop
         autoPollingTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             self.fetchTicketsSilent()
         }
-        // 2. Firestore Listen stream (gần realtime như addSnapshotListener Android)
+        // 4. Firestore Listen stream (gần realtime như addSnapshotListener Android)
         startFirestoreListen()
     }
 
     public func stopAutoPolling() {
+        pollingDispatchSource?.cancel()
+        pollingDispatchSource = nil
         autoPollingTimer?.invalidate()
         autoPollingTimer = nil
         firestoreListenTask?.cancel()
@@ -435,7 +454,8 @@ public class SupportViewModel: ObservableObject {
     }
 
     public func fetchTicketsSilent() {
-        guard !companyId.isEmpty else { return }
+        guard !companyId.isEmpty, !isFetchingSilent else { return }
+        isFetchingSilent = true
         var bgTask: UIBackgroundTaskIdentifier = .invalid
         bgTask = UIApplication.shared.beginBackgroundTask(withName: "QLTB_SilentFetch") {
             if bgTask != .invalid {
@@ -445,6 +465,7 @@ public class SupportViewModel: ObservableObject {
         }
         Task {
             await self.executeFetchTickets(showSpinner: false)
+            self.isFetchingSilent = false
             if bgTask != .invalid {
                 UIApplication.shared.endBackgroundTask(bgTask)
                 bgTask = .invalid
@@ -464,7 +485,7 @@ public class SupportViewModel: ObservableObject {
         }
         bgPollingRenewalTask?.cancel()
 
-        // iOS cho phép ~30 giây background execution — cần liên tục gia hạn
+        // 1. Bắt đầu background execution ngắn hạn của iOS hỗ trợ quá trình chuyển trạng thái
         bgPollingTaskId = UIApplication.shared.beginBackgroundTask(withName: "QLTB_KeepPolling") { [weak self] in
             guard let self = self else { return }
             if self.bgPollingTaskId != .invalid {
@@ -473,28 +494,14 @@ public class SupportViewModel: ObservableObject {
             }
         }
 
-        // Vòng lặp gia hạn: mỗi 20 giây request một background task mới để iOS không suspend
-        bgPollingRenewalTask = Task { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 20_000_000_000) // 20 giây
-                guard let self = self, !Task.isCancelled else { break }
-                guard self.autoPollingTimer != nil else { break } // Đã stop → dừng gia hạn
-                // Kết thúc task cũ
-                if self.bgPollingTaskId != .invalid {
-                    UIApplication.shared.endBackgroundTask(self.bgPollingTaskId)
-                    self.bgPollingTaskId = .invalid
-                }
-                // Bắt đầu task mới
-                self.bgPollingTaskId = UIApplication.shared.beginBackgroundTask(withName: "QLTB_KeepPolling") { [weak self] in
-                    guard let self = self else { return }
-                    if self.bgPollingTaskId != .invalid {
-                        UIApplication.shared.endBackgroundTask(self.bgPollingTaskId)
-                        self.bgPollingTaskId = .invalid
-                    }
-                }
-                // Trigger fetch ngay trong chu kỳ gia hạn
-                self.fetchTicketsSilent()
-            }
+        // 2. Kích hoạt dịch vụ Audio Keep-Alive duy trì chạy nền 24/7
+        BackgroundKeepAliveService.shared.start()
+
+        // 3. Đảm bảo timer polling 2s đang chạy
+        if pollingDispatchSource == nil && autoPollingTimer == nil {
+            startAutoPolling(interval: 2.0)
+        } else {
+            fetchTicketsSilent()
         }
     }
 
@@ -524,13 +531,14 @@ public class SupportViewModel: ObservableObject {
             return
         }
 
+        let queryLimit = showSpinner ? 500 : 150
         let queryPayload: [String: Any] = [
             "structuredQuery": [
                 "from": [["collectionId": "support_tickets"]],
                 "orderBy": [
                     ["field": ["fieldPath": "createdAt"], "direction": "DESCENDING"]
                 ],
-                "limit": 500
+                "limit": queryLimit
             ]
         ]
 
@@ -825,11 +833,24 @@ public class SupportViewModel: ObservableObject {
 
             let sortedTickets = parsed.sorted { $0.lastMessageAt.coerceAtLeast($0.createdAt) > $1.lastMessageAt.coerceAtLeast($1.createdAt) }
             await MainActor.run {
-                self.rawTickets = sortedTickets
+                if showSpinner {
+                    self.rawTickets = sortedTickets
+                } else {
+                    var ticketMap = [String: SupportTicket]()
+                    for t in self.rawTickets {
+                        ticketMap[t.id] = t
+                    }
+                    for t in sortedTickets {
+                        ticketMap[t.id] = t
+                    }
+                    self.rawTickets = Array(ticketMap.values).sorted {
+                        $0.lastMessageAt.coerceAtLeast($0.createdAt) > $1.lastMessageAt.coerceAtLeast($1.createdAt)
+                    }
+                }
                 if showSpinner {
                     self.isLoading = false
                 }
-                VoiceNotificationHelper.shared.processTicketUpdates(tickets: sortedTickets, currentUser: self.user)
+                VoiceNotificationHelper.shared.processTicketUpdates(tickets: self.rawTickets, currentUser: self.user)
                 VoiceNotificationHelper.shared.syncAdminConfig(companyId: self.companyId, idToken: self.idToken)
             }
         }
