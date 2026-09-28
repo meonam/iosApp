@@ -86,6 +86,7 @@
 		220010582C12345600000001 /* ScannerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000582C12345600000001 /* ScannerSettingsView.swift */; };
 		220010612C12345600000001 /* DispatchTicketSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000612C12345600000001 /* DispatchTicketSheet.swift */; };
 		220010622C12345600000001 /* LiveTrackingMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000622C12345600000001 /* LiveTrackingMapView.swift */; };
+		220010632C12345600000001 /* HandoverTicketSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000632C12345600000001 /* HandoverTicketSheetView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -169,6 +170,7 @@
 		220000582C12345600000001 /* ScannerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerSettingsView.swift; sourceTree = "<group>"; };
 		220000612C12345600000001 /* DispatchTicketSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DispatchTicketSheet.swift; sourceTree = "<group>"; };
 		220000622C12345600000001 /* LiveTrackingMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTrackingMapView.swift; sourceTree = "<group>"; };
+		220000632C12345600000001 /* HandoverTicketSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoverTicketSheetView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -362,6 +364,7 @@
 				220000512C12345600000001 /* CallView.swift */,
 				220000612C12345600000001 /* DispatchTicketSheet.swift */,
 				220000622C12345600000001 /* LiveTrackingMapView.swift */,
+				220000632C12345600000001 /* HandoverTicketSheetView.swift */,
 				220000712C12345600000001 /* IncomingCallBannerView.swift */,
 			);
 			path = Support;
@@ -605,6 +608,7 @@
 				220010582C12345600000001 /* ScannerSettingsView.swift in Sources */,
 				220010612C12345600000001 /* DispatchTicketSheet.swift in Sources */,
 				220010622C12345600000001 /* LiveTrackingMapView.swift in Sources */,
+				220010632C12345600000001 /* HandoverTicketSheetView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
