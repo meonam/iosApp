@@ -31,6 +31,14 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
 
     private override init() {
         super.init()
+        // Xóa sạch bộ đệm âm thanh cũ để loại bỏ hoàn toàn các giọng đọc không chuẩn
+        clearTtsCache()
+    }
+
+    public func clearTtsCache() {
+        guard let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
+        let ttsDir = cacheDir.appendingPathComponent("tts_cache")
+        try? FileManager.default.removeItem(at: ttsDir)
     }
 
     // MARK: - GENERATE SEC-MS-GEC SIGNATURE (CHÍNH XÁC 1:1 THEO ANDROID & PYTHON edge-tts)
@@ -44,7 +52,59 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
         return digest.map { String(format: "%02X", $0) }.joined()
     }
 
-    // MARK: - 1. SYNTHESIZE TEXT QUA MICROSOFT EDGE TTS (GIỌNG NỮ BTV VTV vi-VN-HoaiMyNeural)
+    // MARK: - 1. PHÁT TỆP ÂM THANH GỐC VTV ĐÓNG GÓI SẴN TRONG BUNDLE (ƯU TIÊN TUYỆT ĐỐI 1:1 THEO ANDROID R.raw)
+    @discardableResult
+    public func playBundledAudio(named name: String) -> Bool {
+        let cleanName = name.replacingOccurrences(of: ".mp3", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty else { return false }
+        var fileUrl: URL? = nil
+
+        // 1. Kiểm tra trực tiếp trong thư mục Audio của Bundle
+        let audioFolderUrl = Bundle.main.bundleURL.appendingPathComponent("Audio/\(cleanName).mp3")
+        if FileManager.default.fileExists(atPath: audioFolderUrl.path) {
+            fileUrl = audioFolderUrl
+        } else if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3", subdirectory: "Audio") {
+            fileUrl = url
+        } else if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3") {
+            fileUrl = url
+        } else {
+            let rootUrl = Bundle.main.bundleURL.appendingPathComponent("\(cleanName).mp3")
+            if FileManager.default.fileExists(atPath: rootUrl.path) {
+                fileUrl = rootUrl
+            }
+        }
+
+        guard let finalUrl = fileUrl else {
+            print("[EdgeTtsClient] ⚠️ Không tìm thấy tệp âm thanh gốc '\(cleanName).mp3' trong bundle!")
+            return false
+        }
+
+        playerLock.lock()
+        defer { playerLock.unlock() }
+
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .defaultToSpeaker])
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            try session.overrideOutputAudioPort(.speaker)
+
+            audioPlayer?.stop()
+            audioPlayer = nil
+            audioPlayer = try AVAudioPlayer(contentsOf: finalUrl)
+            audioPlayer?.delegate = self
+            audioPlayer?.volume = 1.0
+            audioPlayer?.numberOfLoops = 0
+            audioPlayer?.prepareToPlay()
+            let started = audioPlayer?.play() ?? false
+            print("[EdgeTtsClient] 🎙️ ĐANG PHÁT GIỌNG GỐC VTV CHUẨN: '\(cleanName).mp3' - Kết quả: \(started)")
+            return started
+        } catch {
+            print("[EdgeTtsClient] ❌ Lỗi phát tệp âm thanh gốc: \(error)")
+            return false
+        }
+    }
+
+    // MARK: - 2. TỔNG HỢP QUA MICROSOFT EDGE TTS (GIỌNG NỮ BTV VTV vi-VN-HoaiMyNeural)
     public func synthesizeToFile(text: String, outputFile: URL, voice: String = "vi-VN-HoaiMyNeural") async -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
@@ -86,7 +146,6 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
                 task.cancel(with: .normalClosure, reason: nil)
                 session.invalidateAndCancel()
 
-                // Khi tải thành công và có dữ liệu âm thanh > 500 bytes (tương tự Android)
                 if success && audioBuffer.count > 500 {
                     do {
                         let parent = outputFile.deletingLastPathComponent()
@@ -111,19 +170,15 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
                 finish(success: false)
             }
 
-            // CHỈ GỬI CONFIG & SSML KHI WEBSOCKET ĐÃ KẾT NỐI HOÀN TẤT (didOpenWithProtocol)
             wsDelegate.onOpen = {
-                // 1. Gửi speech.config
                 let configMsg = "Content-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n" +
                     "{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"false\"},\"outputFormat\":\"audio-24khz-48kbitrate-mono-mp3\"}}}}"
                 task.send(.string(configMsg)) { err in
-                    if let err = err {
-                        print("[EdgeTtsClient] send config error: \(err)")
+                    if err != nil {
                         finish(success: false)
                         return
                     }
 
-                    // 2. Gửi SSML chuẩn cú pháp Microsoft Edge TTS
                     let reqId = UUID().uuidString.replacingOccurrences(of: "-", with: "")
                     let escaped = trimmed
                         .replacingOccurrences(of: "&", with: "&amp;")
@@ -135,15 +190,13 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
                     let ssmlMsg = "X-RequestId:\(reqId)\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n\(ssml)"
 
                     task.send(.string(ssmlMsg)) { sErr in
-                        if let sErr = sErr {
-                            print("[EdgeTtsClient] send ssml error: \(sErr)")
+                        if sErr != nil {
                             finish(success: false)
                         }
                     }
                 }
             }
 
-            // 3. Nhận phản hồi âm thanh dạng binary chunks
             func receiveNext() {
                 task.receive { result in
                     guard !isFinished else { return }
@@ -178,99 +231,35 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
             task.resume()
             receiveNext()
 
-            // 4. Timeout an toàn 10s
             DispatchQueue.global().asyncAfter(deadline: .now() + 10.0) {
                 if !isFinished {
-                    print("[EdgeTtsClient] WebSocket timeout 10s reached")
+                    print("[EdgeTtsClient] WebSocket timeout reached")
                     finish(success: false)
                 }
             }
         }
     }
 
-    // MARK: - 2. DỰ PHÒNG ONLINE: GOOGLE TRANSLATE TTS (GIỌNG NỮ TIẾNG VIỆT TỰ NHIÊN)
-    public func synthesizeGoogleTTS(text: String, outputFile: URL) async -> Bool {
-        guard let encoded = text.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=\(encoded)") else {
-            return false
-        }
-        var request = URLRequest(url: url)
-        request.setValue(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
-            forHTTPHeaderField: "User-Agent"
-        )
-        request.timeoutInterval = 6.0
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let http = response as? HTTPURLResponse, http.statusCode == 200, data.count > 500 {
-                let parent = outputFile.deletingLastPathComponent()
-                try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
-                try data.write(to: outputFile)
-                print("[EdgeTtsClient] Fallback to Google TTS successfully, size: \(data.count) bytes")
-                return true
-            }
-        } catch {
-            print("[EdgeTtsClient] Google TTS fallback error: \(error)")
-        }
-        return false
-    }
-
-    // MARK: - 3. PHÁT TỆP ÂM THANH VTV GỐC ĐÓNG GÓI SẴN TRONG BUNDLE (ĐỒNG BỘ 1:1 THEO ANDROID R.raw)
-    public func playBundledAudio(named name: String) -> Bool {
-        let cleanName = name.replacingOccurrences(of: ".mp3", with: "")
-        var fileUrl: URL? = nil
-
-        if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3", subdirectory: "Audio") {
-            fileUrl = url
-        } else if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3") {
-            fileUrl = url
-        } else if let path = Bundle.main.path(forResource: cleanName, ofType: "mp3") {
-            fileUrl = URL(fileURLWithPath: path)
-        }
-
-        guard let finalUrl = fileUrl else {
-            print("[EdgeTtsClient] Bundled audio not found: \(cleanName).mp3")
-            return false
-        }
-
-        playerLock.lock()
-        defer { playerLock.unlock() }
-
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .defaultToSpeaker])
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
-            try session.overrideOutputAudioPort(.speaker)
-
-            audioPlayer?.stop()
-            audioPlayer = nil
-            audioPlayer = try AVAudioPlayer(contentsOf: finalUrl)
-            audioPlayer?.delegate = self
-            audioPlayer?.volume = 1.0
-            audioPlayer?.numberOfLoops = 0
-            audioPlayer?.prepareToPlay()
-            let started = audioPlayer?.play() ?? false
-            print("[EdgeTtsClient] Playing bundled audio '\(cleanName).mp3': \(started)")
-            return started
-        } catch {
-            print("[EdgeTtsClient] Play bundled audio error: \(error)")
-            return false
-        }
-    }
-
-    // MARK: - SPEAK TEXT (CHUẨN GIỌNG NỮ BTV VTV HOÀI MY NHƯ TRÊN ANDROID)
+    // MARK: - 3. PHÁT ÂM THANH (ƯU TIÊN TUYỆT ĐỐI GIỌNG NỮ BTV VTV GỐC ĐÓNG GÓI SẴN)
     public func speak(text: String, fallbackBundledName: String? = nil, voice: String = "vi-VN-HoaiMyNeural") {
+        // === ƯU TIÊN SỐ 1: PHÁT NGAY TỆP ÂM THANH VTV GỐC ĐÓNG GÓI SẴN (ĐỒNG BỘ ANDROID) ===
+        if let bundled = fallbackBundledName {
+            let played = playBundledAudio(named: bundled)
+            if played {
+                return
+            }
+        }
+
+        // === NẾU KHÔNG CÓ TỆP GỐC: TỔNG HỢP ONLINE QUA EDGE TTS (HOÀI MY NEURAL) ===
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
 
-        // Tính MD5 để lưu đệm tránh tải lại nhiều lần
         let md5 = Insecure.MD5.hash(data: Data(clean.utf8)).map { String(format: "%02x", $0) }.joined()
         guard let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
         let ttsDir = cacheDir.appendingPathComponent("tts_cache")
         let audioFile = ttsDir.appendingPathComponent("vtv_\(md5).mp3")
 
         Task {
-            // Kiểm tra cache đã có và file hợp lệ (> 500 bytes)
             var hasAudio = false
             if FileManager.default.fileExists(atPath: audioFile.path) {
                 if let attrs = try? FileManager.default.attributesOfItem(atPath: audioFile.path),
@@ -281,12 +270,10 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
                 }
             }
 
-            // 1. Thử tổng hợp qua Microsoft Edge TTS (Hoài My Neural)
             if !hasAudio {
                 hasAudio = await self.synthesizeToFile(text: clean, outputFile: audioFile, voice: voice)
             }
 
-            // 2. Nếu đã có file âm thanh Hoài My: Phát ngay lập tức
             if hasAudio && FileManager.default.fileExists(atPath: audioFile.path) {
                 await MainActor.run {
                     self.playAudioFile(url: audioFile, originalText: clean)
@@ -294,31 +281,14 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
                 return
             }
 
-            // 3. Nếu chưa kịp tải hoặc offline: Ưu tiên phát TỆP ÂM THANH GỐC VTV ĐÓNG GÓI SẴN (ĐỒNG BỘ ANDROID)
-            if let bundled = fallbackBundledName {
-                let playedBundled = await MainActor.run {
-                    self.playBundledAudio(named: bundled)
-                }
-                if playedBundled {
-                    return
-                }
+            // Nếu không thể tải online: Phát tệp âm thanh lệnh khẩn cấp mặc định
+            let playedUrgent = await MainActor.run {
+                self.playBundledAudio(named: "voice_dispatch_urgent")
             }
-
-            // 4. Dự phòng Online: Google TTS tiếng Việt (giọng nữ trợ lý)
-            if !hasAudio {
-                hasAudio = await self.synthesizeGoogleTTS(text: clean, outputFile: audioFile)
-            }
-            if hasAudio && FileManager.default.fileExists(atPath: audioFile.path) {
+            if !playedUrgent {
                 await MainActor.run {
-                    self.playAudioFile(url: audioFile, originalText: clean)
+                    self.speakFallback(text: clean)
                 }
-                return
-            }
-
-            // 5. Dự phòng cuối cùng khi mất mạng hoàn toàn: AVSpeechSynthesizer
-            print("[EdgeTtsClient] Online TTS & bundled audio unavailable, using system TTS fallback")
-            await MainActor.run {
-                self.speakFallback(text: clean)
             }
         }
     }
@@ -343,16 +313,20 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
             audioPlayer?.prepareToPlay()
             let started = audioPlayer?.play() ?? false
             if !started {
-                print("[EdgeTtsClient] Failed to start audioPlayer, falling back")
-                speakFallback(text: originalText)
+                print("[EdgeTtsClient] Failed to start audioPlayer, falling back to bundled audio")
+                if !playBundledAudio(named: "voice_dispatch_urgent") {
+                    speakFallback(text: originalText)
+                }
             }
         } catch {
             print("[EdgeTtsClient] Play audio error: \(error)")
-            speakFallback(text: originalText)
+            if !playBundledAudio(named: "voice_dispatch_urgent") {
+                speakFallback(text: originalText)
+            }
         }
     }
 
-    // MARK: - DỰ PHÒNG GIỌNG ĐỌC HỆ THỐNG (CHỈ ĐỌC VĂN BẢN THUẦN TÚY)
+    // MARK: - DỰ PHÒNG GIỌNG ĐỌC HỆ THỐNG
     private func speakFallback(text: String) {
         if text.hasPrefix("vtv_") || text.hasSuffix(".mp3") ||
            (text.count >= 24 && text.range(of: "^[a-f0-9_.-]+$", options: .regularExpression) != nil) {
