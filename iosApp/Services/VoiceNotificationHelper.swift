@@ -46,11 +46,11 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         guard !text.isEmpty else { return "" }
         var t = text
 
-        // Xóa URL, domain, đuôi email
-        t = t.replacingOccurrences(of: "@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", with: "", options: .regularExpression)
-        t = t.replacingOccurrences(of: "https?://\\S+", with: "", options: .regularExpression)
+        // 1. Dọn dẹp URL, domain, đuôi email
+        t = t.replacingOccurrences(of: "(?i)@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}", with: "", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bhttps?://\\S+", with: "", options: .regularExpression)
 
-        // Hệ thống siêu thị Saigon Co.op
+        // 2. Hệ thống siêu thị Saigon Co.op
         t = t.replacingOccurrences(of: "(?i)\\bCo\\.?op\\s*mart\\b", with: "Cô-ốp-mát", options: .regularExpression)
         t = t.replacingOccurrences(of: "(?i)\\bCoopmart\\b", with: "Cô-ốp-mát", options: .regularExpression)
         t = t.replacingOccurrences(of: "(?i)\\bCo\\.?op\\s*food\\b", with: "Cô-ốp-phút", options: .regularExpression)
@@ -61,41 +61,59 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         t = t.replacingOccurrences(of: "(?i)\\bCoopxtra\\b", with: "Cô-ốp-ét-tra", options: .regularExpression)
         t = t.replacingOccurrences(of: "(?i)\\bFinelife\\b", with: "Phai-lai", options: .regularExpression)
         t = t.replacingOccurrences(of: "(?i)\\bSense\\s*city\\b", with: "Sen-xi-ti", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bSCA\\b", with: "Ét-xi-ê", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bHTV\\s*Co\\.?op\\b", with: "Hát Tê Vê Cô ốp", options: .regularExpression)
 
-        // Kênh và công nghệ
+        // 3. Kênh và công nghệ
         t = t.replacingOccurrences(of: "(?i)\\bZalo\\b", with: "Da-lô", options: .regularExpression)
         t = t.replacingOccurrences(of: "(?i)\\bEmail\\b", with: "I-meo", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bOA\\b", with: "Doanh nghiệp", options: .regularExpression)
         t = t.replacingOccurrences(of: "(?i)\\bApp\\b", with: "Ứng dụng", options: .regularExpression)
         t = t.replacingOccurrences(of: "(?i)\\bKTV\\b", with: "Kỹ thuật viên", options: .regularExpression)
         t = t.replacingOccurrences(of: "(?i)\\bCNTT\\b", with: "Công nghệ thông tin", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bCĐS\\b", with: "Chuyển đổi số", options: .regularExpression)
         t = t.replacingOccurrences(of: "(?i)\\bIT\\b", with: "Ai-ti", options: .regularExpression)
         t = t.replacingOccurrences(of: "(?i)\\bSLA\\b", with: "Thời hạn cam kết", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bOT\\b", with: "Tăng ca", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bCheck[- ]?in\\b", with: "Điểm danh vào ca", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bCheck[- ]?out\\b", with: "Điểm danh tan ca", options: .regularExpression)
         t = t.replacingOccurrences(of: "(?i)\\bTickets?\\b", with: "Phiếu yêu cầu", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bAdmin\\b", with: "Quản trị viên", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bHelpdesk\\b", with: "Bộ phận hỗ trợ", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bOffline\\b", with: "Mất kết nối", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bOnline\\b", with: "Trực tuyến", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bPOS\\b", with: "Máy pốt", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bCall\\b", with: "Cuộc gọi", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bHotline\\b", with: "Đường dây nóng", options: .regularExpression)
 
+        // 4. Đơn vị hành chính
+        t = t.replacingOccurrences(of: "(?i)\\bHTX\\b", with: "Hợp tác xã", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bTP\\.HCM\\b", with: "Thành phố Hồ Chí Minh", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bTPHCM\\b", with: "Thành phố Hồ Chí Minh", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bTP\\.\\s*", with: "Thành phố ", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bTX\\.\\s*", with: "Thị xã ", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bTT\\.\\s*", with: "Thị trấn ", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bCN\\b", with: "Chi nhánh", options: .regularExpression)
+        t = t.replacingOccurrences(of: "(?i)\\bCH\\b", with: "Cửa hàng", options: .regularExpression)
+
+        // 5. Ký tự thừa
+        t = t.replacingOccurrences(of: "[#*_\\[\\]()~`><]", with: " ", options: .regularExpression)
+        t = t.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
         return t.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    // MARK: - PHÁT GIỌNG ĐỌC NEURAL BTV VTV HOÀI MY (ĐỒNG BỘ 100% VỚI ANDROID)
     public func speak(text: String) {
         guard isVoiceEnabled else { return }
         let cleanText = normalizeVietnameseSpeech(text)
         guard !cleanText.isEmpty else { return }
 
-        do {
-            try AVAudioSession.sharedInstance().setActive(true)
-        } catch {
-            print("[VoiceNotificationHelper] Set active audio session error: \(error)")
-        }
-
-        let utterance = AVSpeechUtterance(string: cleanText)
-        utterance.voice = self.vietnameseVoice
-        utterance.rate = 0.50 // Tốc độ vừa phải, tự nhiên
-        utterance.pitchMultiplier = 1.05
-        utterance.volume = 1.0
-
-        synthesizer.speak(utterance)
+        // Ưu tiên chuẩn giọng Nữ BTV VTV (vi-VN-HoaiMyNeural)
+        EdgeTtsClient.shared.speak(text: cleanText, voice: "vi-VN-HoaiMyNeural")
     }
 
     public func stopAlert() {
+        EdgeTtsClient.shared.stop()
         if synthesizer.isSpeaking {
             synthesizer.stopSpeaking(at: .immediate)
         }

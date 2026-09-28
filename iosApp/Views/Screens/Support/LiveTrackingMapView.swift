@@ -3,17 +3,35 @@ import MapKit
 import CoreLocation
 
 // MARK: - ANNOTATION MODELS FOR MAPKIT
+enum CustomPinType {
+    case destination
+    case mainTech
+    case coTech
+    case startPoint
+}
+
 class CustomMapPin: NSObject, MKAnnotation {
     let coordinate: CLLocationCoordinate2D
     let title: String?
     let subtitle: String?
-    let isTech: Bool
+    let pinType: CustomPinType
+    let isSpecialist: Bool
+    let isGpsLost: Bool
 
-    init(coordinate: CLLocationCoordinate2D, title: String?, subtitle: String?, isTech: Bool) {
+    init(
+        coordinate: CLLocationCoordinate2D,
+        title: String?,
+        subtitle: String?,
+        pinType: CustomPinType,
+        isSpecialist: Bool = false,
+        isGpsLost: Bool = false
+    ) {
         self.coordinate = coordinate
         self.title = title
         self.subtitle = subtitle
-        self.isTech = isTech
+        self.pinType = pinType
+        self.isSpecialist = isSpecialist
+        self.isGpsLost = isGpsLost
     }
 }
 
@@ -39,13 +57,19 @@ class DeviceLocationProvider: NSObject, ObservableObject, CLLocationManagerDeleg
     }
 }
 
-// MARK: - NATIVE MAPKIT VIEW WITH ROUTE & CUSTOM PINS
+// MARK: - NATIVE MAPKIT VIEW WITH ROUTE & CUSTOM PINS (ĐỒNG BỘ 1:1 ANDROID LIVETRACKINGMAP)
 struct LiveTrackingMKMapView: UIViewRepresentable {
     var techCoord: CLLocationCoordinate2D?
     var destCoord: CLLocationCoordinate2D?
+    var startCoord: CLLocationCoordinate2D?
     var destName: String
     var techName: String
+    var isSpecialist: Bool
     var isEnRoute: Bool
+    var isGpsLost: Bool
+    var roadCoordinates: [[Double]]
+    var collaboratorTrackings: [String: TicketTracking]
+    var arrivalRadiusMeters: Double
     @Binding var recenterTrigger: Int
     @Binding var fitBoundsTrigger: Int
     @Binding var zoomTrigger: Int // +1 for zoom in, -1 for zoom out
@@ -69,50 +93,90 @@ struct LiveTrackingMKMapView: UIViewRepresentable {
         uiView.removeAnnotations(uiView.annotations)
         var annotationsToAdd: [MKAnnotation] = []
 
+        // Điểm đến
         if let dest = destCoord, dest.latitude != 0, dest.longitude != 0 {
             let destPin = CustomMapPin(
                 coordinate: dest,
                 title: destName.isEmpty ? "Điểm hỗ trợ" : destName,
                 subtitle: "Điểm đến",
-                isTech: false
+                pinType: .destination
             )
             annotationsToAdd.append(destPin)
         }
 
+        // Điểm xuất phát (Start Point A)
+        if let start = startCoord, start.latitude != 0, start.longitude != 0 {
+            let startPin = CustomMapPin(
+                coordinate: start,
+                title: "Điểm xuất phát",
+                subtitle: "Khởi hành",
+                pinType: .startPoint
+            )
+            annotationsToAdd.append(startPin)
+        }
+
+        // KTV / Chuyên viên chính
         if let tech = techCoord, tech.latitude != 0, tech.longitude != 0 {
+            let roleTitle = isSpecialist ? "Chuyên viên" : "KTV"
             let techPin = CustomMapPin(
                 coordinate: tech,
-                title: techName.isEmpty ? "Kỹ thuật viên" : techName,
-                subtitle: isEnRoute ? "Đang di chuyển" : "Vị trí KTV",
-                isTech: true
+                title: techName.isEmpty ? roleTitle : techName,
+                subtitle: isEnRoute ? "Đang di chuyển" : "Vị trí",
+                pinType: .mainTech,
+                isSpecialist: isSpecialist,
+                isGpsLost: isGpsLost
             )
             annotationsToAdd.append(techPin)
         }
 
+        // KTV / Chuyên viên Phối Hợp (Collaborators)
+        for (_, coTracking) in collaboratorTrackings {
+            if coTracking.currentLat != 0 && coTracking.currentLng != 0 {
+                let coPin = CustomMapPin(
+                    coordinate: CLLocationCoordinate2D(latitude: coTracking.currentLat, longitude: coTracking.currentLng),
+                    title: coTracking.technicianName.isEmpty ? "Phối hợp" : coTracking.technicianName,
+                    subtitle: coTracking.status == "ARRIVED" ? "Đã đến nơi" : "Đang phối hợp",
+                    pinType: .coTech,
+                    isGpsLost: coTracking.isGpsLost
+                )
+                annotationsToAdd.append(coPin)
+            }
+        }
+
         uiView.addAnnotations(annotationsToAdd)
 
-        // 2. Vẽ Route Polyline nếu cả 2 điểm đều có tọa độ
+        // 2. Cập nhật Overlays (Bán kính đến nơi + Tuyến đường thực tế OSRM)
         uiView.removeOverlays(uiView.overlays)
-        if let tech = techCoord, let dest = destCoord,
-           tech.latitude != 0, tech.longitude != 0,
-           dest.latitude != 0, dest.longitude != 0 {
+
+        // Vùng tròn bán kính xác nhận đến nơi
+        if let dest = destCoord, dest.latitude != 0, dest.longitude != 0 {
+            let circle = MKCircle(center: dest, radius: arrivalRadiusMeters)
+            uiView.addOverlay(circle, level: .aboveRoads)
+        }
+
+        // Tuyến đường KTV / Chuyên viên chính
+        if roadCoordinates.count >= 2 {
+            var coords = roadCoordinates.map { CLLocationCoordinate2D(latitude: $0[0], longitude: $0[1]) }
+            let polyline = MKPolyline(coordinates: &coords, count: coords.count)
+            polyline.title = "MainRoute"
+            uiView.addOverlay(polyline, level: .aboveRoads)
+        } else if let tech = techCoord, let dest = destCoord,
+                  tech.latitude != 0, tech.longitude != 0,
+                  dest.latitude != 0, dest.longitude != 0 {
             var coords = [tech, dest]
             let polyline = MKPolyline(coordinates: &coords, count: 2)
-            uiView.addOverlay(polyline)
+            polyline.title = "MainRoute"
+            uiView.addOverlay(polyline, level: .aboveRoads)
+        }
 
-            // Yêu cầu Apple Maps tính lộ trình thực tế nếu khả dụng
-            let req = MKDirections.Request()
-            req.source = MKMapItem(placemark: MKPlacemark(coordinate: tech))
-            req.destination = MKMapItem(placemark: MKPlacemark(coordinate: dest))
-            req.transportType = .automobile
-
-            let directions = MKDirections(request: req)
-            directions.calculate { response, error in
-                guard let route = response?.routes.first else { return }
-                DispatchQueue.main.async {
-                    uiView.removeOverlays(uiView.overlays)
-                    uiView.addOverlay(route.polyline, level: .aboveRoads)
-                }
+        // Tuyến đường của KTV / Chuyên viên phối hợp
+        for (_, coTracking) in collaboratorTrackings {
+            let coCoords = coTracking.routeCoordinates
+            if coCoords.count >= 2 {
+                var coords = coCoords.map { CLLocationCoordinate2D(latitude: $0[0], longitude: $0[1]) }
+                let polyline = MKPolyline(coordinates: &coords, count: coords.count)
+                polyline.title = "CoTechRoute"
+                uiView.addOverlay(polyline, level: .aboveRoads)
             }
         }
 
@@ -167,9 +231,15 @@ struct LiveTrackingMKMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             guard let customPin = annotation as? CustomMapPin else { return nil }
 
-            let identifier = customPin.isTech ? "TechPin" : "DestPin"
-            var view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
+            let identifier: String
+            switch customPin.pinType {
+            case .destination: identifier = "DestPin"
+            case .startPoint: identifier = "StartPin"
+            case .mainTech: identifier = "MainTechPin"
+            case .coTech: identifier = "CoTechPin"
+            }
 
+            var view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
             if view == nil {
                 view = MKAnnotationView(annotation: customPin, reuseIdentifier: identifier)
                 view?.canShowCallout = true
@@ -179,58 +249,24 @@ struct LiveTrackingMKMapView: UIViewRepresentable {
 
             view?.subviews.forEach { $0.removeFromSuperview() }
 
-            if customPin.isTech {
-                // KTV Marker: Nhãn nổi "🛵 Tên KTV" bên trên + Icon xe máy nền xanh tròn (chuẩn 1:1 Android)
-                let name = customPin.title ?? "KTV"
+            switch customPin.pinType {
+            case .destination:
                 let hosting = UIHostingController(
-                    rootView: VStack(spacing: 3) {
+                    rootView: VStack(spacing: 2) {
                         HStack(spacing: 4) {
-                            Text("🛵")
+                            Text("📍")
                                 .font(.system(size: 11))
-                            Text(name)
+                            Text(customPin.title ?? "Điểm đến")
                                 .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(Color(hex: "#002A8F"))
+                                .foregroundColor(Color(hex: "#DC2626"))
                                 .lineLimit(1)
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(Color.white)
                         .cornerRadius(12)
-                        .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 1)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#002A8F"), lineWidth: 1.2))
-
-                        ZStack {
-                            Circle()
-                                .fill(Color(hex: "#002A8F"))
-                                .frame(width: 36, height: 36)
-                                .shadow(radius: 3)
-                            Circle()
-                                .stroke(Color.white, lineWidth: 2)
-                                .frame(width: 36, height: 36)
-                            Image(systemName: "figure.outdoor.cycle")
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                    }
-                )
-                hosting.view.backgroundColor = .clear
-                hosting.view.frame = CGRect(x: 0, y: 0, width: 160, height: 65)
-                view?.frame = hosting.view.frame
-                view?.addSubview(hosting.view)
-                view?.centerOffset = CGPoint(x: 0, y: -25)
-            } else {
-                // Destination Marker: Ghim đỏ có tên đơn vị
-                let hosting = UIHostingController(
-                    rootView: VStack(spacing: 2) {
-                        Text(customPin.title ?? "Điểm đến")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(Color(hex: "#DC2626"))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.white)
-                            .cornerRadius(6)
-                            .shadow(radius: 2)
-                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#EF4444"), lineWidth: 1.5))
+                        .shadow(color: Color.black.opacity(0.18), radius: 3, x: 0, y: 1)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#EF4444"), lineWidth: 1.5))
 
                         Image(systemName: "mappin.circle.fill")
                             .font(.system(size: 26))
@@ -239,7 +275,109 @@ struct LiveTrackingMKMapView: UIViewRepresentable {
                     }
                 )
                 hosting.view.backgroundColor = .clear
-                hosting.view.frame = CGRect(x: 0, y: 0, width: 140, height: 50)
+                hosting.view.frame = CGRect(x: 0, y: 0, width: 170, height: 52)
+                view?.frame = hosting.view.frame
+                view?.addSubview(hosting.view)
+                view?.centerOffset = CGPoint(x: 0, y: -26)
+
+            case .startPoint:
+                let hosting = UIHostingController(
+                    rootView: ZStack {
+                        Circle()
+                            .fill(Color(hex: "#16A34A"))
+                            .frame(width: 26, height: 26)
+                            .shadow(radius: 2)
+                        Circle()
+                            .stroke(Color.white, lineWidth: 2)
+                            .frame(width: 26, height: 26)
+                        Text("A")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                    }
+                )
+                hosting.view.backgroundColor = .clear
+                hosting.view.frame = CGRect(x: 0, y: 0, width: 30, height: 30)
+                view?.frame = hosting.view.frame
+                view?.addSubview(hosting.view)
+                view?.centerOffset = CGPoint(x: 0, y: -15)
+
+            case .mainTech:
+                let name = customPin.title ?? (customPin.isSpecialist ? "Chuyên viên" : "KTV")
+                let rolePrefix = customPin.isSpecialist ? "Chuyên viên: " : "KTV: "
+                let themeHex = customPin.isGpsLost ? "#DC2626" : (customPin.isSpecialist ? "#7C3AED" : "#002A8F")
+                let hosting = UIHostingController(
+                    rootView: VStack(spacing: 3) {
+                        HStack(spacing: 4) {
+                            Text(customPin.isGpsLost ? "⚠️" : "🛵")
+                                .font(.system(size: 11))
+                            Text("\(rolePrefix)\(name)")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(Color(hex: themeHex))
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .shadow(color: Color.black.opacity(0.18), radius: 3, x: 0, y: 1)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: themeHex), lineWidth: 1.3))
+
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: themeHex))
+                                .frame(width: 38, height: 38)
+                                .shadow(radius: 3)
+                            Circle()
+                                .stroke(Color.white, lineWidth: 2)
+                                .frame(width: 38, height: 38)
+                            Image(systemName: "figure.outdoor.cycle")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                )
+                hosting.view.backgroundColor = .clear
+                hosting.view.frame = CGRect(x: 0, y: 0, width: 175, height: 68)
+                view?.frame = hosting.view.frame
+                view?.addSubview(hosting.view)
+                view?.centerOffset = CGPoint(x: 0, y: -28)
+
+            case .coTech:
+                let name = customPin.title ?? "Phối hợp"
+                let themeHex = "#7C3AED"
+                let hosting = UIHostingController(
+                    rootView: VStack(spacing: 3) {
+                        HStack(spacing: 4) {
+                            Text("🛵")
+                                .font(.system(size: 11))
+                            Text("[Phối hợp] \(name)")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(Color(hex: themeHex))
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .shadow(color: Color.black.opacity(0.18), radius: 3, x: 0, y: 1)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: themeHex), lineWidth: 1.3))
+
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: themeHex))
+                                .frame(width: 34, height: 34)
+                                .shadow(radius: 3)
+                            Circle()
+                                .stroke(Color.white, lineWidth: 2)
+                                .frame(width: 34, height: 34)
+                            Image(systemName: "figure.outdoor.cycle")
+                                .font(.system(size: 16, weight: .bold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                )
+                hosting.view.backgroundColor = .clear
+                hosting.view.frame = CGRect(x: 0, y: 0, width: 160, height: 62)
                 view?.frame = hosting.view.frame
                 view?.addSubview(hosting.view)
                 view?.centerOffset = CGPoint(x: 0, y: -25)
@@ -251,10 +389,22 @@ struct LiveTrackingMKMapView: UIViewRepresentable {
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
-                renderer.strokeColor = UIColor(red: 14/255, green: 165/255, blue: 233/255, alpha: 0.9)
-                renderer.lineWidth = 5
+                if polyline.title == "CoTechRoute" {
+                    renderer.strokeColor = UIColor(red: 139/255, green: 92/255, blue: 246/255, alpha: 0.85)
+                    renderer.lineWidth = 4
+                    renderer.lineDashPattern = [6, 6]
+                } else {
+                    renderer.strokeColor = UIColor(red: 14/255, green: 165/255, blue: 233/255, alpha: 0.95)
+                    renderer.lineWidth = 5
+                }
                 renderer.lineCap = .round
                 renderer.lineJoin = .round
+                return renderer
+            } else if let circle = overlay as? MKCircle {
+                let renderer = MKCircleRenderer(circle: circle)
+                renderer.fillColor = UIColor(red: 16/255, green: 185/255, blue: 129/255, alpha: 0.15)
+                renderer.strokeColor = UIColor(red: 16/255, green: 185/255, blue: 129/255, alpha: 0.8)
+                renderer.lineWidth = 1.5
                 return renderer
             }
             return MKOverlayRenderer(overlay: overlay)
@@ -279,15 +429,47 @@ public struct LiveTrackingMapView: View {
 
     @StateObject private var locationProvider = DeviceLocationProvider()
 
+    // Lộ trình thực tế theo đường giao thông OSRM
+    @State private var roadCoordinates: [[Double]] = []
+    @State private var routeDistanceKm: Double = 0.0
+    @State private var routeEtaMinutes: Int = 0
+
+    // Phân giải tọa độ đơn vị / siêu thị
+    @State private var resolvedDestCoordinate: CLLocationCoordinate2D? = nil
+    @State private var resolvedDestName: String = ""
+
+    // Bán kính đến nơi cho phép (chuẩn Android: 150m - 200m)
+    @State private var arrivalRadiusMeters: Double = 200.0
+
+    // Throttle cho việc gửi GPS thời gian thực lên Firestore
+    @State private var lastReportedLocation: CLLocationCoordinate2D? = nil
+    @State private var lastReportedTime: Date = Date.distantPast
+
     private var myEmail: String {
         viewModel.user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
+    private var isSpecialist: Bool {
+        ticket.isSpecialistAssigned || viewModel.user.isSpecialist
+    }
+
+    private var rolePrefix: String {
+        isSpecialist ? "Chuyên viên" : "KTV"
+    }
+
+    private var fullRoleTitle: String {
+        isSpecialist ? "Chuyên viên kỹ thuật" : "Kỹ thuật viên"
+    }
+
+    private var isCoTechUser: Bool {
+        ticket.coTechnicians.contains { $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == myEmail }
+    }
+
     private var isAssignedTech: Bool {
-        // 1. Nếu tài khoản hiện tại là người tạo ticket, họ là người dùng cần được hỗ trợ -> Hiển thị Giám sát lộ trình
         if isCreator { return false }
 
-        // 2. Nếu tài khoản là KTV hoặc Chuyên viên (Kỹ thuật) -> Luôn hiển thị Lộ trình xử lý kỹ thuật (Hình 2)
+        if isCoTechUser { return true }
+
         let role = viewModel.user.role.uppercased()
         let isTechOrSpecialist = viewModel.user.isTechnician || viewModel.user.isSpecialist ||
                                  role.contains("KTV") || role.contains("TECHNICIAN") ||
@@ -299,7 +481,6 @@ public struct LiveTrackingMapView: View {
             return true
         }
 
-        // 3. Kiểm tra nếu được phân công trực tiếp vào phiếu
         let assignedEmail = ticket.assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let assignedName = ticket.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let myName = viewModel.user.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -325,48 +506,53 @@ public struct LiveTrackingMapView: View {
     }
 
     private var isEnRoute: Bool {
-        tracking.status == "EN_ROUTE"
+        tracking.status == "EN_ROUTE" || ticket.collaboratorTrackings.values.any { $0.status == "EN_ROUTE" }
     }
 
     private var isArrived: Bool {
         tracking.status == "ARRIVED"
     }
 
-    // Tọa độ Điểm đến (Đơn vị / Store)
+    // Tọa độ Điểm đến (Ưu tiên: 1. Đã phân giải qua CoopmartDirectory -> 2. Tọa độ creator -> 3. Tọa độ tracking -> 4. Fallback)
     private var destCoordinate: CLLocationCoordinate2D {
+        if let resolved = resolvedDestCoordinate {
+            return resolved
+        }
         if ticket.creatorLat != 0 && ticket.creatorLng != 0 {
             return CLLocationCoordinate2D(latitude: ticket.creatorLat, longitude: ticket.creatorLng)
         }
         if tracking.destLat != 0 && tracking.destLng != 0 {
             return CLLocationCoordinate2D(latitude: tracking.destLat, longitude: tracking.destLng)
         }
-        // Fallback default Saigon Co.op HCM
         return CLLocationCoordinate2D(latitude: 10.7769, longitude: 106.7009)
     }
 
-    // Tọa độ Kỹ thuật viên (Ưu tiên: 1. Firestore di chuyển -> 2. GPS thực tế thiết bị -> 3. Điểm xuất phát -> 4. Fallback)
+    // Tọa độ KTV / Chuyên viên (Ưu tiên: 1. GPS thực thiết bị nếu là KTV -> 2. Firestore -> 3. StartPoint -> 4. Fallback)
     private var techCoordinate: CLLocationCoordinate2D {
-        // 1. Tọa độ di chuyển đang lưu trên Firestore
-        if tracking.currentLat != 0 && tracking.currentLng != 0 {
-            return CLLocationCoordinate2D(latitude: tracking.currentLat, longitude: tracking.currentLng)
-        }
-        // 2. Tọa độ thực tế từ GPS của máy KTV (đặc biệt khi mới mở màn hình chưa xuất phát)
         if isAssignedTech, let devLoc = locationProvider.lastLocation, devLoc.latitude != 0, devLoc.longitude != 0 {
             return devLoc
         }
-        // 3. Tọa độ điểm xuất phát đã lưu
+        if tracking.currentLat != 0 && tracking.currentLng != 0 {
+            return CLLocationCoordinate2D(latitude: tracking.currentLat, longitude: tracking.currentLng)
+        }
         if tracking.startLat != 0 && tracking.startLng != 0 {
             return CLLocationCoordinate2D(latitude: tracking.startLat, longitude: tracking.startLng)
         }
-        // 4. GPS thiết bị bất kỳ có sẵn
         if let devLoc = locationProvider.lastLocation, devLoc.latitude != 0, devLoc.longitude != 0 {
             return devLoc
         }
-        // Fallback default
         return CLLocationCoordinate2D(latitude: 10.7626, longitude: 106.6602)
     }
 
+    private var startCoordinate: CLLocationCoordinate2D? {
+        if tracking.startLat != 0 && tracking.startLng != 0 {
+            return CLLocationCoordinate2D(latitude: tracking.startLat, longitude: tracking.startLng)
+        }
+        return nil
+    }
+
     private var effectiveDistanceKm: Double {
+        if routeDistanceKm > 0.05 { return routeDistanceKm }
         if tracking.distanceKm > 0.05 { return tracking.distanceKm }
         let loc1 = CLLocation(latitude: techCoordinate.latitude, longitude: techCoordinate.longitude)
         let loc2 = CLLocation(latitude: destCoordinate.latitude, longitude: destCoordinate.longitude)
@@ -374,6 +560,7 @@ public struct LiveTrackingMapView: View {
     }
 
     private var effectiveEtaMinutes: Int {
+        if routeEtaMinutes > 0 { return routeEtaMinutes }
         if tracking.etaMinutes > 0 { return tracking.etaMinutes }
         let km = effectiveDistanceKm
         return max(1, Int(km / 25.0 * 60.0))
@@ -391,7 +578,7 @@ public struct LiveTrackingMapView: View {
         if isAssignedTech {
             return ticket.creatorName.isEmpty ? (ticket.donVi.isEmpty ? ticket.creatorEmail : ticket.donVi) : ticket.creatorName
         } else {
-            return ticket.assignedToName.isEmpty ? (tracking.technicianName.isEmpty ? "Kỹ thuật viên hỗ trợ" : tracking.technicianName) : ticket.assignedToName
+            return ticket.assignedToName.isEmpty ? (tracking.technicianName.isEmpty ? "\(fullRoleTitle) hỗ trợ" : tracking.technicianName) : ticket.assignedToName
         }
     }
 
@@ -399,13 +586,13 @@ public struct LiveTrackingMapView: View {
         if isAssignedTech {
             return ticket.donVi.isEmpty ? "Yêu cầu #\(ticket.id.suffix(6).uppercased())" : "Đơn vị: \(ticket.donVi)"
         } else {
-            return "Phụ trách: \(ticket.assignedDepartmentName.isEmpty ? "Bộ phận Kỹ thuật" : ticket.assignedDepartmentName)"
+            return "Phụ trách: \(ticket.assignedDepartmentName.isEmpty ? (isSpecialist ? "Tổ nghiệp vụ / Chuyên viên" : "Bộ phận Kỹ thuật") : ticket.assignedDepartmentName)"
         }
     }
 
     public var body: some View {
         VStack(spacing: 0) {
-            // 1. TOP HEADER (Xanh dương đậm #002A8F)
+            // 1. TOP HEADER (Xanh dương đậm #002A8F hoặc Tím #6B21A8 nếu Chuyên viên)
             topHeaderView
 
             // 2. CẢNH BÁO MẤT GPS NẾU CÓ
@@ -418,9 +605,15 @@ public struct LiveTrackingMapView: View {
                 LiveTrackingMKMapView(
                     techCoord: techCoordinate,
                     destCoord: destCoordinate,
-                    destName: ticket.donVi.isEmpty ? ticket.subject : ticket.donVi,
-                    techName: ticket.assignedToName.isEmpty ? (isAssignedTech ? (viewModel.user.fullName.isEmpty ? "KTV" : viewModel.user.fullName) : "KTV") : ticket.assignedToName,
+                    startCoord: startCoordinate,
+                    destName: resolvedDestName.isEmpty ? (ticket.donVi.isEmpty ? ticket.subject : ticket.donVi) : resolvedDestName,
+                    techName: ticket.assignedToName.isEmpty ? (isAssignedTech ? (viewModel.user.fullName.isEmpty ? rolePrefix : viewModel.user.fullName) : rolePrefix) : ticket.assignedToName,
+                    isSpecialist: isSpecialist,
                     isEnRoute: isEnRoute,
+                    isGpsLost: tracking.isGpsLost,
+                    roadCoordinates: roadCoordinates,
+                    collaboratorTrackings: ticket.collaboratorTrackings,
+                    arrivalRadiusMeters: arrivalRadiusMeters,
                     recenterTrigger: $recenterTrigger,
                     fitBoundsTrigger: $fitBoundsTrigger,
                     zoomTrigger: $zoomTrigger
@@ -449,17 +642,57 @@ public struct LiveTrackingMapView: View {
             // 4. BOTTOM INFO CARD & ACTION BUTTONS
             bottomInfoCard
         }
+        .onAppear {
+            resolveDestination()
+            fetchRoadRoute()
+        }
+        .onChange(of: tracking.currentLat) { _ in
+            fetchRoadRoute()
+        }
+        .onReceive(locationProvider.$lastLocation) { newLoc in
+            guard let loc = newLoc, isAssignedTech && isEnRoute else { return }
+            let now = Date()
+            let elapsed = now.timeIntervalSince(lastReportedTime)
+
+            var shouldReport = false
+            if elapsed >= 5.0 {
+                if let last = lastReportedLocation {
+                    let dist = CLLocation(latitude: last.latitude, longitude: last.longitude)
+                        .distance(from: CLLocation(latitude: loc.latitude, longitude: loc.longitude))
+                    if dist >= 5.0 || elapsed >= 15.0 {
+                        shouldReport = true
+                    }
+                } else {
+                    shouldReport = true
+                }
+            }
+
+            if shouldReport {
+                lastReportedLocation = loc
+                lastReportedTime = now
+
+                viewModel.updateTripLocation(
+                    ticketId: ticket.id,
+                    currentLat: loc.latitude,
+                    currentLng: loc.longitude,
+                    distanceKm: effectiveDistanceKm,
+                    etaMinutes: effectiveEtaMinutes,
+                    routeCoordinates: roadCoordinates,
+                    isCoTech: isCoTechUser
+                )
+            }
+        }
         .alert(isPresented: $showDistanceWarningDialog) {
             Alert(
                 title: Text("Chưa thể xác nhận đến nơi"),
-                message: Text("❌ Bạn vẫn đang cách điểm hỗ trợ \(String(format: "%.1f", effectiveDistanceKm)) km (vượt quá bán kính cho phép 200m).\n\nVui lòng di chuyển đến đúng địa chỉ để xác nhận."),
+                message: Text("❌ Bạn vẫn đang cách điểm hỗ trợ \(String(format: "%.1f", effectiveDistanceKm)) km (vượt quá bán kính cho phép \(Int(arrivalRadiusMeters)) mét).\n\nVui lòng di chuyển đến đúng địa chỉ để xác nhận."),
                 dismissButton: .default(Text("Đã hiểu, tiếp tục di chuyển"))
             )
         }
         .alert(isPresented: $showCancelConfirmDialog) {
             Alert(
                 title: Text("Xác nhận hủy chuyến"),
-                message: Text("Bạn có chắc chắn muốn hủy chuyến đi của KTV \(displayName) từ xa?"),
+                message: Text("Bạn có chắc chắn muốn hủy chuyến đi của \(rolePrefix) \(displayName) từ xa?"),
                 primaryButton: .destructive(Text("Hủy chuyến")) {
                     viewModel.cancelTrip(ticketId: ticket.id) { _ in
                         onDismiss()
@@ -467,6 +700,76 @@ public struct LiveTrackingMapView: View {
                 },
                 secondaryButton: .cancel(Text("Quay lại"))
             )
+        }
+    }
+
+    // MARK: - RESOLVE DESTINATION (COOPMART DIRECTORY + OSRM GEOCODE)
+    private func resolveDestination() {
+        if ticket.creatorLat != 0 && ticket.creatorLng != 0 {
+            resolvedDestCoordinate = CLLocationCoordinate2D(latitude: ticket.creatorLat, longitude: ticket.creatorLng)
+            resolvedDestName = ticket.donVi.isEmpty ? ticket.subject : ticket.donVi
+            return
+        }
+
+        if tracking.destLat != 0 && tracking.destLng != 0 {
+            resolvedDestCoordinate = CLLocationCoordinate2D(latitude: tracking.destLat, longitude: tracking.destLng)
+            resolvedDestName = tracking.destAddress.isEmpty ? ticket.donVi : tracking.destAddress
+            return
+        }
+
+        let query = ticket.donVi.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !query.isEmpty, let store = CoopmartDirectory.resolveLocation(query) {
+            resolvedDestCoordinate = CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng)
+            resolvedDestName = store.name
+            return
+        }
+
+        let addr = ticket.creatorAddress.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !addr.isEmpty, let store = CoopmartDirectory.resolveLocation(addr) {
+            resolvedDestCoordinate = CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng)
+            resolvedDestName = store.name
+            return
+        }
+
+        let geocodeQuery = !query.isEmpty ? query : addr
+        if !geocodeQuery.isEmpty {
+            Task {
+                if let geo = await OsrmRoutingHelper.shared.geocodeAddress(address: geocodeQuery) {
+                    await MainActor.run {
+                        self.resolvedDestCoordinate = CLLocationCoordinate2D(latitude: geo.lat, longitude: geo.lng)
+                        self.resolvedDestName = geocodeQuery
+                        self.fetchRoadRoute()
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - FETCH ROAD ROUTE VIA OSRM / GOOGLE
+    private func fetchRoadRoute() {
+        let dest = destCoordinate
+        let tech = techCoordinate
+        guard tech.latitude != 0, tech.longitude != 0, dest.latitude != 0, dest.longitude != 0 else { return }
+
+        if !tracking.routeCoordinates.isEmpty && tracking.routeCoordinates.count >= 2 {
+            self.roadCoordinates = tracking.routeCoordinates
+        }
+
+        Task {
+            if let result = await OsrmRoutingHelper.shared.fetchRoute(
+                startLat: tech.latitude,
+                startLng: tech.longitude,
+                destLat: dest.latitude,
+                destLng: dest.longitude
+            ) {
+                await MainActor.run {
+                    if !result.coordinates.isEmpty {
+                        self.roadCoordinates = result.coordinates
+                    }
+                    self.routeDistanceKm = result.distanceKm
+                    self.routeEtaMinutes = result.durationMinutes
+                }
+            }
         }
     }
 
@@ -478,7 +781,7 @@ public struct LiveTrackingMapView: View {
                 .foregroundColor(.white)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(isAssignedTech ? "Lộ trình xử lý kỹ thuật" : "Giám sát lộ trình kỹ thuật viên")
+                Text(isAssignedTech ? (isSpecialist ? "Lộ trình chuyên viên xử lý" : "Lộ trình xử lý kỹ thuật") : (isSpecialist ? "Giám sát lộ trình chuyên viên" : "Giám sát lộ trình kỹ thuật viên"))
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(.white)
 
@@ -501,7 +804,7 @@ public struct LiveTrackingMapView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color(hex: "#002A8F"))
+        .background(isSpecialist ? Color(hex: "#4C1D95") : Color(hex: "#002A8F"))
     }
 
     // MARK: - 2. GPS WARNING
@@ -511,7 +814,7 @@ public struct LiveTrackingMapView: View {
                 .foregroundColor(Color(hex: "#DC2626"))
                 .font(.system(size: 16))
 
-            Text("⚠️ CẢNH BÁO: KTV đã tắt GPS trên thiết bị! Đã ghi nhận nhật ký.")
+            Text("⚠️ CẢNH BÁO: \(rolePrefix) đã tắt GPS trên thiết bị! Đã ghi nhận nhật ký.")
                 .font(.system(size: 11.5, weight: .bold))
                 .foregroundColor(Color(hex: "#B91C1C"))
 
@@ -548,18 +851,18 @@ public struct LiveTrackingMapView: View {
         if isEnRoute {
             let distText = effectiveDistanceKm > 0 ? "Còn \(String(format: "%.1f", effectiveDistanceKm)) km" : "Đang tính..."
             let etaText = effectiveEtaMinutes > 0 ? " (khoảng \(effectiveEtaMinutes) phút)" : ""
-            return "KTV đang di chuyển • \(distText)\(etaText)"
+            return "\(rolePrefix) đang di chuyển • \(distText)\(etaText)"
         }
         if isArrived {
-            return "✅ KTV đã đến nơi an toàn"
+            return "✅ \(rolePrefix) đã đến nơi an toàn"
         }
-        return "KTV đã sẵn sàng xuất phát"
+        return "\(rolePrefix) đã sẵn sàng xuất phát"
     }
 
     // MARK: - FLOATING MAP CONTROLS
     private var floatingMapControls: some View {
         VStack(spacing: 0) {
-            // Định vị KTV
+            // Định vị KTV / Chuyên viên
             Button(action: { recenterTrigger += 1 }) {
                 Image(systemName: "location.fill")
                     .font(.system(size: 15))
@@ -593,7 +896,7 @@ public struct LiveTrackingMapView: View {
             Button(action: { fitBoundsTrigger += 1 }) {
                 Image(systemName: "viewfinder")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(Color(hex: "#002A8F"))
+                    .foregroundColor(isSpecialist ? Color(hex: "#7C3AED") : Color(hex: "#002A8F"))
                     .frame(width: 36, height: 36)
             }
         }
@@ -609,7 +912,7 @@ public struct LiveTrackingMapView: View {
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .fill(isAssignedTech ? Color(hex: "#00796B") : Color(hex: "#002A8F"))
+                        .fill(isAssignedTech ? (isSpecialist ? Color(hex: "#7C3AED") : Color(hex: "#00796B")) : Color(hex: "#002A8F"))
                         .frame(width: 44, height: 44)
 
                     Text(String(displayName.prefix(1)).uppercased())
@@ -638,7 +941,7 @@ public struct LiveTrackingMapView: View {
                 Spacer()
             }
 
-            // ROW 2: Nút Gọi GSM, Gọi In-App, Mở Apple Maps
+            // ROW 2: Nút Gọi GSM, Gọi In-App, Mở Bản đồ dẫn đường
             HStack(spacing: 8) {
                 Spacer()
 
@@ -689,20 +992,104 @@ public struct LiveTrackingMapView: View {
                     }
                 }
 
-                // Nút Mở Apple Maps dẫn đường
+                // Nút Mở Google Maps / Apple Maps dẫn đường
                 Button(action: {
                     let d = destCoordinate
-                    if let url = URL(string: "http://maps.apple.com/?daddr=\(d.latitude),\(d.longitude)&dirflg=d") {
-                        UIApplication.shared.open(url)
+                    let lat = d.latitude
+                    let lng = d.longitude
+                    if let googleUrl = URL(string: "comgooglemaps://?daddr=\(lat),\(lng)&directionsmode=driving"),
+                       UIApplication.shared.canOpenURL(googleUrl) {
+                        UIApplication.shared.open(googleUrl)
+                    } else if let appleUrl = URL(string: "http://maps.apple.com/?daddr=\(lat),\(lng)&dirflg=d") {
+                        UIApplication.shared.open(appleUrl)
                     }
                 }) {
-                    Image(systemName: "map.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(Color(hex: "#334155"))
-                        .frame(width: 34, height: 34)
-                        .background(Color(hex: "#F1F5F9"))
-                        .cornerRadius(8)
+                    HStack(spacing: 4) {
+                        Image(systemName: "map.fill")
+                            .font(.system(size: 13))
+                        Text("Dẫn đường")
+                            .font(.system(size: 12, weight: .bold))
+                    }
+                    .foregroundColor(Color(hex: "#334155"))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(Color(hex: "#F1F5F9"))
+                    .cornerRadius(8)
                 }
+            }
+
+            // ROW 2.5: Danh sách KTV / Chuyên Viên Phối Hợp (chuẩn 1:1 Android)
+            if !ticket.coTechnicians.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(Color(hex: "#7C3AED"))
+                        Text("KTV / Chuyên Viên Phối Hợp (\(ticket.coTechnicians.count)):")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color(hex: "#6B21A8"))
+                    }
+
+                    ForEach(ticket.coTechnicians) { co in
+                        let sKey = co.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                            .replacingOccurrences(of: "[^a-zA-Z0-9_]", with: "_", options: .regularExpression)
+                        let cTrack = ticket.collaboratorTrackings[sKey]
+                        let statusText: String = {
+                            if cTrack?.status == "ARRIVED" { return "✅ Đã đến" }
+                            if cTrack?.status == "EN_ROUTE" {
+                                let d = cTrack?.distanceKm ?? 0
+                                return d > 0 ? "🛵 Đang đến (\(String(format: "%.1f", d))km)" : "🛵 Đang di chuyển"
+                            }
+                            return "⚪ Sẵn sàng"
+                        }()
+
+                        HStack(spacing: 6) {
+                            Text("• \(co.name.isEmpty ? co.email : co.name) [\(co.role.isEmpty ? "Phối hợp" : co.role)] • \(statusText)")
+                                .font(.system(size: 11.5))
+                                .foregroundColor(Color(hex: "#4C1D95"))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+
+                            Spacer()
+
+                            if !co.email.isEmpty {
+                                Button(action: {
+                                    WebRtcCallManager.shared.startCall(
+                                        targetEmail: co.email,
+                                        targetName: co.name.isEmpty ? co.email : co.name,
+                                        callerName: viewModel.user.fullName,
+                                        callerEmail: viewModel.user.email
+                                    )
+                                }) {
+                                    Image(systemName: "phone.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.white)
+                                        .frame(width: 24, height: 24)
+                                        .background(Color(hex: "#0284C7"))
+                                        .clipShape(Circle())
+                                }
+                            }
+
+                            if !co.phone.isEmpty {
+                                Button(action: {
+                                    let clean = co.phone.replacingOccurrences(of: " ", with: "")
+                                    if let url = URL(string: "tel:\(clean)") {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }) {
+                                    Image(systemName: "phone.circle.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(Color(hex: "#16A34A"))
+                                }
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+                .padding(10)
+                .background(Color(hex: "#FAF5FF"))
+                .cornerRadius(8)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#E9D5FF"), lineWidth: 1))
             }
 
             Divider()
@@ -721,7 +1108,7 @@ public struct LiveTrackingMapView: View {
         .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: -2)
     }
 
-    // MARK: - KTV ACTIONS
+    // MARK: - KTV / SPECIALIST ACTIONS
     private var ktvActionButtons: some View {
         VStack(spacing: 8) {
             if !isEnRoute && !isArrived {
@@ -733,12 +1120,15 @@ public struct LiveTrackingMapView: View {
                         ticketId: ticket.id,
                         startLat: tech.latitude,
                         startLng: tech.longitude,
-                        startAddress: "Vị trí xuất phát của KTV",
+                        startAddress: "Vị trí xuất phát của \(rolePrefix)",
                         destLat: dest.latitude,
                         destLng: dest.longitude,
-                        destAddress: ticket.donVi,
+                        destAddress: resolvedDestName.isEmpty ? ticket.donVi : resolvedDestName,
                         distanceKm: effectiveDistanceKm,
-                        etaMinutes: effectiveEtaMinutes
+                        etaMinutes: effectiveEtaMinutes,
+                        isSpecialist: isSpecialist,
+                        isCoTech: isCoTechUser,
+                        routeCoordinates: roadCoordinates
                     )
                 }) {
                     HStack(spacing: 8) {
@@ -756,7 +1146,7 @@ public struct LiveTrackingMapView: View {
 
                 // Nút Xử lý từ xa
                 Button(action: {
-                    viewModel.switchToRemote(ticketId: ticket.id) { _ in
+                    viewModel.switchToRemote(ticketId: ticket.id, isSpecialist: isSpecialist) { _ in
                         onDismiss()
                     }
                 }) {
@@ -773,29 +1163,54 @@ public struct LiveTrackingMapView: View {
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#93C5FD"), lineWidth: 1))
                 }
             } else if isEnRoute {
+                // Nút Mở Google Maps / Apple Maps Dẫn đường có giọng nói
+                Button(action: {
+                    let d = destCoordinate
+                    let lat = d.latitude
+                    let lng = d.longitude
+                    if let googleUrl = URL(string: "comgooglemaps://?daddr=\(lat),\(lng)&directionsmode=driving"),
+                       UIApplication.shared.canOpenURL(googleUrl) {
+                        UIApplication.shared.open(googleUrl)
+                    } else if let appleUrl = URL(string: "http://maps.apple.com/?daddr=\(lat),\(lng)&dirflg=d") {
+                        UIApplication.shared.open(appleUrl)
+                    }
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "location.north.circle.fill")
+                            .font(.system(size: 15))
+                        Text("🧭 Mở Dẫn Đường Bản Đồ (Giọng nói & Giao thông)")
+                            .font(.system(size: 12.5, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                    .background(Color(hex: "#16A34A"))
+                    .cornerRadius(10)
+                }
+
                 // Xác nhận Đã đến nơi
                 Button(action: {
-                    if effectiveDistanceKm > 0.2 { // Bán kính 200m
+                    if effectiveDistanceKm > (arrivalRadiusMeters / 1000.0) {
                         showDistanceWarningDialog = true
                     } else {
-                        viewModel.markArrived(ticketId: ticket.id)
+                        viewModel.markArrived(ticketId: ticket.id, isSpecialist: isSpecialist, isCoTech: isCoTechUser)
                     }
                 }) {
                     HStack(spacing: 8) {
                         Image(systemName: "mappin.and.ellipse")
-                        Text("Xác nhận Đã đến nơi (Yêu cầu <= 200m)")
+                        Text("Xác nhận Đã đến nơi (Yêu cầu <= \(Int(arrivalRadiusMeters))m)")
                             .font(.system(size: 13, weight: .bold))
                     }
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background(Color(hex: "#002A8F"))
+                    .background(isSpecialist ? Color(hex: "#6B21A8") : Color(hex: "#002A8F"))
                     .cornerRadius(10)
                 }
 
                 // Dừng di chuyển & Đổi sang xử lý từ xa
                 Button(action: {
-                    viewModel.switchToRemote(ticketId: ticket.id) { _ in
+                    viewModel.switchToRemote(ticketId: ticket.id, isSpecialist: isSpecialist) { _ in
                         onDismiss()
                     }
                 }) {
@@ -866,7 +1281,7 @@ public struct LiveTrackingMapView: View {
                 Button(action: { showCancelConfirmDialog = true }) {
                     HStack(spacing: 6) {
                         Image(systemName: "xmark.octagon.fill")
-                        Text("🛑 Hủy chuyến đi của KTV \(displayName)")
+                        Text("🛑 Hủy chuyến đi của \(rolePrefix) \(displayName)")
                             .font(.system(size: 12.5, weight: .bold))
                     }
                     .foregroundColor(Color(hex: "#DC2626"))
@@ -883,7 +1298,7 @@ public struct LiveTrackingMapView: View {
     // MARK: - CREATOR (USER) ACTIONS
     private var creatorActionButtons: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("📍 Điểm đến hỗ trợ: \(ticket.donVi.isEmpty ? "Tại văn phòng người gửi" : ticket.donVi) (Bán kính 200m)")
+            Text("📍 Điểm đến hỗ trợ: \(resolvedDestName.isEmpty ? (ticket.donVi.isEmpty ? "Tại văn phòng người gửi" : ticket.donVi) : resolvedDestName) (Bán kính \(Int(arrivalRadiusMeters))m)")
                 .font(.system(size: 12))
                 .foregroundColor(Color(hex: "#64748B"))
 
@@ -894,7 +1309,7 @@ public struct LiveTrackingMapView: View {
                 }) {
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill")
-                        Text("💡 Tôi đã tự xử lý xong (Đóng phiếu & Dừng KTV)")
+                        Text("💡 Tôi đã tự xử lý xong (Đóng phiếu & Dừng \(rolePrefix))")
                             .font(.system(size: 12, weight: .bold))
                     }
                     .foregroundColor(Color(hex: "#B45309"))

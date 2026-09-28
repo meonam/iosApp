@@ -428,6 +428,132 @@ public class SupportViewModel: ObservableObject {
                     }
                 }
 
+                // Parse tracking if any
+                var parsedTracking: TicketTracking? = nil
+                if let tMap = fields["tracking"] as? [String: Any], let tFields = (tMap["mapValue"] as? [String: Any])?["fields"] as? [String: Any] {
+                    var routeCoords: [[Double]] = []
+                    if let rArr = (tFields["routeCoordinates"] as? [String: Any])?["arrayValue"] as? [String: Any],
+                       let rVals = rArr["values"] as? [[String: Any]] {
+                        for v in rVals {
+                            if let vm = (v["mapValue"] as? [String: Any])?["fields"] as? [String: Any] {
+                                let lat = FirestoreHelper.getDouble(vm["lat"] as? [String: Any])
+                                let lng = FirestoreHelper.getDouble(vm["lng"] as? [String: Any])
+                                if lat != 0 && lng != 0 {
+                                    routeCoords.append([lat, lng])
+                                }
+                            }
+                        }
+                    }
+                    parsedTracking = TicketTracking(
+                        ticketId: FirestoreHelper.getString(tFields["ticketId"] as? [String: Any]),
+                        technicianEmail: FirestoreHelper.getString(tFields["technicianEmail"] as? [String: Any]),
+                        technicianName: FirestoreHelper.getString(tFields["technicianName"] as? [String: Any]),
+                        technicianPhone: FirestoreHelper.getString(tFields["technicianPhone"] as? [String: Any]),
+                        currentLat: FirestoreHelper.getDouble(tFields["currentLat"] as? [String: Any]),
+                        currentLng: FirestoreHelper.getDouble(tFields["currentLng"] as? [String: Any]),
+                        speedKmh: Float(FirestoreHelper.getDouble(tFields["speedKmh"] as? [String: Any])),
+                        heading: Float(FirestoreHelper.getDouble(tFields["heading"] as? [String: Any])),
+                        startLat: FirestoreHelper.getDouble(tFields["startLat"] as? [String: Any]),
+                        startLng: FirestoreHelper.getDouble(tFields["startLng"] as? [String: Any]),
+                        startAddress: FirestoreHelper.getString(tFields["startAddress"] as? [String: Any]),
+                        startName: FirestoreHelper.getString(tFields["startName"] as? [String: Any]),
+                        destLat: FirestoreHelper.getDouble(tFields["destLat"] as? [String: Any]),
+                        destLng: FirestoreHelper.getDouble(tFields["destLng"] as? [String: Any]),
+                        destAddress: FirestoreHelper.getString(tFields["destAddress"] as? [String: Any]),
+                        destName: FirestoreHelper.getString(tFields["destName"] as? [String: Any]),
+                        distanceKm: FirestoreHelper.getDouble(tFields["distanceKm"] as? [String: Any]),
+                        traveledDistanceKm: FirestoreHelper.getDouble(tFields["traveledDistanceKm"] as? [String: Any]),
+                        etaMinutes: FirestoreHelper.getInt(tFields["etaMinutes"] as? [String: Any]),
+                        status: FirestoreHelper.getString(tFields["status"] as? [String: Any]),
+                        lastUpdatedAt: FirestoreHelper.getInt64(tFields["lastUpdatedAt"] as? [String: Any]),
+                        isGpsLost: FirestoreHelper.getBool(tFields["isGpsLost"] as? [String: Any]),
+                        lastGpsLostAt: FirestoreHelper.getInt64(tFields["lastGpsLostAt"] as? [String: Any]),
+                        isArrivedVerified: FirestoreHelper.getBool(tFields["isArrivedVerified"] as? [String: Any]),
+                        cancelledBy: FirestoreHelper.getString(tFields["cancelledBy"] as? [String: Any]),
+                        cancelReason: FirestoreHelper.getString(tFields["cancelReason"] as? [String: Any]),
+                        cancelledAt: FirestoreHelper.getInt64(tFields["cancelledAt"] as? [String: Any]),
+                        routeCoordinates: routeCoords
+                    )
+                }
+
+                // Parse coTechnicians if any
+                var parsedCoTechs: [CoTechnician] = []
+                if let coArr = (fields["coTechnicians"] as? [String: Any])?["arrayValue"] as? [String: Any],
+                   let coVals = coArr["values"] as? [[String: Any]] {
+                    for cv in coVals {
+                        if let cm = (cv["mapValue"] as? [String: Any])?["fields"] as? [String: Any] {
+                            let email = FirestoreHelper.getString(cm["email"] as? [String: Any])
+                            if !email.isEmpty {
+                                parsedCoTechs.append(CoTechnician(
+                                    email: email,
+                                    name: FirestoreHelper.getString(cm["name"] as? [String: Any]),
+                                    phone: FirestoreHelper.getString(cm["phone"] as? [String: Any]),
+                                    role: FirestoreHelper.getString(cm["role"] as? [String: Any]),
+                                    assignedAt: FirestoreHelper.getInt64(cm["assignedAt"] as? [String: Any]),
+                                    assignedBy: FirestoreHelper.getString(cm["assignedBy"] as? [String: Any]),
+                                    isAcknowledged: FirestoreHelper.getBool(cm["isAcknowledged"] as? [String: Any]),
+                                    acknowledgedAt: FirestoreHelper.getInt64(cm["acknowledgedAt"] as? [String: Any])
+                                ))
+                            }
+                        }
+                    }
+                }
+
+                // Parse collaboratorTrackings if any
+                var parsedCollabs: [String: TicketTracking] = [:]
+                if let cMap = (fields["collaboratorTrackings"] as? [String: Any])?["mapValue"] as? [String: Any],
+                   let cFields = cMap["fields"] as? [String: Any] {
+                    for (k, v) in cFields {
+                        if let vm = (v as? [String: Any])?["mapValue"] as? [String: Any],
+                           let vFields = vm["fields"] as? [String: Any] {
+                            var cRouteCoords: [[Double]] = []
+                            if let rArr = (vFields["routeCoordinates"] as? [String: Any])?["arrayValue"] as? [String: Any],
+                               let rVals = rArr["values"] as? [[String: Any]] {
+                                for rv in rVals {
+                                    if let rm = (rv["mapValue"] as? [String: Any])?["fields"] as? [String: Any] {
+                                        let lat = FirestoreHelper.getDouble(rm["lat"] as? [String: Any])
+                                        let lng = FirestoreHelper.getDouble(rm["lng"] as? [String: Any])
+                                        if lat != 0 && lng != 0 {
+                                            cRouteCoords.append([lat, lng])
+                                        }
+                                    }
+                                }
+                            }
+
+                            parsedCollabs[k] = TicketTracking(
+                                ticketId: FirestoreHelper.getString(vFields["ticketId"] as? [String: Any]),
+                                technicianEmail: FirestoreHelper.getString(vFields["technicianEmail"] as? [String: Any]),
+                                technicianName: FirestoreHelper.getString(vFields["technicianName"] as? [String: Any]),
+                                technicianPhone: FirestoreHelper.getString(vFields["technicianPhone"] as? [String: Any]),
+                                currentLat: FirestoreHelper.getDouble(vFields["currentLat"] as? [String: Any]),
+                                currentLng: FirestoreHelper.getDouble(vFields["currentLng"] as? [String: Any]),
+                                speedKmh: Float(FirestoreHelper.getDouble(vFields["speedKmh"] as? [String: Any])),
+                                heading: Float(FirestoreHelper.getDouble(vFields["heading"] as? [String: Any])),
+                                startLat: FirestoreHelper.getDouble(vFields["startLat"] as? [String: Any]),
+                                startLng: FirestoreHelper.getDouble(vFields["startLng"] as? [String: Any]),
+                                startAddress: FirestoreHelper.getString(vFields["startAddress"] as? [String: Any]),
+                                startName: FirestoreHelper.getString(vFields["startName"] as? [String: Any]),
+                                destLat: FirestoreHelper.getDouble(vFields["destLat"] as? [String: Any]),
+                                destLng: FirestoreHelper.getDouble(vFields["destLng"] as? [String: Any]),
+                                destAddress: FirestoreHelper.getString(vFields["destAddress"] as? [String: Any]),
+                                destName: FirestoreHelper.getString(vFields["destName"] as? [String: Any]),
+                                distanceKm: FirestoreHelper.getDouble(vFields["distanceKm"] as? [String: Any]),
+                                traveledDistanceKm: FirestoreHelper.getDouble(vFields["traveledDistanceKm"] as? [String: Any]),
+                                etaMinutes: FirestoreHelper.getInt(vFields["etaMinutes"] as? [String: Any]),
+                                status: FirestoreHelper.getString(vFields["status"] as? [String: Any]),
+                                lastUpdatedAt: FirestoreHelper.getInt64(vFields["lastUpdatedAt"] as? [String: Any]),
+                                isGpsLost: FirestoreHelper.getBool(vFields["isGpsLost"] as? [String: Any]),
+                                lastGpsLostAt: FirestoreHelper.getInt64(vFields["lastGpsLostAt"] as? [String: Any]),
+                                isArrivedVerified: FirestoreHelper.getBool(vFields["isArrivedVerified"] as? [String: Any]),
+                                cancelledBy: FirestoreHelper.getString(vFields["cancelledBy"] as? [String: Any]),
+                                cancelReason: FirestoreHelper.getString(vFields["cancelReason"] as? [String: Any]),
+                                cancelledAt: FirestoreHelper.getInt64(vFields["cancelledAt"] as? [String: Any]),
+                                routeCoordinates: cRouteCoords
+                            )
+                        }
+                    }
+                }
+
                 return SupportTicket(
                     id: id,
                     creatorEmail: FirestoreHelper.getString(fields["creatorEmail"] as? [String: Any]),
@@ -468,6 +594,9 @@ public class SupportViewModel: ObservableObject {
                     dispatchNote: FirestoreHelper.getString(fields["dispatchNote"] as? [String: Any]),
                     handlingMethod: FirestoreHelper.getString(fields["handlingMethod"] as? [String: Any]),
                     handlingMethodUpdatedAt: FirestoreHelper.getInt64(fields["handlingMethodUpdatedAt"] as? [String: Any]),
+                    coTechnicians: parsedCoTechs,
+                    tracking: parsedTracking,
+                    collaboratorTrackings: parsedCollabs,
                     isAcknowledged: ack,
                     acknowledgedAt: ackAt,
                     acknowledgedBy: ackBy,
@@ -1104,20 +1233,19 @@ public class SupportViewModel: ObservableObject {
         destAddress: String,
         distanceKm: Double = 0.0,
         etaMinutes: Int = 0,
+        isSpecialist: Bool = false,
+        isCoTech: Bool = false,
+        routeCoordinates: [[Double]] = [],
         completion: ((Bool) -> Void)? = nil
     ) {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let mask = "updateMask.fieldPaths=tracking.status&updateMask.fieldPaths=tracking.ticketId&updateMask.fieldPaths=tracking.technicianEmail&updateMask.fieldPaths=tracking.technicianName&updateMask.fieldPaths=tracking.technicianPhone&updateMask.fieldPaths=tracking.currentLat&updateMask.fieldPaths=tracking.currentLng&updateMask.fieldPaths=tracking.startLat&updateMask.fieldPaths=tracking.startLng&updateMask.fieldPaths=tracking.startAddress&updateMask.fieldPaths=tracking.destLat&updateMask.fieldPaths=tracking.destLng&updateMask.fieldPaths=tracking.destAddress&updateMask.fieldPaths=tracking.distanceKm&updateMask.fieldPaths=tracking.etaMinutes&updateMask.fieldPaths=tracking.lastUpdatedAt&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
-            guard let url = URL(string: urlStr) else { completion?(false); return }
+            let sanitizedKey = user.email.lowercased().replacingOccurrences(of: "[^a-zA-Z0-9_]", with: "_", options: .regularExpression)
+            let fieldPrefix = isCoTech ? "collaboratorTrackings.\(sanitizedKey)" : "tracking"
 
-            var request = URLRequest(url: url)
-            request.httpMethod = "PATCH"
-            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            var mask = "updateMask.fieldPaths=\(fieldPrefix).status&updateMask.fieldPaths=\(fieldPrefix).ticketId&updateMask.fieldPaths=\(fieldPrefix).technicianEmail&updateMask.fieldPaths=\(fieldPrefix).technicianName&updateMask.fieldPaths=\(fieldPrefix).technicianPhone&updateMask.fieldPaths=\(fieldPrefix).currentLat&updateMask.fieldPaths=\(fieldPrefix).currentLng&updateMask.fieldPaths=\(fieldPrefix).startLat&updateMask.fieldPaths=\(fieldPrefix).startLng&updateMask.fieldPaths=\(fieldPrefix).startAddress&updateMask.fieldPaths=\(fieldPrefix).destLat&updateMask.fieldPaths=\(fieldPrefix).destLng&updateMask.fieldPaths=\(fieldPrefix).destAddress&updateMask.fieldPaths=\(fieldPrefix).distanceKm&updateMask.fieldPaths=\(fieldPrefix).etaMinutes&updateMask.fieldPaths=\(fieldPrefix).lastUpdatedAt&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
 
-            let trackingMap: [String: Any] = [
+            var trackingMap: [String: Any] = [
                 "ticketId": ["stringValue": ticketId],
                 "technicianEmail": ["stringValue": user.email],
                 "technicianName": ["stringValue": user.fullName],
@@ -1136,26 +1264,17 @@ public class SupportViewModel: ObservableObject {
                 "lastUpdatedAt": ["integerValue": String(now)]
             ]
 
-            let msg = "🛵 KTV \(user.fullName) đã bắt đầu di chuyển tới điểm hỗ trợ"
-            let f: [String: Any] = [
-                "tracking": ["mapValue": ["fields": trackingMap]],
-                "lastMessage": ["stringValue": msg],
-                "lastMessageAt": ["integerValue": String(now)]
-            ]
+            if !routeCoordinates.isEmpty {
+                mask += "&updateMask.fieldPaths=\(fieldPrefix).routeCoordinates"
+                let coordsArray: [[String: Any]] = routeCoordinates.map { pt in
+                    ["mapValue": ["fields": [
+                        "lat": ["doubleValue": pt[0]],
+                        "lng": ["doubleValue": pt[1]]
+                    ]]]
+                }
+                trackingMap["routeCoordinates"] = ["arrayValue": ["values": coordsArray]]
+            }
 
-            request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-            _ = await FirestoreHelper.executeSafeRequest(request)
-
-            sendMessage(ticketId: ticketId, text: msg)
-            self.fetchTickets()
-            DispatchQueue.main.async { completion?(true) }
-        }
-    }
-
-    public func markArrived(ticketId: String, completion: ((Bool) -> Void)? = nil) {
-        Task {
-            let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let mask = "updateMask.fieldPaths=tracking.status&updateMask.fieldPaths=tracking.isArrivedVerified&updateMask.fieldPaths=tracking.lastUpdatedAt&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
@@ -1164,14 +1283,20 @@ public class SupportViewModel: ObservableObject {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            let msg = "✅ KTV \(user.fullName) đã đến điểm hỗ trợ an toàn"
-            let f: [String: Any] = [
-                "tracking.status": ["stringValue": "ARRIVED"],
-                "tracking.isArrivedVerified": ["booleanValue": true],
-                "tracking.lastUpdatedAt": ["integerValue": String(now)],
+            let title = isSpecialist ? (isCoTech ? "Chuyên viên phối hợp" : "Chuyên viên") : (isCoTech ? "KTV phối hợp" : "KTV")
+            let msg = "🛵 \(title) \(user.fullName) đã bắt đầu di chuyển tới điểm hỗ trợ"
+
+            var f: [String: Any] = [
                 "lastMessage": ["stringValue": msg],
                 "lastMessageAt": ["integerValue": String(now)]
             ]
+            if isCoTech {
+                f["collaboratorTrackings"] = ["mapValue": ["fields": [
+                    sanitizedKey: ["mapValue": ["fields": trackingMap]]
+                ]]]
+            } else {
+                f["tracking"] = ["mapValue": ["fields": trackingMap]]
+            }
 
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
             _ = await FirestoreHelper.executeSafeRequest(request)
@@ -1182,7 +1307,124 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
-    public func switchToRemote(ticketId: String, completion: ((Bool) -> Void)? = nil) {
+    public func updateTripLocation(
+        ticketId: String,
+        currentLat: Double,
+        currentLng: Double,
+        speedKmh: Float = 0,
+        heading: Float = 0,
+        distanceKm: Double = 0,
+        etaMinutes: Int = 0,
+        traveledKm: Double = 0,
+        routeCoordinates: [[Double]] = [],
+        isCoTech: Bool = false
+    ) {
+        guard !ticketId.isEmpty, currentLat != 0, currentLng != 0 else { return }
+        Task {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let sanitizedKey = user.email.lowercased().replacingOccurrences(of: "[^a-zA-Z0-9_]", with: "_", options: .regularExpression)
+            let fieldPrefix = isCoTech ? "collaboratorTrackings.\(sanitizedKey)" : "tracking"
+
+            var mask = "updateMask.fieldPaths=\(fieldPrefix).currentLat&updateMask.fieldPaths=\(fieldPrefix).currentLng&updateMask.fieldPaths=\(fieldPrefix).speedKmh&updateMask.fieldPaths=\(fieldPrefix).heading&updateMask.fieldPaths=\(fieldPrefix).lastUpdatedAt"
+            if distanceKm > 0 { mask += "&updateMask.fieldPaths=\(fieldPrefix).distanceKm&updateMask.fieldPaths=\(fieldPrefix).etaMinutes" }
+            if traveledKm > 0 { mask += "&updateMask.fieldPaths=\(fieldPrefix).traveledDistanceKm" }
+
+            var trackingFields: [String: Any] = [
+                "currentLat": ["doubleValue": currentLat],
+                "currentLng": ["doubleValue": currentLng],
+                "speedKmh": ["doubleValue": Double(speedKmh)],
+                "heading": ["doubleValue": Double(heading)],
+                "lastUpdatedAt": ["integerValue": String(now)]
+            ]
+            if distanceKm > 0 {
+                trackingFields["distanceKm"] = ["doubleValue": distanceKm]
+                trackingFields["etaMinutes"] = ["integerValue": String(etaMinutes)]
+            }
+            if traveledKm > 0 {
+                trackingFields["traveledDistanceKm"] = ["doubleValue": traveledKm]
+            }
+
+            if !routeCoordinates.isEmpty {
+                mask += "&updateMask.fieldPaths=\(fieldPrefix).routeCoordinates"
+                let coordsArray: [[String: Any]] = routeCoordinates.map { pt in
+                    ["mapValue": ["fields": [
+                        "lat": ["doubleValue": pt[0]],
+                        "lng": ["doubleValue": pt[1]]
+                    ]]]
+                }
+                trackingFields["routeCoordinates"] = ["arrayValue": ["values": coordsArray]]
+            }
+
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            guard let url = URL(string: urlStr) else { return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let fieldsPayload: [String: Any]
+            if isCoTech {
+                fieldsPayload = [
+                    "collaboratorTrackings": ["mapValue": ["fields": [
+                        sanitizedKey: ["mapValue": ["fields": trackingFields]]
+                    ]]]
+                ]
+            } else {
+                fieldsPayload = [
+                    "tracking": ["mapValue": ["fields": trackingFields]]
+                ]
+            }
+
+            let body: [String: Any] = ["fields": fieldsPayload]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            _ = await FirestoreHelper.executeSafeRequest(request)
+        }
+    }
+
+    public func markArrived(ticketId: String, isSpecialist: Bool = false, isCoTech: Bool = false, completion: ((Bool) -> Void)? = nil) {
+        Task {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let sanitizedKey = user.email.lowercased().replacingOccurrences(of: "[^a-zA-Z0-9_]", with: "_", options: .regularExpression)
+            let fieldPrefix = isCoTech ? "collaboratorTrackings.\(sanitizedKey)" : "tracking"
+            let mask = "updateMask.fieldPaths=\(fieldPrefix).status&updateMask.fieldPaths=\(fieldPrefix).isArrivedVerified&updateMask.fieldPaths=\(fieldPrefix).lastUpdatedAt&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            guard let url = URL(string: urlStr) else { completion?(false); return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let title = isSpecialist ? (isCoTech ? "Chuyên viên phối hợp" : "Chuyên viên") : (isCoTech ? "KTV phối hợp" : "KTV")
+            let msg = "✅ \(title) \(user.fullName) đã đến điểm hỗ trợ an toàn"
+            let trackingFields: [String: Any] = [
+                "status": ["stringValue": "ARRIVED"],
+                "isArrivedVerified": ["booleanValue": true],
+                "lastUpdatedAt": ["integerValue": String(now)]
+            ]
+            var f: [String: Any] = [
+                "lastMessage": ["stringValue": msg],
+                "lastMessageAt": ["integerValue": String(now)]
+            ]
+            if isCoTech {
+                f["collaboratorTrackings"] = ["mapValue": ["fields": [
+                    sanitizedKey: ["mapValue": ["fields": trackingFields]]
+                ]]]
+            } else {
+                f["tracking"] = ["mapValue": ["fields": trackingFields]]
+            }
+
+            request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
+            _ = await FirestoreHelper.executeSafeRequest(request)
+
+            sendMessage(ticketId: ticketId, text: msg)
+            self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
+        }
+    }
+
+    public func switchToRemote(ticketId: String, isSpecialist: Bool = false, completion: ((Bool) -> Void)? = nil) {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let mask = "updateMask.fieldPaths=handlingMethod&updateMask.fieldPaths=tracking.status&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
@@ -1194,10 +1436,15 @@ public class SupportViewModel: ObservableObject {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            let msg = "💻 [Tiếp nhận ca] KTV \(user.fullName) đã chọn phương án: XỬ LÝ TỪ XA."
+            let title = isSpecialist ? "Chuyên viên" : "KTV"
+            let msg = "💻 [Tiếp nhận ca] \(title) \(user.fullName) đã chọn phương án: XỬ LÝ TỪ XA."
+            let trackingFields: [String: Any] = [
+                "status": ["stringValue": "CANCELLED"],
+                "lastUpdatedAt": ["integerValue": String(now)]
+            ]
             let f: [String: Any] = [
                 "handlingMethod": ["stringValue": "REMOTE"],
-                "tracking.status": ["stringValue": "CANCELLED"],
+                "tracking": ["mapValue": ["fields": trackingFields]],
                 "lastMessage": ["stringValue": msg],
                 "lastMessageAt": ["integerValue": String(now)]
             ]
@@ -1224,10 +1471,14 @@ public class SupportViewModel: ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             let msg = "🛑 Chuyến đi đã bị hủy: \(reason)"
+            let trackingFields: [String: Any] = [
+                "status": ["stringValue": "CANCELLED"],
+                "cancelReason": ["stringValue": reason],
+                "cancelledAt": ["integerValue": String(now)],
+                "lastUpdatedAt": ["integerValue": String(now)]
+            ]
             let f: [String: Any] = [
-                "tracking.status": ["stringValue": "CANCELLED"],
-                "tracking.cancelReason": ["stringValue": reason],
-                "tracking.cancelledAt": ["integerValue": String(now)],
+                "tracking": ["mapValue": ["fields": trackingFields]],
                 "lastMessage": ["stringValue": msg],
                 "lastMessageAt": ["integerValue": String(now)]
             ]

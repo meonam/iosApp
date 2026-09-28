@@ -134,6 +134,7 @@ public struct TicketTracking: Codable, Hashable {
     public var cancelledBy: String
     public var cancelReason: String
     public var cancelledAt: Int64
+    public var routeCoordinates: [[Double]]
 
     public init(
         ticketId: String = "",
@@ -162,7 +163,8 @@ public struct TicketTracking: Codable, Hashable {
         isArrivedVerified: Bool = false,
         cancelledBy: String = "",
         cancelReason: String = "",
-        cancelledAt: Int64 = 0
+        cancelledAt: Int64 = 0,
+        routeCoordinates: [[Double]] = []
     ) {
         self.ticketId = ticketId
         self.technicianEmail = technicianEmail
@@ -191,6 +193,7 @@ public struct TicketTracking: Codable, Hashable {
         self.cancelledBy = cancelledBy
         self.cancelReason = cancelReason
         self.cancelledAt = cancelledAt
+        self.routeCoordinates = routeCoordinates
     }
 }
 
@@ -237,6 +240,7 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
     public var handlingMethodUpdatedAt: Int64
     public var coTechnicians: [CoTechnician]
     public var tracking: TicketTracking?
+    public var collaboratorTrackings: [String: TicketTracking]
     public var isAcknowledged: Bool
     public var acknowledgedAt: Int64
     public var acknowledgedBy: String
@@ -323,6 +327,7 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         handlingMethodUpdatedAt: Int64 = 0,
         coTechnicians: [CoTechnician] = [],
         tracking: TicketTracking? = nil,
+        collaboratorTrackings: [String: TicketTracking] = [:],
         isAcknowledged: Bool = false,
         acknowledgedAt: Int64 = 0,
         acknowledgedBy: String = "",
@@ -408,6 +413,7 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         self.handlingMethodUpdatedAt = handlingMethodUpdatedAt
         self.coTechnicians = coTechnicians
         self.tracking = tracking
+        self.collaboratorTrackings = collaboratorTrackings
         self.isAcknowledged = isAcknowledged
         self.acknowledgedAt = acknowledgedAt
         self.acknowledgedBy = acknowledgedBy
