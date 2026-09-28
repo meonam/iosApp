@@ -25,6 +25,16 @@ public struct HandoverTicketSheetView: View {
             if em.contains("@") && cleanMy.contains("@") && em.components(separatedBy: "@").first == cleanMy.components(separatedBy: "@").first {
                 return false
             }
+            // Strict filter: only KTV or Specialist, reject excluded roles
+            let role = tech.role.lowercased()
+            let isExcluded = role == "user" || role == "admin" || role == "superadmin" || role == "super_admin" || role == "helpdesk" || role == "hd" ||
+                role.contains("admin") || role.contains("helpdesk") || role.contains("nhan vien") || role.contains("nhanvien") || role.contains("nhân viên")
+            let isKtv = role == "ktv" || role == "technician" || role == "kythuat" || role == "ky_thuat" ||
+                role.contains("ktv") || role.contains("technician") || role.contains("kythuat") || role.contains("kỹ thuật")
+            let isSpec = tech.isSpecialist || role == "specialist" || role == "chuyenvien" || role.contains("specialist") || role.contains("chuyenvien") || role.contains("chuyên viên")
+            if isExcluded || (!isKtv && !isSpec) {
+                return false
+            }
             return true
         }
     }
@@ -239,12 +249,20 @@ public struct HandoverTicketSheetView: View {
                                                             .font(.system(size: 11))
                                                             .foregroundColor(Color(hex: "#64748B"))
 
-                                                        if !tech.maKhuVuc.isEmpty {
-                                                            Text("Cụm \(tech.maKhuVuc)")
+                                                        if tech.isSpecialist {
+                                                            Text("Chuyên viên")
                                                                 .font(.system(size: 9.5, weight: .semibold))
-                                                                .foregroundColor(Color(hex: "#4338CA"))
-                                                                .padding(.horizontal, 5)
-                                                                .padding(.vertical, 1)
+                                                                .foregroundColor(Color(hex: "#7E22CE"))
+                                                                .padding(.horizontal, 6)
+                                                                .padding(.vertical, 1.5)
+                                                                .background(Color(hex: "#F3E8FF"))
+                                                                .cornerRadius(4)
+                                                        } else {
+                                                            Text(tech.maKhuVuc.isEmpty ? "Kỹ thuật viên" : "KTV • Cụm \(tech.maKhuVuc)")
+                                                                .font(.system(size: 9.5, weight: .semibold))
+                                                                .foregroundColor(Color(hex: "#3730A3"))
+                                                                .padding(.horizontal, 6)
+                                                                .padding(.vertical, 1.5)
                                                                 .background(Color(hex: "#E0E7FF"))
                                                                 .cornerRadius(4)
                                                         }
@@ -368,6 +386,8 @@ public struct HandoverTicketSheetView: View {
                             targetTechEmail: selectedTab == 0 ? selectedTech?.email ?? "" : "",
                             targetTechName: selectedTab == 0 ? selectedTech?.name ?? "" : "",
                             targetCluster: selectedTab == 0 ? selectedTech?.maKhuVuc ?? "" : "",
+                            targetDeptId: selectedTab == 0 ? selectedTech?.departmentId ?? "" : "",
+                            targetDeptName: selectedTab == 0 ? selectedTech?.departmentName ?? "" : "",
                             reason: cleanReason
                         ) { success in
                             isSubmitting = false

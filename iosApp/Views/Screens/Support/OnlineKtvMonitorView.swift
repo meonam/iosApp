@@ -15,6 +15,10 @@ public struct KtvOnlineLocation: Identifiable {
     public var lastActiveAt: Int64
     public var latitude: Double
     public var longitude: Double
+    public var role: String
+    public var departmentId: String
+    public var departmentName: String
+    public var isSpecialist: Bool
 
     public init(
         name: String,
@@ -27,7 +31,11 @@ public struct KtvOnlineLocation: Identifiable {
         lastSeen: String = "Không rõ",
         lastActiveAt: Int64 = 0,
         latitude: Double = 0,
-        longitude: Double = 0
+        longitude: Double = 0,
+        role: String = "",
+        departmentId: String = "",
+        departmentName: String = "",
+        isSpecialist: Bool = false
     ) {
         self.name = name
         self.email = email
@@ -40,6 +48,10 @@ public struct KtvOnlineLocation: Identifiable {
         self.lastActiveAt = lastActiveAt
         self.latitude = latitude
         self.longitude = longitude
+        self.role = role
+        self.departmentId = departmentId
+        self.departmentName = departmentName
+        self.isSpecialist = isSpecialist
     }
 
     public var coordinate: CLLocationCoordinate2D {

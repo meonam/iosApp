@@ -1469,7 +1469,6 @@ public class SupportViewModel: ObservableObject {
             var f: [String: Any] = [
                 "assignedByEmail": ["stringValue": user.email],
                 "assignedByName": ["stringValue": fromName],
-                "assignedAt": ["integerValue": String(now)],
                 "dispatchNote": ["stringValue": cleanReason],
                 "isAcknowledged": ["booleanValue": false],
                 "acknowledged": ["booleanValue": false],
@@ -1486,6 +1485,7 @@ public class SupportViewModel: ObservableObject {
                 let targetName = !targetTechName.isEmpty ? targetTechName : cleanTargetEmail
                 systemMsg = "🔄 [Bàn giao ca] KTV \(fromName) đã bàn giao yêu cầu cho KTV \(targetName). Lý do: \(cleanReason)"
 
+                f["assignedAt"] = ["integerValue": String(now)]
                 maskFields.append(contentsOf: ["assignedToEmail", "assignedToName", "assignedCluster"])
                 f["assignedToEmail"] = ["stringValue": cleanTargetEmail]
                 f["assignedToName"] = ["stringValue": targetName]
@@ -1501,11 +1501,18 @@ public class SupportViewModel: ObservableObject {
             } else {
                 systemMsg = "↩️ [Chuyển về HelpDesk] KTV \(fromName) đã chuyển trả ticket cho HelpDesk tiếp nhận lại. Lý do: \(cleanReason)"
 
-                maskFields.append(contentsOf: ["status", "assignedToEmail", "assignedToName", "assignedCluster"])
+                f["assignedAt"] = ["integerValue": "0"]
+                maskFields.append(contentsOf: [
+                    "status", "assignedToEmail", "assignedToName", "assignedCluster",
+                    "assignedDepartmentId", "assignedDepartmentName", "helpdeskAcknowledgedAt"
+                ])
                 f["status"] = ["stringValue": "OPEN"]
                 f["assignedToEmail"] = ["stringValue": ""]
                 f["assignedToName"] = ["stringValue": ""]
                 f["assignedCluster"] = ["stringValue": ""]
+                f["assignedDepartmentId"] = ["stringValue": ""]
+                f["assignedDepartmentName"] = ["stringValue": ""]
+                f["helpdeskAcknowledgedAt"] = ["integerValue": "0"]
             }
 
             f["lastMessage"] = ["stringValue": systemMsg]
@@ -1821,15 +1828,45 @@ public class SupportViewModel: ObservableObject {
                 return
             }
 
-            let ktvRoles: Set<String> = ["KTV", "TECHNICIAN", "KYTHUAT", "HELPDESK", "HELP_DESK", "CHUYENVIEN", "SPECIALIST"]
             let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
             let onlineWindowMs: Int64 = 15 * 60 * 1000 // 15 phút
 
             var result: [KtvOnlineLocation] = []
             for doc in docs {
                 guard let fields = doc["fields"] as? [String: Any] else { continue }
-                let role = FirestoreHelper.getString(fields["role"] as? [String: Any]).uppercased()
-                guard ktvRoles.contains(role) else { continue }
+                let email = FirestoreHelper.getString(fields["email"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                if email.isEmpty { continue }
+
+                let role = FirestoreHelper.getString(fields["role"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let deptId = (FirestoreHelper.getString(fields["departmentId"] as? [String: Any]).isEmpty
+                    ? FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
+                    : FirestoreHelper.getString(fields["departmentId"] as? [String: Any])).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let deptName = (FirestoreHelper.getString(fields["departmentName"] as? [String: Any]).isEmpty
+                    ? FirestoreHelper.getString(fields["deptName"] as? [String: Any])
+                    : FirestoreHelper.getString(fields["departmentName"] as? [String: Any])).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let toNghiepVu = FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let donVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+                // 1. Loại trừ các vai trò không thuộc đội kỹ thuật/chuyên viên: User thường, Nhân viên, HelpDesk, Admin
+                let isExcluded = role == "user" || role == "admin" || role == "superadmin" || role == "super_admin" || role == "helpdesk" || role == "hd" ||
+                    role.contains("admin") || role.contains("helpdesk") || role.contains("nhan vien") || role.contains("nhanvien") || role.contains("nhân viên")
+
+                // 2. Nhận diện Kỹ thuật viên (KTV)
+                let isKtv = role == "ktv" || role == "technician" || role == "kythuat" || role == "ky_thuat" || role == "incident_handler" ||
+                    role.contains("ktv") || role.contains("technician") || role.contains("kythuat") || role.contains("kỹ thuật")
+
+                // 3. Nhận diện Chuyên viên (Specialist)
+                let isSpecialist = role == "specialist" || role == "chuyenvien" || role == "chuyen_vien" ||
+                    role.contains("specialist") || role.contains("chuyenvien") || role.contains("chuyên viên") ||
+                    deptId.contains("nghiep vu") || deptId.contains("ung dung") ||
+                    deptName.contains("nghiệp vụ") || deptName.contains("ứng dụng") ||
+                    donVi.contains("nghiệp vụ") || donVi.contains("nghiep vu") ||
+                    !toNghiepVu.isEmpty
+
+                // CHỈ hiển thị nếu là KTV hoặc Chuyên viên, và không nằm trong nhóm bị loại trừ
+                if isExcluded || (!isKtv && !isSpecialist) {
+                    continue
+                }
 
                 let rawOnline = (fields["isOnline"] as? [String: Any])?["booleanValue"] as? Bool ?? false
                 let lastActiveAt = FirestoreHelper.getInt64(fields["lastActiveAt"] as? [String: Any])
@@ -1838,7 +1875,6 @@ public class SupportViewModel: ObservableObject {
                 let name = FirestoreHelper.getString(fields["fullName"] as? [String: Any]).isEmpty
                     ? FirestoreHelper.getString(fields["name"] as? [String: Any])
                     : FirestoreHelper.getString(fields["fullName"] as? [String: Any])
-                let email = FirestoreHelper.getString(fields["email"] as? [String: Any])
                 let phone = FirestoreHelper.getString(fields["phone"] as? [String: Any])
                 let maNhanVien = FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]).isEmpty
                     ? FirestoreHelper.getString(fields["employeeId"] as? [String: Any])
@@ -1870,7 +1906,11 @@ public class SupportViewModel: ObservableObject {
                     lastSeen: lastSeen,
                     lastActiveAt: lastActiveAt,
                     latitude: latitude,
-                    longitude: longitude
+                    longitude: longitude,
+                    role: role,
+                    departmentId: deptId,
+                    departmentName: deptName,
+                    isSpecialist: isSpecialist
                 ))
             }
 

@@ -20,6 +20,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
     private var seenDispatches: [String: Int64] = [:]
     private var seenRatings: [String: Int64] = [:]
     private var seenResolved: [String: Int64] = [:]
+    private var seenHandoffs: [String: Int64] = [:]
 
     // Vòng lặp cảnh báo lặp lại (Repeating Alert cho Lệnh Điều Phối)
     private var alertTask: Task<Void, Never>? = nil
@@ -378,6 +379,33 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         }
     }
 
+    // MARK: - 1.1 PHIẾU CHUYỂN TRẢ VỀ HELPDESK (Cho TẤT CẢ User HelpDesk)
+    public func notifyHandoverToHelpDesk(ticketId: String, donViName: String, subject: String, reason: String = "") {
+        let dv = cleanDonViName(donViName)
+        let cleanReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = "↩️ PHIẾU CHUYỂN TRẢ VỀ HELPDESK!"
+        let message = "📍 \(dv): \(cleanReason.isEmpty ? (subject.isEmpty ? "Cần tiếp nhận lại" : subject) : cleanReason)"
+        let text = "Kỹ thuật viên đã chuyển trả yêu cầu hỗ trợ từ \(dv) về HelpDesk tiếp nhận lại."
+
+        showHeadsUpNotification(
+            title: title,
+            message: message,
+            ticketId: ticketId,
+            actionTitle: "✅ ĐÃ TIẾP NHẬN",
+            actionType: "ACK_NEW_TICKET"
+        )
+
+        triggerVibration()
+        speak(text: text, fallbackBundledName: "voice_new_ticket")
+
+        if effectiveVoiceMode == "REPEAT" {
+            Task {
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                self.speak(text: text, fallbackBundledName: "voice_new_ticket")
+            }
+        }
+    }
+
     // MARK: - 2. ĐIỀU PHỐI KTV / CHUYÊN VIÊN (ĐỒNG BỘ 1:1 VỚI ANDROID VOICENOTIFICATIONHELPER.KT)
     public func notifyTechnicianDispatched(ticketId: String, donViName: String, subject: String, isSpecialist: Bool) {
         let cleanDonVi = cleanDonViName(donViName)
@@ -482,6 +510,10 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 let rateTime = t.feedbackAt > 0 ? t.feedbackAt : t.closedAt
                 if rateTime > 0 { seenRatings[t.id] = rateTime }
                 if t.resolvedAt > 0 { seenResolved[t.id] = t.resolvedAt }
+                let handoffTime = t.lastMessageAt
+                if handoffTime > 0 && handoffTime < fiveMinutesAgo {
+                    seenHandoffs[t.id] = handoffTime
+                }
             }
         }
 
@@ -502,6 +534,20 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 seenTicketIds.insert(t.id)
                 if !isDispatched && isCreatedAfterStart && isNotSelf && currentUser.isHelpDesk {
                     notifyNewSupportRequest(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, source: t.source)
+                }
+            }
+
+            // 1.1 VÉ ĐƯỢC KTV CHUYỂN TRẢ VỀ CHO HELPDESK TIẾP NHẬN LẠI (TẤT CẢ USER HELPDESK ĐỀU NHẬN)
+            let isHandedOverToHelpDesk = t.lastMessage.contains("[Chuyển về HelpDesk]") || t.lastMessage.contains("chuyển trả ticket cho HelpDesk")
+            if isHandedOverToHelpDesk && currentUser.isHelpDesk {
+                let lastSeenHandoff = seenHandoffs[t.id] ?? 0
+                let effHandoffAt = t.lastMessageAt > 0 ? t.lastMessageAt : (t.updatedAt > 0 ? t.updatedAt : now)
+                let isFreshHandoff = (now - effHandoffAt) <= 300_000 // Trong vòng 5 phút
+                if effHandoffAt > lastSeenHandoff && (isFreshHandoff || effHandoffAt >= appStartTime) {
+                    seenHandoffs[t.id] = effHandoffAt
+                    notifyHandoverToHelpDesk(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, reason: t.dispatchNote)
+                } else if lastSeenHandoff == 0 {
+                    seenHandoffs[t.id] = effHandoffAt
                 }
             }
 
