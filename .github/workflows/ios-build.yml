@@ -53,22 +53,22 @@ jobs:
           # Sao chép file .app được tạo ra trong thư mục Applications vào thư mục Payload
           cp -r build/QLTB.xcarchive/Products/Applications/*.app build/Payload/
           cd build
-          zip -r QLTB_iOS_v1.2.0.ipa Payload
-          ls -lh QLTB_iOS_v1.2.0.ipa
+          zip -r QLTB_iOS_v1.3.0.ipa Payload
+          ls -lh QLTB_iOS_v1.3.0.ipa
 
       - name: 6. Xuất bản tệp cài đặt IPA lên GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: QLTB-iOS-App-IPA
-          path: build/QLTB_iOS_v1.2.0.ipa
+          path: build/QLTB_iOS_v1.3.0.ipa
           retention-days: 30
 
       - name: 7. Tạo GitHub Release đính kèm tệp IPA
         uses: softprops/action-gh-release@v2
         continue-on-error: true
         with:
-          files: build/QLTB_iOS_v1.2.0.ipa
-          name: QLTB iOS v1.2.0 (Build 120)
+          files: build/QLTB_iOS_v1.3.0.ipa
+          name: QLTB iOS v1.3.0 (Build 130)
           tag_name: latest
           draft: false
           prerelease: false
@@ -77,7 +77,7 @@ jobs:
         continue-on-error: true
         run: |
           curl -s -X POST "https://api.cloudinary.com/v1_1/nhxhhbqf/raw/upload" \
-            -F "file=@build/QLTB_iOS_v1.2.0.ipa" \
+            -F "file=@build/QLTB_iOS_v1.3.0.ipa" \
             -F "upload_preset=qltb_preset" \
-            -F "public_id=QLTB_iOS_v1.2.0"
+            -F "public_id=QLTB_iOS_v1.3.0"
           echo "Upload to Cloudinary finished."
