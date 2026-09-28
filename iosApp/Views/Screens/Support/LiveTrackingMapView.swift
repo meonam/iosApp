@@ -797,8 +797,7 @@ public struct LiveTrackingMapView: View {
     // MARK: - FETCH ROAD ROUTE VIA OSRM / GOOGLE
     private func fetchRoadRoute() {
         let dest = destCoordinate
-        let tech = techCoordinate
-        guard tech.latitude != 0, tech.longitude != 0, dest.latitude != 0, dest.longitude != 0 else { return }
+        guard let tech = techCoordinate, tech.latitude != 0, tech.longitude != 0, dest.latitude != 0, dest.longitude != 0 else { return }
 
         if !tracking.routeCoordinates.isEmpty && tracking.routeCoordinates.count >= 2 {
             self.roadCoordinates = tracking.routeCoordinates

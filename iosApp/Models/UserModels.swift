@@ -91,6 +91,7 @@ public struct User: Identifiable, Codable, Hashable {
 
     // Computed Properties phân quyền chuẩn xác 1:1 theo User.kt
     public var unitId: String { donVi }
+    public var khuVuc: String { maKhuVuc }
 
     public var isSuperAdmin: Bool {
         SuperAdminConfig.isSuperAdmin(email: email, role: role)

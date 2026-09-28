@@ -340,10 +340,6 @@ public class SupportViewModel: ObservableObject {
         autoPollingTimer = nil
     }
 
-    deinit {
-        stopAutoPolling()
-    }
-
     public func fetchTicketsSilent() {
         guard !companyId.isEmpty else { return }
         Task {

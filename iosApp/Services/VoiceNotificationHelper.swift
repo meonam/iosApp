@@ -198,7 +198,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 (!currentUser.departmentId.isEmpty && currentUser.departmentId == t.assignedDepartmentId) ||
                 (!currentUser.departmentName.isEmpty && currentUser.departmentName == t.assignedDepartmentName)
             )
-            let isClusterMatch = currentUser.isTechnician && t.assignedToEmail.isEmpty && !t.assignedCluster.isEmpty && (currentUser.khuVuc == t.assignedCluster)
+            let isClusterMatch = currentUser.isTechnician && t.assignedToEmail.isEmpty && !t.assignedCluster.isEmpty && (currentUser.maKhuVuc == t.assignedCluster)
 
             let isAssignedToMe = (isPrimary || isSpecialistMatch || isClusterMatch) && !t.isAcknowledged
 
