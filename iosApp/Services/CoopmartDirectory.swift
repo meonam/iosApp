@@ -9,12 +9,12 @@ public struct CoopmartStore: Hashable, Codable {
     public let keyTokens: [String]
 
     public init(name: String, address: String, phone: String, lat: Double, lng: Double, keyTokens: [String] = []) {
-        self.name: name
-        self.address: address
-        self.phone: phone
-        self.lat: lat
-        self.lng: lng
-        self.keyTokens: keyTokens
+        self.name = name
+        self.address = address
+        self.phone = phone
+        self.lat = lat
+        self.lng = lng
+        self.keyTokens = keyTokens
     }
 }
 
@@ -226,7 +226,7 @@ public enum CoopmartDirectory {
             phone: "(028) 39.966.477",
             lat: 10.8349689,
             lng: 106.6620909,
-            keyTokens: ["QUANG TRUNG (FOODCOSA]", "QT")
+            keyTokens: ["QUANG TRUNG (FOODCOSA)", "QT"]
         ),
         CoopmartStore(
             name: "CO.OPMART HIỆP THÀNH",
@@ -706,7 +706,7 @@ public enum CoopmartDirectory {
             phone: "(0296) 3.596.400",
             lat: 10.7948934,
             lng: 105.2415432,
-            keyTokens: ["TÂN CHÂU (AG]")
+            keyTokens: ["TÂN CHÂU (AG)"]
         ),
         CoopmartStore(
             name: "CO.OPMART THỐT NỐT",
@@ -1149,7 +1149,7 @@ public enum CoopmartDirectory {
 
         var cleaned = unitName.trimmingCharacters(in: .whitespacesAndNewlines)
         cleaned = cleaned.replacingOccurrences(of: "^\\s*\\[?[0-9]+\\]?\\s*[-_:–.]\\s*", with: "", options: .regularExpression)
-        cleaned = cleaned.replacingOccurrences(of: "^\\s*\\[[^\]]+\\]\\s*", with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: "^\\s*\\[[^\\]]+\\]\\s*", with: "", options: .regularExpression)
         cleaned = cleaned.replacingOccurrences(of: "(?i)^(don vi|chi nhanh|st|kho|van phong)\\s*:\\s*", with: "", options: .regularExpression)
         cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
 

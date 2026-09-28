@@ -506,7 +506,7 @@ public struct LiveTrackingMapView: View {
     }
 
     private var isEnRoute: Bool {
-        tracking.status == "EN_ROUTE" || ticket.collaboratorTrackings.values.any { $0.status == "EN_ROUTE" }
+        tracking.status == "EN_ROUTE" || ticket.collaboratorTrackings.values.contains { $0.status == "EN_ROUTE" }
     }
 
     private var isArrived: Bool {
@@ -734,7 +734,7 @@ public struct LiveTrackingMapView: View {
         let geocodeQuery = !query.isEmpty ? query : addr
         if !geocodeQuery.isEmpty {
             Task {
-                if let geo = await OsrmRoutingHelper.shared.geocodeAddress(address: geocodeQuery) {
+                if let geo = await OsrmRoutingHelper.shared.geocodeAddress(geocodeQuery) {
                     await MainActor.run {
                         self.resolvedDestCoordinate = CLLocationCoordinate2D(latitude: geo.lat, longitude: geo.lng)
                         self.resolvedDestName = geocodeQuery
