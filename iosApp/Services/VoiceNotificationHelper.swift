@@ -68,7 +68,6 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
             try session.setActive(true)
-            try session.overrideOutputAudioPort(.speaker)
         } catch {
             print("[VoiceNotificationHelper] Configure audio session error: \(error)")
         }
@@ -93,12 +92,16 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
     // MARK: - RUNG THIẾT BỊ MẠNH MẼ (HAPTIC & PHYSICAL VIBRATION ĐỒNG BỘ ANDROID)
     public func triggerVibration() {
         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
-        let impact = UIImpactFeedbackGenerator(style: .heavy)
-        impact.prepare()
-        impact.impactOccurred()
+        DispatchQueue.main.async {
+            let impact = UIImpactFeedbackGenerator(style: .heavy)
+            impact.prepare()
+            impact.impactOccurred()
+        }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+            let impact = UIImpactFeedbackGenerator(style: .heavy)
+            impact.prepare()
             impact.impactOccurred()
         }
     }

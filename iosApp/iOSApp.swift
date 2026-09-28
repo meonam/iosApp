@@ -21,12 +21,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         // 1. Cấu hình AudioSession tối ưu cho giọng đọc âm lượng lớn, không bị ngắt quãng
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .allowBluetooth])
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
-            try session.overrideOutputAudioPort(.speaker)
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            try session.setActive(true)
         } catch {
             print("[AppDelegate] AudioSession setup error: \(error)")
         }
+
 
         // 2. Đăng ký UNUserNotificationCenterDelegate & xin quyền thông báo
         let center = UNUserNotificationCenter.current()
