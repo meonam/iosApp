@@ -453,16 +453,17 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                                       (addrDict["allotments"] as? String))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
                         // Nếu road là đường huyện/quốc lộ VÀ đã có hamlet → bỏ road (hamlet mô tả vị trí tốt hơn)
-                        let effectiveRoad = (isHighwayRoute && !hamlet.isEmpty) ? "" : road
+                        let useHamletInsteadOfRoad = isHighwayRoute && !hamlet.isEmpty
+                        let effectiveRoad = useHamletInsteadOfRoad ? "" : road
 
                         var streetPart = ""
                         if !houseNum.isEmpty && !effectiveRoad.isEmpty {
+                            // Có số nhà + đường dân sinh → "56 Tên Đường"
                             streetPart = "\(houseNum) \(effectiveRoad)"
                         } else if !effectiveRoad.isEmpty {
                             streetPart = effectiveRoad
-                        } else if !houseNum.isEmpty {
-                            streetPart = "Số \(houseNum)"
                         }
+                        // Nếu road bị bỏ (highway), houseNum sẽ ghép vào hamlet bên dưới
 
                         if !trimmedPlaceName.isEmpty && !streetPart.isEmpty {
                             if !streetPart.localizedCaseInsensitiveContains(trimmedPlaceName) && !trimmedPlaceName.localizedCaseInsensitiveContains(streetPart) {
@@ -478,8 +479,13 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                         }
 
                         // 3. Ấp / Thôn / Xóm / Khu phố / Tổ (CỰC KỲ QUAN TRỌNG TẠI VIỆT NAM)
+                        // Khi road là đường huyện/quốc lộ bị bỏ, ghép số nhà vào hamlet: "56 Tân Thiền" (như Android)
                         if !hamlet.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(hamlet) }) {
-                            parts.append(hamlet)
+                            if useHamletInsteadOfRoad && !houseNum.isEmpty {
+                                parts.append("\(houseNum) \(hamlet)")
+                            } else {
+                                parts.append(hamlet)
+                            }
                         }
 
                         // 4. Phường / Xã / Thị trấn (village, suburb, quarter, town)
