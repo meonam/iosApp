@@ -308,61 +308,75 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         self.currentLocation = loc.coordinate
         self.calculateGeofenceDistance(loc: loc.coordinate)
 
-        // Lớp 1: Apple CLGeocoder trả về tức thì với format đầy đủ các cấp hành chính Việt Nam
-        CLGeocoder().reverseGeocodeLocation(loc) { [weak self] placemarks, _ in
+        // Dùng Google Maps Geocoding API — cùng backend với Android Geocoder → địa chỉ VN chính xác nhất
+        Self.fetchGoogleMapsAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] googleAddr in
             guard let self = self else { return }
-            var appleAddr = ""
-            if let p = placemarks?.first {
-                appleAddr = Self.formatPlacemarkAddress(p)
-            }
-            if appleAddr.isEmpty {
-                appleAddr = String(format: "Tọa độ: %.5f, %.5f", loc.coordinate.latitude, loc.coordinate.longitude)
-            }
-            Task { @MainActor in
-                if self.currentAddress.contains("Đang xác định") || self.currentAddress.contains("Tọa độ:") {
-                    self.currentAddress = appleAddr
-                }
-            }
-        }
-
-        // Lớp 2: OpenStreetMap Nominatim phân giải chi tiết Số nhà / Ấp / Thôn / Phường / Xã / Quận / Huyện
-        Self.fetchNominatimAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] osmAddress in
-            guard let self = self else { return }
-            if let osmAddress = osmAddress, !osmAddress.isEmpty {
+            if let googleAddr = googleAddr, !googleAddr.isEmpty {
                 Task { @MainActor in
-                    let currentAddr = self.currentAddress
-                    // Nominatim thay CLGeocoder khi:
-                    // 1. Địa chỉ hiện tại là tọa độ thô / chưa có
-                    // 2. HOẶC Nominatim có số nhà (bắt đầu bằng chữ số)
-                    // 3. HOẶC Nominatim dài hơn đáng kể (>20 ký tự)
-                    // 4. HOẶC Apple trả về đường huyện/quốc lộ (xấu) còn Nominatim không có → Nominatim tốt hơn
-                    let nominatimHasHouseNum = osmAddress.first?.isNumber == true
-                    let nominatimMuchLonger = osmAddress.count > currentAddr.count + 20
-                    let currentIsFallback = currentAddr.contains("Tọa độ:") || currentAddr.contains("Chưa có")
-                    let appleHasHighway = currentAddr.contains("Đường Huyện") || currentAddr.contains("Đường Tỉnh") ||
-                                         currentAddr.contains("Quốc Lộ") || currentAddr.contains("National Road") ||
-                                         currentAddr.contains("County Road") || currentAddr.contains("Highway") ||
-                                         currentAddr.contains("Tỉnh Lộ")
-                    let nominatimHasHighway = osmAddress.contains("Đường Huyện") || osmAddress.contains("Đường Tỉnh") ||
-                                              osmAddress.contains("Quốc Lộ") || osmAddress.contains("County Road")
-                    let appleHasHighwayNominatimBetter = appleHasHighway && !nominatimHasHighway
-                    if currentIsFallback || nominatimHasHouseNum || nominatimMuchLonger || appleHasHighwayNominatimBetter {
-                        self.currentAddress = osmAddress
-                    }
+                    self.currentAddress = googleAddr
                 }
             } else {
-                // Lớp 3: Fallback BigDataCloud client API (miễn phí, không quota, định danh chuẩn xã/huyện VN)
-                Self.fetchBigDataCloudAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] bdcAddress in
-                    guard let self = self, let bdcAddress = bdcAddress, !bdcAddress.isEmpty else { return }
+                // Fallback: Apple CLGeocoder nếu Google API lỗi (offline, hết quota, v.v.)
+                CLGeocoder().reverseGeocodeLocation(loc) { [weak self] placemarks, _ in
+                    guard let self = self else { return }
+                    var appleAddr = ""
+                    if let p = placemarks?.first {
+                        appleAddr = Self.formatPlacemarkAddress(p)
+                    }
+                    if appleAddr.isEmpty {
+                        appleAddr = String(format: "Tọa độ: %.5f, %.5f", loc.coordinate.latitude, loc.coordinate.longitude)
+                    }
                     Task { @MainActor in
-                        if self.currentAddress.contains("Tọa độ:") || bdcAddress.count > self.currentAddress.count {
-                            self.currentAddress = bdcAddress
-                        }
+                        self.currentAddress = appleAddr
                     }
                 }
             }
         }
     }
+
+    // MARK: - GOOGLE MAPS GEOCODING API (GIỐNG HỆT ANDROID Geocoder — CHUẨN NHẤT CHO VIỆT NAM)
+    public static func fetchGoogleMapsAddress(latitude: Double, longitude: Double, completion: @escaping (String?) -> Void) {
+        let apiKey = "AIzaSyAehFfYkaZZnaOw3zXQNxokB21D2XcUG6A"
+        let urlString = "https://maps.googleapis.com/maps/api/geocode/json?latlng=\(latitude),\(longitude)&key=\(apiKey)&language=vi&result_type=street_address|route|premise|sublocality|locality"
+        guard let url = URL(string: urlString) else {
+            completion(nil)
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 5.0
+
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            guard let data = data, error == nil else {
+                completion(nil)
+                return
+            }
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let status = json["status"] as? String, status == "OK",
+                   let results = json["results"] as? [[String: Any]],
+                   let first = results.first,
+                   let formattedAddress = first["formatted_address"] as? String {
+
+                    // Làm sạch suffix ", Việt Nam" như Android Geocoder
+                    var clean = formattedAddress
+                    if clean.hasSuffix(", Việt Nam") {
+                        clean = String(clean.dropLast(", Việt Nam".count))
+                    } else if clean.hasSuffix(", Vietnam") {
+                        clean = String(clean.dropLast(", Vietnam".count))
+                    }
+                    // Loại bỏ postal code (5-6 chữ số ở cuối)
+                    clean = clean.replacingOccurrences(of: #",\s*\d{5,6}$"#, with: "", options: .regularExpression)
+                    completion(clean.trimmingCharacters(in: .whitespacesAndNewlines))
+                } else {
+                    completion(nil)
+                }
+            } catch {
+                completion(nil)
+            }
+        }.resume()
+    }
+
 
     // MARK: - VIETNAMESE ADDRESS FORMATTER (ĐỒNG BỘ 1:1 VỚI ANDROID GEOCODER)
     public static func formatPlacemarkAddress(_ p: CLPlacemark) -> String {
