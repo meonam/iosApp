@@ -285,6 +285,25 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         }
     }
 
+    // Tự động check định vị khi user bật GPS từ Settings và quay lại app
+    public nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        Task { @MainActor in
+            switch status {
+            case .authorizedWhenInUse, .authorizedAlways:
+                // GPS vừa được cấp quyền → tự động bắt đầu lấy vị trí
+                if !self.isLocating {
+                    self.startUpdatingLocation()
+                }
+            case .denied, .restricted:
+                self.isLocating = false
+                self.currentAddress = "Chưa có quyền truy cập Vị trí. Vào Cài đặt → Quyền riêng tư → Vị trí để bật."
+            default:
+                break
+            }
+        }
+    }
+
     private func processFinalLocation(_ loc: CLLocation) {
         self.currentLocation = loc.coordinate
         self.calculateGeofenceDistance(loc: loc.coordinate)
@@ -311,7 +330,15 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             guard let self = self else { return }
             if let osmAddress = osmAddress, !osmAddress.isEmpty {
                 Task { @MainActor in
-                    if osmAddress.count >= self.currentAddress.count || self.currentAddress.contains("Tọa độ:") {
+                    let currentAddr = self.currentAddress
+                    // Nominatim chỉ thay CLGeocoder khi:
+                    // 1. Địa chỉ hiện tại là tọa độ thô (chưa geocode được)
+                    // 2. HOẶC Nominatim có số nhà (houseNum) — chi tiết hơn Apple Maps
+                    // 3. HOẶC Nominatim dài hơn ĐÁng kể (>20 ký tự) so với Apple
+                    let nominatimHasHouseNum = osmAddress.first?.isNumber == true
+                    let nominatimMuchLonger = osmAddress.count > currentAddr.count + 20
+                    let currentIsFallback = currentAddr.contains("Tọa độ:") || currentAddr.contains("Chưa có")
+                    if currentIsFallback || nominatimHasHouseNum || nominatimMuchLonger {
                         self.currentAddress = osmAddress
                     }
                 }
