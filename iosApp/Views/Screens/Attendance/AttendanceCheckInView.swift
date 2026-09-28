@@ -3,7 +3,7 @@ import CoreLocation
 
 // MARK: - ATTENDANCE CHECK-IN VIEW (ĐỒNG BỘ 1:1 VỚI ATTENDANCECHECKINSCREEN.KT TRÊN ANDROID)
 public struct AttendanceCheckInView: View {
-    @ObservedObject public var viewModel: AttendanceViewModel
+    @StateObject private var viewModel: AttendanceViewModel
     public var onBack: () -> Void
     public var onNavigateToHistory: (() -> Void)? = nil
     public var onNavigateToReport: (() -> Void)? = nil
@@ -11,12 +11,26 @@ public struct AttendanceCheckInView: View {
     @State private var showGuideDialog = false
 
     public init(
+        user: User,
+        companyId: String,
+        idToken: String,
+        onBack: @escaping () -> Void,
+        onNavigateToHistory: (() -> Void)? = nil,
+        onNavigateToReport: (() -> Void)? = nil
+    ) {
+        _viewModel = StateObject(wrappedValue: AttendanceViewModel(user: user, companyId: companyId, idToken: idToken))
+        self.onBack = onBack
+        self.onNavigateToHistory = onNavigateToHistory
+        self.onNavigateToReport = onNavigateToReport
+    }
+
+    public init(
         viewModel: AttendanceViewModel,
         onBack: @escaping () -> Void,
         onNavigateToHistory: (() -> Void)? = nil,
         onNavigateToReport: (() -> Void)? = nil
     ) {
-        self.viewModel = viewModel
+        _viewModel = StateObject(wrappedValue: viewModel)
         self.onBack = onBack
         self.onNavigateToHistory = onNavigateToHistory
         self.onNavigateToReport = onNavigateToReport
@@ -337,6 +351,7 @@ public struct AttendanceCheckInView: View {
                     }
                 }
             }
+            .frame(minHeight: 38, alignment: .leading)
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .background(Color.black.opacity(0.22))

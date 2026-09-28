@@ -212,17 +212,20 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     }
 
     // MARK: - GPS & LOCATION (ĐỒNG BỘ ĐỘ CHÍNH XÁC CAO & REVERSE GEOCODING ĐẦY ĐỦ 1:1 ANDROID)
+    private var lastGeocodedCoord: CLLocationCoordinate2D? = nil
+
     public func startUpdatingLocation() {
+        guard !isLocating else { return }
         isLocating = true
         bestLocationReceived = nil
         locationTimeoutWorkItem?.cancel()
 
         locationManager.requestWhenInUseAuthorization()
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.distanceFilter = kCLDistanceFilterNone
+        locationManager.distanceFilter = 10.0 // Chỉ cập nhật khi di chuyển > 10m để chống giật lag, nhấp nháy thẻ địa chỉ
         locationManager.startUpdatingLocation()
 
-        // Hạn chế timeout 7 giây: Nếu ở trong phòng kín sóng yếu, lấy toạ độ tốt nhất thu thập được
+        // Hạn chế timeout 5 giây: Lấy toạ độ tốt nhất thu thập được
         let timeoutItem = DispatchWorkItem { [weak self] in
             guard let self = self, self.isLocating else { return }
             self.locationManager.stopUpdatingLocation()
@@ -234,10 +237,11 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             }
         }
         locationTimeoutWorkItem = timeoutItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 7.0, execute: timeoutItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0, execute: timeoutItem)
     }
 
     public func refreshLocation() {
+        isLocating = false
         startUpdatingLocation()
     }
 
@@ -259,8 +263,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 self.bestLocationReceived = loc
             }
 
-            // Nếu độ chính xác đã rất cao (<= 35m)
-            if loc.horizontalAccuracy <= 35.0 {
+            // Nếu độ chính xác đã tốt (<= 65m — phù hợp với cả môi trường trong nhà tại VN)
+            if loc.horizontalAccuracy <= 65.0 {
                 self.locationTimeoutWorkItem?.cancel()
                 self.locationManager.stopUpdatingLocation()
                 self.isLocating = false
@@ -291,8 +295,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         Task { @MainActor in
             switch status {
             case .authorizedWhenInUse, .authorizedAlways:
-                // GPS vừa được cấp quyền → tự động bắt đầu lấy vị trí
-                if !self.isLocating {
+                // GPS vừa được cấp quyền → tự động bắt đầu lấy vị trí nếu chưa có vị trí
+                if !self.isLocating && self.currentLocation == nil {
                     self.startUpdatingLocation()
                 }
             case .denied, .restricted:
@@ -307,6 +311,15 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     private func processFinalLocation(_ loc: CLLocation) {
         self.currentLocation = loc.coordinate
         self.calculateGeofenceDistance(loc: loc.coordinate)
+
+        // Kiểm tra xem toạ độ này đã được geocode gần đây chưa (< 15 mét)
+        if let last = lastGeocodedCoord {
+            let lastLoc = CLLocation(latitude: last.latitude, longitude: last.longitude)
+            if loc.distance(from: lastLoc) < 15.0 && !self.currentAddress.contains("Đang xác định") {
+                return // Đã có địa chỉ ổn định cho vị trí này, không chạy lại geocoding để tránh nhấp nháy thẻ
+            }
+        }
+        self.lastGeocodedCoord = loc.coordinate
 
         // Lớp 1: Gọi Google Maps Geocoding API — kết quả chính xác tuyệt đối như Android
         Self.fetchGoogleMapsAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] googleAddr in
@@ -773,16 +786,14 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     // MARK: - LOAD INITIAL DATA
     public func loadInitialData() {
         Task {
-            isLoading = true
             fetchUserProfileRealtime()
             fetchTravelExpenseConfig()
             fetchWeeklyShiftSchedule()
             fetchTodayAttendance()
             fetchUserMonthAttendanceCount()
-            if travelConfig.autoCaptureGpsOnOpen {
-                refreshLocation()
+            if travelConfig.autoCaptureGpsOnOpen && currentLocation == nil {
+                startUpdatingLocation()
             }
-            isLoading = false
         }
     }
 

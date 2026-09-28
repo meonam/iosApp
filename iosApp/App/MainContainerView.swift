@@ -400,7 +400,7 @@ public struct MainContainerView: View {
 
         case .ktvMonitor:
             OnlineKtvMonitorView(
-                supportVM: SupportViewModel(user: user, companyId: compId, idToken: token),
+                supportVM: supportViewModel,
                 onBack: { currentDestination = .home }
             )
 
@@ -412,7 +412,9 @@ public struct MainContainerView: View {
 
         case .attendance:
             AttendanceCheckInView(
-                viewModel: AttendanceViewModel(user: user, companyId: compId, idToken: token),
+                user: user,
+                companyId: compId,
+                idToken: token,
                 onBack: { currentDestination = .home },
                 onNavigateToHistory: { currentDestination = .attendanceHistory },
                 onNavigateToReport: { currentDestination = .attendanceReport }
