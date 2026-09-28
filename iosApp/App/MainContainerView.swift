@@ -2,6 +2,7 @@ import SwiftUI
 
 // MARK: - MAIN CONTAINER VIEW (ĐỒNG BỘ 1:1 THEO MAINACTIVITY.KT TRÊN ANDROID)
 public struct MainContainerView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var authViewModel = AuthViewModel()
     @StateObject private var homeViewModel = HomeViewModel(user: User(), companyId: "SGCOOP", idToken: "")
     @StateObject private var supportViewModel = SupportViewModel(user: User(), companyId: "SGCOOP", idToken: "")
@@ -145,6 +146,17 @@ public struct MainContainerView: View {
                             adminViewModel.companyId = cid
                             adminViewModel.idToken = tok
                             adminViewModel.fetchAllDataIfNeeded()
+                        }
+                    }
+                    .onChange(of: scenePhase) { newPhase in
+                        if authViewModel.isAuthenticated, let user = authViewModel.currentUser {
+                            let isOnline = (newPhase == .active)
+                            PresenceHelper.shared.setPresence(
+                                companyId: authViewModel.currentCompanyId,
+                                email: user.email,
+                                isOnline: isOnline,
+                                idToken: authViewModel.currentIdToken
+                            )
                         }
                     }
                     }

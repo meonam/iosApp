@@ -580,41 +580,161 @@ public struct TicketChatDetailView: View {
         }
     }
 
+    // MARK: - MESSAGE BUBBLE & SYSTEM EVENT PILL (ĐỒNG NHẤT 1:1 ANDROID, WEB & DESKTOP)
+    @ViewBuilder
     private func messageBubbleView(_ msg: SupportMessage) -> some View {
-        let isMine = msg.senderEmail.lowercased() == myEmail
+        let isSystem = msg.isSystemMessage ||
+            msg.senderEmail.lowercased() == "system" ||
+            msg.senderEmail.lowercased().starts(with: "system") ||
+            msg.senderEmail.lowercased().contains("system@") ||
+            msg.senderName.contains("Hệ thống") ||
+            msg.senderName.contains("Hệ Thống") ||
+            msg.senderName.contains("🤖") ||
+            isSystemSupportMessage(msg.text)
+
+        if isSystem {
+            systemEventPillView(
+                text: msg.text,
+                time: msg.timestamp > 0 ? formatMessageTime(msg.timestamp) : ""
+            )
+        } else {
+            let isMine = msg.senderEmail.lowercased() == myEmail
+
+            HStack {
+                if isMine { Spacer() }
+
+                VStack(alignment: isMine ? .trailing : .leading, spacing: 3) {
+                    if !isMine {
+                        let senderName = msg.senderName.isEmpty ? msg.senderEmail : msg.senderName
+                        Text(senderName)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(Color.gray)
+                    }
+
+                    Text(msg.text)
+                        .font(.system(size: 13.5))
+                        .foregroundColor(isMine ? Color.white : Color(hex: "#0F172A"))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(isMine ? Color.appPrimaryPink : Color.white)
+                        .cornerRadius(14)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(isMine ? Color.clear : Color(hex: "#E2E8F0"), lineWidth: 1)
+                        )
+
+                    if msg.timestamp > 0 {
+                        Text(formatMessageTime(msg.timestamp))
+                            .font(.system(size: 9.5))
+                            .foregroundColor(Color.gray)
+                    }
+                }
+
+                if !isMine { Spacer() }
+            }
+        }
+    }
+
+    private func isSystemSupportMessage(_ text: String) -> Bool {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.hasPrefix("🔄") ||
+               t.hasPrefix("🛠️") ||
+               t.hasPrefix("✅") ||
+               t.hasPrefix("💻") ||
+               t.hasPrefix("⭐") ||
+               t.hasPrefix("👥") ||
+               t.hasPrefix("❌") ||
+               t.hasPrefix("🛑") ||
+               t.hasPrefix("⚠️") ||
+               t.hasPrefix("🚫") ||
+               t.hasPrefix("💡") ||
+               t.hasPrefix("🛵") ||
+               t.hasPrefix("📍") ||
+               t.hasPrefix("🤖") ||
+               t.hasPrefix("✉️") ||
+               t.hasPrefix("📢") ||
+               t.hasPrefix("🔔") ||
+               t.hasPrefix("🚨") ||
+               t.hasPrefix("ℹ️") ||
+               t.hasPrefix("⚡") ||
+               t.hasPrefix("📌") ||
+               t.hasPrefix("[Hệ thống]") ||
+               t.contains("[Hệ thống") ||
+               t.contains("[Điều phối") ||
+               t.contains("Điều phối:") ||
+               t.contains("tiếp nhận điều phối") ||
+               t.contains("Xử lý từ xa") ||
+               t.contains("[Đổi phương án]") ||
+               t.contains("đến hiện trường") ||
+               t.contains("báo cáo đã xử lý xong") ||
+               t.contains("đã xử lý xong") ||
+               t.contains("báo xong") ||
+               t.contains("tự xử lý xong") ||
+               t.contains("đánh giá chất lượng") ||
+               t.contains("mở lại sự cố")
+    }
+
+    private func systemEventColors(for text: String) -> (textColor: Color, bgColor: Color, borderColor: Color) {
+        let t = text.lowercased()
+        if t.contains("🔄") || t.contains("điều phối") {
+            // Đồng nhất 1:1 Web & Desktop (Image 1): Vàng nhạt / Amber
+            return (Color(hex: "#B45309"), Color(hex: "#FEFCE8"), Color(hex: "#FEF08A"))
+        } else if t.contains("💻") || t.contains("xử lý từ xa") || t.contains("đổi phương án") {
+            // Đồng nhất 1:1 Web & Desktop (Image 1): Xanh dương nhạt
+            return (Color(hex: "#1D4ED8"), Color(hex: "#EFF6FF"), Color(hex: "#BFDBFE"))
+        } else if t.contains("tiếp nhận điều phối") || t.contains("đã tiếp nhận") {
+            // Đồng nhất 1:1 Web & Desktop (Image 1): Xanh lá tiếp nhận
+            return (Color(hex: "#15803D"), Color(hex: "#F0FDF4"), Color(hex: "#BBF7D0"))
+        } else if t.contains("🛠️") || t.contains("xử lý xong") || t.contains("hoàn thành") {
+            // Xanh lá hoàn thành
+            return (Color(hex: "#16A34A"), Color(hex: "#F0FDF4"), Color(hex: "#DCFCE7"))
+        } else if t.contains("👥") || t.contains("điều động thêm") {
+            // Tím điều động thêm
+            return (Color(hex: "#7C3AED"), Color(hex: "#FAF5FF"), Color(hex: "#DDD6FE"))
+        } else if t.contains("❌") || t.contains("rút điều động") || t.contains("🛑") || t.contains("⚠️") || t.contains("🚫") || t.contains("từ chối") {
+            // Đỏ cảnh báo / từ chối
+            return (Color(hex: "#DC2626"), Color(hex: "#FEF2F2"), Color(hex: "#FEE2E2"))
+        } else if t.contains("⭐") || t.contains("💡") || t.contains("đánh giá") {
+            // Vàng hổ phách đánh giá
+            return (Color(hex: "#D97706"), Color(hex: "#FFFBEB"), Color(hex: "#FEF3C7"))
+        } else if t.contains("🛵") || t.contains("📍") || t.contains("hiện trường") || t.contains("di chuyển") {
+            // Xanh da trời di chuyển
+            return (Color(hex: "#0284C7"), Color(hex: "#F0F9FF"), Color(hex: "#E0F2FE"))
+        } else {
+            // Xám mặc định
+            return (Color(hex: "#64748B"), Color(hex: "#F8FAFC"), Color(hex: "#E2E8F0"))
+        }
+    }
+
+    private func systemEventPillView(text: String, time: String) -> some View {
+        let colors = systemEventColors(for: text)
 
         return HStack {
-            if isMine { Spacer() }
+            Spacer(minLength: 8)
+            HStack(alignment: .center, spacing: 6) {
+                Text(text)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundColor(colors.textColor)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
 
-            VStack(alignment: isMine ? .trailing : .leading, spacing: 3) {
-                if !isMine {
-                    let senderName = msg.senderName.isEmpty ? msg.senderEmail : msg.senderName
-                    Text(senderName)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(Color.gray)
-                }
-
-                Text(msg.text)
-                    .font(.system(size: 13.5))
-                    .foregroundColor(isMine ? Color.white : Color(hex: "#0F172A"))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(isMine ? Color.appPrimaryPink : Color.white)
-                    .cornerRadius(14)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(isMine ? Color.clear : Color(hex: "#E2E8F0"), lineWidth: 1)
-                    )
-
-                if msg.timestamp > 0 {
-                    Text(formatMessageTime(msg.timestamp))
-                        .font(.system(size: 9.5))
-                        .foregroundColor(Color.gray)
+                if !time.isEmpty {
+                    Text(time)
+                        .font(.system(size: 10))
+                        .foregroundColor(Color(hex: "#94A3B8"))
                 }
             }
-
-            if !isMine { Spacer() }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .background(colors.bgColor)
+            .cornerRadius(16)
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(colors.borderColor, lineWidth: 1)
+            )
+            Spacer(minLength: 8)
         }
+        .padding(.vertical, 3)
     }
 
     // MARK: - CHAT INPUT BAR

@@ -75,6 +75,11 @@ public class AuthViewModel: ObservableObject {
                 } else {
                     self.isAuthenticated = true
                     self.saveSession()
+                    PresenceHelper.shared.startHeartbeat(
+                        companyId: self.currentCompanyId,
+                        email: self.currentUser?.email ?? session.email,
+                        idToken: self.currentIdToken
+                    )
                 }
                 self.isLoading = false
             } catch {
@@ -109,6 +114,11 @@ public class AuthViewModel: ObservableObject {
                 self.showForceChangePasswordModal = false
                 self.isAuthenticated = true
                 self.saveSession()
+                PresenceHelper.shared.startHeartbeat(
+                    companyId: self.currentCompanyId,
+                    email: self.currentUser?.email ?? self.forceChangePasswordEmail,
+                    idToken: self.currentIdToken
+                )
                 self.isLoading = false
             } catch {
                 self.isLoading = false
@@ -118,6 +128,16 @@ public class AuthViewModel: ObservableObject {
     }
 
     public func logout() {
+        if let u = currentUser {
+            PresenceHelper.shared.setPresence(
+                companyId: currentCompanyId,
+                email: u.email,
+                isOnline: false,
+                idToken: currentIdToken
+            )
+        }
+        PresenceHelper.shared.stopHeartbeat()
+
         self.isAuthenticated = false
         self.currentUser = nil
         self.currentIdToken = ""
@@ -152,6 +172,11 @@ public class AuthViewModel: ObservableObject {
                let savedUser = try? JSONDecoder().decode(User.self, from: data) {
                 self.currentUser = savedUser
                 self.isAuthenticated = true
+                PresenceHelper.shared.startHeartbeat(
+                    companyId: self.currentCompanyId,
+                    email: savedUser.email,
+                    idToken: self.currentIdToken
+                )
             }
 
             // Tự động làm mới ID Token nếu có Refresh Token hợp lệ
@@ -162,6 +187,11 @@ public class AuthViewModel: ObservableObject {
                             self.currentIdToken = refreshed.idToken
                             self.currentRefreshToken = refreshed.newRefreshToken
                             self.saveSession()
+                            PresenceHelper.shared.startHeartbeat(
+                                companyId: self.currentCompanyId,
+                                email: self.currentUser?.email ?? savedEmail,
+                                idToken: refreshed.idToken
+                            )
                         }
                     }
                 }

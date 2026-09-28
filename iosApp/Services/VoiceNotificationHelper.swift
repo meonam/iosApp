@@ -167,7 +167,8 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             if !seenTicketIds.contains(t.id) {
                 seenTicketIds.insert(t.id)
                 // NẾU ĐÃ ĐIỀU PHỐI RỒI TRÊN NỀN TẢNG KHÁC -> KHÔNG ĐƯỢC ĐỌC "SỰ CỐ MỚI"
-                if !isDispatched && isCreatedAfterStart && isNotSelf && (currentUser.isAdmin || currentUser.isHelpDesk) {
+                // CHỈ HelpDesk mới nhận giọng đọc vé mới tạo (Chuyên viên, KTV, Quản lý, Admin không nhận):
+                if !isDispatched && isCreatedAfterStart && isNotSelf && currentUser.isHelpDesk {
                     notifyNewSupportRequest(ticketId: t.id, donViName: t.donVi, subject: t.subject, source: t.source)
                 }
             }

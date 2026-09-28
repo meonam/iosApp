@@ -73,6 +73,7 @@
 		220010552C12345600000001 /* PhanQuyenAdminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000552C12345600000001 /* PhanQuyenAdminView.swift */; };
 		220010562C12345600000001 /* CloudinaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000562C12345600000001 /* CloudinaryService.swift */; };
 		220010882C12345600000001 /* VoiceNotificationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000882C12345600000001 /* VoiceNotificationHelper.swift */; };
+		220010992C12345600000001 /* PresenceHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000992C12345600000001 /* PresenceHelper.swift */; };
 		220010572C12345600000001 /* TicketItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000572C12345600000001 /* TicketItemView.swift */; };
 		220010582C12345600000001 /* ScannerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000582C12345600000001 /* ScannerSettingsView.swift */; };
 		220010612C12345600000001 /* DispatchTicketSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000612C12345600000001 /* DispatchTicketSheet.swift */; };
@@ -147,6 +148,7 @@
 		220000552C12345600000001 /* PhanQuyenAdminView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhanQuyenAdminView.swift; sourceTree = "<group>"; };
 		220000562C12345600000001 /* CloudinaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudinaryService.swift; sourceTree = "<group>"; };
 		220000882C12345600000001 /* VoiceNotificationHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceNotificationHelper.swift; sourceTree = "<group>"; };
+		220000992C12345600000001 /* PresenceHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresenceHelper.swift; sourceTree = "<group>"; };
 		220000572C12345600000001 /* TicketItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TicketItemView.swift; sourceTree = "<group>"; };
 		220000582C12345600000001 /* ScannerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerSettingsView.swift; sourceTree = "<group>"; };
 		220000612C12345600000001 /* DispatchTicketSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DispatchTicketSheet.swift; sourceTree = "<group>"; };
@@ -246,6 +248,7 @@
 				220000102C12345600000001 /* AuthService.swift */,
 				220000562C12345600000001 /* CloudinaryService.swift */,
 				220000882C12345600000001 /* VoiceNotificationHelper.swift */,
+				220000992C12345600000001 /* PresenceHelper.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -565,6 +568,7 @@
 				220010552C12345600000001 /* PhanQuyenAdminView.swift in Sources */,
 				220010562C12345600000001 /* CloudinaryService.swift in Sources */,
 				220010882C12345600000001 /* VoiceNotificationHelper.swift in Sources */,
+				220010992C12345600000001 /* PresenceHelper.swift in Sources */,
 				220010572C12345600000001 /* TicketItemView.swift in Sources */,
 				220010582C12345600000001 /* ScannerSettingsView.swift in Sources */,
 				220010612C12345600000001 /* DispatchTicketSheet.swift in Sources */,
