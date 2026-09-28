@@ -63,12 +63,21 @@ jobs:
           path: build/QLTB_iOS_v1.2.0.ipa
           retention-days: 30
 
-      - name: 7. Tạo GitHub Release đính kèm tệp IPA (khi gắn Tag)
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: 7. Tạo GitHub Release đính kèm tệp IPA
         uses: softprops/action-gh-release@v2
         continue-on-error: true
         with:
           files: build/QLTB_iOS_v1.2.0.ipa
           name: QLTB iOS v1.2.0 (Build 120)
+          tag_name: latest
           draft: false
           prerelease: false
+
+      - name: 8. Upload IPA lên Cloudinary (Kênh tải tốc độ cao tại Việt Nam)
+        continue-on-error: true
+        run: |
+          curl -s -X POST "https://api.cloudinary.com/v1_1/nhxhhbqf/raw/upload" \
+            -F "file=@build/QLTB_iOS_v1.2.0.ipa" \
+            -F "upload_preset=qltb_preset" \
+            -F "public_id=QLTB_iOS_v1.2.0"
+          echo "Upload to Cloudinary finished."
