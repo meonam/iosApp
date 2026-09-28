@@ -111,6 +111,9 @@ public struct AttendanceCheckInView: View {
         .onAppear {
             viewModel.loadInitialData()
         }
+        .onChange(of: viewModel.selectedShiftType) { _ in
+            viewModel.fetchTodayAttendance()
+        }
     }
 
     // MARK: - TOP BAR
@@ -308,7 +311,8 @@ public struct AttendanceCheckInView: View {
                     Text(viewModel.currentAddress)
                         .font(.system(size: 11.5))
                         .foregroundColor(Color.white.opacity(0.95))
-                        .lineLimit(2)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Spacer()
                 }

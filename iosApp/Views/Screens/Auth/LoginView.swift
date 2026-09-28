@@ -9,19 +9,25 @@ public struct LoginView: View {
     @State private var forgotEmailInput: String = ""
     @State private var showResetPasswordSheet: Bool = false
 
+    private enum FocusField: Hashable {
+        case email
+        case password
+    }
+    @FocusState private var focusedField: FocusField?
+
     public init(viewModel: AuthViewModel, onLoginSuccess: @escaping () -> Void) {
         self.viewModel = viewModel
         self.onLoginSuccess = onLoginSuccess
     }
 
     public var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // 1. Hình nền IT Support Workflow chuẩn 1:1 Android
+        ZStack {
+            // 1. Hình nền IT Support Workflow chuẩn 1:1 Android (Tràn viền màn hình)
+            GeometryReader { bgGeo in
                 Image("bg_login_workflow")
                     .resizable()
                     .scaledToFill()
-                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .frame(width: bgGeo.size.width, height: bgGeo.size.height)
                     .clipped()
 
                 // Lớp phủ Gradient tối tinh tế chuẩn Android (0x440F172A -> 0x771E293B)
@@ -33,200 +39,226 @@ public struct LoginView: View {
                     startPoint: .top,
                     endPoint: .bottom
                 )
+            }
+            .ignoresSafeArea()
 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        Spacer(minLength: 24)
+            // 2. Nội dung tự động đẩy lên khi mở bàn phím
+            GeometryReader { geometry in
+                ScrollViewReader { proxy in
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 0) {
+                            Spacer(minLength: focusedField != nil ? 12 : 24)
 
-                        // 2. Card Đăng Nhập
-                        VStack(spacing: 20) {
-                            // Logo App
-                            Image("logo_app")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 90, height: 90)
-                                .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+                            // Card Đăng Nhập
+                            VStack(spacing: 20) {
+                                // Logo App
+                                Image("logo_app")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 90, height: 90)
+                                    .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
 
-                            // Tiêu đề & Phiên bản chuẩn 1:1 theo Android
-                            VStack(spacing: 6) {
-                                Text("IT Service & Assets")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-
-                                Text("Dịch vụ IT & Quản lý thiết bị")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(Color.appTextSecondary)
-
-                                Text("Phiên bản v1.2.0 (Build 120)")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundColor(Color.appTextSecondary)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 3)
-                                    .background(Color.appCardBorder.opacity(0.5))
-                                    .cornerRadius(10)
-                            }
-
-                            // Ô nhập Email / SĐT / Mã nhân viên
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Email, SĐT hoặc Mã nhân viên")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundColor(Color.appTextSecondary)
-
-                                HStack(spacing: 10) {
-                                    Image(systemName: iconForEmailInput(viewModel.email))
+                                // Tiêu đề & Phiên bản chuẩn 1:1 theo Android
+                                VStack(spacing: 6) {
+                                    Text("IT Service & Assets")
+                                        .font(.system(size: 24, weight: .bold))
                                         .foregroundColor(Color.appSecondaryDarkBlue)
-                                        .frame(width: 20)
 
-                                    ZStack(alignment: .leading) {
-                                        if viewModel.email.isEmpty {
-                                            Text("Nhập email, SĐT hoặc mã NV")
-                                                .font(.system(size: 14))
-                                                .foregroundColor(Color(hex: "#94A3B8"))
-                                        }
-                                        TextField("", text: $viewModel.email)
-                                            .font(.system(size: 14))
-                                            .foregroundColor(Color(hex: "#0F172A"))
-                                            .accentColor(Color.appSecondaryDarkBlue)
-                                            .autocapitalization(.none)
-                                            .disableAutocorrection(true)
-                                            .keyboardType(.emailAddress)
-                                            .textContentType(.username)
-                                    }
+                                    Text("Dịch vụ IT & Quản lý thiết bị")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(Color.appTextSecondary)
+
+                                    Text("Phiên bản v1.2.0 (Build 120)")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(Color.appTextSecondary)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 3)
+                                        .background(Color.appCardBorder.opacity(0.5))
+                                        .cornerRadius(10)
                                 }
-                                .padding(12)
-                                .background(Color.white)
-                                .cornerRadius(12)
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
-                            }
 
-                            // Ô nhập Mật khẩu
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack {
-                                    Text("Mật khẩu")
+                                // Ô nhập Email / SĐT / Mã nhân viên
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Email, SĐT hoặc Mã nhân viên")
                                         .font(.system(size: 12, weight: .semibold))
                                         .foregroundColor(Color.appTextSecondary)
-                                    Spacer()
-                                    Button(action: {
-                                        forgotEmailInput = viewModel.email
-                                        viewModel.showForgotPasswordDialog = true
-                                    }) {
-                                        Text("Quên mật khẩu?")
-                                            .font(.system(size: 12, weight: .semibold))
-                                            .foregroundColor(Color.appPrimaryPink)
-                                    }
-                                }
 
-                                HStack(spacing: 10) {
-                                    Image(systemName: "lock.fill")
-                                        .foregroundColor(Color.appSecondaryDarkBlue)
-                                        .frame(width: 20)
+                                    HStack(spacing: 10) {
+                                        Image(systemName: iconForEmailInput(viewModel.email))
+                                            .foregroundColor(Color.appSecondaryDarkBlue)
+                                            .frame(width: 20)
 
-                                    ZStack(alignment: .leading) {
-                                        if viewModel.password.isEmpty {
-                                            Text("Nhập mật khẩu")
-                                                .font(.system(size: 14))
-                                                .foregroundColor(Color(hex: "#94A3B8"))
-                                        }
-                                        if viewModel.isPasswordVisible {
-                                            TextField("", text: $viewModel.password)
+                                        ZStack(alignment: .leading) {
+                                            if viewModel.email.isEmpty {
+                                                Text("Nhập email, SĐT hoặc mã NV")
+                                                    .font(.system(size: 14))
+                                                    .foregroundColor(Color(hex: "#94A3B8"))
+                                            }
+                                            TextField("", text: $viewModel.email)
                                                 .font(.system(size: 14))
                                                 .foregroundColor(Color(hex: "#0F172A"))
                                                 .accentColor(Color.appSecondaryDarkBlue)
                                                 .autocapitalization(.none)
                                                 .disableAutocorrection(true)
-                                                .textContentType(.password)
-                                        } else {
-                                            SecureField("", text: $viewModel.password)
-                                                .font(.system(size: 14))
-                                                .foregroundColor(Color(hex: "#0F172A"))
-                                                .accentColor(Color.appSecondaryDarkBlue)
-                                                .textContentType(.password)
+                                                .keyboardType(.emailAddress)
+                                                .textContentType(.username)
+                                                .focused($focusedField, equals: .email)
+                                        }
+                                    }
+                                    .padding(12)
+                                    .background(Color.white)
+                                    .cornerRadius(12)
+                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
+                                }
+
+                                // Ô nhập Mật khẩu
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text("Mật khẩu")
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundColor(Color.appTextSecondary)
+                                        Spacer()
+                                        Button(action: {
+                                            forgotEmailInput = viewModel.email
+                                            viewModel.showForgotPasswordDialog = true
+                                        }) {
+                                            Text("Quên mật khẩu?")
+                                                .font(.system(size: 12, weight: .semibold))
+                                                .foregroundColor(Color.appPrimaryPink)
                                         }
                                     }
 
-                                    Button(action: { viewModel.isPasswordVisible.toggle() }) {
-                                        Image(systemName: viewModel.isPasswordVisible ? "eye.slash.fill" : "eye.fill")
-                                            .foregroundColor(Color.appTextSecondary)
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "lock.fill")
+                                            .foregroundColor(Color.appSecondaryDarkBlue)
+                                            .frame(width: 20)
+
+                                        ZStack(alignment: .leading) {
+                                            if viewModel.password.isEmpty {
+                                                Text("Nhập mật khẩu")
+                                                    .font(.system(size: 14))
+                                                    .foregroundColor(Color(hex: "#94A3B8"))
+                                            }
+                                            if viewModel.isPasswordVisible {
+                                                TextField("", text: $viewModel.password)
+                                                    .font(.system(size: 14))
+                                                    .foregroundColor(Color(hex: "#0F172A"))
+                                                    .accentColor(Color.appSecondaryDarkBlue)
+                                                    .autocapitalization(.none)
+                                                    .disableAutocorrection(true)
+                                                    .textContentType(.password)
+                                                    .focused($focusedField, equals: .password)
+                                            } else {
+                                                SecureField("", text: $viewModel.password)
+                                                    .font(.system(size: 14))
+                                                    .foregroundColor(Color(hex: "#0F172A"))
+                                                    .accentColor(Color.appSecondaryDarkBlue)
+                                                    .textContentType(.password)
+                                                    .focused($focusedField, equals: .password)
+                                            }
+                                        }
+
+                                        Button(action: { viewModel.isPasswordVisible.toggle() }) {
+                                            Image(systemName: viewModel.isPasswordVisible ? "eye.slash.fill" : "eye.fill")
+                                                .foregroundColor(Color.appTextSecondary)
+                                        }
+                                    }
+                                    .padding(12)
+                                    .background(Color.white)
+                                    .cornerRadius(12)
+                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
+                                }
+                                .id("passwordSection")
+
+                                // Thông báo lỗi nếu có
+                                if let errorMsg = viewModel.errorMessage, !errorMsg.isEmpty {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "exclamationmark.circle.fill")
+                                            .foregroundColor(.red)
+                                        Text(errorMsg)
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.red)
+                                        Spacer()
                                     }
                                 }
-                                .padding(12)
-                                .background(Color.white)
-                                .cornerRadius(12)
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
-                            }
 
-                            // Thông báo lỗi nếu có
-                            if let errorMsg = viewModel.errorMessage, !errorMsg.isEmpty {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "exclamationmark.circle.fill")
-                                        .foregroundColor(.red)
-                                    Text(errorMsg)
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.red)
-                                    Spacer()
-                                }
-                            }
-
-                            // Nút Đăng Nhập
-                            Button(action: {
-                                hideKeyboard()
-                                viewModel.login()
-                            }) {
-                                HStack(spacing: 8) {
-                                    if viewModel.isLoading {
-                                        ProgressView()
-                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                    } else {
-                                        Image(systemName: "arrow.right.circle.fill")
-                                            .font(.system(size: 16))
-                                        Text("ĐĂNG NHẬP")
-                                            .font(.system(size: 15, weight: .bold))
+                                // Nút Đăng Nhập
+                                Button(action: {
+                                    focusedField = nil
+                                    hideKeyboard()
+                                    viewModel.login()
+                                }) {
+                                    HStack(spacing: 8) {
+                                        if viewModel.isLoading {
+                                            ProgressView()
+                                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        } else {
+                                            Image(systemName: "arrow.right.circle.fill")
+                                                .font(.system(size: 16))
+                                            Text("ĐĂNG NHẬP")
+                                                .font(.system(size: 15, weight: .bold))
+                                        }
                                     }
-                                }
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 48)
-                                .background(
-                                    LinearGradient(
-                                        colors: [Color.appPrimaryPink, Color(hex: "#C2185B")],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 48)
+                                    .background(
+                                        LinearGradient(
+                                            colors: [Color.appPrimaryPink, Color(hex: "#C2185B")],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
                                     )
-                                )
-                                .cornerRadius(12)
-                                .shadow(color: Color.appPrimaryPink.opacity(0.3), radius: 8, x: 0, y: 4)
-                            }
-                            .disabled(viewModel.isLoading)
-
-                            // Nút Trợ giúp & Hướng dẫn sử dụng
-                            Button(action: { showHelpSheet = true }) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "questionmark.circle.fill")
-                                        .font(.system(size: 14))
-                                    Text("Trợ giúp & Hướng dẫn sử dụng")
-                                        .font(.system(size: 13, weight: .bold))
+                                    .cornerRadius(12)
+                                    .shadow(color: Color.appPrimaryPink.opacity(0.3), radius: 8, x: 0, y: 4)
                                 }
-                                .foregroundColor(Color.appSecondaryDarkBlue)
-                            }
-                            .padding(.top, 4)
-                        }
-                        .padding(24)
-                        .frame(maxWidth: min(geometry.size.width - 32, 420))
-                        .background(Color.white.opacity(0.96))
-                        .cornerRadius(24)
-                        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.appCardBorder, lineWidth: 1))
-                        .shadow(color: Color.black.opacity(0.20), radius: 18, x: 0, y: 8)
-                        .padding(.horizontal, 16)
+                                .disabled(viewModel.isLoading)
+                                .id("loginButton")
 
-                        Spacer(minLength: 24)
+                                // Nút Trợ giúp & Hướng dẫn sử dụng
+                                Button(action: { showHelpSheet = true }) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "questionmark.circle.fill")
+                                            .font(.system(size: 14))
+                                        Text("Trợ giúp & Hướng dẫn sử dụng")
+                                            .font(.system(size: 13, weight: .bold))
+                                    }
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                }
+                                .padding(.top, 4)
+                            }
+                            .padding(24)
+                            .frame(maxWidth: min(geometry.size.width - 32, 420))
+                            .background(Color.white.opacity(0.96))
+                            .cornerRadius(24)
+                            .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.appCardBorder, lineWidth: 1))
+                            .shadow(color: Color.black.opacity(0.20), radius: 18, x: 0, y: 8)
+                            .padding(.horizontal, 16)
+                            .id("loginCard")
+
+                            // Khoảng đệm dưới khi bàn phím mở giúp cuộn toàn bộ ô mật khẩu & nút đăng nhập lên trên
+                            Spacer(minLength: focusedField != nil ? 180 : 24)
+                        }
+                        .frame(minHeight: geometry.size.height)
+                        .frame(width: geometry.size.width)
                     }
-                    .frame(minHeight: geometry.size.height)
-                    .frame(width: geometry.size.width)
+                    .onChange(of: focusedField) { newField in
+                        if newField == .password {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    proxy.scrollTo("loginButton", anchor: .bottom)
+                                }
+                            }
+                        }
+                    }
                 }
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        .ignoresSafeArea(.container, edges: .all)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            focusedField = nil
+            hideKeyboard()
+        }
         .sheet(isPresented: $showHelpSheet) {
             HelpInstructionSheet(isPresented: $showHelpSheet)
         }

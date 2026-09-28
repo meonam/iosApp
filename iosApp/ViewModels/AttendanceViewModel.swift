@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreLocation
+import Contacts
 
 // MARK: - ATTENDANCE VIEW MODEL (ĐỒNG BỘ 1:1 VỚI ATTENDANCECHECKINSCREEN.KT & ATTENDANCEREPOSITORY.KT TRÊN ANDROID)
 @MainActor
@@ -24,7 +25,13 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
     // Records & Active Shift (Đồng bộ Android lines 120-135)
     @Published public var todayRecord: AttendanceRecord? = nil
-    @Published public var selectedShiftType: String = "HC" // "HC", "SHIFT_1", "SHIFT_2", "NIGHT"
+    @Published public var selectedShiftType: String = "HC" {
+        didSet {
+            if oldValue != selectedShiftType {
+                fetchTodayAttendance()
+            }
+        }
+    }
     @Published public var scheduledShiftCode: String = "" // "S", "C", "HC", "TR", "NC", "P", "NL"
     @Published public var scheduledShiftLabel: String = ""
     @Published public var isScheduledOffDay: Bool = false
@@ -137,6 +144,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     public var onTimeDays: Int { attendanceHistory.filter { $0.checkInStatus == "ON_TIME" }.count }
 
     private let locationManager = CLLocationManager()
+    private var locationTimeoutWorkItem: DispatchWorkItem? = nil
+    private var bestLocationReceived: CLLocation? = nil
 
     public var cleanCompanyId: String {
         let clean = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -202,11 +211,30 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         else { return "NIGHT" }
     }
 
-    // MARK: - GPS & LOCATION
+    // MARK: - GPS & LOCATION (ĐỒNG BỘ ĐỘ CHÍNH XÁC CAO & REVERSE GEOCODING ĐẦY ĐỦ 1:1 ANDROID)
     public func startUpdatingLocation() {
         isLocating = true
+        bestLocationReceived = nil
+        locationTimeoutWorkItem?.cancel()
+
         locationManager.requestWhenInUseAuthorization()
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.distanceFilter = kCLDistanceFilterNone
         locationManager.startUpdatingLocation()
+
+        // Hạn chế timeout 7 giây: Nếu ở trong phòng kín sóng yếu, lấy toạ độ tốt nhất thu thập được
+        let timeoutItem = DispatchWorkItem { [weak self] in
+            guard let self = self, self.isLocating else { return }
+            self.locationManager.stopUpdatingLocation()
+            self.isLocating = false
+            if let best = self.bestLocationReceived {
+                self.processFinalLocation(best)
+            } else if self.currentLocation == nil {
+                self.currentAddress = "Chưa có tín hiệu GPS. Vui lòng kiểm tra quyền Vị trí."
+            }
+        }
+        locationTimeoutWorkItem = timeoutItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 7.0, execute: timeoutItem)
     }
 
     public func refreshLocation() {
@@ -215,39 +243,144 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
     public nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let loc = locations.last else { return }
+
+        // Bỏ qua toạ độ không hợp lệ hoặc dữ liệu cache từ quá khứ (> 20 giây trước)
+        if loc.horizontalAccuracy < 0 || abs(loc.timestamp.timeIntervalSinceNow) > 20.0 {
+            return
+        }
+
         Task { @MainActor in
-            self.currentLocation = loc.coordinate
-            self.isLocating = false
-            self.locationManager.stopUpdatingLocation()
-
-            self.calculateGeofenceDistance(loc: loc.coordinate)
-
-            // Reverse Geocoding
-            CLGeocoder().reverseGeocodeLocation(loc) { placemarks, _ in
-                if let p = placemarks?.first {
-                    let parts = [p.name, p.subLocality, p.locality, p.administrativeArea]
-                        .compactMap { $0 }
-                        .filter { !$0.isEmpty }
-                    let addr = parts.joined(separator: ", ")
-                    Task { @MainActor in
-                        self.currentAddress = addr.isEmpty
-                            ? String(format: "Tọa độ: %.5f, %.5f", loc.coordinate.latitude, loc.coordinate.longitude)
-                            : addr
-                    }
-                } else {
-                    Task { @MainActor in
-                        self.currentAddress = String(format: "Tọa độ: %.5f, %.5f", loc.coordinate.latitude, loc.coordinate.longitude)
-                    }
+            // Lưu lại vị trí tốt nhất nhận được
+            if let existing = self.bestLocationReceived {
+                if loc.horizontalAccuracy < existing.horizontalAccuracy {
+                    self.bestLocationReceived = loc
                 }
+            } else {
+                self.bestLocationReceived = loc
+            }
+
+            // Nếu độ chính xác đã rất cao (<= 35m)
+            if loc.horizontalAccuracy <= 35.0 {
+                self.locationTimeoutWorkItem?.cancel()
+                self.locationManager.stopUpdatingLocation()
+                self.isLocating = false
+                self.processFinalLocation(loc)
+            } else {
+                // Vẫn cập nhật toạ độ và tính khoảng cách tức thì để người dùng không phải chờ
+                self.currentLocation = loc.coordinate
+                self.calculateGeofenceDistance(loc: loc.coordinate)
             }
         }
     }
 
     public nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task { @MainActor in
-            self.isLocating = false
-            self.currentAddress = "Chưa có tín hiệu GPS. Vui lòng bật Định vị."
+            if let best = self.bestLocationReceived {
+                self.isLocating = false
+                self.processFinalLocation(best)
+            } else {
+                self.isLocating = false
+                self.currentAddress = "Chưa có tín hiệu GPS. Vui lòng bật Định vị."
+            }
         }
+    }
+
+    private func processFinalLocation(_ loc: CLLocation) {
+        self.currentLocation = loc.coordinate
+        self.calculateGeofenceDistance(loc: loc.coordinate)
+
+        CLGeocoder().reverseGeocodeLocation(loc) { [weak self] placemarks, _ in
+            guard let self = self else { return }
+            let addr: String
+            if let p = placemarks?.first {
+                let formatted = Self.formatPlacemarkAddress(p)
+                addr = formatted.isEmpty ? String(format: "Tọa độ: %.5f, %.5f", loc.coordinate.latitude, loc.coordinate.longitude) : formatted
+            } else {
+                addr = String(format: "Tọa độ: %.5f, %.5f", loc.coordinate.latitude, loc.coordinate.longitude)
+            }
+            Task { @MainActor in
+                self.currentAddress = addr
+            }
+        }
+    }
+
+    // MARK: - VIETNAMESE ADDRESS FORMATTER (ĐỒNG BỘ 1:1 VỚI ANDROID GEOCODER)
+    public static func formatPlacemarkAddress(_ p: CLPlacemark) -> String {
+        // Ưu tiên 1: Lấy định dạng chuẩn từ CNPostalAddressFormatter nếu có
+        var postalFormatted: String? = nil
+        if let postalAddress = p.postalAddress {
+            let raw = CNPostalAddressFormatter.string(from: postalAddress, style: .mailingAddress)
+            let cleaned = raw.components(separatedBy: .newlines)
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: ", ")
+            if !cleaned.isEmpty {
+                postalFormatted = cleaned
+            }
+        }
+
+        // Ưu tiên 2: Trích xuất và ghép thứ bậc hành chính đầy đủ tại Việt Nam
+        var parts: [String] = []
+
+        let subNumber = p.subThoroughfare?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let street = p.thoroughfare?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let name = p.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        var streetLine = ""
+        if !subNumber.isEmpty && !street.isEmpty {
+            if street.hasPrefix(subNumber) {
+                streetLine = street
+            } else {
+                streetLine = "\(subNumber) \(street)"
+            }
+        } else if !street.isEmpty {
+            streetLine = street
+        } else if !name.isEmpty {
+            streetLine = name
+        }
+
+        if !name.isEmpty && !streetLine.isEmpty && !streetLine.contains(name) && !name.contains(streetLine) {
+            streetLine = "\(name), \(streetLine)"
+        }
+
+        if !streetLine.isEmpty {
+            parts.append(streetLine)
+        }
+
+        // Phường / Xã (subLocality)
+        if let subLoc = p.subLocality?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !subLoc.isEmpty,
+           !parts.contains(where: { $0.localizedCaseInsensitiveContains(subLoc) }) {
+            parts.append(subLoc)
+        }
+
+        // Quận / Huyện (subAdministrativeArea) — CỰC KỲ QUAN TRỌNG VÌ APPLE MAPS LƯU QUẬN/HUYỆN TẠI ĐÂY
+        if let subAdmin = p.subAdministrativeArea?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !subAdmin.isEmpty,
+           !parts.contains(where: { $0.localizedCaseInsensitiveContains(subAdmin) }) {
+            parts.append(subAdmin)
+        }
+
+        // Thành phố / Thị xã / Đô thị (locality)
+        if let loc = p.locality?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !loc.isEmpty,
+           !parts.contains(where: { $0.localizedCaseInsensitiveContains(loc) }) {
+            parts.append(loc)
+        }
+
+        // Tỉnh / Thành phố trực thuộc TW (administrativeArea)
+        if let admin = p.administrativeArea?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !admin.isEmpty,
+           !parts.contains(where: { $0.localizedCaseInsensitiveContains(admin) || admin.localizedCaseInsensitiveContains($0) }) {
+            parts.append(admin)
+        }
+
+        let manualJoined = parts.joined(separator: ", ")
+
+        if let pf = postalFormatted, pf.count > manualJoined.count {
+            return pf
+        }
+        return manualJoined.isEmpty ? (postalFormatted ?? "") : manualJoined
     }
 
     private func calculateGeofenceDistance(loc: CLLocationCoordinate2D) {
@@ -553,6 +686,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                             self.isScheduledOffDay = false
                         }
                     }
+                    self.fetchTodayAttendance()
                 }
             }
         }
@@ -2028,8 +2162,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 let geocoder = CLGeocoder()
                 geocoder.reverseGeocodeLocation(loc) { placemarks, _ in
                     if let pm = placemarks?.first {
-                        let lines = [pm.name, pm.thoroughfare, pm.subLocality, pm.locality, pm.administrativeArea].compactMap { $0 }
-                        self.cfgTargetAddress = lines.joined(separator: ", ")
+                        self.cfgTargetAddress = Self.formatPlacemarkAddress(pm)
                     }
                     self.isGettingCurrentLocation = false
                 }
