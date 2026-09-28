@@ -50,6 +50,10 @@
     <key>NSCameraUsageDescription</key>
     <string>Ứng dụng cần quyền truy cập camera để quét mã vạch thiết bị và chụp ảnh biên bản hỗ trợ kỹ thuật.</string>
 
+    <!-- QUYỀN MICRO CHO ĐÀM THOẠI NỘI BỘ (VOIP / CUỘC GỌI) -->
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Ứng dụng cần quyền sử dụng micro để đàm thoại cuộc gọi hỗ trợ kỹ thuật nội bộ.</string>
+
     <!-- QUYỀN ĐỊNH VỊ GPS CHO ĐIỀU PHỐI VÀ CHẤM CÔNG SIÊU THỊ -->
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Ứng dụng cần quyền vị trí để định vị khoảng cách đến Co.opmart và dẫn đường xử lý sự cố.</string>

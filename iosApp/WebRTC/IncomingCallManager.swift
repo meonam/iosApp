@@ -15,6 +15,7 @@ public struct IncomingCallInfo: Identifiable, Equatable {
     public let targetRole: String
     public let companyId: String
     public let createdAt: Int64
+    public let offerSdp: String
 
     public static func == (lhs: IncomingCallInfo, rhs: IncomingCallInfo) -> Bool {
         lhs.id == rhs.id
@@ -120,7 +121,8 @@ public class IncomingCallManager: NSObject, ObservableObject {
                     targetEmail: targetEmail,
                     targetRole: targetRole,
                     companyId: compId,
-                    createdAt: Int64(Date().timeIntervalSince1970 * 1000)
+                    createdAt: Int64(Date().timeIntervalSince1970 * 1000),
+                    offerSdp: ""
                 )
                 self.startRinging()
             }
@@ -210,6 +212,15 @@ public class IncomingCallManager: NSObject, ObservableObject {
                 )
 
                 if isTargetToMe || isHelpdeskCall {
+                    var offerSdp = ""
+                    if let offer = fields["offer"] as? [String: Any],
+                       let mapValue = offer["mapValue"] as? [String: Any],
+                       let mapFields = mapValue["fields"] as? [String: Any],
+                       let sdpObj = mapFields["sdp"] as? [String: Any],
+                       let sdpVal = sdpObj["stringValue"] as? String {
+                        offerSdp = sdpVal
+                    }
+
                     foundCall = IncomingCallInfo(
                         id: callId,
                         callerName: callerName,
@@ -218,7 +229,8 @@ public class IncomingCallManager: NSObject, ObservableObject {
                         targetEmail: targetEmail,
                         targetRole: targetRole,
                         companyId: cleanComp,
-                        createdAt: createdAt
+                        createdAt: createdAt,
+                        offerSdp: offerSdp
                     )
                     break
                 }
@@ -252,7 +264,8 @@ public class IncomingCallManager: NSObject, ObservableObject {
         WebRtcCallManager.shared.answerCall(
             callId: call.id,
             callerName: call.callerName,
-            callerEmail: call.callerEmail
+            callerEmail: call.callerEmail,
+            offerSdp: call.offerSdp.isEmpty ? nil : call.offerSdp
         )
         isCallPresented = true
     }
@@ -304,11 +317,11 @@ public class IncomingCallManager: NSObject, ObservableObject {
             AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
         }
 
-        // Bắn local notification nếu cần
+        // Bắn local notification nếu cần (thông báo cuộc gọi thoại nội bộ thân thiện)
         if let call = activeIncomingCall {
             let content = UNMutableNotificationContent()
-            content.title = "📞 Cuộc gọi đến: \(call.callerName)"
-            content.body = "Nhấn để trả lời cuộc gọi WebRTC (\(call.callerRole))"
+            content.title = "📞 Cuộc gọi thoại đến: \(call.callerName)"
+            content.body = "Nhấn để trả lời cuộc gọi thoại nội bộ (\(call.callerRole))"
             content.sound = UNNotificationSound.default
             let request = UNNotificationRequest(identifier: "INCOMING_CALL_\(call.id)", content: content, trigger: nil)
             UNUserNotificationCenter.current().add(request) { error in

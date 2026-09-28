@@ -2,6 +2,7 @@ import Foundation
 import WebRTC
 import Combine
 import SwiftUI
+import AVFoundation
 
 public enum CallState {
     case idle
@@ -16,7 +17,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     
     @Published public var callState: CallState = .idle
     @Published public var isMuted: Bool = false
-    @Published public var isSpeakerOn: Bool = false
+    @Published public var isSpeakerOn: Bool = true
     @Published public var remoteUserName: String = ""
     @Published public var remoteUserEmail: String = ""
     @Published public var currentCallId: String? = nil
@@ -25,7 +26,27 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     private var peerConnection: RTCPeerConnection?
     private var localAudioTrack: RTCAudioTrack?
     private var remoteAudioTrack: RTCAudioTrack?
-    private var iceServers: [RTCIceServer] = []
+    
+    // Mặc định nạp sẵn STUN của Google & TURN Metered dự phòng (đồng bộ 1:1 Android)
+    private var iceServers: [RTCIceServer] = [
+        RTCIceServer(urlStrings: [
+            "stun:stun.l.google.com:19302",
+            "stun:stun1.l.google.com:19302",
+            "stun:stun2.l.google.com:19302",
+            "stun:stun3.l.google.com:19302",
+            "stun:stun4.l.google.com:19302"
+        ]),
+        RTCIceServer(
+            urlStrings: [
+                "turn:global.relay.metered.ca:80",
+                "turn:global.relay.metered.ca:80?transport=tcp",
+                "turn:global.relay.metered.ca:443",
+                "turns:global.relay.metered.ca:443?transport=tcp"
+            ],
+            username: "278a0280a1e018ea207a1f7d",
+            credential: "qGneN028RkU9by65"
+        )
+    ]
     
     public var companyId: String = "SGCOOP"
     public var idToken: String = ""
@@ -33,6 +54,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     
     private var signalingTimer: AnyCancellable?
     private var isCaller: Bool = false
+    private var processedCandidateIds: Set<String> = []
     
     private override init() {
         super.init()
@@ -40,21 +62,29 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     }
     
     private func initWebRTC() {
+        // 1. Khởi tạo SSL cho WebRTC
+        RTCInitializeSSL()
+        
         let videoEncoderFactory = RTCDefaultVideoEncoderFactory()
         let videoDecoderFactory = RTCDefaultVideoDecoderFactory()
         peerConnectionFactory = RTCPeerConnectionFactory(encoderFactory: videoEncoderFactory, decoderFactory: videoDecoderFactory)
         
-        // Fetch STUN/TURN
+        // 2. Tải TURN động từ Metered API
         fetchIceServers()
     }
     
     private func fetchIceServers() {
         guard let url = URL(string: "https://sgcoop.metered.live/api/v1/turn/credentials?apiKey=0c0142caa7c19416eb65b713d658b7abe996") else { return }
-        URLSession.shared.dataTask(with: url) { data, _, _ in
-            guard let data = data else { return }
+        URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            guard let self = self, let data = data else { return }
             do {
                 if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
                     var servers: [RTCIceServer] = []
+                    // Luôn giữ STUN Google ở đầu
+                    servers.append(RTCIceServer(urlStrings: [
+                        "stun:stun.l.google.com:19302",
+                        "stun:stun1.l.google.com:19302"
+                    ]))
                     for item in json {
                         if let urls = item["urls"] as? String {
                             let username = item["username"] as? String ?? ""
@@ -66,101 +96,207 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                             servers.append(RTCIceServer(urlStrings: urlsArray, username: username, credential: credential))
                         }
                     }
-                    self.iceServers = servers
+                    DispatchQueue.main.async {
+                        self.iceServers = servers
+                        print("[WebRtcCallManager] Loaded \(servers.count) ICE servers")
+                    }
                 }
             } catch {
-                print("Failed to parse ICE servers: \(error)")
+                print("[WebRtcCallManager] Failed to parse ICE servers: \(error)")
             }
         }.resume()
     }
     
+    // MARK: - AUDIO SESSION CONFIGURATION
+    private func configureAudioForCall() {
+        let rtcAudioSession = RTCAudioSession.sharedInstance()
+        rtcAudioSession.lockForConfiguration()
+        do {
+            try rtcAudioSession.setCategory(
+                AVAudioSession.Category.playAndRecord.rawValue,
+                with: [.allowBluetooth, .defaultToSpeaker]
+            )
+            try rtcAudioSession.setMode(AVAudioSession.Mode.voiceChat.rawValue)
+            try rtcAudioSession.setActive(true)
+            self.isSpeakerOn = true
+            print("[WebRtcCallManager] RTCAudioSession configured for voice chat (speaker default)")
+        } catch {
+            print("[WebRtcCallManager] RTCAudioSession error: \(error)")
+        }
+        rtcAudioSession.unlockForConfiguration()
+    }
+    
+    private func resetAudioSession() {
+        let rtcAudioSession = RTCAudioSession.sharedInstance()
+        rtcAudioSession.lockForConfiguration()
+        do {
+            try rtcAudioSession.setActive(false)
+        } catch {
+            print("[WebRtcCallManager] Reset RTCAudioSession error: \(error)")
+        }
+        rtcAudioSession.unlockForConfiguration()
+    }
+    
+    // MARK: - PEER CONNECTION CREATION
     private func createPeerConnection() -> RTCPeerConnection? {
+        configureAudioForCall()
+        
         let config = RTCConfiguration()
         config.iceServers = iceServers
         config.sdpSemantics = .unifiedPlan
+        config.continualGatheringPolicy = .gatherContinually
         
-        let constraints = RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: ["DtlsSrtpKeyAgreement": kRTCMediaConstraintsValueTrue])
+        let constraints = RTCMediaConstraints(
+            mandatoryConstraints: nil,
+            optionalConstraints: ["DtlsSrtpKeyAgreement": kRTCMediaConstraintsValueTrue]
+        )
         
-        let pc = peerConnectionFactory.peerConnection(with: config, constraints: constraints, delegate: self)
+        guard let pc = peerConnectionFactory.peerConnection(with: config, constraints: constraints, delegate: self) else {
+            print("[WebRtcCallManager] Failed to create peerConnection")
+            return nil
+        }
         
-        let audioSource = peerConnectionFactory.audioSource(with: RTCMediaConstraints(mandatoryConstraints: nil, optionalConstraints: nil))
+        let audioConstraints = RTCMediaConstraints(
+            mandatoryConstraints: [
+                "googEchoCancellation": "true",
+                "googAutoGainControl": "true",
+                "googNoiseSuppression": "true",
+                "googHighpassFilter": "true"
+            ],
+            optionalConstraints: nil
+        )
+        let audioSource = peerConnectionFactory.audioSource(with: audioConstraints)
         localAudioTrack = peerConnectionFactory.audioTrack(with: audioSource, trackId: "audio0")
+        localAudioTrack?.isEnabled = true
         
-        if let pc = pc, let track = localAudioTrack {
-            pc.add(track, streamIds: ["stream0"])
+        if let track = localAudioTrack {
+            pc.add(track, streamIds: ["ARDAMS"])
         }
         
         return pc
     }
     
+    // MARK: - OUTBOUND CALL
     public func startCall(targetEmail: String, targetName: String, callerName: String, callerEmail: String) {
         self.remoteUserEmail = targetEmail
         self.remoteUserName = targetName
         self.isCaller = true
         self.callState = .calling
         self.currentCallId = UUID().uuidString.lowercased()
+        self.processedCandidateIds.removeAll()
         
         self.peerConnection = createPeerConnection()
         
-        let constraints = RTCMediaConstraints(mandatoryConstraints: ["OfferToReceiveAudio": kRTCMediaConstraintsValueTrue], optionalConstraints: nil)
+        let constraints = RTCMediaConstraints(
+            mandatoryConstraints: [
+                "OfferToReceiveAudio": kRTCMediaConstraintsValueTrue,
+                "OfferToReceiveVideo": kRTCMediaConstraintsValueFalse
+            ],
+            optionalConstraints: nil
+        )
         
-        peerConnection?.offer(for: constraints) { sdp, error in
-            guard let sdp = sdp else { return }
-            self.peerConnection?.setLocalDescription(sdp, completionHandler: { error in
-                if error == nil {
-                    self.createCallDocument(sdp: sdp, targetEmail: targetEmail, callerName: callerName, callerEmail: callerEmail)
-                    self.startSignalingPolling()
+        peerConnection?.offer(for: constraints) { [weak self] sdp, error in
+            guard let self = self, let sdp = sdp else {
+                print("[WebRtcCallManager] Error creating offer: \(String(describing: error))")
+                return
+            }
+            self.peerConnection?.setLocalDescription(sdp) { error in
+                if let error = error {
+                    print("[WebRtcCallManager] Error setting local description (offer): \(error)")
+                    return
                 }
-            })
+                self.createCallDocument(sdp: sdp, targetEmail: targetEmail, callerName: callerName, callerEmail: callerEmail)
+                self.startSignalingPolling()
+            }
         }
     }
     
-    public func answerCall(callId: String, callerName: String, callerEmail: String) {
+    // MARK: - ANSWER INBOUND CALL
+    public func answerCall(callId: String, callerName: String, callerEmail: String, offerSdp: String? = nil) {
         self.currentCallId = callId
         self.remoteUserName = callerName
         self.remoteUserEmail = callerEmail
         self.isCaller = false
         self.callState = .connected
+        self.processedCandidateIds.removeAll()
         
         self.peerConnection = createPeerConnection()
         
-        // Fetch offer from Firestore and set Remote Description
-        fetchCallDocument { offerSdp in
-            guard let sdp = offerSdp else { return }
-            let sessionDescription = RTCSessionDescription(type: .offer, sdp: sdp)
-            self.peerConnection?.setRemoteDescription(sessionDescription, completionHandler: { error in
-                if error == nil {
-                    let constraints = RTCMediaConstraints(mandatoryConstraints: ["OfferToReceiveAudio": kRTCMediaConstraintsValueTrue], optionalConstraints: nil)
-                    self.peerConnection?.answer(for: constraints, completionHandler: { answerSdp, error in
-                        guard let answerSdp = answerSdp else { return }
-                        self.peerConnection?.setLocalDescription(answerSdp, completionHandler: { error in
-                            if error == nil {
-                                self.updateCallWithAnswer(sdp: answerSdp)
-                                self.startSignalingPolling()
-                            }
-                        })
-                    })
+        if let directSdp = offerSdp, !directSdp.isEmpty {
+            print("[WebRtcCallManager] Using direct Offer SDP from incoming call info")
+            self.proceedAnswerWithOfferSdp(directSdp)
+        } else {
+            print("[WebRtcCallManager] Fetching Offer SDP from Firestore for call \(callId)")
+            fetchCallDocument { [weak self] fetchedSdp in
+                guard let self = self, let sdp = fetchedSdp, !sdp.isEmpty else {
+                    print("[WebRtcCallManager] Could not find Offer SDP for call: \(callId)")
+                    return
                 }
-            })
+                self.proceedAnswerWithOfferSdp(sdp)
+            }
         }
     }
     
+    private func proceedAnswerWithOfferSdp(_ sdp: String) {
+        let sessionDescription = RTCSessionDescription(type: .offer, sdp: sdp)
+        self.peerConnection?.setRemoteDescription(sessionDescription) { [weak self] error in
+            guard let self = self else { return }
+            if let error = error {
+                print("[WebRtcCallManager] Error setting remote description (offer): \(error)")
+                return
+            }
+            
+            let constraints = RTCMediaConstraints(
+                mandatoryConstraints: [
+                    "OfferToReceiveAudio": kRTCMediaConstraintsValueTrue,
+                    "OfferToReceiveVideo": kRTCMediaConstraintsValueFalse
+                ],
+                optionalConstraints: nil
+            )
+            
+            self.peerConnection?.answer(for: constraints) { [weak self] answerSdp, error in
+                guard let self = self else { return }
+                if let error = error {
+                    print("[WebRtcCallManager] Error creating answer: \(error)")
+                    return
+                }
+                guard let answerSdp = answerSdp else { return }
+                
+                self.peerConnection?.setLocalDescription(answerSdp) { [weak self] error in
+                    guard let self = self else { return }
+                    if let error = error {
+                        print("[WebRtcCallManager] Error setting local description (answer): \(error)")
+                        return
+                    }
+                    print("[WebRtcCallManager] Answer SDP created, uploading to Firestore...")
+                    self.updateCallWithAnswer(sdp: answerSdp)
+                    self.startSignalingPolling()
+                }
+            }
+        }
+    }
+    
+    // MARK: - END CALL
     public func endCall() {
         self.peerConnection?.close()
         self.peerConnection = nil
         self.localAudioTrack = nil
         self.remoteAudioTrack = nil
         self.signalingTimer?.cancel()
+        self.signalingTimer = nil
+        self.processedCandidateIds.removeAll()
         
         if let callId = currentCallId {
             updateCallStateEnded(callId: callId)
         }
         
+        resetAudioSession()
+        
         DispatchQueue.main.async {
             self.callState = .ended
             self.currentCallId = nil
             self.isMuted = false
-            self.isSpeakerOn = false
+            self.isSpeakerOn = true
         }
     }
     
@@ -171,21 +307,21 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     
     public func toggleSpeaker() {
         isSpeakerOn.toggle()
-        #if os(iOS)
+        let rtcAudioSession = RTCAudioSession.sharedInstance()
+        rtcAudioSession.lockForConfiguration()
         do {
-            let session = AVAudioSession.sharedInstance()
             if isSpeakerOn {
-                try session.overrideOutputAudioPort(.speaker)
+                try rtcAudioSession.overrideOutputAudioPort(.speaker)
             } else {
-                try session.overrideOutputAudioPort(.none)
+                try rtcAudioSession.overrideOutputAudioPort(.none)
             }
         } catch {
-            print("Failed to toggle speaker: \(error)")
+            print("[WebRtcCallManager] Toggle speaker error: \(error)")
         }
-        #endif
+        rtcAudioSession.unlockForConfiguration()
     }
     
-    // MARK: - Signaling logic with Firestore REST API
+    // MARK: - FIRESTORE REST API OPERATIONS
     private func createCallDocument(sdp: RTCSessionDescription, targetEmail: String, callerName: String, callerEmail: String) {
         guard let callId = currentCallId else { return }
         
@@ -194,9 +330,10 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         
         let body: [String: Any] = [
             "fields": [
+                "id": ["stringValue": callId],
                 "callerEmail": ["stringValue": callerEmail],
                 "callerName": ["stringValue": callerName],
-                "callerRole": ["stringValue": "iOS User"],
+                "callerRole": ["stringValue": "KTV"],
                 "calleeEmail": ["stringValue": targetEmail],
                 "targetEmail": ["stringValue": targetEmail],
                 "companyId": ["stringValue": companyId],
@@ -221,7 +358,14 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
-        URLSession.shared.dataTask(with: request).resume()
+        URLSession.shared.dataTask(with: request) { _, resp, err in
+            if let http = resp as? HTTPURLResponse {
+                print("[WebRtcCallManager] createCallDocument status: \(http.statusCode)")
+            }
+            if let err = err {
+                print("[WebRtcCallManager] createCallDocument error: \(err)")
+            }
+        }.resume()
     }
     
     private func fetchCallDocument(completion: @escaping (String?) -> Void) {
@@ -291,7 +435,14 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
-        URLSession.shared.dataTask(with: request).resume()
+        URLSession.shared.dataTask(with: request) { _, resp, err in
+            if let http = resp as? HTTPURLResponse {
+                print("[WebRtcCallManager] updateCallWithAnswer HTTP status: \(http.statusCode)")
+            }
+            if let err = err {
+                print("[WebRtcCallManager] updateCallWithAnswer error: \(err)")
+            }
+        }.resume()
     }
     
     private func updateCallStateEnded(callId: String) {
@@ -325,7 +476,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         
         let body: [String: Any] = [
             "fields": [
-                "sdpMid": ["stringValue": candidate.sdpMid ?? ""],
+                "sdpMid": ["stringValue": candidate.sdpMid ?? "0"],
                 "sdpMLineIndex": ["integerValue": "\(candidate.sdpMLineIndex)"],
                 "candidate": ["stringValue": candidate.sdp]
             ]
@@ -342,9 +493,10 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         URLSession.shared.dataTask(with: request).resume()
     }
     
+    // MARK: - SIGNALING POLLING
     private func startSignalingPolling() {
         signalingTimer?.cancel()
-        signalingTimer = Timer.publish(every: 1.5, on: .main, in: .common)
+        signalingTimer = Timer.publish(every: 1.2, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 self?.pollSignaling()
@@ -354,7 +506,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     private func pollSignaling() {
         guard let callId = currentCallId else { return }
         
-        // 1. Poll Call Document for status and answer (if caller)
+        // 1. Kiểm tra trạng thái cuộc gọi
         let callUrlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)"
         if let url = URL(string: callUrlStr) {
             var request = URLRequest(url: url)
@@ -370,17 +522,19 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                        let status = statusObj["stringValue"] as? String {
                         let statusUpper = status.uppercased()
                         if statusUpper == "ENDED" || statusUpper == "CANCELLED" || statusUpper == "REJECTED" || statusUpper == "TIMEOUT" {
+                            print("[WebRtcCallManager] Call terminated from remote: \(statusUpper)")
                             DispatchQueue.main.async {
                                 self.endCall()
                             }
                             return
-                        } else if (statusUpper == "CONNECTED" || statusUpper == "ACCEPTED") && self.isCaller && self.callState == .calling {
+                        } else if (statusUpper == "CONNECTED" || statusUpper == "ACCEPTED") && self.callState != .connected {
                             DispatchQueue.main.async {
                                 self.callState = .connected
                             }
                         }
                     }
                     
+                    // Người gọi (Caller) nhận Answer SDP
                     if self.isCaller, self.peerConnection?.remoteDescription == nil,
                        let answer = fields["answer"] as? [String: Any],
                        let mapValue = answer["mapValue"] as? [String: Any],
@@ -389,15 +543,19 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                        let sdpString = sdpObj["stringValue"] as? String {
                         
                         let sessionDesc = RTCSessionDescription(type: .answer, sdp: sdpString)
-                        self.peerConnection?.setRemoteDescription(sessionDesc, completionHandler: { error in
-                            print("Set remote description: \(String(describing: error))")
-                        })
+                        self.peerConnection?.setRemoteDescription(sessionDesc) { error in
+                            if let error = error {
+                                print("[WebRtcCallManager] Error setting remote description (answer): \(error)")
+                            } else {
+                                print("[WebRtcCallManager] Caller remote description set successfully")
+                            }
+                        }
                     }
                 }
             }.resume()
         }
         
-        // 2. Poll ICE Candidates
+        // 2. Trao đổi ứng viên mạng (ICE Candidates)
         let targetCollection = isCaller ? "calleeCandidates" : "callerCandidates"
         let candidatesUrlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)/\(targetCollection)"
         if let url = URL(string: candidatesUrlStr) {
@@ -411,7 +569,10 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                    let documents = json["documents"] as? [[String: Any]] {
                     
                     for doc in documents {
-                        // check if already processed - skipping optimization for simplicity, WebRTC handles duplicates gracefully
+                        guard let name = doc["name"] as? String else { continue }
+                        let docId = name.components(separatedBy: "/").last ?? ""
+                        if self.processedCandidateIds.contains(docId) { continue }
+                        
                         if let fields = doc["fields"] as? [String: Any],
                            let sdpMidObj = fields["sdpMid"] as? [String: Any],
                            let sdpMid = sdpMidObj["stringValue"] as? String,
@@ -429,6 +590,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                             
                             let candidate = RTCIceCandidate(sdp: candidateStr, sdpMLineIndex: sdpMLineIndex, sdpMid: sdpMid)
                             self.peerConnection?.add(candidate)
+                            self.processedCandidateIds.insert(docId)
                         }
                     }
                 }
@@ -437,20 +599,44 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     }
 }
 
+// MARK: - RTCPeerConnectionDelegate
 extension WebRtcCallManager: RTCPeerConnectionDelegate {
-    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {}
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange stateChanged: RTCSignalingState) {
+        print("[WebRtcCallManager] SignalingState changed: \(stateChanged.rawValue)")
+    }
+    
     public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
+        print("[WebRtcCallManager] didAdd stream: audioTracks=\(stream.audioTracks.count)")
         if let audioTrack = stream.audioTracks.first {
             self.remoteAudioTrack = audioTrack
+            audioTrack.isEnabled = true
         }
     }
-    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {}
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove stream: RTCMediaStream) {
+        print("[WebRtcCallManager] didRemove stream")
+    }
+    
     public func peerConnectionShouldNegotiate(_ peerConnection: RTCPeerConnection) {}
-    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {}
-    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {}
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceConnectionState) {
+        print("[WebRtcCallManager] IceConnectionState changed: \(newState.rawValue)")
+        if newState == .connected || newState == .completed {
+            DispatchQueue.main.async {
+                self.callState = .connected
+            }
+        }
+    }
+    
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didChange newState: RTCIceGatheringState) {
+        print("[WebRtcCallManager] IceGatheringState changed: \(newState.rawValue)")
+    }
+    
     public func peerConnection(_ peerConnection: RTCPeerConnection, didGenerate candidate: RTCIceCandidate) {
         sendIceCandidate(candidate)
     }
+    
     public func peerConnection(_ peerConnection: RTCPeerConnection, didRemove candidates: [RTCIceCandidate]) {}
+    
     public func peerConnection(_ peerConnection: RTCPeerConnection, didOpen dataChannel: RTCDataChannel) {}
 }
