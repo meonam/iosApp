@@ -213,6 +213,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     
     // MARK: - ANSWER INBOUND CALL
     public func answerCall(callId: String, callerName: String, callerEmail: String, offerSdp: String? = nil) {
+        IncomingCallManager.shared.stopRinging()
         self.currentCallId = callId
         self.remoteUserName = callerName
         self.remoteUserEmail = callerEmail
@@ -278,6 +279,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     
     // MARK: - END CALL
     public func endCall() {
+        IncomingCallManager.shared.stopRinging()
         self.peerConnection?.close()
         self.peerConnection = nil
         self.localAudioTrack = nil

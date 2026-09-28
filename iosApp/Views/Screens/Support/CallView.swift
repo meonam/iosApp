@@ -148,18 +148,22 @@ public struct CallView: View {
             }
         }
         .onAppear {
+            IncomingCallManager.shared.stopRinging()
             if callManager.callState == .connected {
                 startTimer()
             }
         }
         .onDisappear {
+            IncomingCallManager.shared.stopRinging()
             timerSubscription?.invalidate()
             timerSubscription = nil
         }
         .onReceive(callManager.$callState) { state in
             if state == .connected {
+                IncomingCallManager.shared.stopRinging()
                 startTimer()
             } else if state == .ended {
+                IncomingCallManager.shared.stopRinging()
                 timerSubscription?.invalidate()
                 timerSubscription = nil
                 IncomingCallManager.shared.isCallPresented = false

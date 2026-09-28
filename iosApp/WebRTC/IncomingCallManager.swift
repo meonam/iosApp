@@ -28,6 +28,7 @@ public class IncomingCallManager: NSObject, ObservableObject {
 
     @Published public var activeIncomingCall: IncomingCallInfo? = nil
     @Published public var isCallPresented: Bool = false
+    public private(set) var handledCallIds = Set<String>()
 
     private var pollTimer: AnyCancellable?
     private var vibrateTimer: Timer?
@@ -113,6 +114,11 @@ public class IncomingCallManager: NSObject, ObservableObject {
 
         if isTargetToMe || isHelpdeskCall {
             DispatchQueue.main.async {
+                guard !self.handledCallIds.contains(callId),
+                      !self.isCallPresented,
+                      (WebRtcCallManager.shared.callState == .idle || WebRtcCallManager.shared.callState == .ended) else {
+                    return
+                }
                 self.activeIncomingCall = IncomingCallInfo(
                     id: callId,
                     callerName: callerName,
@@ -133,8 +139,12 @@ public class IncomingCallManager: NSObject, ObservableObject {
     private func pollIncomingCalls() {
         guard isListening, !currentUserEmail.isEmpty else { return }
 
-        // Nếu đang trong cuộc gọi đàm thoại (connected/calling) thì không đón thêm
-        if WebRtcCallManager.shared.callState != .idle && WebRtcCallManager.shared.callState != .ended {
+        // Nếu đang trong cuộc gọi đàm thoại hoặc màn hình CallView đang mở thì dừng mọi chuông và không đón thêm
+        if isCallPresented || (WebRtcCallManager.shared.callState != .idle && WebRtcCallManager.shared.callState != .ended) {
+            if activeIncomingCall != nil {
+                stopRinging()
+                activeIncomingCall = nil
+            }
             return
         }
 
@@ -199,8 +209,9 @@ public class IncomingCallManager: NSObject, ObservableObject {
                 // Bỏ qua nếu cuộc gọi quá hạn 3 phút (dung sai chênh lệch đồng hồ hệ thống)
                 if abs(now - createdAt) > 180_000 { continue }
 
-                // Bỏ qua nếu chính mình là người gọi
+                // Bỏ qua nếu chính mình là người gọi hoặc cuộc gọi đã được xử lý
                 if callerEmail == self.currentUserEmail { continue }
+                if self.handledCallIds.contains(callId) { continue }
 
                 // Kiểm tra xem cuộc gọi có gửi cho tài khoản này không
                 let isTargetToMe = (targetEmail == self.currentUserEmail) ||
@@ -237,7 +248,21 @@ public class IncomingCallManager: NSObject, ObservableObject {
             }
 
             DispatchQueue.main.async {
+                // Kiểm tra trạng thái: nếu đã bấm nghe hoặc CallView đang mở, lập tức dừng chuông và hủy banner
+                guard self.isListening,
+                      !self.isCallPresented,
+                      (WebRtcCallManager.shared.callState == .idle || WebRtcCallManager.shared.callState == .ended) else {
+                    self.stopRinging()
+                    self.activeIncomingCall = nil
+                    return
+                }
+
                 if let call = foundCall {
+                    if self.handledCallIds.contains(call.id) {
+                        self.stopRinging()
+                        self.activeIncomingCall = nil
+                        return
+                    }
                     if self.activeIncomingCall?.id != call.id {
                         self.activeIncomingCall = call
                         self.startRinging()
@@ -256,8 +281,13 @@ public class IncomingCallManager: NSObject, ObservableObject {
     // MARK: - ACCEPT / REJECT
     public func acceptCall() {
         guard let call = activeIncomingCall else { return }
+        let callId = call.id
+        handledCallIds.insert(callId)
+
+        // Dừng triệt để chuông và rung ngay lập tức trước khi chuyển sang đàm thoại
         stopRinging()
         activeIncomingCall = nil
+        isCallPresented = true
 
         WebRtcCallManager.shared.companyId = call.companyId
         WebRtcCallManager.shared.idToken = currentIdToken
@@ -267,11 +297,13 @@ public class IncomingCallManager: NSObject, ObservableObject {
             callerEmail: call.callerEmail,
             offerSdp: call.offerSdp.isEmpty ? nil : call.offerSdp
         )
-        isCallPresented = true
     }
 
     public func rejectCall() {
         guard let call = activeIncomingCall else { return }
+        let callId = call.id
+        handledCallIds.insert(callId)
+
         stopRinging()
         activeIncomingCall = nil
 
@@ -295,7 +327,18 @@ public class IncomingCallManager: NSObject, ObservableObject {
     }
 
     // MARK: - SOUND & VIBRATION
-    private func startRinging() {
+    public func startRinging() {
+        // Tuyệt đối không rung và không reo chuông nếu đã vào màn hình đàm thoại
+        guard !isCallPresented,
+              (WebRtcCallManager.shared.callState == .idle || WebRtcCallManager.shared.callState == .ended) else {
+            stopRinging()
+            return
+        }
+        guard let call = activeIncomingCall, !handledCallIds.contains(call.id) else {
+            stopRinging()
+            return
+        }
+
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default, options: [.duckOthers])
@@ -310,35 +353,45 @@ public class IncomingCallManager: NSObject, ObservableObject {
         ringAudioPlayer?.currentTime = 0
         ringAudioPlayer?.play()
 
-        // Rung máy định kỳ mỗi 1.2s
+        // Rung máy định kỳ mỗi 1.2s với điều kiện an toàn
         vibrateTimer?.invalidate()
         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
-        vibrateTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { _ in
+        vibrateTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak self] _ in
+            guard let self = self,
+                  self.activeIncomingCall != nil,
+                  !self.isCallPresented,
+                  (WebRtcCallManager.shared.callState == .idle || WebRtcCallManager.shared.callState == .ended) else {
+                self?.stopRinging()
+                return
+            }
             AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
         }
 
         // Bắn local notification nếu cần (thông báo cuộc gọi thoại nội bộ thân thiện)
-        if let call = activeIncomingCall {
-            let content = UNMutableNotificationContent()
-            content.title = "📞 Cuộc gọi thoại đến: \(call.callerName)"
-            content.body = "Nhấn để trả lời cuộc gọi thoại nội bộ (\(call.callerRole))"
-            content.sound = UNNotificationSound.default
-            let request = UNNotificationRequest(identifier: "INCOMING_CALL_\(call.id)", content: content, trigger: nil)
-            UNUserNotificationCenter.current().add(request) { error in
-                if let err = error {
-                    print("[IncomingCallManager] Notification error: \(err)")
-                }
+        let content = UNMutableNotificationContent()
+        content.title = "📞 Cuộc gọi thoại đến: \(call.callerName)"
+        content.body = "Nhấn để trả lời cuộc gọi thoại nội bộ (\(call.callerRole))"
+        content.sound = UNNotificationSound.default
+        let request = UNNotificationRequest(identifier: "INCOMING_CALL_\(call.id)", content: content, trigger: nil)
+        UNUserNotificationCenter.current().add(request) { error in
+            if let err = error {
+                print("[IncomingCallManager] Notification error: \(err)")
             }
         }
     }
 
-    private func stopRinging() {
+    public func stopRinging() {
         ringAudioPlayer?.stop()
+        ringAudioPlayer?.currentTime = 0
         vibrateTimer?.invalidate()
         vibrateTimer = nil
 
         if let call = activeIncomingCall {
             UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ["INCOMING_CALL_\(call.id)"])
+        }
+        if !handledCallIds.isEmpty {
+            let ids = handledCallIds.map { "INCOMING_CALL_\($0)" }
+            UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
         }
     }
 }
