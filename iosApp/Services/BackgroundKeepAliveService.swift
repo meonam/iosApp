@@ -104,34 +104,34 @@ public class BackgroundKeepAliveService: NSObject, AVAudioPlayerDelegate {
         let sampleRate: Int32 = 8000
         let numChannels: Int16 = 1
         let bitsPerSample: Int16 = 16
-        let byteRate = sampleRate * Int32(numChannels * bitsPerSample / 8)
-        let blockAlign = numChannels * bitsPerSample / 8
+        let byteRate: Int32 = sampleRate * Int32(numChannels * bitsPerSample / 8)
+        let blockAlign: Int16 = numChannels * bitsPerSample / 8
         let numSamples: Int32 = 8000 // 1 giây im lặng
-        let dataSize = numSamples * Int32(blockAlign)
+        let dataSize: Int32 = numSamples * Int32(blockAlign)
 
         var data = Data()
-        data.append("RIFF".utf8)
-        var chunkSize = 36 + dataSize
-        data.append(Data(bytes: &chunkSize, count: 4))
-        data.append("WAVE".utf8)
-        data.append("fmt ".utf8)
+        data.append(contentsOf: [UInt8]("RIFF".utf8))
+        var chunkSize: Int32 = 36 + dataSize
+        data.append(withUnsafeBytes(of: &chunkSize) { Data($0) })
+        data.append(contentsOf: [UInt8]("WAVE".utf8))
+        data.append(contentsOf: [UInt8]("fmt ".utf8))
         var subchunk1Size: Int32 = 16
-        data.append(Data(bytes: &subchunk1Size, count: 4))
+        data.append(withUnsafeBytes(of: &subchunk1Size) { Data($0) })
         var audioFormat: Int16 = 1
-        data.append(Data(bytes: &audioFormat, count: 2))
-        var channels = numChannels
-        data.append(Data(bytes: &channels, count: 2))
-        var rate = sampleRate
-        data.append(Data(bytes: &rate, count: 4))
-        var bRate = byteRate
-        data.append(Data(bytes: &bRate, count: 4))
-        var align = blockAlign
-        data.append(Data(bytes: &align, count: 2))
-        var bits = bitsPerSample
-        data.append(Data(bytes: &bits, count: 2))
-        data.append("data".utf8)
-        var dSize = dataSize
-        data.append(Data(bytes: &dSize, count: 4))
+        data.append(withUnsafeBytes(of: &audioFormat) { Data($0) })
+        var channels: Int16 = numChannels
+        data.append(withUnsafeBytes(of: &channels) { Data($0) })
+        var rate: Int32 = sampleRate
+        data.append(withUnsafeBytes(of: &rate) { Data($0) })
+        var bRate: Int32 = byteRate
+        data.append(withUnsafeBytes(of: &bRate) { Data($0) })
+        var align: Int16 = blockAlign
+        data.append(withUnsafeBytes(of: &align) { Data($0) })
+        var bits: Int16 = bitsPerSample
+        data.append(withUnsafeBytes(of: &bits) { Data($0) })
+        data.append(contentsOf: [UInt8]("data".utf8))
+        var dSize: Int32 = dataSize
+        data.append(withUnsafeBytes(of: &dSize) { Data($0) })
         data.append(Data(repeating: 0, count: Int(dataSize)))
         return data
     }
