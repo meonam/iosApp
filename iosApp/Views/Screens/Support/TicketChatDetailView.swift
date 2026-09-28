@@ -32,7 +32,7 @@ public struct TicketChatDetailView: View {
     // MARK: - File Attachment State (đồng bộ Android AndroidPendingAttachment)
     /// Tối đa 5 tệp, mỗi tệp tối đa 10MB
     @State private var pendingAttachments: [ChatPendingAttachment] = []
-    @State private var photoPickerItems: [PhotosPickerItem] = []
+    @State private var showImagePicker: Bool = false
     @State private var showDocumentPicker: Bool = false
     @State private var isUploadingAttachments: Bool = false
     @State private var attachmentAlertMessage: String? = nil
@@ -180,22 +180,12 @@ public struct TicketChatDetailView: View {
                 secondaryButton: .cancel(Text("Hủy"))
             )
         }
-        // Sheet Document Picker cho tệp không phải ảnh
-        .sheet(isPresented: $showDocumentPicker) {
-            ChatDocumentPicker { urls in
-                Task {
-                    for url in urls {
-                        await addAttachmentFromUrl(url)
-                    }
-                }
-            }
-        }
-        // Xử lý ảnh được chọn từ PhotosPicker
-        .onChange(of: photoPickerItems) { items in
-            Task {
-                for item in items {
-                    if let data = try? await item.loadTransferable(type: Data.self) {
-                        let fileName = "img_\(Int(Date().timeIntervalSince1970)).jpg"
+        // Sheet Image Picker cho ảnh từ thư viện (PHPickerViewController iOS 14+)
+        .sheet(isPresented: $showImagePicker) {
+            ChatImagePicker(maxSelection: max(1, 5 - pendingAttachments.count)) { images in
+                for img in images {
+                    if let data = img.jpegData(compressionQuality: 0.8) {
+                        let fileName = "img_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(4)).jpg"
                         let attachment = ChatPendingAttachment(
                             data: data,
                             fileName: fileName,
@@ -207,17 +197,28 @@ public struct TicketChatDetailView: View {
                         }
                     }
                 }
-                photoPickerItems = []
             }
         }
-        // Alert lỗi attachment
-        .alert("Lỗi tệp đính kèm", isPresented: Binding(
+        // Sheet Document Picker cho tệp tài liệu
+        .sheet(isPresented: $showDocumentPicker) {
+            ChatDocumentPicker { urls in
+                Task {
+                    for url in urls {
+                        await addAttachmentFromUrl(url)
+                    }
+                }
+            }
+        }
+        // Alert lỗi attachment chuẩn iOS 15
+        .alert(isPresented: Binding(
             get: { attachmentAlertMessage != nil },
             set: { if !$0 { attachmentAlertMessage = nil } }
         )) {
-            Button("Đóng", role: .cancel) { attachmentAlertMessage = nil }
-        } message: {
-            Text(attachmentAlertMessage ?? "")
+            Alert(
+                title: Text("Lỗi tệp đính kèm"),
+                message: Text(attachmentAlertMessage ?? ""),
+                dismissButton: .default(Text("Đóng"))
+            )
         }
     }
 
@@ -895,11 +896,7 @@ public struct TicketChatDetailView: View {
             HStack(spacing: 8) {
                 // Nút đính kèm — mở menu ảnh hoặc tài liệu
                 Menu {
-                    PhotosPicker(
-                        selection: $photoPickerItems,
-                        maxSelectionCount: max(1, 5 - pendingAttachments.count),
-                        matching: .images
-                    ) {
+                    Button(action: { showImagePicker = true }) {
                         Label("Chọn ảnh từ thư viện", systemImage: "photo.on.rectangle")
                     }
                     Button(action: { showDocumentPicker = true }) {

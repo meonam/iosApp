@@ -638,7 +638,7 @@ public class SupportViewModel: ObservableObject {
                         guard !urlStr.isEmpty, let _ = URL(string: urlStr) else { return nil }
                         let ext = (urlStr as NSString).pathExtension.lowercased()
                         let isImg = ["png", "jpg", "jpeg", "webp", "bmp"].contains(ext)
-                        return AttachmentItem(url: urlStr, type: isImg ? "image" : "file", name: urlStr.components(separatedBy: "/").last ?? "file")
+                        return AttachmentItem(name: urlStr.components(separatedBy: "/").last ?? "file", url: urlStr, type: isImg ? "image" : "file")
                     }
                 }()
 

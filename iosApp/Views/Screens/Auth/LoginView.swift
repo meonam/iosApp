@@ -272,7 +272,6 @@ public struct LoginView: View {
                             }
                         }
                     }
-                    .scrollDismissesKeyboard(.interactively)
                 }
             }
         }
