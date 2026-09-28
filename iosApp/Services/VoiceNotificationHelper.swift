@@ -66,7 +66,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
     private func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
             try session.setActive(true)
             try session.overrideOutputAudioPort(.speaker)
         } catch {
@@ -90,12 +90,17 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         }
     }
 
-    // MARK: - RUNG THIẾT BỊ MẠNH MẼ (HAPTIC & PHYSICAL VIBRATION NHƯ ANDROID)
+    // MARK: - RUNG THIẾT BỊ MẠNH MẼ (HAPTIC & PHYSICAL VIBRATION ĐỒNG BỘ ANDROID)
     public func triggerVibration() {
-        AudioServicesPlayAlertSound(kSystemSoundID_Vibrate)
-        let generator = UINotificationFeedbackGenerator()
-        generator.prepare()
-        generator.notificationOccurred(.warning)
+        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+        let impact = UIImpactFeedbackGenerator(style: .heavy)
+        impact.prepare()
+        impact.impactOccurred()
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+            impact.impactOccurred()
+        }
     }
 
     // MARK: - ĐỒNG BỘ CẤU HÌNH ADMIN TỪ FIRESTORE (companies/{cid}/system_config/system_toggle_config)
@@ -152,8 +157,9 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             content.categoryIdentifier = actionType == "ACK_DISPATCH" ? "DISPATCH_ALERT" : "NEW_TICKET_ALERT"
         }
 
+        let notifId = "qltb_\(ticketId)_\(actionType)_\(Int(Date().timeIntervalSince1970))"
         let request = UNNotificationRequest(
-            identifier: "qltb_\(ticketId)_\(actionType)",
+            identifier: notifId,
             content: content,
             trigger: nil // Gửi ngay tức thì
         )
@@ -163,6 +169,36 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 print("[VoiceNotificationHelper] Notification error: \(error)")
             }
         }
+    }
+
+    // MARK: - LÀM SẠCH VÀ CHUYỂN ĐỔI MÃ ĐƠN VỊ THÀNH TÊN SIÊU THỊ TỰ NHIÊN
+    public func cleanDonViName(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return "Hiện trường" }
+
+        // 1. Phân giải nhanh qua CoopmartDirectory
+        if let store = CoopmartDirectory.resolveLocation(trimmed) {
+            var name = store.name
+            name = name.replacingOccurrences(of: "(?i)^CO\\.?OPMART\\s*", with: "Coopmart ", options: .regularExpression)
+            name = name.replacingOccurrences(of: "(?i)^CO\\.?OPFOOD\\s*", with: "Coopfood ", options: .regularExpression)
+            name = name.replacingOccurrences(of: "(?i)^CO\\.?OPSMILE\\s*", with: "Coopsmile ", options: .regularExpression)
+            name = name.replacingOccurrences(of: "(?i)^CO\\.?OPXTRA\\s*", with: "Coopxtra ", options: .regularExpression)
+            return name
+        }
+
+        // 2. Dọn dẹp tiền tố mã đơn vị như "[047] - ", "047 - ", "Đơn vị: "
+        var cleaned = trimmed
+        cleaned = cleaned.replacingOccurrences(of: "^\\[?[0-9A-Za-z_-]+\\]?\\s*[-_:–.]\\s*", with: "", options: .regularExpression)
+        cleaned = cleaned.replacingOccurrences(of: "(?i)^(don vi|chi nhanh|st|kho|van phong)\\s*:\\s*", with: "", options: .regularExpression)
+        cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let store2 = CoopmartDirectory.resolveLocation(cleaned) {
+            var name = store2.name
+            name = name.replacingOccurrences(of: "(?i)^CO\\.?OPMART\\s*", with: "Coopmart ", options: .regularExpression)
+            return name
+        }
+
+        return cleaned.isEmpty ? trimmed : cleaned
     }
 
     // MARK: - CHUẨN HÓA NGỮ ÂM TIẾNG VIỆT (ĐỒNG BỘ 1:1 normalizeVietnameseSpeech TRÊN ANDROID)
@@ -311,7 +347,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
     // MARK: - 1. SỰ CỐ MỚI (Cho Admin / HelpDesk)
     public func notifyNewSupportRequest(ticketId: String, donViName: String, subject: String, source: String = "APP") {
-        let dv = donViName.isEmpty ? "điểm bán" : donViName
+        let dv = cleanDonViName(donViName)
         let sj = subject.isEmpty ? "Hỗ trợ kỹ thuật" : subject
         let title = "🚨 YÊU CẦU HỖ TRỢ MỚI!"
         let message = "📍 \(dv): \(sj)"
@@ -338,7 +374,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
     // MARK: - 2. ĐIỀU PHỐI KTV / CHUYÊN VIÊN (ĐỒNG BỘ 1:1 VỚI ANDROID VOICENOTIFICATIONHELPER.KT)
     public func notifyTechnicianDispatched(ticketId: String, donViName: String, subject: String, isSpecialist: Bool) {
-        let cleanDonVi = donViName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Hiện trường" : donViName
+        let cleanDonVi = cleanDonViName(donViName)
         let title = isSpecialist ? "📢 LỆNH PHÂN CÔNG CHUYÊN VIÊN!" : "📢 YÊU CẦU HỖ TRỢ MỚI!"
         let message = "📍 Đơn vị: \(cleanDonVi) (Bấm để nhận ca)"
         let text = isSpecialist ?
@@ -365,7 +401,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
     // MARK: - 3. KHÁCH HÀNG ĐÁNH GIÁ (SAO & PHẢN HỒI)
     public func notifyTicketRated(ticketId: String, rating: Int, feedback: String, donViName: String) {
-        let dv = donViName.isEmpty ? "điểm bán" : donViName
+        let dv = cleanDonViName(donViName)
         let text = "Khách hàng vừa đánh giá \(rating) sao cho sự cố tại đơn vị \(dv)"
         
         showHeadsUpNotification(
@@ -389,7 +425,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
     // MARK: - 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ
     public func notifyTicketResolved(ticketId: String, donViName: String, subject: String, techName: String) {
-        let dv = donViName.isEmpty ? "điểm bán" : donViName
+        let dv = cleanDonViName(donViName)
         let name = techName.isEmpty ? "Kỹ thuật viên" : techName
         let text = "Kỹ thuật viên \(name) báo đã xử lý xong sự cố cho đơn vị \(dv)"
 
@@ -415,7 +451,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
     // MARK: - BỘ LỌC CHỐNG ĐỌC DỒN KHI MỞ NỀN TẢNG KHÁC (CROSS-PLATFORM DEDUPLICATION)
     public func processTicketUpdates(tickets: [SupportTicket], currentUser: User) {
         let now = Int64(Date().timeIntervalSince1970 * 1000)
-        let threeMinutesAgo = now - 180_000
+        let fiveMinutesAgo = now - 300_000
 
         let cleanEmail = currentUser.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
@@ -427,14 +463,14 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             }
         }
 
-        // Lần đầu mở app: Ghi nhận các vé cũ hơn 3 phút để tránh đọc dồn lịch sử xa xưa
+        // Lần đầu mở app: Ghi nhận các vé cũ hơn 5 phút để tránh đọc dồn lịch sử xa xưa
         if isFirstFetch {
             isFirstFetch = false
             for t in tickets {
                 seenTicketIds.insert(t.id)
-                // Chỉ đánh dấu đã xem nếu lệnh điều phối đã cũ (> 3 phút) hoặc KTV đã tiếp nhận
-                if t.assignedAt > 0 && (t.assignedAt < threeMinutesAgo || t.isAcknowledged) {
-                    seenDispatches[t.id] = t.assignedAt
+                let effAssign = t.assignedAt > 0 ? (t.assignedAt < 10_000_000_000 ? t.assignedAt * 1000 : t.assignedAt) : t.createdAt
+                if effAssign > 0 && (effAssign < fiveMinutesAgo || t.isAcknowledged) {
+                    seenDispatches[t.id] = effAssign
                 }
                 let rateTime = t.feedbackAt > 0 ? t.feedbackAt : t.closedAt
                 if rateTime > 0 { seenRatings[t.id] = rateTime }
@@ -448,40 +484,47 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 continue
             }
 
+            let effectiveDonVi = !t.donVi.isEmpty ? t.donVi : (!t.assignedDepartmentName.isEmpty ? t.assignedDepartmentName : (!t.creatorAddress.isEmpty ? t.creatorAddress : "Hiện trường"))
+
             // 1. SỰ CỐ MỚI GỬI LÊN (Chỉ HelpDesk mới nhận)
             let isDispatched = !t.assignedTo.isEmpty || !t.assignedToEmail.isEmpty || t.assignedAt > 0 || !t.assignedDepartmentId.isEmpty
-            let isCreatedAfterStart = t.createdAt >= appStartTime && t.createdAt >= threeMinutesAgo
+            let isCreatedAfterStart = t.createdAt >= appStartTime && t.createdAt >= fiveMinutesAgo
             let isNotSelf = t.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != cleanEmail
 
             if !seenTicketIds.contains(t.id) {
                 seenTicketIds.insert(t.id)
                 if !isDispatched && isCreatedAfterStart && isNotSelf && currentUser.isHelpDesk {
-                    notifyNewSupportRequest(ticketId: t.id, donViName: t.donVi, subject: t.subject, source: t.source)
+                    notifyNewSupportRequest(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, source: t.source)
                 }
             }
 
             // 2. LỆNH ĐIỀU PHỐI CHO KTV / CHUYÊN VIÊN
             let isPrimary = t.isUserAssigned(email: cleanEmail)
-            let isSpecialistMatch = (t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST") && currentUser.isSpecialist && t.assignedToEmail.isEmpty && (
+            let isSpecialistMatch = (t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST") && (currentUser.isSpecialist || currentUser.isAdmin) && t.assignedToEmail.isEmpty && (
                 (!currentUser.toNghiepVu.isEmpty && currentUser.toNghiepVu == t.toNghiepVu) ||
                 (!currentUser.departmentId.isEmpty && currentUser.departmentId == t.assignedDepartmentId) ||
-                (!currentUser.departmentName.isEmpty && currentUser.departmentName == t.assignedDepartmentName)
+                (!currentUser.departmentName.isEmpty && currentUser.departmentName == t.assignedDepartmentName) ||
+                currentUser.isAdmin
             )
-            let isClusterMatch = currentUser.isTechnician && t.assignedToEmail.isEmpty && !t.assignedCluster.isEmpty && (currentUser.maKhuVuc == t.assignedCluster)
+            let isClusterMatch = (currentUser.isTechnician || currentUser.isAdmin) && t.assignedToEmail.isEmpty && !t.assignedCluster.isEmpty && (
+                currentUser.maKhuVuc == t.assignedCluster || currentUser.isAdmin
+            )
 
             let isAssignedToMe = (isPrimary || isSpecialistMatch || isClusterMatch) && !t.isAcknowledged
 
-            if isAssignedToMe && t.assignedAt > 0 {
+            let effectiveAssignedAt = t.assignedAt > 0 ? (t.assignedAt < 10_000_000_000 ? t.assignedAt * 1000 : t.assignedAt) : t.createdAt
+
+            if isAssignedToMe && effectiveAssignedAt > 0 {
                 let lastSeenAssign = seenDispatches[t.id] ?? 0
-                let isFreshDispatch = (now - t.assignedAt) <= 180_000 // Trong vòng 3 phút
-                let hasNotAnnounced = lastSeenAssign == 0 || t.assignedAt > lastSeenAssign
+                let isFreshDispatch = (now - effectiveAssignedAt) <= 300_000 // Trong vòng 5 phút
+                let hasNotAnnounced = lastSeenAssign == 0 || effectiveAssignedAt > lastSeenAssign
 
                 if isFreshDispatch && hasNotAnnounced {
-                    seenDispatches[t.id] = t.assignedAt
+                    seenDispatches[t.id] = effectiveAssignedAt
                     let isSpecialist = t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST" || isSpecialistMatch
-                    notifyTechnicianDispatched(ticketId: t.id, donViName: t.donVi, subject: t.subject, isSpecialist: isSpecialist)
+                    notifyTechnicianDispatched(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, isSpecialist: isSpecialist)
                 } else if lastSeenAssign == 0 {
-                    seenDispatches[t.id] = t.assignedAt
+                    seenDispatches[t.id] = effectiveAssignedAt
                 }
             }
 
@@ -489,10 +532,10 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             if t.rating > 0 {
                 let rateTime = t.feedbackAt > 0 ? t.feedbackAt : t.closedAt
                 let lastSeenRate = seenRatings[t.id] ?? 0
-                let isFreshRating = rateTime > lastSeenRate && (rateTime >= appStartTime || rateTime >= threeMinutesAgo)
+                let isFreshRating = rateTime > lastSeenRate && (rateTime >= appStartTime || rateTime >= fiveMinutesAgo)
                 if isFreshRating {
                     seenRatings[t.id] = rateTime
-                    notifyTicketRated(ticketId: t.id, rating: t.rating, feedback: t.feedback, donViName: t.donVi)
+                    notifyTicketRated(ticketId: t.id, rating: t.rating, feedback: t.feedback, donViName: effectiveDonVi)
                 } else if lastSeenRate == 0 {
                     seenRatings[t.id] = rateTime
                 }
@@ -501,10 +544,10 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             // 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ
             if t.resolvedAt > 0 && t.isResolved && (currentUser.isAdmin || currentUser.isHelpDesk) {
                 let lastSeenRes = seenResolved[t.id] ?? 0
-                let isFreshResolved = t.resolvedAt > lastSeenRes && (t.resolvedAt >= appStartTime || t.resolvedAt >= threeMinutesAgo)
+                let isFreshResolved = t.resolvedAt > lastSeenRes && (t.resolvedAt >= appStartTime || t.resolvedAt >= fiveMinutesAgo)
                 if isFreshResolved {
                     seenResolved[t.id] = t.resolvedAt
-                    notifyTicketResolved(ticketId: t.id, donViName: t.donVi, subject: t.subject, techName: t.resolvedByName)
+                    notifyTicketResolved(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, techName: t.resolvedByName)
                 } else if lastSeenRes == 0 {
                     seenResolved[t.id] = t.resolvedAt
                 }

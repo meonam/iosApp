@@ -446,6 +446,9 @@ public struct LiveTrackingMapView: View {
     // Bán kính đến nơi cho phép (chuẩn Android: 150m - 200m)
     @State private var arrivalRadiusMeters: Double = 200.0
 
+    // Vị trí đã biết gần nhất của KTV từ technician_locations (đồng bộ 1:1 Android)
+    @State private var techLastKnownCoordinate: CLLocationCoordinate2D? = nil
+
     // Throttle cho việc gửi GPS thời gian thực lên Firestore
     @State private var lastReportedLocation: CLLocationCoordinate2D? = nil
     @State private var lastReportedTime: Date = Date.distantPast
@@ -510,22 +513,22 @@ public struct LiveTrackingMapView: View {
         tracking.status == "ARRIVED"
     }
 
-    // Tọa độ Điểm đến (Ưu tiên: 1. Đã phân giải -> 2. Tọa độ creator -> 3. Tọa độ tracking -> 4. Phân giải nhanh qua CoopmartDirectory -> 5. Fallback)
+    // Tọa độ Điểm đến (Đồng bộ 1:1 Android: Ưu tiên 1. Đã phân giải -> 2. CoopmartDirectory theo donVi -> 3. CoopmartDirectory theo creatorAddress -> 4. creatorLat -> 5. destLat -> 6. Fallback)
     private var destCoordinate: CLLocationCoordinate2D {
         if let resolved = resolvedDestCoordinate {
             return resolved
-        }
-        if currentTicket.creatorLat != 0 && currentTicket.creatorLng != 0 {
-            return CLLocationCoordinate2D(latitude: currentTicket.creatorLat, longitude: currentTicket.creatorLng)
-        }
-        if tracking.destLat != 0 && tracking.destLng != 0 {
-            return CLLocationCoordinate2D(latitude: tracking.destLat, longitude: tracking.destLng)
         }
         if let store = CoopmartDirectory.resolveLocation(currentTicket.donVi) {
             return CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng)
         }
         if let store = CoopmartDirectory.resolveLocation(currentTicket.creatorAddress) {
             return CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng)
+        }
+        if currentTicket.creatorLat != 0 && currentTicket.creatorLng != 0 {
+            return CLLocationCoordinate2D(latitude: currentTicket.creatorLat, longitude: currentTicket.creatorLng)
+        }
+        if tracking.destLat != 0 && tracking.destLng != 0 {
+            return CLLocationCoordinate2D(latitude: tracking.destLat, longitude: tracking.destLng)
         }
         return CLLocationCoordinate2D(latitude: 10.7769, longitude: 106.7009)
     }
@@ -544,7 +547,7 @@ public struct LiveTrackingMapView: View {
         return "Điểm hỗ trợ"
     }
 
-    // Tọa độ KTV / Chuyên viên (Chỉ trả về tọa độ KTV thực tế)
+    // Tọa độ KTV / Chuyên viên (Đồng bộ 1:1 Android: Luôn đảm bảo có tọa độ để vẽ trọn vẹn lộ trình đường đi)
     private var techCoordinate: CLLocationCoordinate2D? {
         if isAssignedTech {
             // Nếu người xem CHÍNH LÀ KTV/Chuyên viên phụ trách:
@@ -557,17 +560,23 @@ public struct LiveTrackingMapView: View {
             if tracking.startLat != 0 && tracking.startLng != 0 {
                 return CLLocationCoordinate2D(latitude: tracking.startLat, longitude: tracking.startLng)
             }
-            return nil
+            if let last = techLastKnownCoordinate {
+                return last
+            }
+            return CLLocationCoordinate2D(latitude: 10.764412, longitude: 106.693425)
         } else {
             // Nếu người xem là Khách hàng (Người gửi hỗ trợ) hoặc HelpDesk / Admin:
-            // TUYỆT ĐỐI KHÔNG dùng GPS thiết bị người xem! Chỉ hiển thị vị trí KTV gửi lên từ Firestore.
             if tracking.currentLat != 0 && tracking.currentLng != 0 {
                 return CLLocationCoordinate2D(latitude: tracking.currentLat, longitude: tracking.currentLng)
             }
             if tracking.startLat != 0 && tracking.startLng != 0 {
                 return CLLocationCoordinate2D(latitude: tracking.startLat, longitude: tracking.startLng)
             }
-            return nil
+            if let last = techLastKnownCoordinate {
+                return last
+            }
+            // Fallback điểm xuất phát KTV: Trụ sở chính Saigon Co.op / Phòng CNTT (199-205 Nguyễn Thái Học, Q1)
+            return CLLocationCoordinate2D(latitude: 10.764412, longitude: 106.693425)
         }
     }
 
@@ -674,6 +683,7 @@ public struct LiveTrackingMapView: View {
         .onAppear {
             VoiceNotificationHelper.shared.stopAlert(ticketId: currentTicket.id)
             resolveDestination()
+            fetchTechLastKnownLocation()
             fetchRoadRoute()
             startMapPolling()
         }
@@ -753,24 +763,13 @@ public struct LiveTrackingMapView: View {
         mapPollTimer = nil
     }
 
-    // MARK: - RESOLVE DESTINATION (COOPMART DIRECTORY + OSRM GEOCODE)
+    // MARK: - RESOLVE DESTINATION (ĐỒNG BỘ 1:1 ANDROID: COOPMART DIRECTORY FIRST)
     private func resolveDestination() {
-        if currentTicket.creatorLat != 0 && currentTicket.creatorLng != 0 {
-            resolvedDestCoordinate = CLLocationCoordinate2D(latitude: currentTicket.creatorLat, longitude: currentTicket.creatorLng)
-            resolvedDestName = currentTicket.donVi.isEmpty ? currentTicket.subject : currentTicket.donVi
-            return
-        }
-
-        if tracking.destLat != 0 && tracking.destLng != 0 {
-            resolvedDestCoordinate = CLLocationCoordinate2D(latitude: tracking.destLat, longitude: tracking.destLng)
-            resolvedDestName = tracking.destAddress.isEmpty ? currentTicket.donVi : tracking.destAddress
-            return
-        }
-
         let query = currentTicket.donVi.trimmingCharacters(in: .whitespacesAndNewlines)
         if !query.isEmpty, let store = CoopmartDirectory.resolveLocation(query) {
             resolvedDestCoordinate = CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng)
             resolvedDestName = store.name
+            fetchRoadRoute()
             return
         }
 
@@ -778,6 +777,21 @@ public struct LiveTrackingMapView: View {
         if !addr.isEmpty, let store = CoopmartDirectory.resolveLocation(addr) {
             resolvedDestCoordinate = CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng)
             resolvedDestName = store.name
+            fetchRoadRoute()
+            return
+        }
+
+        if currentTicket.creatorLat != 0 && currentTicket.creatorLng != 0 {
+            resolvedDestCoordinate = CLLocationCoordinate2D(latitude: currentTicket.creatorLat, longitude: currentTicket.creatorLng)
+            resolvedDestName = currentTicket.donVi.isEmpty ? currentTicket.subject : currentTicket.donVi
+            fetchRoadRoute()
+            return
+        }
+
+        if tracking.destLat != 0 && tracking.destLng != 0 {
+            resolvedDestCoordinate = CLLocationCoordinate2D(latitude: tracking.destLat, longitude: tracking.destLng)
+            resolvedDestName = tracking.destAddress.isEmpty ? currentTicket.donVi : tracking.destAddress
+            fetchRoadRoute()
             return
         }
 
@@ -788,6 +802,37 @@ public struct LiveTrackingMapView: View {
                     await MainActor.run {
                         self.resolvedDestCoordinate = CLLocationCoordinate2D(latitude: geo.lat, longitude: geo.lng)
                         self.resolvedDestName = geocodeQuery
+                        self.fetchRoadRoute()
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - TẢI VỊ TRÍ GẦN NHẤT CỦA KTV TỪ TECHNICIAN_LOCATIONS (ĐỒNG BỘ 1:1 ANDROID)
+    private func fetchTechLastKnownLocation() {
+        let techEmail = currentTicket.assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !techEmail.isEmpty, !viewModel.companyId.isEmpty else { return }
+        let cleanEmail = techEmail.lowercased().replacingOccurrences(of: "[^a-zA-Z0-9_]", with: "_")
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.companyId)/technician_locations/\(cleanEmail)"
+        guard let url = URL(string: urlStr) else { return }
+
+        Task {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            if !viewModel.idToken.isEmpty {
+                request.setValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization")
+            }
+            request.timeoutInterval = 6.0
+            if let (data, resp) = try? await URLSession.shared.data(for: request),
+               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let fields = json["fields"] as? [String: Any] {
+                let lat = FirestoreHelper.getDouble(fields["lat"] as? [String: Any])
+                let lng = FirestoreHelper.getDouble(fields["lng"] as? [String: Any])
+                if lat != 0 && lng != 0 {
+                    await MainActor.run {
+                        self.techLastKnownCoordinate = CLLocationCoordinate2D(latitude: lat, longitude: lng)
                         self.fetchRoadRoute()
                     }
                 }

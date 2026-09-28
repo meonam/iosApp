@@ -44,7 +44,7 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
         guard let url = URL(string: urlStr) else { return false }
 
         var request = URLRequest(url: url)
-        request.timeoutInterval = 10
+        request.timeoutInterval = 8
         request.setValue("no-cache", forHTTPHeaderField: "Pragma")
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         request.setValue("chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold", forHTTPHeaderField: "Origin")
@@ -66,7 +66,8 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
                 isFinished = true
                 task.cancel(with: .normalClosure, reason: nil)
 
-                if success && audioBuffer.count > 500 {
+                // Kiểm tra audioBuffer có decode được bởi AVAudioPlayer không
+                if success && audioBuffer.count > 1000, (try? AVAudioPlayer(data: audioBuffer)) != nil {
                     do {
                         let parent = outputFile.deletingLastPathComponent()
                         try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
@@ -77,12 +78,10 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
                         }
                         try FileManager.default.moveItem(at: tmpFile, to: outputFile)
                         continuation.resume(returning: true)
-                    } catch {
-                        continuation.resume(returning: false)
-                    }
-                } else {
-                    continuation.resume(returning: false)
+                        return
+                    } catch {}
                 }
+                continuation.resume(returning: false)
             }
 
             // 1. Send speech.config
@@ -94,7 +93,7 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
                     return
                 }
 
-                // 2. Send SSML
+                // 2. Send SSML chuẩn cú pháp Microsoft Edge TTS
                 let reqId = UUID().uuidString.replacingOccurrences(of: "-", with: "")
                 let escaped = trimmed
                     .replacingOccurrences(of: "&", with: "&amp;")
@@ -102,7 +101,8 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
                     .replacingOccurrences(of: ">", with: "&gt;")
                     .replacingOccurrences(of: "\"", with: "&quot;")
                     .replacingOccurrences(of: "'", with: "&apos;")
-                let ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='vi-VN'><voice name='\(voice)'><prosody pitch='+0Hz' rate='+0%' volume='+100%'>\(escaped)</prosody></voice></speak>"
+                let voiceFull = "Microsoft Server Speech Text to Speech Voice (vi-VN, HoaiMyNeural)"
+                let ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='vi-VN'><voice name='\(voiceFull)'><prosody pitch='+0Hz' rate='+0%' volume='+0%'>\(escaped)</prosody></voice></speak>"
                 let ssmlMsg = "X-RequestId:\(reqId)\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n\(ssml)"
 
                 task.send(.string(ssmlMsg)) { sErr in
@@ -138,17 +138,17 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
                             receiveNext()
                         }
                     case .failure:
-                        finish(success: audioBuffer.count > 500)
+                        finish(success: false)
                     }
                 }
             }
 
             receiveNext()
 
-            // 4. Timeout safety 9s
-            DispatchQueue.global().asyncAfter(deadline: .now() + 9.0) {
+            // 4. Timeout safety 6.0s
+            DispatchQueue.global().asyncAfter(deadline: .now() + 6.0) {
                 if !isFinished {
-                    finish(success: audioBuffer.count > 500)
+                    finish(success: false)
                 }
             }
         }
@@ -166,11 +166,12 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
         let audioFile = ttsDir.appendingPathComponent("vtv_\(md5).mp3")
 
         Task {
-            // Kiểm tra cache đã có
+            // Kiểm tra cache đã có và file hợp lệ
             var hasAudio = false
             if FileManager.default.fileExists(atPath: audioFile.path) {
                 if let attrs = try? FileManager.default.attributesOfItem(atPath: audioFile.path),
-                   let size = attrs[.size] as? Int64, size > 500 {
+                   let size = attrs[.size] as? Int64, size > 1000,
+                   let player = try? AVAudioPlayer(contentsOf: audioFile), player.duration > 0.1 {
                     hasAudio = true
                 }
             }
@@ -181,10 +182,10 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
 
             if hasAudio && FileManager.default.fileExists(atPath: audioFile.path) {
                 await MainActor.run {
-                    self.playAudioFile(url: audioFile)
+                    self.playAudioFile(url: audioFile, originalText: clean)
                 }
             } else {
-                // Dự phòng offline: AVSpeechSynthesizer
+                // Dự phòng khi offline / mạng yếu: AVSpeechSynthesizer đọc ĐÚNG NỘI DUNG VĂN BẢN
                 await MainActor.run {
                     self.speakFallback(text: clean)
                 }
@@ -193,13 +194,13 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
     }
 
     // MARK: - PLAY AUDIO FILE
-    private func playAudioFile(url: URL) {
+    private func playAudioFile(url: URL, originalText: String) {
         playerLock.lock()
         defer { playerLock.unlock() }
 
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .interruptSpokenAudioAndMixWithOthers])
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
             try session.setActive(true)
             try session.overrideOutputAudioPort(.speaker)
 
@@ -208,16 +209,29 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate, URLSessionWebSocket
             audioPlayer?.delegate = self
             audioPlayer?.volume = 1.0
             audioPlayer?.prepareToPlay()
-            audioPlayer?.play()
+            if audioPlayer?.play() != true {
+                speakFallback(text: originalText)
+            }
         } catch {
             print("[EdgeTtsClient] Play audio error: \(error)")
-            speakFallback(text: url.deletingPathExtension().lastPathComponent)
+            // CỰC KỲ QUAN TRỌNG: PHẢI ĐỌC originalText, TUYỆT ĐỐI KHÔNG ĐỌC TÊN FILE HAY MÃ HASH
+            speakFallback(text: originalText)
         }
     }
 
+    // MARK: - DỰ PHÒNG GIỌNG ĐỌC HỆ THỐNG (CHỈ ĐỌC VĂN BẢN THUẦN TÚY)
     private func speakFallback(text: String) {
+        // Tuyệt đối không đọc các chuỗi mã hash, tên file kỹ thuật (chống lỗi đọc mã số)
+        if text.hasPrefix("vtv_") || text.hasSuffix(".mp3") ||
+           (text.count >= 24 && text.range(of: "^[a-f0-9_.-]+$", options: .regularExpression) != nil) {
+            return
+        }
+
         if fallbackSynthesizer == nil {
             fallbackSynthesizer = AVSpeechSynthesizer()
+        }
+        if fallbackSynthesizer?.isSpeaking == true {
+            fallbackSynthesizer?.stopSpeaking(at: .immediate)
         }
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: "vi-VN")
