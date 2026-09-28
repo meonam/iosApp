@@ -308,30 +308,82 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         self.currentLocation = loc.coordinate
         self.calculateGeofenceDistance(loc: loc.coordinate)
 
-        // Dùng Google Maps Geocoding API — cùng backend với Android Geocoder → địa chỉ VN chính xác nhất
+        // Lớp 1: Gọi Google Maps Geocoding API (nếu key hoạt động)
         Self.fetchGoogleMapsAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] googleAddr in
             guard let self = self else { return }
             if let googleAddr = googleAddr, !googleAddr.isEmpty {
+                let clean = Self.sanitizeVietnameseAddress(googleAddr)
                 Task { @MainActor in
-                    self.currentAddress = googleAddr
+                    self.currentAddress = clean
                 }
-            } else {
-                // Fallback: Apple CLGeocoder nếu Google API lỗi (offline, hết quota, v.v.)
-                CLGeocoder().reverseGeocodeLocation(loc) { [weak self] placemarks, _ in
-                    guard let self = self else { return }
-                    var appleAddr = ""
-                    if let p = placemarks?.first {
-                        appleAddr = Self.formatPlacemarkAddress(p)
-                    }
-                    if appleAddr.isEmpty {
-                        appleAddr = String(format: "Tọa độ: %.5f, %.5f", loc.coordinate.latitude, loc.coordinate.longitude)
-                    }
-                    Task { @MainActor in
-                        self.currentAddress = appleAddr
+            }
+        }
+
+        // Lớp 2: Apple CLGeocoder trả về tức thì với format đã chuẩn hóa tên xã/huyện, lọc bỏ đường huyện
+        CLGeocoder().reverseGeocodeLocation(loc) { [weak self] placemarks, _ in
+            guard let self = self else { return }
+            var appleAddr = ""
+            if let p = placemarks?.first {
+                appleAddr = Self.formatPlacemarkAddress(p)
+            }
+            if appleAddr.isEmpty {
+                appleAddr = String(format: "Tọa độ: %.5f, %.5f", loc.coordinate.latitude, loc.coordinate.longitude)
+            }
+            let cleanApple = Self.sanitizeVietnameseAddress(appleAddr)
+            Task { @MainActor in
+                if self.currentAddress.contains("Đang xác định") || self.currentAddress.contains("Tọa độ:") {
+                    self.currentAddress = cleanApple
+                }
+            }
+        }
+
+        // Lớp 3: OpenStreetMap Nominatim phân giải chi tiết Số nhà / Ấp / Thôn / Phường / Xã
+        Self.fetchNominatimAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] osmAddress in
+            guard let self = self else { return }
+            if let osmAddress = osmAddress, !osmAddress.isEmpty {
+                let cleanOsm = Self.sanitizeVietnameseAddress(osmAddress)
+                Task { @MainActor in
+                    let cur = self.currentAddress
+                    let osmHasNumber = cleanOsm.first?.isNumber == true
+                    let curHasNumber = cur.first?.isNumber == true
+                    let curIsBasic = cur.contains("Tọa độ:") || cur.contains("Chưa có") || (!curHasNumber && osmHasNumber)
+                    if curIsBasic || cleanOsm.count > cur.count {
+                        self.currentAddress = cleanOsm
                     }
                 }
             }
         }
+    }
+
+    // MARK: - UNIVERSAL VIETNAMESE ADDRESS SANITIZER (CHUẨN HÓA TOÀN DIỆN 100% ĐỊA DANH VIỆT NAM)
+    public static func sanitizeVietnameseAddress(_ raw: String) -> String {
+        var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if text.isEmpty { return text }
+
+        // 1. Chuẩn hóa tất cả các biến thể viết tắt hành chính Việt Nam:
+        // "X. Tân Long Hội" hoặc "X Tân Long Hội" -> "Xã Tân Long Hội"
+        text = text.replacingOccurrences(of: #"(?i)\bX\.\s*"#, with: "Xã ", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"\bX\s+(?=[A-ZÀ-Ỹ])"#, with: "Xã ", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"(?i)\bP\.\s*"#, with: "Phường ", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"\bP\s+(?=[A-ZÀ-Ỹ\d])"#, with: "Phường ", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"(?i)\bTT\.\s*"#, with: "Thị Trấn ", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"\bTT\s+(?=[A-ZÀ-Ỹ])"#, with: "Thị Trấn ", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"(?i)\bH\.\s*"#, with: "Huyện ", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"(?i)\bQ\.\s*"#, with: "Quận ", options: .regularExpression)
+        text = text.replacingOccurrences(of: #"(?i)\bTP\.\s*"#, with: "TP. ", options: .regularExpression)
+
+        // 2. Loại bỏ đường huyện/tỉnh lộ/quốc lộ đứng đầu nếu phía sau đã có địa danh (ấp/xã/huyện)
+        // Ví dụ: "Đường Huyện 35, Xã Tân Long Hội, Vĩnh Long" -> "Xã Tân Long Hội, Vĩnh Long"
+        text = text.replacingOccurrences(of: #"^(?:Đường Huyện|Đường Tỉnh|Quốc Lộ|Quốc lộ|Tỉnh Lộ|Tỉnh lộ|ĐH|ĐT|QL)\s*\d+,\s*"#, with: "", options: [.regularExpression, .caseInsensitive])
+
+        // 3. Xóa postcode ở cuối (5-6 chữ số: ", 85000")
+        text = text.replacingOccurrences(of: #",\s*\d{5,6}$"#, with: "", options: .regularExpression)
+
+        // 4. Bỏ ", Việt Nam" / ", Vietnam" ở cuối
+        if text.hasSuffix(", Việt Nam") { text = String(text.dropLast(", Việt Nam".count)) }
+        if text.hasSuffix(", Vietnam") { text = String(text.dropLast(", Vietnam".count)) }
+
+        return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - GOOGLE MAPS GEOCODING API (GIỐNG HỆT ANDROID Geocoder — CHUẨN NHẤT CHO VIỆT NAM)
@@ -357,17 +409,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                    let results = json["results"] as? [[String: Any]],
                    let first = results.first,
                    let formattedAddress = first["formatted_address"] as? String {
-
-                    // Làm sạch suffix ", Việt Nam" như Android Geocoder
-                    var clean = formattedAddress
-                    if clean.hasSuffix(", Việt Nam") {
-                        clean = String(clean.dropLast(", Việt Nam".count))
-                    } else if clean.hasSuffix(", Vietnam") {
-                        clean = String(clean.dropLast(", Vietnam".count))
-                    }
-                    // Loại bỏ postal code (5-6 chữ số ở cuối)
-                    clean = clean.replacingOccurrences(of: #",\s*\d{5,6}$"#, with: "", options: .regularExpression)
-                    completion(clean.trimmingCharacters(in: .whitespacesAndNewlines))
+                    completion(sanitizeVietnameseAddress(formattedAddress))
                 } else {
                     completion(nil)
                 }
@@ -387,49 +429,55 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         let name = p.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let rawSubLoc = p.subLocality?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let subAdmin = p.subAdministrativeArea?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let loc = p.locality?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let rawLoc = p.locality?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let admin = p.administrativeArea?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
-        // Chuẩn hóa viết tắt Apple Maps: "X. " → "Xã ", "P. " → "Phường ", "TT. " → "Thị Trấn "
-        var subLoc = rawSubLoc
-        if subLoc.hasPrefix("X. ") { subLoc = "Xã " + subLoc.dropFirst(3) }
-        else if subLoc.hasPrefix("X ") { subLoc = "Xã " + subLoc.dropFirst(2) }
-        else if subLoc.hasPrefix("P. ") { subLoc = "Phường " + subLoc.dropFirst(3) }
-        else if subLoc.hasPrefix("P ") { subLoc = "Phường " + subLoc.dropFirst(2) }
-        else if subLoc.hasPrefix("TT. ") { subLoc = "Thị Trấn " + subLoc.dropFirst(4) }
-
-        // Phát hiện đường huyện/tỉnh/quốc lộ trong thoroughfare — không phải tên đường dân sinh
-        let isHighwayStreet = street.hasPrefix("Đường Huyện") || street.hasPrefix("Đường Tỉnh") ||
-                              street.hasPrefix("Quốc Lộ") || street.hasPrefix("QL ") ||
-                              street.hasPrefix("ĐT ") || street.hasPrefix("ĐH ") ||
-                              street.hasPrefix("National Road") || street.hasPrefix("Provincial Road") ||
-                              street.hasPrefix("County Road") || street.hasPrefix("Highway") ||
-                              street.hasPrefix("Tỉnh Lộ")
-
-        // 1. Số nhà & Tên đường
-        var streetLine = ""
-        if isHighwayStreet {
-            // Bỏ tên đường huyện. Nếu có số nhà, ghép vào subLocality: "56 Xã Tân Long Hội"
-            if !subNumber.isEmpty && !subLoc.isEmpty {
-                streetLine = "\(subNumber) \(subLoc)"
-            } else if !subNumber.isEmpty {
-                streetLine = "Số \(subNumber)"
-            }
-            // Nếu không có số nhà → để trống, subLocality sẽ xuất hiện ở phần 2
-        } else {
-            if !subNumber.isEmpty && !street.isEmpty {
-                streetLine = street.hasPrefix(subNumber) ? street : "\(subNumber) \(street)"
-            } else if !street.isEmpty {
-                streetLine = street
-            }
+        func isHighway(_ str: String) -> Bool {
+            let s = str.trimmingCharacters(in: .whitespacesAndNewlines)
+            return s.hasPrefix("Đường Huyện") || s.hasPrefix("Đường Tỉnh") ||
+                   s.hasPrefix("Quốc Lộ") || s.hasPrefix("QL ") ||
+                   s.hasPrefix("ĐT ") || s.hasPrefix("ĐH ") ||
+                   s.hasPrefix("National Road") || s.hasPrefix("Provincial Road") ||
+                   s.hasPrefix("County Road") || s.hasPrefix("Highway") ||
+                   s.hasPrefix("Tỉnh Lộ")
         }
 
-        // Tên điểm / Tòa nhà / Ấp / Thôn nếu có trong name (và không trùng với streetLine)
-        if !name.isEmpty && !name.localizedCaseInsensitiveContains(street) {
+        func cleanAdminPrefix(_ s: String) -> String {
+            var res = s
+            if res.hasPrefix("X. ") { res = "Xã " + res.dropFirst(3) }
+            else if res.hasPrefix("X ") { res = "Xã " + res.dropFirst(2) }
+            else if res.hasPrefix("P. ") { res = "Phường " + res.dropFirst(3) }
+            else if res.hasPrefix("P ") { res = "Phường " + res.dropFirst(2) }
+            else if res.hasPrefix("TT. ") { res = "Thị Trấn " + res.dropFirst(4) }
+            return res.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        let subLoc = cleanAdminPrefix(rawSubLoc)
+        let loc = cleanAdminPrefix(rawLoc)
+
+        // 1. Số nhà & Tên đường (bỏ qua tên đường huyện)
+        var streetLine = ""
+        if !street.isEmpty && !isHighway(street) {
+            streetLine = !subNumber.isEmpty ? (street.hasPrefix(subNumber) ? street : "\(subNumber) \(street)") : street
+        }
+
+        // Tên điểm / Landmark / Ấp / Thôn nếu có trong name (và không phải đường huyện)
+        if !name.isEmpty && !isHighway(name) && !name.localizedCaseInsensitiveContains(street) {
             if streetLine.isEmpty {
-                streetLine = name
-            } else if !streetLine.localizedCaseInsensitiveContains(name) && !name.localizedCaseInsensitiveContains(streetLine) {
+                streetLine = !subNumber.isEmpty && !name.hasPrefix(subNumber) ? "\(subNumber) \(name)" : name
+            } else if !streetLine.localizedCaseInsensitiveContains(name) {
                 streetLine = "\(name), \(streetLine)"
+            }
+        } else if streetLine.isEmpty && !subNumber.isEmpty {
+            streetLine = "Số \(subNumber)"
+        }
+
+        // Kiểm tra areasOfInterest (ví dụ: Ấp Tân Thiềng)
+        if let aoi = p.areasOfInterest?.first, !aoi.isEmpty && !isHighway(aoi) {
+            if streetLine.isEmpty {
+                streetLine = !subNumber.isEmpty ? "\(subNumber) \(aoi)" : aoi
+            } else if !streetLine.localizedCaseInsensitiveContains(aoi) {
+                streetLine = "\(streetLine), \(aoi)"
             }
         }
 
@@ -437,30 +485,29 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             parts.append(streetLine)
         }
 
-        // 2. Phường / Xã (subLocality) — chỉ thêm nếu chưa nằm trong streetLine
+        // 2. Phường / Xã
         if !subLoc.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(subLoc) }) {
             parts.append(subLoc)
         }
 
-
-        // 3. Quận / Huyện / Thị xã (subAdministrativeArea) — CỰC KỲ QUAN TRỌNG ĐỂ KHÔNG BỊ MẤT HUYỆN/QUẬN
+        // 3. Quận / Huyện
         if !subAdmin.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(subAdmin) }) {
             parts.append(subAdmin)
         }
 
-        // 4. Thành phố / Thị xã (locality) nếu chưa có
+        // 4. Thành phố / Thị xã
         if !loc.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(loc) }) && !admin.localizedCaseInsensitiveContains(loc) {
             parts.append(loc)
         }
 
-        // 5. Tỉnh / Thành phố trực thuộc TW (administrativeArea)
+        // 5. Tỉnh
         if !admin.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(admin) || admin.localizedCaseInsensitiveContains($0) }) {
             parts.append(admin)
         }
 
         let manualJoined = parts.joined(separator: ", ")
         if !manualJoined.isEmpty {
-            return manualJoined
+            return sanitizeVietnameseAddress(manualJoined)
         }
 
         // Fallback CNPostalAddressFormatter nếu manualJoined trống
@@ -471,7 +518,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 .filter { !$0.isEmpty }
                 .joined(separator: ", ")
             if !cleaned.isEmpty {
-                return cleaned
+                return sanitizeVietnameseAddress(cleaned)
             }
         }
 
@@ -607,21 +654,14 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                         }
 
                         if !parts.isEmpty {
-                            completion(parts.joined(separator: ", "))
+                            completion(sanitizeVietnameseAddress(parts.joined(separator: ", ")))
                             return
                         }
                     }
 
                     // Fallback: display_name làm sạch postcode & Việt Nam
                     if let rawDisplay = json["display_name"] as? String {
-                        var clean = rawDisplay
-                        if clean.hasSuffix(", Việt Nam") {
-                            clean = String(clean.dropLast(", Việt Nam".count))
-                        } else if clean.hasSuffix(", Vietnam") {
-                            clean = String(clean.dropLast(", Vietnam".count))
-                        }
-                        clean = clean.replacingOccurrences(of: #",\s*\d{5,6}$"#, with: "", options: .regularExpression)
-                        completion(clean)
+                        completion(sanitizeVietnameseAddress(rawDisplay))
                         return
                     }
                 }
