@@ -255,24 +255,24 @@ public struct LoginView: View {
                             .shadow(color: Color.black.opacity(0.20), radius: 18, x: 0, y: 8)
                             .padding(.horizontal, 16)
                             .id("loginCard")
-                            // Tự động đẩy Card lên trên khi người dùng nhập để không bao giờ bị bàn phím che
-                            .offset(y: focusedField == .password ? -130 : (focusedField == .email ? -50 : 0))
-                            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: focusedField)
 
-                            Spacer(minLength: focusedField != nil ? 180 : 24)
+                            Spacer(minLength: focusedField != nil ? 12 : 24)
                         }
                         .frame(minHeight: geometry.size.height)
                         .frame(width: geometry.size.width)
                     }
                     .onChange(of: focusedField) { newField in
-                        if newField == .password {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    proxy.scrollTo("loginButton", anchor: .bottom)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                if newField == .password {
+                                    proxy.scrollTo("passwordSection", anchor: .bottom)
+                                } else if newField == .email {
+                                    proxy.scrollTo("loginCard", anchor: .center)
                                 }
                             }
                         }
                     }
+                    .scrollDismissesKeyboard(.interactively)
                 }
             }
         }

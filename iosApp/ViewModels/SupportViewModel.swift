@@ -628,6 +628,20 @@ public class SupportViewModel: ObservableObject {
                       let fields = doc["fields"] as? [String: Any] else { return nil }
                 let id = name.components(separatedBy: "/").last ?? ""
 
+                // Parse attachments (arrayValue của URL strings từ Cloudinary)
+                let attachmentItems: [AttachmentItem] = {
+                    guard let arrVal = fields["attachments"] as? [String: Any],
+                          let arr = arrVal["arrayValue"] as? [String: Any],
+                          let vals = arr["values"] as? [[String: Any]] else { return [] }
+                    return vals.compactMap { item -> AttachmentItem? in
+                        let urlStr = FirestoreHelper.getString(item["stringValue"] as? [String: Any] ?? item)
+                        guard !urlStr.isEmpty, let _ = URL(string: urlStr) else { return nil }
+                        let ext = (urlStr as NSString).pathExtension.lowercased()
+                        let isImg = ["png", "jpg", "jpeg", "webp", "bmp"].contains(ext)
+                        return AttachmentItem(url: urlStr, type: isImg ? "image" : "file", name: urlStr.components(separatedBy: "/").last ?? "file")
+                    }
+                }()
+
                 return SupportMessage(
                     id: id,
                     senderEmail: FirestoreHelper.getString(fields["senderEmail"] as? [String: Any]),
@@ -638,7 +652,8 @@ public class SupportViewModel: ObservableObject {
                     donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
                     departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
                     isSystemMessage: FirestoreHelper.getBool(fields["isSystemMessage"] as? [String: Any]),
-                    isInternal: FirestoreHelper.getBool(fields["isInternal"] as? [String: Any])
+                    isInternal: FirestoreHelper.getBool(fields["isInternal"] as? [String: Any]),
+                    attachments: attachmentItems
                 )
             }
 
@@ -646,9 +661,9 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
-    public func sendMessage(ticketId: String, text: String, isInternal: Bool = false) {
+    public func sendMessage(ticketId: String, text: String, isInternal: Bool = false, attachmentUrls: [String] = []) {
         let cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanText.isEmpty else { return }
+        guard !cleanText.isEmpty || !attachmentUrls.isEmpty else { return }
 
         isSendingMessage = true
         Task {
@@ -661,22 +676,33 @@ public class SupportViewModel: ObservableObject {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            let body: [String: Any] = [
-                "fields": [
-                    "senderEmail": ["stringValue": user.email],
-                    "senderName": ["stringValue": !user.fullName.isEmpty ? user.fullName : user.email],
-                    "message": ["stringValue": cleanText],
-                    "timestamp": ["integerValue": String(now)],
-                    "isAdminReply": ["booleanValue": user.isAdmin || user.isHelpDesk || user.isTechnician],
-                    "donVi": ["stringValue": user.donVi],
-                    "departmentId": ["stringValue": user.departmentId],
-                    "isInternal": ["booleanValue": isInternal]
+            // Build attachments arrayValue nếu có file đính kèm
+            let attachmentsField: [String: Any] = attachmentUrls.isEmpty ? [:] : [
+                "attachments": [
+                    "arrayValue": [
+                        "values": attachmentUrls.map { ["stringValue": $0] }
+                    ]
                 ]
             ]
+
+            var fields: [String: Any] = [
+                "senderEmail": ["stringValue": user.email],
+                "senderName": ["stringValue": !user.fullName.isEmpty ? user.fullName : user.email],
+                "message": ["stringValue": cleanText.isEmpty ? "📎 Đã gửi \(attachmentUrls.count) tệp đính kèm" : cleanText],
+                "timestamp": ["integerValue": String(now)],
+                "isAdminReply": ["booleanValue": user.isAdmin || user.isHelpDesk || user.isTechnician],
+                "donVi": ["stringValue": user.donVi],
+                "departmentId": ["stringValue": user.departmentId],
+                "isInternal": ["booleanValue": isInternal]
+            ]
+            for (k, v) in attachmentsField { fields[k] = v }
+
+            let body: [String: Any] = ["fields": fields]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
             _ = await FirestoreHelper.executeSafeRequest(request)
 
             // Update ticket lastMessage & lastMessageAt
+            let lastMsg = cleanText.isEmpty ? "📎 Đính kèm \(attachmentUrls.count) tệp" : cleanText
             let patchUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
             if let patchUrl = URL(string: patchUrlStr) {
                 var pReq = URLRequest(url: patchUrl)
@@ -685,7 +711,7 @@ public class SupportViewModel: ObservableObject {
                 pReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 let pBody: [String: Any] = [
                     "fields": [
-                        "lastMessage": ["stringValue": cleanText],
+                        "lastMessage": ["stringValue": lastMsg],
                         "lastMessageAt": ["integerValue": String(now)]
                     ]
                 ]

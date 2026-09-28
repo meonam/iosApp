@@ -16,6 +16,7 @@
 		220010032C12345600000001 /* DeviceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000032C12345600000001 /* DeviceModels.swift */; };
 		220010042C12345600000001 /* TicketModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000042C12345600000001 /* TicketModels.swift */; };
 		220010052C12345600000001 /* AttendanceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000052C12345600000001 /* AttendanceModels.swift */; };
+		2200100A2C12345600000002 /* ChatAttachmentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200000A2C12345600000002 /* ChatAttachmentModels.swift */; };
 		220010062C12345600000001 /* ShiftModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000062C12345600000001 /* ShiftModels.swift */; };
 		220010072C12345600000001 /* OrganizationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000072C12345600000001 /* OrganizationModels.swift */; };
 		220010082C12345600000001 /* FirebaseConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000082C12345600000001 /* FirebaseConfig.swift */; };
@@ -91,6 +92,7 @@
 		220000032C12345600000001 /* DeviceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceModels.swift; sourceTree = "<group>"; };
 		220000042C12345600000001 /* TicketModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TicketModels.swift; sourceTree = "<group>"; };
 		220000052C12345600000001 /* AttendanceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceModels.swift; sourceTree = "<group>"; };
+		2200000A2C12345600000002 /* ChatAttachmentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatAttachmentModels.swift; sourceTree = "<group>"; };
 		220000062C12345600000001 /* ShiftModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftModels.swift; sourceTree = "<group>"; };
 		220000072C12345600000001 /* OrganizationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrganizationModels.swift; sourceTree = "<group>"; };
 		220000082C12345600000001 /* FirebaseConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseConfig.swift; sourceTree = "<group>"; };
@@ -236,6 +238,7 @@
 				220000052C12345600000001 /* AttendanceModels.swift */,
 				220000062C12345600000001 /* ShiftModels.swift */,
 				220000072C12345600000001 /* OrganizationModels.swift */,
+				2200000A2C12345600000002 /* ChatAttachmentModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -511,6 +514,7 @@
 				220010032C12345600000001 /* DeviceModels.swift in Sources */,
 				220010042C12345600000001 /* TicketModels.swift in Sources */,
 				220010052C12345600000001 /* AttendanceModels.swift in Sources */,
+				2200100A2C12345600000002 /* ChatAttachmentModels.swift in Sources */,
 				220010062C12345600000001 /* ShiftModels.swift in Sources */,
 				220010072C12345600000001 /* OrganizationModels.swift in Sources */,
 				220010082C12345600000001 /* FirebaseConfig.swift in Sources */,

@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UniformTypeIdentifiers
 
 // MARK: - MÀN HÌNH CHI TIẾT TICKET & CHAT TRỰC TIẾP (ĐỒNG BỘ 1:1 VỚI ADMINSUPPORTCHATSCREEN.KT)
 public struct TicketChatDetailView: View {
@@ -26,6 +28,14 @@ public struct TicketChatDetailView: View {
     @State private var slaCountdown: String = ""
     @State private var slaTimer: Timer? = nil
     @State private var slaIsOverdue: Bool = false
+
+    // MARK: - File Attachment State (đồng bộ Android AndroidPendingAttachment)
+    /// Tối đa 5 tệp, mỗi tệp tối đa 10MB
+    @State private var pendingAttachments: [ChatPendingAttachment] = []
+    @State private var photoPickerItems: [PhotosPickerItem] = []
+    @State private var showDocumentPicker: Bool = false
+    @State private var isUploadingAttachments: Bool = false
+    @State private var attachmentAlertMessage: String? = nil
 
     public init(viewModel: SupportViewModel, ticket: SupportTicket, onBack: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -169,6 +179,45 @@ public struct TicketChatDetailView: View {
                 },
                 secondaryButton: .cancel(Text("Hủy"))
             )
+        }
+        // Sheet Document Picker cho tệp không phải ảnh
+        .sheet(isPresented: $showDocumentPicker) {
+            ChatDocumentPicker { urls in
+                Task {
+                    for url in urls {
+                        await addAttachmentFromUrl(url)
+                    }
+                }
+            }
+        }
+        // Xử lý ảnh được chọn từ PhotosPicker
+        .onChange(of: photoPickerItems) { items in
+            Task {
+                for item in items {
+                    if let data = try? await item.loadTransferable(type: Data.self) {
+                        let fileName = "img_\(Int(Date().timeIntervalSince1970)).jpg"
+                        let attachment = ChatPendingAttachment(
+                            data: data,
+                            fileName: fileName,
+                            fileSize: Int64(data.count),
+                            type: "image"
+                        )
+                        if pendingAttachments.count < 5 && !pendingAttachments.contains(where: { $0.fileName == attachment.fileName }) {
+                            pendingAttachments.append(attachment)
+                        }
+                    }
+                }
+                photoPickerItems = []
+            }
+        }
+        // Alert lỗi attachment
+        .alert("Lỗi tệp đính kèm", isPresented: Binding(
+            get: { attachmentAlertMessage != nil },
+            set: { if !$0 { attachmentAlertMessage = nil } }
+        )) {
+            Button("Đóng", role: .cancel) { attachmentAlertMessage = nil }
+        } message: {
+            Text(attachmentAlertMessage ?? "")
         }
     }
 
@@ -628,6 +677,49 @@ public struct TicketChatDetailView: View {
                             .font(.system(size: 9.5))
                             .foregroundColor(Color.gray)
                     }
+
+                    // Hiển thị ảnh/file đính kèm (nếu có)
+                    if !msg.attachments.isEmpty {
+                        ForEach(msg.attachments) { att in
+                            if att.type == "image", let imgUrl = URL(string: att.url) {
+                                AsyncImage(url: imgUrl) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(maxWidth: 200)
+                                            .cornerRadius(10)
+                                    case .failure:
+                                        Label("Không tải được ảnh", systemImage: "photo.badge.exclamationmark")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.gray)
+                                    default:
+                                        ProgressView()
+                                            .frame(width: 120, height: 80)
+                                    }
+                                }
+                            } else if let fileUrl = URL(string: att.url) {
+                                Link(destination: fileUrl) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "doc.fill")
+                                            .foregroundColor(Color.appPrimaryPink)
+                                        Text(att.name.isEmpty ? "Tệp đính kèm" : att.name)
+                                            .font(.system(size: 12))
+                                            .lineLimit(1)
+                                        Image(systemName: "arrow.down.circle")
+                                            .font(.system(size: 12))
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Color(hex: "#F1F5F9"))
+                                    .cornerRadius(8)
+                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                                }
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                            }
+                        }
+                    }
                 }
 
                 if !isMine { Spacer() }
@@ -737,36 +829,181 @@ public struct TicketChatDetailView: View {
         .padding(.vertical, 3)
     }
 
-    // MARK: - CHAT INPUT BAR
+    // MARK: - CHAT INPUT BAR (ĐỦ TÍNH NĂNG ĐÍNH KÈM FILE NHƯ ANDROID)
     private var chatInputBar: some View {
-        HStack(spacing: 8) {
-            TextField("Nhập nội dung trao đổi...", text: $inputText)
-                .font(.system(size: 13.5))
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+        VStack(spacing: 0) {
+            // Hàng xem trước tệp đính kèm đang chờ gửi
+            if !pendingAttachments.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(pendingAttachments) { att in
+                            ZStack(alignment: .topTrailing) {
+                                // Preview thumbnail / icon tệp
+                                if att.type == "image", let uiImg = UIImage(data: att.data) {
+                                    Image(uiImage: uiImg)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 64, height: 64)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                } else {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color(hex: "#F1F5F9"))
+                                        .frame(width: 64, height: 64)
+                                        .overlay(
+                                            VStack(spacing: 4) {
+                                                Image(systemName: "doc.fill")
+                                                    .foregroundColor(Color.appPrimaryPink)
+                                                Text(att.fileName.components(separatedBy: ".").last?.uppercased() ?? "FILE")
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .foregroundColor(Color(hex: "#64748B"))
+                                            }
+                                        )
+                                }
+                                // Nút xóa attachment
+                                Button(action: {
+                                    pendingAttachments.removeAll { $0.id == att.id }
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(Color(hex: "#64748B"))
+                                        .background(Color.white.clipShape(Circle()))
+                                }
+                                .offset(x: 4, y: -4)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                }
                 .background(Color(hex: "#F8FAFC"))
-                .cornerRadius(20)
-                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
 
-            Button(action: {
-                let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !text.isEmpty else { return }
-                inputText = ""
-                viewModel.sendMessage(ticketId: ticket.id, text: text)
-            }) {
-                Image(systemName: "paperplane.fill")
-                    .font(.system(size: 14))
-                    .foregroundColor(.white)
-                    .frame(width: 36, height: 36)
-                    .background(Color.appPrimaryPink)
-                    .clipShape(Circle())
+                // Thông tin dung lượng
+                HStack {
+                    Image(systemName: "paperclip")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color.appPrimaryPink)
+                    Text("Tệp chờ gửi (\(pendingAttachments.count)/5 – Tối đa 10MB/tệp)")
+                        .font(.system(size: 10.5))
+                        .foregroundColor(Color(hex: "#64748B"))
+                    Spacer()
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 4)
             }
-            .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isSendingMessage)
+
+            // Thanh nhập liệu chính
+            HStack(spacing: 8) {
+                // Nút đính kèm — mở menu ảnh hoặc tài liệu
+                Menu {
+                    PhotosPicker(
+                        selection: $photoPickerItems,
+                        maxSelectionCount: max(1, 5 - pendingAttachments.count),
+                        matching: .images
+                    ) {
+                        Label("Chọn ảnh từ thư viện", systemImage: "photo.on.rectangle")
+                    }
+                    Button(action: { showDocumentPicker = true }) {
+                        Label("Chọn tài liệu", systemImage: "doc.badge.plus")
+                    }
+                } label: {
+                    Image(systemName: "paperclip")
+                        .font(.system(size: 18))
+                        .foregroundColor(pendingAttachments.count >= 5 ? Color.gray : Color.appPrimaryPink)
+                        .frame(width: 36, height: 36)
+                        .background(Color(hex: "#F1F5F9"))
+                        .clipShape(Circle())
+                }
+                .disabled(pendingAttachments.count >= 5)
+
+                TextField("Nhập nội dung trao đổi...", text: $inputText)
+                    .font(.system(size: 13.5))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(hex: "#F8FAFC"))
+                    .cornerRadius(20)
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+
+                // Nút gửi — xử lý upload attachment rồi gửi text
+                Button(action: {
+                    Task { await sendMessageWithAttachments() }
+                }) {
+                    ZStack {
+                        if isUploadingAttachments || viewModel.isSendingMessage {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                .frame(width: 36, height: 36)
+                                .background(Color.appPrimaryPink.opacity(0.7))
+                                .clipShape(Circle())
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(.white)
+                                .frame(width: 36, height: 36)
+                                .background(Color.appPrimaryPink)
+                                .clipShape(Circle())
+                        }
+                    }
+                }
+                .disabled(
+                    (inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && pendingAttachments.isEmpty) ||
+                    viewModel.isSendingMessage || isUploadingAttachments
+                )
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
         .background(Color.white)
         .overlay(Rectangle().frame(height: 1).foregroundColor(Color(hex: "#E2E8F0")), alignment: .top)
+    }
+
+    // MARK: - GỬI TIN NHẮN KÈM FILE (ĐỒNG BỘ Android AdminSupportChatScreen.kt sendMessageWithAttachments)
+    private func sendMessageWithAttachments() async {
+        let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty || !pendingAttachments.isEmpty else { return }
+
+        isUploadingAttachments = !pendingAttachments.isEmpty
+        var uploadedUrls: [String] = []
+
+        // Upload từng attachment lên Cloudinary
+        for att in pendingAttachments {
+            if let url = await CloudinaryService.uploadImageData(att.data, folder: "chat_attachments") {
+                uploadedUrls.append(url)
+            }
+        }
+
+        isUploadingAttachments = false
+        inputText = ""
+        pendingAttachments = []
+
+        // Gửi tin nhắn kèm danh sách URL ảnh đính kèm
+        viewModel.sendMessage(
+            ticketId: ticket.id,
+            text: text,
+            attachmentUrls: uploadedUrls
+        )
+    }
+
+    // MARK: - THÊM FILE TỪ DOCUMENT PICKER
+    private func addAttachmentFromUrl(_ url: URL) async {
+        let maxBytes: Int64 = 10 * 1024 * 1024 // 10MB
+        guard url.startAccessingSecurityScopedResource() else { return }
+        defer { url.stopAccessingSecurityScopedResource() }
+
+        guard let data = try? Data(contentsOf: url) else { return }
+        guard data.count <= maxBytes else {
+            attachmentAlertMessage = "Tệp \(url.lastPathComponent) vượt quá 10MB"
+            return
+        }
+
+        let ext = url.pathExtension.lowercased()
+        let type = ["png", "jpg", "jpeg", "webp", "bmp"].contains(ext) ? "image" : "file"
+        let att = ChatPendingAttachment(data: data, fileName: url.lastPathComponent, fileSize: Int64(data.count), type: type)
+
+        if pendingAttachments.count < 5 {
+            pendingAttachments.append(att)
+        } else {
+            attachmentAlertMessage = "Tối đa 5 tệp mỗi lần gửi"
+        }
     }
 
     private var closedTicketFooter: some View {
