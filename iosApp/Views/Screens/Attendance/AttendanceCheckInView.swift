@@ -37,8 +37,8 @@ public struct AttendanceCheckInView: View {
                viewModel.user.isTechnician || viewModel.user.isSpecialist
     }
 
-    private var canAccessAttendance: Bool { isAdmin || isHelpDesk || isIncidentDept || true }
-    private var canAccessReport: Bool { isAdmin || isHelpDesk || isIncidentDept }
+    private var canAccessAttendance: Bool { true }
+    private var canAccessReport: Bool { isAdmin || isHelpDesk || isIncidentDept || viewModel.user.isSpecialist || viewModel.user.isTechnician }
 
     public var body: some View {
         GeometryReader { geometry in
