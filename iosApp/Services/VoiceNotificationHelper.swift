@@ -541,7 +541,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             let isHandedOverToHelpDesk = t.lastMessage.contains("[Chuyển về HelpDesk]") || t.lastMessage.contains("chuyển trả ticket cho HelpDesk")
             if isHandedOverToHelpDesk && currentUser.isHelpDesk {
                 let lastSeenHandoff = seenHandoffs[t.id] ?? 0
-                let effHandoffAt = t.lastMessageAt > 0 ? t.lastMessageAt : (t.updatedAt > 0 ? t.updatedAt : now)
+                let effHandoffAt = t.lastMessageAt > 0 ? t.lastMessageAt : now
                 let isFreshHandoff = (now - effHandoffAt) <= 300_000 // Trong vòng 5 phút
                 if effHandoffAt > lastSeenHandoff && (isFreshHandoff || effHandoffAt >= appStartTime) {
                     seenHandoffs[t.id] = effHandoffAt
