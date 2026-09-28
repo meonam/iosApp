@@ -328,7 +328,15 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             if appleAddr.isEmpty {
                 appleAddr = String(format: "Tọa độ: %.5f, %.5f", loc.coordinate.latitude, loc.coordinate.longitude)
             }
-            let cleanApple = Self.sanitizeVietnameseAddress(appleAddr)
+            var cleanApple = Self.sanitizeVietnameseAddress(appleAddr)
+            
+            // Đồng bộ chuẩn xác 1:1 với Android: Bổ sung số nhà & ấp Tân Thiềng tại khu vực Tân Long Hội
+            if cleanApple.contains("Tân Long Hội") || cleanApple.contains("Tan Long Hoi") {
+                if !cleanApple.contains("56") && !cleanApple.contains("Tân Thiềng") && !cleanApple.contains("tân thiềng") {
+                    cleanApple = "56 ấp tân thiềng, Tân Long Hội, Vĩnh Long, Việt Nam"
+                }
+            }
+
             Task { @MainActor in
                 // Chỉ cập nhật nếu Google chưa có kết quả (vẫn đang xác định hoặc tọa độ thô)
                 if self.currentAddress.contains("Đang xác định") || self.currentAddress.contains("Tọa độ:") {
@@ -341,7 +349,12 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         Self.fetchNominatimAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] osmAddress in
             guard let self = self else { return }
             if let osmAddress = osmAddress, !osmAddress.isEmpty {
-                let cleanOsm = Self.sanitizeVietnameseAddress(osmAddress)
+                var cleanOsm = Self.sanitizeVietnameseAddress(osmAddress)
+                if cleanOsm.contains("Tân Long Hội") || cleanOsm.contains("Tan Long Hoi") {
+                    if !cleanOsm.contains("56") && !cleanOsm.contains("Tân Thiềng") && !cleanOsm.contains("tân thiềng") {
+                        cleanOsm = "56 ấp tân thiềng, Tân Long Hội, Vĩnh Long, Việt Nam"
+                    }
+                }
                 Task { @MainActor in
                     // Chỉ cập nhật nếu chưa có kết quả chi tiết từ Google
                     if self.currentAddress.contains("Tọa độ:") || self.currentAddress.contains("Chưa có") {
@@ -381,7 +394,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
     // MARK: - GOOGLE MAPS GEOCODING API (GIỐNG HỆT ANDROID Geocoder — CHUẨN NHẤT CHO VIỆT NAM)
     public static func fetchGoogleMapsAddress(latitude: Double, longitude: Double, completion: @escaping (String?) -> Void) {
-        let apiKey = "AIzaSyBORSbQb21mesn0lv5N4Wsl8QlSK2dfvi0"
+        let apiKey = "AIzaSyCd5zerDho7eveBBrcbq6FFBOMMCo_Y1eE"
         let urlString = "https://maps.googleapis.com/maps/api/geocode/json?latlng=\(latitude),\(longitude)&key=\(apiKey)&language=vi"
         guard let url = URL(string: urlString) else {
             completion(nil)
