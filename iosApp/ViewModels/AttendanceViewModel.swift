@@ -409,7 +409,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                    let results = json["results"] as? [[String: Any]],
                    let first = results.first,
                    let formattedAddress = first["formatted_address"] as? String {
-                    completion(sanitizeVietnameseAddress(formattedAddress))
+                    completion(formattedAddress.trimmingCharacters(in: .whitespacesAndNewlines))
                 } else {
                     completion(nil)
                 }
