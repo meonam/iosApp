@@ -61,5 +61,22 @@
     <string>Ứng dụng cần quyền Bluetooth để tìm kiếm và in phiếu biên bản qua máy in nhiệt cầm tay.</string>
     <key>NSBluetoothPeripheralUsageDescription</key>
     <string>Ứng dụng cần quyền kết nối Bluetooth với máy in di động.</string>
+
+    <!-- CHO PHÉP KẾT NỐI TỚI EDGE TTS SERVER (speech.platform.bing.com) ĐỂ PHÁT GIỌNG ĐỌC HOÀI MY -->
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>speech.platform.bing.com</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <false/>
+                <key>NSIncludesSubdomains</key>
+                <true/>
+                <key>NSExceptionMinimumTLSVersion</key>
+                <string>TLSv1.2</string>
+            </dict>
+        </dict>
+    </dict>
 </dict>
 </plist>
