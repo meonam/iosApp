@@ -249,11 +249,17 @@ public struct AttendanceCheckInView: View {
                     }
 
                     let roleDisplay: String = {
+                        if viewModel.user.isSpecialist {
+                            return "Chuyên viên"
+                        } else if viewModel.user.isTechnician {
+                            return "KTV"
+                        }
                         switch viewModel.userRole.lowercased() {
                         case "admin": return "Quản trị viên (Admin)"
                         case "phongban", "quanly": return "Quản lý phòng ban"
                         case "helpdesk": return "HelpDesk"
-                        case "kythuat", "technician": return "Kỹ thuật viên"
+                        case "kythuat", "technician", "ktv": return "KTV"
+                        case "chuyenvien", "specialist": return "Chuyên viên"
                         default: return "Nhân viên"
                         }
                     }()

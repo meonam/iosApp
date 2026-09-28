@@ -951,14 +951,14 @@ public struct UserManagementView: View {
             bg = Color(hex: "#E0F2FE")
             fg = Color(hex: "#0369A1")
             text = "Phòng Helpdesk"
-        } else if roleLower == "kythuat" || roleLower == "technician" || roleLower == "ktv" || (u.isTechnician && !isSpecialist) {
-            bg = Color(hex: "#DCFCE7")
-            fg = Color(hex: "#15803D")
-            text = "Kỹ thuật viên"
-        } else if isSpecialist {
+        } else if isSpecialist || u.isSpecialist {
             bg = Color(hex: "#F3E8FF")
             fg = Color(hex: "#7E22CE")
-            text = "Chuyên viên nghiệp vụ"
+            text = "Chuyên viên"
+        } else if roleLower == "kythuat" || roleLower == "technician" || roleLower == "ktv" || u.isTechnician {
+            bg = Color(hex: "#DCFCE7")
+            fg = Color(hex: "#15803D")
+            text = "KTV"
         } else if roleLower == "phongban" || roleLower == "quanly" || u.isManager {
             bg = Color.appSecondaryDarkBlue.opacity(0.12)
             fg = Color.appSecondaryDarkBlue

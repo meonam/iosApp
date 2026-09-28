@@ -443,10 +443,10 @@ public struct HomeScreenView: View {
                 return ("Quản trị viên (Admin)", Color.appPrimaryPink.opacity(0.12), Color.appPrimaryPink)
             } else if viewModel.user.isHelpDesk {
                 return ("Phòng Helpdesk", Color(hex: "#0284C7").opacity(0.15), Color(hex: "#0284C7"))
-            } else if viewModel.user.isTechnician {
-                return ("Kỹ thuật viên", Color(hex: "#16A34A").opacity(0.15), Color(hex: "#16A34A"))
             } else if viewModel.user.isSpecialist {
                 return ("Chuyên viên", Color(hex: "#7E22CE").opacity(0.12), Color(hex: "#7E22CE"))
+            } else if viewModel.user.isTechnician {
+                return ("KTV", Color(hex: "#16A34A").opacity(0.15), Color(hex: "#16A34A"))
             } else if viewModel.user.isManager {
                 return ("Quản lý phòng ban", Color.appSecondaryDarkBlue.opacity(0.12), Color.appSecondaryDarkBlue)
             } else {

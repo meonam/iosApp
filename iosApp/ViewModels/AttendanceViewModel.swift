@@ -289,17 +289,28 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         self.currentLocation = loc.coordinate
         self.calculateGeofenceDistance(loc: loc.coordinate)
 
+        // Lớp 1: Apple CLGeocoder trả về tức thì
         CLGeocoder().reverseGeocodeLocation(loc) { [weak self] placemarks, _ in
             guard let self = self else { return }
-            let addr: String
+            var appleAddr = ""
             if let p = placemarks?.first {
-                let formatted = Self.formatPlacemarkAddress(p)
-                addr = formatted.isEmpty ? String(format: "Tọa độ: %.5f, %.5f", loc.coordinate.latitude, loc.coordinate.longitude) : formatted
-            } else {
-                addr = String(format: "Tọa độ: %.5f, %.5f", loc.coordinate.latitude, loc.coordinate.longitude)
+                appleAddr = Self.formatPlacemarkAddress(p)
+            }
+            if appleAddr.isEmpty {
+                appleAddr = String(format: "Tọa độ: %.5f, %.5f", loc.coordinate.latitude, loc.coordinate.longitude)
             }
             Task { @MainActor in
-                self.currentAddress = addr
+                if self.currentAddress.contains("Đang xác định") || self.currentAddress.contains("Tọa độ:") {
+                    self.currentAddress = appleAddr
+                }
+            }
+        }
+
+        // Lớp 2: OpenStreetMap Nominatim phân giải chi tiết Số nhà / Tòa nhà / Điểm tiện ích / Phường / Quận
+        Self.fetchNominatimAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] osmAddress in
+            guard let self = self, let osmAddress = osmAddress, !osmAddress.isEmpty else { return }
+            Task { @MainActor in
+                self.currentAddress = osmAddress
             }
         }
     }
@@ -381,6 +392,122 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             return pf
         }
         return manualJoined.isEmpty ? (postalFormatted ?? "") : manualJoined
+    }
+
+    // MARK: - OPENSTREETMAP NOMINATIM REVERSE GEOCODING (ĐỊNH VỊ CHÍNH XÁC SỐ NHÀ, TÒA NHÀ)
+    public static func fetchNominatimAddress(latitude: Double, longitude: Double, completion: @escaping (String?) -> Void) {
+        let urlString = "https://nominatim.openstreetmap.org/reverse?format=json&lat=\(latitude)&lon=\(longitude)&zoom=18&addressdetails=1&accept-language=vi"
+        guard let url = URL(string: urlString) else {
+            completion(nil)
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("QLTB_iOS/1.2.0 (contact@sgcoop.vn)", forHTTPHeaderField: "User-Agent")
+        request.timeoutInterval = 4.0
+
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            guard let data = data, error == nil else {
+                completion(nil)
+                return
+            }
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let addrDict = json["address"] as? [String: Any] {
+                        var parts: [String] = []
+
+                        // 1. Tên địa điểm / Tòa nhà / Điểm tiện ích / Cửa hàng
+                        let placeName = (json["name"] as? String) ??
+                                        (addrDict["amenity"] as? String) ??
+                                        (addrDict["building"] as? String) ??
+                                        (addrDict["office"] as? String) ??
+                                        (addrDict["shop"] as? String) ?? ""
+                        let trimmedPlaceName = placeName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+                        // 2. Số nhà & Tên đường
+                        let houseNum = (addrDict["house_number"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                        let road = (addrDict["road"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+                        var streetPart = ""
+                        if !houseNum.isEmpty && !road.isEmpty {
+                            streetPart = "\(houseNum) \(road)"
+                        } else if !road.isEmpty {
+                            streetPart = road
+                        } else if !houseNum.isEmpty {
+                            streetPart = "Số \(houseNum)"
+                        }
+
+                        if !trimmedPlaceName.isEmpty && !streetPart.isEmpty {
+                            if !streetPart.localizedCaseInsensitiveContains(trimmedPlaceName) && !trimmedPlaceName.localizedCaseInsensitiveContains(streetPart) {
+                                parts.append(trimmedPlaceName)
+                                parts.append(streetPart)
+                            } else {
+                                parts.append(streetPart)
+                            }
+                        } else if !trimmedPlaceName.isEmpty {
+                            parts.append(trimmedPlaceName)
+                        } else if !streetPart.isEmpty {
+                            parts.append(streetPart)
+                        }
+
+                        // 3. Khu phố / Thôn / Xóm / Tổ
+                        if let nh = (addrDict["neighbourhood"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !nh.isEmpty {
+                            if !parts.contains(where: { $0.localizedCaseInsensitiveContains(nh) }) {
+                                parts.append(nh)
+                            }
+                        }
+
+                        // 4. Phường / Xã
+                        let ward = (addrDict["suburb"] as? String) ??
+                                   (addrDict["quarter"] as? String) ??
+                                   (addrDict["village"] as? String) ?? ""
+                        let trimmedWard = ward.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmedWard.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(trimmedWard) }) {
+                            parts.append(trimmedWard)
+                        }
+
+                        // 5. Quận / Huyện / Thị xã
+                        let district = (addrDict["city_district"] as? String) ??
+                                       (addrDict["district"] as? String) ??
+                                       (addrDict["county"] as? String) ?? ""
+                        let trimmedDistrict = district.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmedDistrict.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(trimmedDistrict) }) {
+                            parts.append(trimmedDistrict)
+                        }
+
+                        // 6. Tỉnh / Thành phố
+                        let city = (addrDict["city"] as? String) ??
+                                   (addrDict["state"] as? String) ??
+                                   (addrDict["province"] as? String) ?? ""
+                        let trimmedCity = city.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !trimmedCity.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(trimmedCity) }) {
+                            parts.append(trimmedCity)
+                        }
+
+                        if !parts.isEmpty {
+                            completion(parts.joined(separator: ", "))
+                            return
+                        }
+                    }
+
+                    // Fallback: display_name làm sạch postcode & Việt Nam
+                    if let rawDisplay = json["display_name"] as? String {
+                        var clean = rawDisplay
+                        if clean.hasSuffix(", Việt Nam") {
+                            clean = String(clean.dropLast(", Việt Nam".count))
+                        } else if clean.hasSuffix(", Vietnam") {
+                            clean = String(clean.dropLast(", Vietnam".count))
+                        }
+                        clean = clean.replacingOccurrences(of: #",\s*\d{5,6}$"#, with: "", options: .regularExpression)
+                        completion(clean)
+                        return
+                    }
+                }
+            } catch {
+                completion(nil)
+            }
+            completion(nil)
+        }.resume()
     }
 
     private func calculateGeofenceDistance(loc: CLLocationCoordinate2D) {
@@ -2160,9 +2287,17 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 self.cfgTargetLatitude = String(format: "%.6f", loc.coordinate.latitude)
                 self.cfgTargetLongitude = String(format: "%.6f", loc.coordinate.longitude)
                 let geocoder = CLGeocoder()
-                geocoder.reverseGeocodeLocation(loc) { placemarks, _ in
+                geocoder.reverseGeocodeLocation(loc) { [weak self] placemarks, _ in
+                    guard let self = self else { return }
                     if let pm = placemarks?.first {
                         self.cfgTargetAddress = Self.formatPlacemarkAddress(pm)
+                    }
+                    Self.fetchNominatimAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] osmAddress in
+                        if let osmAddress = osmAddress, !osmAddress.isEmpty {
+                            Task { @MainActor in
+                                self?.cfgTargetAddress = osmAddress
+                            }
+                        }
                     }
                     self.isGettingCurrentLocation = false
                 }

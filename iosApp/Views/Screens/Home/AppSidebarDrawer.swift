@@ -124,23 +124,25 @@ public struct AppSidebarDrawer: View {
         isAdmin || isHelpDesk || isManager
     }
 
-    private var isIncidentHandler: Bool {
-        user.isTechnician ||
-        user.departmentName.localizedCaseInsensitiveContains("XỬ LÝ") ||
-        user.departmentName.localizedCaseInsensitiveContains("SỰ CỐ") ||
-        user.departmentName.localizedCaseInsensitiveContains("KỸ THUẬT") ||
-        cleanRole.contains("kythuat") ||
-        cleanRole.contains("tech") ||
-        cleanRole.contains("support")
-    }
-
     private var isSpecialist: Bool {
-        !isManagerOrAdmin && !isIncidentHandler && (
+        !isManagerOrAdmin && (
             user.isSpecialist ||
             cleanRole.contains("chuyenvien") ||
             cleanRole.contains("specialist") ||
             user.departmentName.localizedCaseInsensitiveContains("NGHIỆP VỤ") ||
             user.departmentName.localizedCaseInsensitiveContains("ỨNG DỤNG")
+        )
+    }
+
+    private var isIncidentHandler: Bool {
+        !isManagerOrAdmin && !isSpecialist && (
+            user.isTechnician ||
+            user.departmentName.localizedCaseInsensitiveContains("XỬ LÝ") ||
+            user.departmentName.localizedCaseInsensitiveContains("SỰ CỐ") ||
+            user.departmentName.localizedCaseInsensitiveContains("KỸ THUẬT") ||
+            cleanRole.contains("kythuat") ||
+            cleanRole.contains("tech") ||
+            cleanRole.contains("support")
         )
     }
 
@@ -150,10 +152,10 @@ public struct AppSidebarDrawer: View {
             return "👑 Quản trị viên"
         } else if isHelpDesk {
             return "🎧 HelpDesk"
-        } else if isIncidentHandler {
-            return "🛠️ Kỹ thuật viên"
         } else if isSpecialist {
             return "💻 Chuyên viên"
+        } else if isIncidentHandler {
+            return "🛠️ KTV"
         } else if isManager {
             return "🏛️ Quản lý phòng"
         } else {

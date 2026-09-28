@@ -47,21 +47,26 @@ public struct LoginView: View {
                 ScrollViewReader { proxy in
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 0) {
-                            Spacer(minLength: focusedField != nil ? 12 : 24)
+                            if focusedField == nil {
+                                Spacer(minLength: 24)
+                            } else {
+                                Color.clear.frame(height: 12)
+                            }
 
                             // Card Đăng Nhập
-                            VStack(spacing: 20) {
-                                // Logo App
+                            VStack(spacing: focusedField != nil ? 14 : 20) {
+                                // Logo App (Thu gọn mượt mà khi mở bàn phím để tiết kiệm diện tích)
                                 Image("logo_app")
                                     .resizable()
                                     .scaledToFit()
-                                    .frame(width: 90, height: 90)
+                                    .frame(width: focusedField != nil ? 52 : 90, height: focusedField != nil ? 52 : 90)
                                     .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
+                                    .animation(.easeInOut(duration: 0.25), value: focusedField)
 
                                 // Tiêu đề & Phiên bản chuẩn 1:1 theo Android
-                                VStack(spacing: 6) {
+                                VStack(spacing: focusedField != nil ? 3 : 6) {
                                     Text("IT Service & Assets")
-                                        .font(.system(size: 24, weight: .bold))
+                                        .font(.system(size: focusedField != nil ? 20 : 24, weight: .bold))
                                         .foregroundColor(Color.appSecondaryDarkBlue)
 
                                     Text("Dịch vụ IT & Quản lý thiết bị")
@@ -103,6 +108,8 @@ public struct LoginView: View {
                                                 .keyboardType(.emailAddress)
                                                 .textContentType(.username)
                                                 .focused($focusedField, equals: .email)
+                                                .submitLabel(.next)
+                                                .onSubmit { focusedField = .password }
                                         }
                                     }
                                     .padding(12)
@@ -148,6 +155,12 @@ public struct LoginView: View {
                                                     .disableAutocorrection(true)
                                                     .textContentType(.password)
                                                     .focused($focusedField, equals: .password)
+                                                    .submitLabel(.go)
+                                                    .onSubmit {
+                                                        focusedField = nil
+                                                        hideKeyboard()
+                                                        viewModel.login()
+                                                    }
                                             } else {
                                                 SecureField("", text: $viewModel.password)
                                                     .font(.system(size: 14))
@@ -155,6 +168,12 @@ public struct LoginView: View {
                                                     .accentColor(Color.appSecondaryDarkBlue)
                                                     .textContentType(.password)
                                                     .focused($focusedField, equals: .password)
+                                                    .submitLabel(.go)
+                                                    .onSubmit {
+                                                        focusedField = nil
+                                                        hideKeyboard()
+                                                        viewModel.login()
+                                                    }
                                             }
                                         }
 
@@ -227,7 +246,8 @@ public struct LoginView: View {
                                 }
                                 .padding(.top, 4)
                             }
-                            .padding(24)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, focusedField != nil ? 18 : 24)
                             .frame(maxWidth: min(geometry.size.width - 32, 420))
                             .background(Color.white.opacity(0.96))
                             .cornerRadius(24)
@@ -235,8 +255,10 @@ public struct LoginView: View {
                             .shadow(color: Color.black.opacity(0.20), radius: 18, x: 0, y: 8)
                             .padding(.horizontal, 16)
                             .id("loginCard")
+                            // Tự động đẩy Card lên trên khi người dùng nhập để không bao giờ bị bàn phím che
+                            .offset(y: focusedField == .password ? -130 : (focusedField == .email ? -50 : 0))
+                            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: focusedField)
 
-                            // Khoảng đệm dưới khi bàn phím mở giúp cuộn toàn bộ ô mật khẩu & nút đăng nhập lên trên
                             Spacer(minLength: focusedField != nil ? 180 : 24)
                         }
                         .frame(minHeight: geometry.size.height)
@@ -244,7 +266,7 @@ public struct LoginView: View {
                     }
                     .onChange(of: focusedField) { newField in
                         if newField == .password {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                                 withAnimation(.easeInOut(duration: 0.3)) {
                                     proxy.scrollTo("loginButton", anchor: .bottom)
                                 }

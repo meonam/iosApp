@@ -120,17 +120,21 @@ public struct User: Identifiable, Codable, Hashable {
     }
 
     public var isSpecialist: Bool {
+        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse || isManager { return false }
         let r = role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let d = departmentId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let dv = donVi.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let t = toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         return ["CHUYENVIEN", "CHUYEN_VIEN", "SPECIALIST"].contains(r) ||
                r.contains("CHUYENVIEN") || r.contains("SPECIALIST") || r.contains("CHUYEN VIEN") ||
                d.hasPrefix("TO_") || d.contains("NGHIỆP VỤ") || d.contains("NGHIEP VU") ||
                d.contains("ỨNG DỤNG") || d.contains("UNG DUNG") ||
+               dv.contains("NGHIỆP VỤ") || dv.contains("NGHIEP VU") ||
                !t.isEmpty
     }
 
     public var isTechnician: Bool {
+        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse || isManager || isSpecialist { return false }
         let r = role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let d = departmentId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let dv = donVi.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -138,7 +142,7 @@ public struct User: Identifiable, Codable, Hashable {
                r.contains("KTV") || r.contains("KYTHUAT") || r.contains("TECH") || r.contains("SUPPORT") ||
                d.contains("XỬ LÝ") || d.contains("SỰ CỐ") || d.contains("KỸ THUẬT") || d.contains("IT") || d.contains("BẢO TRÌ") ||
                dv.contains("KỸ THUẬT")
-        return isTechRoleOrDept || isSpecialist
+        return isTechRoleOrDept
     }
 
     public var isStaff: Bool {
@@ -149,8 +153,8 @@ public struct User: Identifiable, Codable, Hashable {
         if isAdmin { return "Quản trị viên (Admin)" }
         if isHelpDesk { return "Phòng Helpdesk" }
         if isManager { return "Quản lý phòng ban" }
-        if isTechnician { return "Kỹ thuật viên" }
         if isSpecialist { return "Chuyên viên" }
+        if isTechnician { return "KTV" }
         return "Nhân viên"
     }
 
