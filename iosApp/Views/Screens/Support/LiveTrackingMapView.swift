@@ -17,6 +17,28 @@ class CustomMapPin: NSObject, MKAnnotation {
     }
 }
 
+// MARK: - DEVICE LOCATION PROVIDER (LẤY GPS THỰC TẾ CỦA KTV TRÁNH NHẢY VỀ TỌA ĐỘ MẶC ĐỊNH)
+class DeviceLocationProvider: NSObject, ObservableObject, CLLocationManagerDelegate {
+    private let manager = CLLocationManager()
+    @Published var lastLocation: CLLocationCoordinate2D? = nil
+
+    override init() {
+        super.init()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyBest
+        manager.requestWhenInUseAuthorization()
+        manager.startUpdatingLocation()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        if let loc = locations.last {
+            DispatchQueue.main.async {
+                self.lastLocation = loc.coordinate
+            }
+        }
+    }
+}
+
 // MARK: - NATIVE MAPKIT VIEW WITH ROUTE & CUSTOM PINS
 struct LiveTrackingMKMapView: UIViewRepresentable {
     var techCoord: CLLocationCoordinate2D?
@@ -155,28 +177,47 @@ struct LiveTrackingMKMapView: UIViewRepresentable {
                 view?.annotation = customPin
             }
 
+            view?.subviews.forEach { $0.removeFromSuperview() }
+
             if customPin.isTech {
-                // KTV Marker: Icon xe máy/scooter nền xanh tròn
-                let size: CGFloat = 40
+                // KTV Marker: Nhãn nổi "🛵 Tên KTV" bên trên + Icon xe máy nền xanh tròn (chuẩn 1:1 Android)
+                let name = customPin.title ?? "KTV"
                 let hosting = UIHostingController(
-                    rootView: ZStack {
-                        Circle()
-                            .fill(Color(hex: "#002A8F"))
-                            .frame(width: size, height: size)
-                            .shadow(radius: 3)
-                        Circle()
-                            .stroke(Color.white, lineWidth: 2.5)
-                            .frame(width: size, height: size)
-                        Image(systemName: "figure.outdoor.cycle")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
+                    rootView: VStack(spacing: 3) {
+                        HStack(spacing: 4) {
+                            Text("🛵")
+                                .font(.system(size: 11))
+                            Text(name)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(Color(hex: "#002A8F"))
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 1)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#002A8F"), lineWidth: 1.2))
+
+                        ZStack {
+                            Circle()
+                                .fill(Color(hex: "#002A8F"))
+                                .frame(width: 36, height: 36)
+                                .shadow(radius: 3)
+                            Circle()
+                                .stroke(Color.white, lineWidth: 2)
+                                .frame(width: 36, height: 36)
+                            Image(systemName: "figure.outdoor.cycle")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(.white)
+                        }
                     }
                 )
                 hosting.view.backgroundColor = .clear
-                hosting.view.frame = CGRect(x: 0, y: 0, width: size, height: size)
+                hosting.view.frame = CGRect(x: 0, y: 0, width: 160, height: 65)
                 view?.frame = hosting.view.frame
                 view?.addSubview(hosting.view)
-                view?.centerOffset = CGPoint(x: 0, y: 0)
+                view?.centerOffset = CGPoint(x: 0, y: -25)
             } else {
                 // Destination Marker: Ghim đỏ có tên đơn vị
                 let hosting = UIHostingController(
@@ -236,16 +277,39 @@ public struct LiveTrackingMapView: View {
     @State private var showCancelConfirmDialog: Bool = false
     @State private var showDistanceWarningDialog: Bool = false
 
+    @StateObject private var locationProvider = DeviceLocationProvider()
+
     private var myEmail: String {
         viewModel.user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private var isAssignedTech: Bool {
-        let assigned = ticket.assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let assignedName = ticket.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        // 1. Nếu tài khoản hiện tại là người tạo ticket, họ là người dùng cần được hỗ trợ -> Hiển thị Giám sát lộ trình
+        if isCreator { return false }
+
+        // 2. Nếu tài khoản là KTV hoặc Chuyên viên (Kỹ thuật) -> Luôn hiển thị Lộ trình xử lý kỹ thuật (Hình 2)
         let role = viewModel.user.role.uppercased()
-        return (role.contains("KTV") || role.contains("TECHNICIAN") || role.contains("KYTHUAT")) &&
-            (assigned == myEmail || assignedName == myEmail || assigned.isEmpty)
+        let isTechOrSpecialist = viewModel.user.isTechnician || viewModel.user.isSpecialist ||
+                                 role.contains("KTV") || role.contains("TECHNICIAN") ||
+                                 role.contains("KYTHUAT") || role.contains("SPECIALIST") ||
+                                 role.contains("CHUYENVIEN") || role.contains("CHUYEN_VIEN") ||
+                                 !viewModel.user.toNghiepVu.isEmpty
+
+        if isTechOrSpecialist {
+            return true
+        }
+
+        // 3. Kiểm tra nếu được phân công trực tiếp vào phiếu
+        let assignedEmail = ticket.assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let assignedName = ticket.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let myName = viewModel.user.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        let isDirectlyAssigned = (assignedEmail == myEmail && !assignedEmail.isEmpty) ||
+                                 (assignedName == myEmail && !assignedName.isEmpty) ||
+                                 (assignedName == myName && !assignedName.isEmpty) ||
+                                 ticket.isUserAssigned(email: myEmail)
+
+        return isDirectlyAssigned
     }
 
     private var isCreator: Bool {
@@ -280,13 +344,23 @@ public struct LiveTrackingMapView: View {
         return CLLocationCoordinate2D(latitude: 10.7769, longitude: 106.7009)
     }
 
-    // Tọa độ Kỹ thuật viên
+    // Tọa độ Kỹ thuật viên (Ưu tiên: 1. Firestore di chuyển -> 2. GPS thực tế thiết bị -> 3. Điểm xuất phát -> 4. Fallback)
     private var techCoordinate: CLLocationCoordinate2D {
+        // 1. Tọa độ di chuyển đang lưu trên Firestore
         if tracking.currentLat != 0 && tracking.currentLng != 0 {
             return CLLocationCoordinate2D(latitude: tracking.currentLat, longitude: tracking.currentLng)
         }
+        // 2. Tọa độ thực tế từ GPS của máy KTV (đặc biệt khi mới mở màn hình chưa xuất phát)
+        if isAssignedTech, let devLoc = locationProvider.lastLocation, devLoc.latitude != 0, devLoc.longitude != 0 {
+            return devLoc
+        }
+        // 3. Tọa độ điểm xuất phát đã lưu
         if tracking.startLat != 0 && tracking.startLng != 0 {
             return CLLocationCoordinate2D(latitude: tracking.startLat, longitude: tracking.startLng)
+        }
+        // 4. GPS thiết bị bất kỳ có sẵn
+        if let devLoc = locationProvider.lastLocation, devLoc.latitude != 0, devLoc.longitude != 0 {
+            return devLoc
         }
         // Fallback default
         return CLLocationCoordinate2D(latitude: 10.7626, longitude: 106.6602)
@@ -345,7 +419,7 @@ public struct LiveTrackingMapView: View {
                     techCoord: techCoordinate,
                     destCoord: destCoordinate,
                     destName: ticket.donVi.isEmpty ? ticket.subject : ticket.donVi,
-                    techName: ticket.assignedToName.isEmpty ? "KTV" : ticket.assignedToName,
+                    techName: ticket.assignedToName.isEmpty ? (isAssignedTech ? (viewModel.user.fullName.isEmpty ? "KTV" : viewModel.user.fullName) : "KTV") : ticket.assignedToName,
                     isEnRoute: isEnRoute,
                     recenterTrigger: $recenterTrigger,
                     fitBoundsTrigger: $fitBoundsTrigger,

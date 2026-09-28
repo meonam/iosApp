@@ -289,7 +289,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         self.currentLocation = loc.coordinate
         self.calculateGeofenceDistance(loc: loc.coordinate)
 
-        // Lớp 1: Apple CLGeocoder trả về tức thì
+        // Lớp 1: Apple CLGeocoder trả về tức thì với format đầy đủ các cấp hành chính Việt Nam
         CLGeocoder().reverseGeocodeLocation(loc) { [weak self] placemarks, _ in
             guard let self = self else { return }
             var appleAddr = ""
@@ -306,19 +306,88 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             }
         }
 
-        // Lớp 2: OpenStreetMap Nominatim phân giải chi tiết Số nhà / Tòa nhà / Điểm tiện ích / Phường / Quận
+        // Lớp 2: OpenStreetMap Nominatim phân giải chi tiết Số nhà / Ấp / Thôn / Phường / Xã / Quận / Huyện
         Self.fetchNominatimAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] osmAddress in
-            guard let self = self, let osmAddress = osmAddress, !osmAddress.isEmpty else { return }
-            Task { @MainActor in
-                self.currentAddress = osmAddress
+            guard let self = self else { return }
+            if let osmAddress = osmAddress, !osmAddress.isEmpty {
+                Task { @MainActor in
+                    if osmAddress.count >= self.currentAddress.count || self.currentAddress.contains("Tọa độ:") {
+                        self.currentAddress = osmAddress
+                    }
+                }
+            } else {
+                // Lớp 3: Fallback BigDataCloud client API (miễn phí, không quota, định danh chuẩn xã/huyện VN)
+                Self.fetchBigDataCloudAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] bdcAddress in
+                    guard let self = self, let bdcAddress = bdcAddress, !bdcAddress.isEmpty else { return }
+                    Task { @MainActor in
+                        if self.currentAddress.contains("Tọa độ:") || bdcAddress.count > self.currentAddress.count {
+                            self.currentAddress = bdcAddress
+                        }
+                    }
+                }
             }
         }
     }
 
     // MARK: - VIETNAMESE ADDRESS FORMATTER (ĐỒNG BỘ 1:1 VỚI ANDROID GEOCODER)
     public static func formatPlacemarkAddress(_ p: CLPlacemark) -> String {
-        // Ưu tiên 1: Lấy định dạng chuẩn từ CNPostalAddressFormatter nếu có
-        var postalFormatted: String? = nil
+        var parts: [String] = []
+
+        let subNumber = p.subThoroughfare?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let street = p.thoroughfare?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let name = p.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let subLoc = p.subLocality?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let subAdmin = p.subAdministrativeArea?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let loc = p.locality?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let admin = p.administrativeArea?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        // 1. Số nhà & Tên đường
+        var streetLine = ""
+        if !subNumber.isEmpty && !street.isEmpty {
+            streetLine = street.hasPrefix(subNumber) ? street : "\(subNumber) \(street)"
+        } else if !street.isEmpty {
+            streetLine = street
+        }
+
+        // Tên điểm / Tòa nhà / Ấp / Thôn nếu có trong name
+        if !name.isEmpty {
+            if streetLine.isEmpty {
+                streetLine = name
+            } else if !streetLine.localizedCaseInsensitiveContains(name) && !name.localizedCaseInsensitiveContains(streetLine) {
+                streetLine = "\(name), \(streetLine)"
+            }
+        }
+
+        if !streetLine.isEmpty {
+            parts.append(streetLine)
+        }
+
+        // 2. Phường / Xã (subLocality)
+        if !subLoc.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(subLoc) }) {
+            parts.append(subLoc)
+        }
+
+        // 3. Quận / Huyện / Thị xã (subAdministrativeArea) — CỰC KỲ QUAN TRỌNG ĐỂ KHÔNG BỊ MẤT HUYỆN/QUẬN
+        if !subAdmin.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(subAdmin) }) {
+            parts.append(subAdmin)
+        }
+
+        // 4. Thành phố / Thị xã (locality) nếu chưa có
+        if !loc.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(loc) }) && !admin.localizedCaseInsensitiveContains(loc) {
+            parts.append(loc)
+        }
+
+        // 5. Tỉnh / Thành phố trực thuộc TW (administrativeArea)
+        if !admin.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(admin) || admin.localizedCaseInsensitiveContains($0) }) {
+            parts.append(admin)
+        }
+
+        let manualJoined = parts.joined(separator: ", ")
+        if !manualJoined.isEmpty {
+            return manualJoined
+        }
+
+        // Fallback CNPostalAddressFormatter nếu manualJoined trống
         if let postalAddress = p.postalAddress {
             let raw = CNPostalAddressFormatter.string(from: postalAddress, style: .mailingAddress)
             let cleaned = raw.components(separatedBy: .newlines)
@@ -326,75 +395,14 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 .filter { !$0.isEmpty }
                 .joined(separator: ", ")
             if !cleaned.isEmpty {
-                postalFormatted = cleaned
+                return cleaned
             }
         }
 
-        // Ưu tiên 2: Trích xuất và ghép thứ bậc hành chính đầy đủ tại Việt Nam
-        var parts: [String] = []
-
-        let subNumber = p.subThoroughfare?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let street = p.thoroughfare?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let name = p.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-        var streetLine = ""
-        if !subNumber.isEmpty && !street.isEmpty {
-            if street.hasPrefix(subNumber) {
-                streetLine = street
-            } else {
-                streetLine = "\(subNumber) \(street)"
-            }
-        } else if !street.isEmpty {
-            streetLine = street
-        } else if !name.isEmpty {
-            streetLine = name
-        }
-
-        if !name.isEmpty && !streetLine.isEmpty && !streetLine.contains(name) && !name.contains(streetLine) {
-            streetLine = "\(name), \(streetLine)"
-        }
-
-        if !streetLine.isEmpty {
-            parts.append(streetLine)
-        }
-
-        // Phường / Xã (subLocality)
-        if let subLoc = p.subLocality?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !subLoc.isEmpty,
-           !parts.contains(where: { $0.localizedCaseInsensitiveContains(subLoc) }) {
-            parts.append(subLoc)
-        }
-
-        // Quận / Huyện (subAdministrativeArea) — CỰC KỲ QUAN TRỌNG VÌ APPLE MAPS LƯU QUẬN/HUYỆN TẠI ĐÂY
-        if let subAdmin = p.subAdministrativeArea?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !subAdmin.isEmpty,
-           !parts.contains(where: { $0.localizedCaseInsensitiveContains(subAdmin) }) {
-            parts.append(subAdmin)
-        }
-
-        // Thành phố / Thị xã / Đô thị (locality)
-        if let loc = p.locality?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !loc.isEmpty,
-           !parts.contains(where: { $0.localizedCaseInsensitiveContains(loc) }) {
-            parts.append(loc)
-        }
-
-        // Tỉnh / Thành phố trực thuộc TW (administrativeArea)
-        if let admin = p.administrativeArea?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !admin.isEmpty,
-           !parts.contains(where: { $0.localizedCaseInsensitiveContains(admin) || admin.localizedCaseInsensitiveContains($0) }) {
-            parts.append(admin)
-        }
-
-        let manualJoined = parts.joined(separator: ", ")
-
-        if let pf = postalFormatted, pf.count > manualJoined.count {
-            return pf
-        }
-        return manualJoined.isEmpty ? (postalFormatted ?? "") : manualJoined
+        return ""
     }
 
-    // MARK: - OPENSTREETMAP NOMINATIM REVERSE GEOCODING (ĐỊNH VỊ CHÍNH XÁC SỐ NHÀ, TÒA NHÀ)
+    // MARK: - OPENSTREETMAP NOMINATIM REVERSE GEOCODING (ĐỊNH VỊ CHÍNH XÁC SỐ NHÀ, ẤP, THÔN, TÒA NHÀ)
     public static func fetchNominatimAddress(latitude: Double, longitude: Double, completion: @escaping (String?) -> Void) {
         let urlString = "https://nominatim.openstreetmap.org/reverse?format=json&lat=\(latitude)&lon=\(longitude)&zoom=18&addressdetails=1&accept-language=vi"
         guard let url = URL(string: urlString) else {
@@ -426,7 +434,10 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
                         // 2. Số nhà & Tên đường
                         let houseNum = (addrDict["house_number"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                        let road = (addrDict["road"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                        let road = ((addrDict["road"] as? String) ??
+                                    (addrDict["pedestrian"] as? String) ??
+                                    (addrDict["residential"] as? String) ??
+                                    (addrDict["street"] as? String))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
                         var streetPart = ""
                         if !houseNum.isEmpty && !road.isEmpty {
@@ -450,37 +461,42 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                             parts.append(streetPart)
                         }
 
-                        // 3. Khu phố / Thôn / Xóm / Tổ
-                        if let nh = (addrDict["neighbourhood"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !nh.isEmpty {
-                            if !parts.contains(where: { $0.localizedCaseInsensitiveContains(nh) }) {
-                                parts.append(nh)
-                            }
+                        // 3. Ấp / Thôn / Xóm / Khu phố / Tổ (CỰC KỲ QUAN TRỌNG TẠI VIỆT NAM)
+                        let hamlet = ((addrDict["hamlet"] as? String) ??
+                                      (addrDict["neighbourhood"] as? String) ??
+                                      (addrDict["isolated_dwelling"] as? String) ??
+                                      (addrDict["allotments"] as? String))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                        if !hamlet.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(hamlet) }) {
+                            parts.append(hamlet)
                         }
 
-                        // 4. Phường / Xã
-                        let ward = (addrDict["suburb"] as? String) ??
-                                   (addrDict["quarter"] as? String) ??
-                                   (addrDict["village"] as? String) ?? ""
+                        // 4. Phường / Xã / Thị trấn (village, suburb, quarter, town)
+                        let ward = ((addrDict["village"] as? String) ??
+                                    (addrDict["suburb"] as? String) ??
+                                    (addrDict["quarter"] as? String) ??
+                                    (addrDict["town"] as? String) ??
+                                    (addrDict["municipality"] as? String))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                         let trimmedWard = ward.trimmingCharacters(in: .whitespacesAndNewlines)
                         if !trimmedWard.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(trimmedWard) }) {
                             parts.append(trimmedWard)
                         }
 
-                        // 5. Quận / Huyện / Thị xã
-                        let district = (addrDict["city_district"] as? String) ??
-                                       (addrDict["district"] as? String) ??
-                                       (addrDict["county"] as? String) ?? ""
+                        // 5. Quận / Huyện / Thị xã (county, city_district, district, borough)
+                        let district = ((addrDict["county"] as? String) ??
+                                        (addrDict["city_district"] as? String) ??
+                                        (addrDict["district"] as? String) ??
+                                        (addrDict["borough"] as? String))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                         let trimmedDistrict = district.trimmingCharacters(in: .whitespacesAndNewlines)
                         if !trimmedDistrict.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(trimmedDistrict) }) {
                             parts.append(trimmedDistrict)
                         }
 
-                        // 6. Tỉnh / Thành phố
-                        let city = (addrDict["city"] as? String) ??
-                                   (addrDict["state"] as? String) ??
-                                   (addrDict["province"] as? String) ?? ""
+                        // 6. Tỉnh / Thành phố trực thuộc TW (state, city, province)
+                        let city = ((addrDict["state"] as? String) ??
+                                    (addrDict["city"] as? String) ??
+                                    (addrDict["province"] as? String))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
                         let trimmedCity = city.trimmingCharacters(in: .whitespacesAndNewlines)
-                        if !trimmedCity.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(trimmedCity) }) {
+                        if !trimmedCity.isEmpty && !parts.contains(where: { $0.localizedCaseInsensitiveContains(trimmedCity) || city.localizedCaseInsensitiveContains($0) }) {
                             parts.append(trimmedCity)
                         }
 
@@ -503,10 +519,61 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                         return
                     }
                 }
+                completion(nil)
             } catch {
                 completion(nil)
             }
+        }.resume()
+    }
+
+    // MARK: - BIGDATACLOUD REVERSE GEOCODING (DỰ PHÒNG KHÔNG CẦN API KEY)
+    public static func fetchBigDataCloudAddress(latitude: Double, longitude: Double, completion: @escaping (String?) -> Void) {
+        let urlString = "https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=\(latitude)&longitude=\(longitude)&localityLanguage=vi"
+        guard let url = URL(string: urlString) else {
             completion(nil)
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 4.0
+
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            guard let data = data, error == nil else {
+                completion(nil)
+                return
+            }
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    var parts: [String] = []
+
+                    // Xã / Phường
+                    if let locality = (json["locality"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !locality.isEmpty {
+                        parts.append(locality)
+                    }
+
+                    // Các cấp hành chính Huyện, Tỉnh
+                    if let info = json["localityInfo"] as? [String: Any],
+                       let adminList = info["administrative"] as? [[String: Any]] {
+                        for item in adminList {
+                            if let name = (item["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                               !name.isEmpty,
+                               name != "Việt Nam",
+                               !name.contains("Đồng bằng"),
+                               !parts.contains(where: { $0.localizedCaseInsensitiveContains(name) }) {
+                                parts.append(name)
+                            }
+                        }
+                    }
+
+                    if !parts.isEmpty {
+                        completion(parts.joined(separator: ", "))
+                        return
+                    }
+                }
+                completion(nil)
+            } catch {
+                completion(nil)
+            }
         }.resume()
     }
 
