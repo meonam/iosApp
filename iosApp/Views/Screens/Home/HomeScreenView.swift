@@ -507,21 +507,16 @@ public struct HomeScreenView: View {
                 onNavigate(.supportHub)
             }
 
-            // Thẻ 3: Điểm danh GPS cho Nhân viên / Chấm công Công tác phí cho KTV & Chuyên viên
-            let isTechUser = viewModel.user.isTechnician || viewModel.user.isSpecialist || viewModel.user.role.uppercased().contains("KTV") || viewModel.user.role.uppercased().contains("SPECIALIST") || viewModel.user.role.uppercased().contains("CHUYENVIEN")
+            // Thẻ 3: Điểm danh GPS
             statsCardItem(
-                title: isTechUser ? "Chấm công" : "Điểm danh",
-                count: isTechUser ? (viewModel.user.isSpecialist ? "Chuyên viên" : "KTV") : "GPS",
-                subtitle: isTechUser ? "Công tác phí" : "Vào / Ra ca",
-                icon: isTechUser ? "doc.plaintext.fill" : "clock.fill",
+                title: "Điểm danh",
+                count: "GPS",
+                subtitle: "Vào / Ra ca",
+                icon: "clock.fill",
                 accentColor: Color(hex: "#0D9488"),
                 bgColor: Color(hex: "#F0FDFA")
             ) {
-                if isTechUser {
-                    onNavigate(.attendanceReport)
-                } else {
-                    onNavigate(.attendance)
-                }
+                onNavigate(.attendance)
             }
         }
     }
