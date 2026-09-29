@@ -9,6 +9,8 @@ public struct UnitManagerView: View {
     @State private var newUnitName: String = ""
     @State private var newUnitId: String = ""
     @State private var newUnitRegion: String = ""
+    @State private var storeSearchQuery: String = ""
+    @State private var isStoreDropdownOpen: Bool = false
 
     // Edit state
     @State private var editingUnit: DonVi? = nil
@@ -26,6 +28,24 @@ public struct UnitManagerView: View {
     public init(viewModel: AdminViewModel, onBack: @escaping () -> Void) {
         self.viewModel = viewModel
         self.onBack = onBack
+    }
+
+    private var isDuplicateUnitId: Bool {
+        let clean = newUnitId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !clean.isEmpty else { return false }
+        return viewModel.units.contains { $0.id.uppercased() == clean }
+    }
+
+    private var suggestedStores: [SgcoopStore] {
+        let q = storeSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !q.isEmpty else { return [] }
+        let qNorm = q.folding(options: .diacriticInsensitive, locale: .current)
+        return Array(SgcoopStores.list.filter { st in
+            st.code.lowercased().contains(q) ||
+            st.shortName.lowercased().contains(q) ||
+            st.shortName.folding(options: .diacriticInsensitive, locale: .current).lowercased().contains(qNorm) ||
+            st.fullName.folding(options: .diacriticInsensitive, locale: .current).lowercased().contains(qNorm)
+        }.prefix(8))
     }
 
     private var filteredUnits: [DonVi] {
@@ -178,27 +198,92 @@ public struct UnitManagerView: View {
                 Spacer()
             }
 
+            // Ô TÌM NHANH 123 SIÊU THỊ CO.OPMART
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 2) {
-                    Text("Tên đơn vị / chi nhánh")
-                        .font(.system(size: 12, weight: .medium))
+                HStack {
+                    Text("🔍 Tìm nhanh siêu thị Co.opmart")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                    Spacer()
+                    Text("123 điểm bán")
+                        .font(.system(size: 10))
                         .foregroundColor(.gray)
-                    Text("*").foregroundColor(.red).font(.system(size: 12, weight: .bold))
                 }
-                TextField("Ví dụ: Co.opmart Cần Thơ", text: $newUnitName)
-                    .font(.system(size: 13))
-                    .padding(10)
-                    .background(Color(hex: "#F8FAFC"))
-                    .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
-                    .onChange(of: newUnitName) { val in
-                        if newUnitId.isEmpty || newUnitId.hasPrefix("UNIT_") {
-                            let slug = val.uppercased().folding(options: .diacriticInsensitive, locale: .current)
-                                .replacingOccurrences(of: " ", with: "_")
-                                .filter { $0.isLetter || $0.isNumber || $0 == "_" }
-                            newUnitId = "UNIT_" + String(slug.prefix(12))
+
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.gray)
+                    TextField("Gõ mã (151, 515...) hoặc tên (Cống Quỳnh, BRIA...)", text: $storeSearchQuery)
+                        .font(.system(size: 13))
+                        .onChange(of: storeSearchQuery) { val in
+                            isStoreDropdownOpen = !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        }
+                    if !storeSearchQuery.isEmpty {
+                        Button(action: {
+                            storeSearchQuery = ""
+                            isStoreDropdownOpen = false
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
                         }
                     }
+                }
+                .padding(10)
+                .background(Color.appSurfaceVariant)
+                .cornerRadius(8)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
+
+                if isStoreDropdownOpen && !suggestedStores.isEmpty {
+                    VStack(spacing: 0) {
+                        ForEach(suggestedStores) { st in
+                            let inSystem = viewModel.units.contains { $0.id.uppercased() == st.code.uppercased() }
+                            Button(action: {
+                                newUnitId = st.code
+                                newUnitName = st.fullName
+                                storeSearchQuery = "\(st.code) - \(st.shortName) (\(st.fullName))"
+                                isStoreDropdownOpen = false
+                            }) {
+                                HStack {
+                                    Text(st.code)
+                                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                        .foregroundColor(Color(hex: "#E11D48"))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color(hex: "#FFE4E6"))
+                                        .cornerRadius(4)
+
+                                    Text(st.shortName)
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(Color.appTextPrimary)
+
+                                    Text("- \(st.fullName)")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(Color.appTextSecondary)
+                                        .lineLimit(1)
+
+                                    Spacer()
+
+                                    if inSystem {
+                                        Text("Đã có")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(Color(hex: "#D97706"))
+                                            .padding(.horizontal, 4)
+                                            .padding(.vertical, 2)
+                                            .background(Color(hex: "#FEF3C7"))
+                                            .cornerRadius(4)
+                                    }
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                            }
+                            Divider()
+                        }
+                    }
+                    .background(Color.appSurface)
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
+                    .shadow(color: Color.black.opacity(0.1), radius: 5, y: 3)
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -208,12 +293,33 @@ public struct UnitManagerView: View {
                         .foregroundColor(.gray)
                     Text("*").foregroundColor(.red).font(.system(size: 12, weight: .bold))
                 }
-                TextField("Ví dụ: 199, CAN_THO...", text: $newUnitId)
+                TextField("Ví dụ: 151, 515, BINHTAN2...", text: $newUnitId)
+                    .font(.system(size: 13, design: .monospaced))
+                    .padding(10)
+                    .background(isDuplicateUnitId ? Color.red.opacity(0.08) : Color.appSurfaceVariant)
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(isDuplicateUnitId ? Color.red : Color.appCardBorder, lineWidth: 1))
+
+                if isDuplicateUnitId {
+                    Text("⚠️ Mã đơn vị '\(newUnitId)' đã tồn tại trong hệ thống!")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.red)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 2) {
+                    Text("Tên đơn vị / chi nhánh")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.gray)
+                    Text("*").foregroundColor(.red).font(.system(size: 12, weight: .bold))
+                }
+                TextField("Ví dụ: Co.opmart Cống Quỳnh", text: $newUnitName)
                     .font(.system(size: 13))
                     .padding(10)
-                    .background(Color(hex: "#F8FAFC"))
+                    .background(Color.appSurfaceVariant)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -240,20 +346,23 @@ public struct UnitManagerView: View {
                             .foregroundColor(.gray)
                     }
                     .padding(10)
-                    .background(Color(hex: "#F8FAFC"))
+                    .background(Color.appSurfaceVariant)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                 }
             }
 
             Button(action: {
                 let name = newUnitName.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !name.isEmpty else { return }
+                let id = newUnitId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                guard !name.isEmpty && !id.isEmpty && !isDuplicateUnitId else { return }
                 Task {
-                    await viewModel.addUnit(name: name, unitId: newUnitId, region: newUnitRegion)
+                    await viewModel.addUnit(name: name, unitId: id, region: newUnitRegion)
                     newUnitName = ""
                     newUnitId = ""
                     newUnitRegion = ""
+                    storeSearchQuery = ""
+                    isStoreDropdownOpen = false
                 }
             }) {
                 HStack {
@@ -264,17 +373,18 @@ public struct UnitManagerView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 42)
-                .background(newUnitName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray.opacity(0.5) : Color.appSecondaryDarkBlue)
+                .background((newUnitName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || newUnitId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDuplicateUnitId) ? Color.gray.opacity(0.5) : Color.appSecondaryDarkBlue)
                 .cornerRadius(10)
             }
-            .disabled(newUnitName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .disabled(newUnitName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || newUnitId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDuplicateUnitId)
         }
         .padding(14)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(14)
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
         .padding(.horizontal, 14)
     }
+
 
     // MARK: - UNIT CARD
     private func unitCard(_ unit: DonVi) -> some View {
