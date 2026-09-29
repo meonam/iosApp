@@ -337,32 +337,172 @@ public class DeviceViewModel: ObservableObject {
     }
 
 
-    // MARK: - GET DEVICE BY ID
+    // MARK: - EXTRACT DEVICE ID FROM URL / SCAN CODE
+    public func extractDeviceId(from raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+
+        if let url = URL(string: trimmed), let host = url.host, !host.isEmpty {
+            if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+               let items = components.queryItems {
+                if let idParam = items.first(where: {
+                    let name = $0.name.lowercased()
+                    return name == "id" || name == "initialid" || name == "deviceid" || name == "code"
+                })?.value, !idParam.isEmpty {
+                    return idParam
+                }
+            }
+            let paths = url.pathComponents.filter { $0 != "/" }
+            if let idx = paths.firstIndex(where: {
+                let p = $0.lowercased()
+                return p == "device" || p == "devices"
+            }), idx + 1 < paths.count {
+                return paths[idx + 1]
+            }
+            if let last = paths.last, !last.isEmpty {
+                return last
+            }
+        }
+        return trimmed
+    }
+
+    // MARK: - CHECK 3-TIER PERMISSION ON DEVICE
+    public func hasAccessToDevice(_ device: ThietBi) -> Bool {
+        let r = user.role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let d = user.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+
+        let isFullAccess = user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isWarehouse ||
+                           r == "ADMIN" || r.contains("ADMIN") || r == "SUPER_ADMIN" || r == "SUPERADMIN" || r == "QUANTRI" ||
+                           ["HELPDESK", "HELP_DESK", "HD"].contains(r) || r.contains("HELPDESK") || d.contains("HELPDESK") ||
+                           ["WAREHOUSE", "KHO", "THUKHO", "QUANLYKHO"].contains(r) || r.contains("WAREHOUSE") || r.contains("KHO") || d.contains("KHO")
+
+        if isFullAccess { return true }
+
+        let isDeptManager = user.isManager ||
+            ["PHONGBAN", "QUANLY", "MANAGER", "LEADER", "TRUONGPHONG", "PHOPHONG"].contains(r) ||
+            r.contains("PHONG") || r.contains("QUANLY") || r.contains("TRUONG") || r.contains("MANAGER")
+
+        let myDept = user.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let devDept = (device.phongBan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let devDeptLoan = (device.phongBanMuon ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        if isDeptManager && !myDept.isEmpty {
+            return (devDept == myDept || devDept.contains(myDept) || myDept.contains(devDept)) ||
+                   (devDeptLoan == myDept || devDeptLoan.contains(myDept) || myDept.contains(devDeptLoan))
+        }
+
+        // Regular employee: ONLY see device created by them
+        let myEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let createdBy = (device.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return !myEmail.isEmpty && createdBy == myEmail
+    }
+
+    // MARK: - GET DEVICE BY ID (WITH FULL RUNQUERY FALLBACK)
     public func getDeviceById(_ id: String) async -> ThietBi? {
-        let cleanId = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanId = extractDeviceId(from: id)
         if cleanId.isEmpty { return nil }
-        if let existing = rawDevices.first(where: { $0.id.caseInsensitiveCompare(cleanId) == .orderedSame }) {
+
+        // 1. Check in-memory devices first
+        if let existing = rawDevices.first(where: {
+            $0.id.caseInsensitiveCompare(cleanId) == .orderedSame ||
+            ($0.serialNumber?.caseInsensitiveCompare(cleanId) == .orderedSame)
+        }) {
             return existing
         }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(cleanId)"
-        guard let url = URL(string: urlStr) else { return nil }
+        let effectiveComp = companyId.isEmpty ? "SGCOOP" : companyId
 
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-
-        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
-              httpResponse.statusCode == 200,
-              let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let fields = doc["fields"] as? [String: Any] else {
-            return nil
+        // 2. Direct document GET
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(effectiveComp)/devices/\(cleanId)"
+        if let url = URL(string: urlStr) {
+            var request = URLRequest(url: url)
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+               httpResponse.statusCode == 200,
+               let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let fields = doc["fields"] as? [String: Any] {
+                return parseDeviceFromFields(cleanId, fields: fields, companyId: effectiveComp)
+            }
         }
 
+        // 3. Fallback: runQuery by field `id` or `serialNumber`
+        let queryUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(effectiveComp):runQuery"
+        if let queryUrl = URL(string: queryUrlStr) {
+            var qReq = URLRequest(url: queryUrl)
+            qReq.httpMethod = "POST"
+            qReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            qReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            // Query by id == cleanId
+            let queryPayload: [String: Any] = [
+                "structuredQuery": [
+                    "from": [["collectionId": "devices"]],
+                    "where": [
+                        "fieldFilter": [
+                            "field": ["fieldPath": "id"],
+                            "op": "EQUAL",
+                            "value": ["stringValue": cleanId]
+                        ]
+                    ],
+                    "limit": 1
+                ]
+            ]
+            if let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) {
+                qReq.httpBody = bodyData
+                if let (data, http) = await FirestoreHelper.executeSafeRequest(qReq),
+                   http.statusCode == 200,
+                   let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                    for item in results {
+                        if let doc = item["document"] as? [String: Any],
+                           let namePath = doc["name"] as? String,
+                           let fields = doc["fields"] as? [String: Any] {
+                            let docId = namePath.components(separatedBy: "/").last ?? cleanId
+                            return parseDeviceFromFields(docId, fields: fields, companyId: effectiveComp)
+                        }
+                    }
+                }
+            }
+
+            // Query by serialNumber == cleanId
+            let snPayload: [String: Any] = [
+                "structuredQuery": [
+                    "from": [["collectionId": "devices"]],
+                    "where": [
+                        "fieldFilter": [
+                            "field": ["fieldPath": "serialNumber"],
+                            "op": "EQUAL",
+                            "value": ["stringValue": cleanId]
+                        ]
+                    ],
+                    "limit": 1
+                ]
+            ]
+            if let bodyData = try? JSONSerialization.data(withJSONObject: snPayload) {
+                qReq.httpBody = bodyData
+                if let (data, http) = await FirestoreHelper.executeSafeRequest(qReq),
+                   http.statusCode == 200,
+                   let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                    for item in results {
+                        if let doc = item["document"] as? [String: Any],
+                           let namePath = doc["name"] as? String,
+                           let fields = doc["fields"] as? [String: Any] {
+                            let docId = namePath.components(separatedBy: "/").last ?? cleanId
+                            return parseDeviceFromFields(docId, fields: fields, companyId: effectiveComp)
+                        }
+                    }
+                }
+            }
+        }
+
+        return nil
+    }
+
+    private func parseDeviceFromFields(_ id: String, fields: [String: Any], companyId: String) -> ThietBi {
         let moTa = FirestoreHelper.getString(fields, "moTa")
             .ifEmpty(FirestoreHelper.getString(fields, "description"))
 
         return ThietBi(
-            id: cleanId,
+            id: id,
             ten: FirestoreHelper.getString(fields, "ten"),
             tenDonVi: FirestoreHelper.getString(fields, "tenDonVi"),
             trangThai: FirestoreHelper.getString(fields, "trangThai"),
@@ -372,7 +512,7 @@ public class DeviceViewModel: ObservableObject {
             phongBan: FirestoreHelper.getString(fields, "phongBan"),
             moTa: moTa,
             createdBy: FirestoreHelper.getString(fields, "createdBy"),
-            companyId: FirestoreHelper.getString(fields, "companyId"),
+            companyId: companyId,
             synced: true,
             donViMuon: FirestoreHelper.getString(fields, "donViMuon"),
             phongBanMuon: FirestoreHelper.getString(fields, "phongBanMuon"),
@@ -665,6 +805,12 @@ public class DeviceViewModel: ObservableObject {
 
         isLoading = true
         Task {
+            if await self.checkDeviceExists(cleanId) {
+                self.isLoading = false
+                completion(.failure(NSError(domain: "", code: 409, userInfo: [NSLocalizedDescriptionKey: "Mã thiết bị '\(cleanId)' đã tồn tại trên toàn hệ thống! Không thể tạo trùng."])))
+                return
+            }
+
             let res = await FirestoreHelper.executeSafeRequest(request)
             self.isLoading = false
             if let (data, http) = res, (200...299).contains(http.statusCode) {

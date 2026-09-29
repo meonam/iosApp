@@ -167,6 +167,9 @@ public struct QRScannerView: View {
         .ignoresSafeArea(edges: .top)
         .onAppear {
             checkCameraPermission()
+            if let vm = viewModel, vm.rawDevices.isEmpty {
+                vm.fetchDevices(isRefresh: false)
+            }
         }
         .sheet(isPresented: $showPhotoPicker) {
             ImagePickerSheet(isPresented: $showPhotoPicker) { img in
@@ -476,7 +479,19 @@ public struct QRScannerView: View {
         // Tra cứu thiết bị tự động
         if let vm = viewModel {
             // 1. Kiểm tra trong cache nội bộ trước (nhanh tức thì, không cần mạng)
-            if let local = vm.rawDevices.first(where: { $0.id.caseInsensitiveCompare(cleanCode) == .orderedSame }) {
+            if let local = vm.rawDevices.first(where: {
+                $0.id.caseInsensitiveCompare(cleanCode) == .orderedSame ||
+                ($0.serialNumber?.caseInsensitiveCompare(cleanCode) == .orderedSame)
+            }) {
+                // Kiểm tra phân quyền 3 tầng
+                if !vm.hasAccessToDevice(local) {
+                    showToastNotification("⚠️ Bạn không có quyền truy cập thiết bị này theo phân quyền hệ thống.")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                        self.isProcessing = false
+                    }
+                    return
+                }
+
                 showToastNotification("✅ Đã tìm thấy: \(local.ten)")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                     if let navigateDetail = self.onNavigateToDetail {
@@ -488,9 +503,18 @@ public struct QRScannerView: View {
                 return
             }
 
-            // 2. Tra cứu trực tiếp từ Firestore qua Document ID
+            // 2. Tra cứu trực tiếp từ Firestore qua getDeviceById (hỗ trợ doc ID, id field, serialNumber)
             Task { @MainActor in
                 if let dev = await vm.getDeviceById(cleanCode) {
+                    // Kiểm tra phân quyền 3 tầng
+                    if !vm.hasAccessToDevice(dev) {
+                        self.showToastNotification("⚠️ Bạn không có quyền truy cập thiết bị này theo phân quyền hệ thống.")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            self.isProcessing = false
+                        }
+                        return
+                    }
+
                     self.showToastNotification("✅ Đã tìm thấy: \(dev.ten)")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                         self.isProcessing = false

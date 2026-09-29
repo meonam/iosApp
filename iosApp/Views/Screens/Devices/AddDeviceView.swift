@@ -600,6 +600,12 @@ public struct AddDeviceView: View {
             return
         }
 
+        if isIdExisting {
+            localMessage = "⚠️ Mã thiết bị '\(cleanId)' đã tồn tại trong hệ thống! Không thể tạo trùng."
+            isSuccessMessage = false
+            return
+        }
+
         isSubmitting = true
         localMessage = nil
 
