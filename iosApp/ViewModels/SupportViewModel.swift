@@ -906,6 +906,19 @@ public class SupportViewModel: ObservableObject {
         if !images.isEmpty {
             fields["images"] = ["arrayValue": ["values": images.map { ["stringValue": $0] }]]
         }
+        if !attachments.isEmpty {
+            fields["attachments"] = ["arrayValue": ["values": attachments.map { att in
+                var attMap: [String: Any] = [
+                    "name": ["stringValue": att.name],
+                    "url": ["stringValue": att.url],
+                    "size": ["integerValue": String(att.size)],
+                    "type": ["stringValue": att.type],
+                    "uploadedAt": ["integerValue": String(att.uploadedAt)]
+                ]
+                if !att.id.isEmpty { attMap["id"] = ["stringValue": att.id] }
+                return ["mapValue": ["fields": attMap]]
+            }]]
+        }
 
         let body: [String: Any] = ["fields": fields]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
@@ -1477,14 +1490,23 @@ public class SupportViewModel: ObservableObject {
 
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let fromName = !user.fullName.isEmpty ? user.fullName : user.email
-            let fromTitle = user.isSpecialist ? "Chuyên viên" : "KTV"
+            let isFromSpecialist = user.isSpecialist ||
+                user.role.uppercased().contains("CHUYENVIEN") ||
+                user.role.uppercased().contains("SPECIALIST") ||
+                !user.toNghiepVu.isEmpty ||
+                user.departmentId.uppercased().contains("NGHIỆP VỤ") ||
+                user.departmentId.uppercased().contains("NGHIEP VU") ||
+                user.donVi.uppercased().contains("NGHIỆP VỤ") ||
+                user.donVi.uppercased().contains("NGHIEP VU")
+            let fromTitle = isFromSpecialist ? "Chuyên viên" : "KTV"
             let targetTitle = targetIsSpecialist ? "Chuyên viên" : "KTV"
 
             var maskFields = [
                 "assignedByEmail", "assignedByName", "assignedAt",
                 "dispatchNote", "lastMessage", "lastMessageAt",
                 "isAcknowledged", "acknowledged", "acknowledgedAt",
-                "acknowledgedBy", "acknowledgedByName", "handlingMethod"
+                "acknowledgedBy", "acknowledgedByName", "handlingMethod",
+                "assignedTechnicianEmails", "tracking"
             ]
 
             var f: [String: Any] = [
@@ -1496,7 +1518,8 @@ public class SupportViewModel: ObservableObject {
                 "acknowledgedAt": ["integerValue": "0"],
                 "acknowledgedBy": ["stringValue": ""],
                 "acknowledgedByName": ["stringValue": ""],
-                "handlingMethod": ["stringValue": ""]
+                "handlingMethod": ["stringValue": ""],
+                "tracking": ["nullValue": NSNull()]
             ]
 
             let systemMsg: String
@@ -1507,6 +1530,7 @@ public class SupportViewModel: ObservableObject {
                 systemMsg = "🔄 [Bàn giao ca] \(fromTitle) \(fromName) đã bàn giao yêu cầu cho \(targetTitle) \(targetName). Lý do: \(cleanReason)"
 
                 f["assignedAt"] = ["integerValue": String(now)]
+                f["assignedTechnicianEmails"] = ["arrayValue": ["values": [["stringValue": cleanTargetEmail]]]]
                 maskFields.append(contentsOf: ["assignedTo", "assignedToEmail", "assignedToName", "assignedRole", "assignedCluster"])
                 f["assignedTo"] = ["stringValue": cleanTargetEmail]
                 f["assignedToEmail"] = ["stringValue": cleanTargetEmail]
@@ -1525,6 +1549,7 @@ public class SupportViewModel: ObservableObject {
                 systemMsg = "↩️ [Chuyển về HelpDesk] \(fromTitle) \(fromName) đã chuyển trả ticket cho HelpDesk tiếp nhận lại. Lý do: \(cleanReason)"
 
                 f["assignedAt"] = ["integerValue": "0"]
+                f["assignedTechnicianEmails"] = ["arrayValue": ["values": []]]
                 maskFields.append(contentsOf: [
                     "status", "assignedTo", "assignedToEmail", "assignedToName", "assignedRole", "assignedCluster",
                     "assignedDepartmentId", "assignedDepartmentName", "helpdeskAcknowledgedAt"
@@ -1561,6 +1586,64 @@ public class SupportViewModel: ObservableObject {
                 customSenderName: "\(fromName) (\(fromTitle))",
                 isSystemMessage: true
             )
+            VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
+            self.fetchTickets()
+            DispatchQueue.main.async { completion?(true) }
+        }
+    }
+
+    // MARK: - NGƯỜI DÙNG TỰ XỬ LÝ XONG (ĐỒNG BỘ 1:1 VỚI ANDROID AdminSupportChatScreen.kt selfResolve)
+    public func selfResolveTicket(
+        ticketId: String,
+        reason: String,
+        completion: ((Bool) -> Void)? = nil
+    ) {
+        Task {
+            guard !companyId.isEmpty, !ticketId.isEmpty else {
+                completion?(false)
+                return
+            }
+
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let creatorNameStr = !user.fullName.isEmpty ? user.fullName : (user.email.components(separatedBy: "@").first ?? "Người yêu cầu")
+            let cleanReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+            let reasonSuffix = !cleanReason.isEmpty ? " (\(cleanReason))" : ""
+            let selfResolveMsg = "💡 \(creatorNameStr) (Người yêu cầu) đã tự xử lý xong sự cố\(reasonSuffix) • Dừng KTV"
+
+            let maskFields = [
+                "status", "closedAt", "resolvedReason", "resolutionNote",
+                "lastMessage", "lastMessageAt", "tracking"
+            ]
+
+            var f: [String: Any] = [
+                "status": ["stringValue": "CLOSED"],
+                "closedAt": ["integerValue": String(now)],
+                "resolvedReason": ["stringValue": "SELF_RESOLVED"],
+                "resolutionNote": ["stringValue": cleanReason],
+                "lastMessage": ["stringValue": selfResolveMsg],
+                "lastMessageAt": ["integerValue": String(now)],
+                "tracking": ["nullValue": NSNull()]
+            ]
+
+            let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
+            guard let url = URL(string: urlStr) else { completion?(false); return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
+
+            _ = await FirestoreHelper.executeSafeRequest(request)
+
+            sendMessage(
+                ticketId: ticketId,
+                text: selfResolveMsg,
+                customSenderName: "\(creatorNameStr) (Người yêu cầu)",
+                isSystemMessage: true
+            )
+
             VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }

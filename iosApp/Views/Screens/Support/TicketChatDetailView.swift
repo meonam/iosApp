@@ -11,6 +11,9 @@ public struct TicketChatDetailView: View {
     @State private var inputText: String = ""
     @State private var showCloseTicketAlert: Bool = false
     @State private var showSelfResolvedAlert: Bool = false
+    @State private var showSelfResolvedSheet: Bool = false
+    @State private var selfResolvedReason: String = ""
+    @State private var selectedPreviewImageUrl: String? = nil
     @State private var showTechResolveSheet: Bool = false
     @State private var techResolutionNote: String = ""
     @State private var showReopenSheet: Bool = false
@@ -123,6 +126,11 @@ public struct TicketChatDetailView: View {
                         closedTicketFooter
                     }
                 }
+
+                // Full-screen Image Preview Overlay (nếu đang bấm xem ảnh)
+                if let previewUrl = selectedPreviewImageUrl {
+                    fullscreenImageOverlay(previewUrl)
+                }
             }
             .ignoresSafeArea(edges: .top)
         }
@@ -163,24 +171,23 @@ public struct TicketChatDetailView: View {
                 ticket: currentTicket,
                 viewModel: viewModel,
                 onDismiss: { showLiveTrackingModal = false },
-                onSelfResolved: { showSelfResolvedAlert = true },
-                onTechResolve: { showTechResolveSheet = true }
+                onSelfResolved: {
+                    showLiveTrackingModal = false
+                    showSelfResolvedSheet = true
+                },
+                onTechResolve: {
+                    showLiveTrackingModal = false
+                    showTechResolveSheet = true
+                }
             )
         }
         // Sheet Từ chối phiếu (Admin/HelpDesk)
         .sheet(isPresented: $showRejectReasonSheet) {
             rejectTicketSheetView
         }
-        // Alert Tự xử lý xong
-        .alert(isPresented: $showSelfResolvedAlert) {
-            Alert(
-                title: Text("Bạn đã tự xử lý xong sự cố?"),
-                message: Text("Xác nhận sự cố đã được bạn tự khắc phục thành công và kết thúc phiếu hỗ trợ này?"),
-                primaryButton: .default(Text("Xác nhận đóng")) {
-                    viewModel.closeTicket(ticketId: ticket.id, rating: 5, feedback: "Người dùng tự xử lý thành công") { _ in }
-                },
-                secondaryButton: .cancel(Text("Hủy"))
-            )
+        // Sheet Tự xử lý xong (Đồng bộ 1:1 Android SelfResolvedConfirmDialog)
+        .sheet(isPresented: $showSelfResolvedSheet) {
+            selfResolvedSheetView
         }
         // Alert Đóng phiếu (Admin/Manager)
         .alert(isPresented: $showCloseTicketAlert) {
@@ -486,32 +493,41 @@ public struct TicketChatDetailView: View {
                 .buttonStyle(PlainButtonStyle())
             }
 
-            // ── Banner 2: Người tạo tự xử lý xong (cho Người tạo khi OPEN) ──
-            if isCreator && isOpen && !isResolved {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Bạn đã tự xử lý xong sự cố?")
-                            .font(.system(size: 11.5, weight: .bold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
-                        Text("Bấm xác nhận để kết thúc yêu cầu và giải phóng KTV.")
-                            .font(.system(size: 10.5))
-                            .foregroundColor(Color.gray)
+            // ── Banner 2: Thẻ "Tôi đã tự xử lý xong" (cho User tạo phiếu, ẩn với Admin/KTV/HelpDesk) ──
+            if isCreator && isOpen && !isResolved && !isAdminOrHelpDesk && !isAssignedTech {
+                Button(action: { showSelfResolvedSheet = true }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(Color(hex: "#D97706"))
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("💡 Bạn đã tự xử lý xong sự cố?")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(Color(hex: "#92400E"))
+                            Text("Bấm để đóng yêu cầu & dừng chuyến đi KTV")
+                                .font(.system(size: 10.5))
+                                .foregroundColor(Color(hex: "#B45309"))
+                        }
+
+                        Spacer()
+
+                        Text("Đóng phiếu")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(Color(hex: "#D97706"))
+                            .cornerRadius(6)
                     }
-                    Spacer()
-                    Button("Tôi đã tự xử lý") {
-                        showSelfResolvedAlert = true
-                    }
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(Color.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.appPrimaryPink)
-                    .cornerRadius(6)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(Color(hex: "#FFFBEB"))
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#FDE68A"), lineWidth: 1))
+                    .padding(.horizontal, 12)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.white)
-                .overlay(Rectangle().frame(height: 1).foregroundColor(Color(hex: "#E2E8F0")), alignment: .bottom)
+                .buttonStyle(PlainButtonStyle())
             }
 
             // ── Banner 3: Chọn phương thức xử lý (cho KTV được phân công) ──
@@ -636,8 +652,8 @@ public struct TicketChatDetailView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 10) {
-                    // Mô tả ban đầu
-                    if !ticket.initialMessage.isEmpty {
+                    // Mô tả ban đầu (kèm hình ảnh, tệp đính kèm, thông tin thiết bị)
+                    if !currentTicket.initialMessage.isEmpty || !currentTicket.images.isEmpty || !currentTicket.attachments.isEmpty {
                         initialMessageCard
                     }
 
@@ -645,6 +661,11 @@ public struct TicketChatDetailView: View {
                     ForEach(viewModel.messages) { msg in
                         messageBubbleView(msg)
                             .id(msg.id)
+                    }
+
+                    // Thẻ Đánh giá chất lượng hỗ trợ (đồng bộ 1:1 Android khi đã xử lý xong hoặc đã đóng)
+                    if isResolved || isClosed {
+                        supportRatingSectionView
                     }
                 }
                 .padding(12)
@@ -658,29 +679,168 @@ public struct TicketChatDetailView: View {
     }
 
     private var initialMessageCard: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("📌 Mô tả sự cố ban đầu:")
-                    .font(.system(size: 11.5, weight: .bold))
-                    .foregroundColor(Color.appSecondaryDarkBlue)
+        VStack(alignment: .leading, spacing: 6) {
+            // Category & Priority & Time (đồng bộ thẻ thông tin Android)
+            HStack {
+                HStack(spacing: 4) {
+                    let catText = categoryBadgeText(currentTicket.category)
+                    Text(catText)
+                        .font(.system(size: 9.5, weight: .bold))
+                        .foregroundColor(Color(hex: "#0369A1"))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color(hex: "#E0F2FE"))
+                        .cornerRadius(4)
 
-                Text(ticket.initialMessage)
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(hex: "#1E293B"))
+                    let (pText, pBg, pCol) = priorityBadgeInfo(currentTicket.priority)
+                    Text(pText)
+                        .font(.system(size: 9.5, weight: .bold))
+                        .foregroundColor(pCol)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(pBg)
+                        .cornerRadius(4)
+                }
 
-                if !ticket.assetName.isEmpty {
-                    Text("Thiết bị: \(ticket.assetName) (\(ticket.assetId))")
-                        .font(.system(size: 11))
+                Spacer()
+
+                if currentTicket.createdAt > 0 {
+                    Text(formatDate(currentTicket.createdAt))
+                        .font(.system(size: 10))
                         .foregroundColor(Color.gray)
                 }
             }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(hex: "#F1F5F9"))
-            .cornerRadius(10)
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
-            Spacer()
+
+            // Thiết bị liên quan
+            let assetLabel = currentTicket.assetName.isEmpty ? currentTicket.assetId : currentTicket.assetName
+            if !assetLabel.isEmpty {
+                HStack(spacing: 4) {
+                    Text("💻 Thiết bị: \(assetLabel) \(currentTicket.assetId.isEmpty ? "" : "(\(currentTicket.assetId))")")
+                        .font(.system(size: 10.5, weight: .semibold))
+                        .foregroundColor(Color(hex: "#334155"))
+                }
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
+                .background(Color(hex: "#F1F5F9"))
+                .cornerRadius(4)
+            }
+
+            // Đơn vị yêu cầu
+            if !currentTicket.donVi.isEmpty {
+                Text("🏬 Đơn vị: \(currentTicket.donVi)")
+                    .font(.system(size: 10.5))
+                    .foregroundColor(Color(hex: "#475569"))
+            }
+
+            // Số điện thoại liên hệ
+            if !currentTicket.creatorPhone.isEmpty {
+                Text("📞 SĐT người tạo: \(currentTicket.creatorPhone)")
+                    .font(.system(size: 10.5, weight: .medium))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+            }
+
+            // App User đã đăng ký
+            if !currentTicket.creatorUserId.isEmpty {
+                Text("👤 App User: \(currentTicket.creatorUserId)")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(Color(hex: "#15803D"))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color(hex: "#DCFCE7"))
+                    .cornerRadius(4)
+            }
+
+            // Nội dung mô tả sự cố
+            if !currentTicket.initialMessage.isEmpty {
+                Text("📝 Vấn đề: \(currentTicket.initialMessage)")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "#1E293B"))
+            }
+
+            // Hình ảnh chụp hiện trường ban đầu
+            if !currentTicket.images.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("📷 Ảnh sự cố ban đầu:")
+                        .font(.system(size: 10.5, weight: .bold))
+                        .foregroundColor(Color(hex: "#475569"))
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(currentTicket.images, id: \.self) { imgUrl in
+                                Button(action: {
+                                    selectedPreviewImageUrl = imgUrl
+                                }) {
+                                    if let url = URL(string: imgUrl) {
+                                        AsyncImage(url: url) { phase in
+                                            switch phase {
+                                            case .empty:
+                                                Rectangle().fill(Color.gray.opacity(0.2)).frame(width: 72, height: 72)
+                                            case .success(let image):
+                                                image.resizable().scaledToFill().frame(width: 72, height: 72).clipped()
+                                            case .failure:
+                                                Image(systemName: "photo").frame(width: 72, height: 72).background(Color.gray.opacity(0.1))
+                                            @unknown default:
+                                                EmptyView()
+                                            }
+                                        }
+                                        .cornerRadius(8)
+                                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                .padding(.top, 2)
+            }
+
+            // Tệp tài liệu đính kèm ban đầu
+            if !currentTicket.attachments.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("📎 Tệp đính kèm:")
+                        .font(.system(size: 10.5, weight: .bold))
+                        .foregroundColor(Color(hex: "#475569"))
+
+                    ForEach(currentTicket.attachments) { att in
+                        Button(action: {
+                            if let url = URL(string: att.url) {
+                                UIApplication.shared.open(url)
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: documentIconName(att.type))
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .font(.system(size: 13))
+                                Text(att.name)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(Color(hex: "#1E293B"))
+                                    .lineLimit(1)
+                                Spacer()
+                                if att.size > 0 {
+                                    Text("\(max(1, att.size / 1024)) KB")
+                                        .font(.system(size: 9.5))
+                                        .foregroundColor(Color.gray)
+                                }
+                                Image(systemName: "arrow.down.circle")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(Color.appPrimaryPink)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color.white)
+                            .cornerRadius(6)
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                        }
+                    }
+                }
+                .padding(.top, 2)
+            }
         }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(hex: "#F8FAFC"))
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
     }
 
     // MARK: - MESSAGE BUBBLE & SYSTEM EVENT PILL (ĐỒNG NHẤT 1:1 ANDROID, WEB & DESKTOP)
@@ -1420,5 +1580,297 @@ public struct TicketChatDetailView: View {
             let s = remSec % 60
             slaCountdown = String(format: "%02d:%02d:%02d", h, m, s)
         }
+    }
+
+    // MARK: - RATING SECTION VIEW (ĐỒNG BỘ 100% ANDROID AdminSupportChatScreen.kt lines 1740-1847)
+    @ViewBuilder
+    private var supportRatingSectionView: some View {
+        let ticketRating = currentTicket.rating
+        if ticketRating > 0 {
+            // Đã đánh giá / Tự động 5 sao sau 24h -> Hiển thị Card đánh giá cố định có ổ khóa
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    HStack(spacing: 6) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 13))
+                            .foregroundColor(ticketRating >= 3 ? Color(hex: "#15803D") : Color(hex: "#B91C1C"))
+
+                        HStack(spacing: 2) {
+                            ForEach(1...5, id: \.self) { star in
+                                Image(systemName: star <= ticketRating ? "star.fill" : "star")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(Color(hex: "#F59E0B"))
+                            }
+                        }
+
+                        Text("\(ticketRating)/5 ⭐")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(ticketRating >= 3 ? Color(hex: "#15803D") : Color(hex: "#B91C1C"))
+                    }
+
+                    Spacer()
+
+                    let displayTime = currentTicket.feedbackAt > 0 ? currentTicket.feedbackAt : (currentTicket.closedAt > 0 ? currentTicket.closedAt : currentTicket.lastMessageAt)
+                    if displayTime > 0 {
+                        Text(formatMessageTime(displayTime))
+                            .font(.system(size: 10))
+                            .foregroundColor(Color.gray)
+                    }
+                }
+
+                let effectiveFb = currentTicket.feedback.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !effectiveFb.isEmpty {
+                    Text("💬 Nhận xét: \"\(effectiveFb)\"")
+                        .font(.system(size: 12))
+                        .italic()
+                        .foregroundColor(Color(hex: "#1E293B"))
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.white.opacity(0.85))
+                        .cornerRadius(6)
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                }
+
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(Color.gray.opacity(0.6))
+                    Text("Đánh giá chất lượng đã được lưu vào hệ thống KPI.")
+                        .font(.system(size: 10))
+                        .foregroundColor(Color.gray)
+                }
+
+                if isAdminOrHelpDesk && !isClosed {
+                    Button(action: { showCloseTicketAlert = true }) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("Nghiệm thu & Đóng phiếu")
+                                .font(.system(size: 12.5, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 38)
+                        .background(Color(hex: "#16A34A"))
+                        .cornerRadius(8)
+                    }
+                    .padding(.top, 4)
+                }
+            }
+            .padding(12)
+            .background(ticketRating >= 3 ? Color(hex: "#F0FDF4") : Color(hex: "#FEF2F2"))
+            .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(ticketRating >= 3 ? Color(hex: "#BBF7D0") : Color(hex: "#FECACA"), lineWidth: 1))
+        } else if isCreator {
+            // Người tạo xem phiếu khi KTV đã xử lý xong và chưa đánh giá -> Hiển thị form đánh giá nhanh
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    Image(systemName: "star.bubble.fill")
+                        .foregroundColor(Color.appPrimaryPink)
+                        .font(.system(size: 16))
+                    Text("Đánh giá chất lượng hỗ trợ")
+                        .font(.system(size: 13.5, weight: .bold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                }
+
+                Text("Kỹ thuật viên đã xử lý xong sự cố. Xin mời bạn đánh giá chất lượng dịch vụ:")
+                    .font(.system(size: 11.5))
+                    .foregroundColor(Color.gray)
+
+                HStack(spacing: 8) {
+                    ForEach(1...5, id: \.self) { star in
+                        Button(action: { selectedRating = star }) {
+                            Image(systemName: star <= selectedRating ? "star.fill" : "star")
+                                .font(.system(size: 26))
+                                .foregroundColor(star <= selectedRating ? Color(hex: "#F59E0B") : Color(hex: "#CBD5E1"))
+                        }
+                    }
+                }
+
+                TextField("Nhận xét thêm (không bắt buộc)...", text: $ratingComment)
+                    .font(.system(size: 12.5))
+                    .padding(8)
+                    .background(Color.white)
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+
+                Button(action: {
+                    viewModel.rateTicket(ticketId: ticket.id, rating: selectedRating, feedback: ratingComment) { _ in }
+                }) {
+                    Text("✅ Gửi đánh giá & Nghiệm thu")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                        .background(Color(hex: "#10B981"))
+                        .cornerRadius(8)
+                }
+            }
+            .padding(12)
+            .background(Color(hex: "#FFFBEB"))
+            .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#FDE68A"), lineWidth: 1))
+        } else {
+            // KTV / Quản trị viên xem khi chưa có đánh giá
+            HStack(spacing: 6) {
+                Image(systemName: "clock")
+                    .foregroundColor(Color.gray)
+                Text("⏳ Chờ người dùng đánh giá chất lượng (Tự động ghi nhận 5★ sau 24h)")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color.gray)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .background(Color(hex: "#F8FAFC"))
+            .cornerRadius(8)
+        }
+    }
+
+    // MARK: - SHEET: XÁC NHẬN TỰ XỬ LÝ (ĐỒNG BỘ 1:1 ANDROID SelfResolvedConfirmDialog)
+    private var selfResolvedSheetView: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Xác nhận sự cố")) {
+                    Text("Sự cố của bạn đã hoạt động bình thường? Thao tác này sẽ đóng yêu cầu hỗ trợ và dừng chuyến đi của Kỹ thuật viên an toàn.")
+                        .font(.system(size: 13))
+                        .foregroundColor(Color(hex: "#334155"))
+                }
+
+                Section(header: Text("Chọn lý do để lưu nhật ký báo cáo *")) {
+                    let reasons = [
+                        "Đã cắm lại dây nguồn / dây mạng / cáp kết nối",
+                        "Đã khởi động lại máy / thiết bị và chạy tốt",
+                        "Đồng nghiệp xung quanh đã hỗ trợ xong",
+                        "Sự cố tự hết / Không cần hỗ trợ nữa"
+                    ]
+                    ForEach(reasons, id: \.self) { r in
+                        Button(action: {
+                            selfResolvedReason = r
+                        }) {
+                            HStack {
+                                Image(systemName: selfResolvedReason == r ? "largecircle.fill.circle" : "circle")
+                                    .foregroundColor(selfResolvedReason == r ? Color(hex: "#10B981") : Color.gray)
+                                Text(r)
+                                    .font(.system(size: 13))
+                                    .foregroundColor(Color(hex: "#1E293B"))
+                                Spacer()
+                            }
+                        }
+                    }
+
+                    TextField("Lý do khác (tùy chọn)...", text: $selfResolvedReason)
+                        .font(.system(size: 13))
+                }
+
+                Section(footer: Text("Hệ thống sẽ cập nhật trạng thái phiếu là ĐÃ ĐÓNG và hủy lệnh di chuyển của KTV.")) {
+                    EmptyView()
+                }
+            }
+            .navigationTitle("Tự khắc phục sự cố")
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarItems(
+                leading: Button("Hủy") { showSelfResolvedSheet = false },
+                trailing: Button("Xác nhận Đóng") {
+                    let reasonToSubmit = selfResolvedReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        ? "Đã cắm lại dây nguồn / dây mạng / cáp kết nối"
+                        : selfResolvedReason
+                    viewModel.selfResolveTicket(ticketId: ticket.id, reason: reasonToSubmit) { success in
+                        if success {
+                            showSelfResolvedSheet = false
+                            if currentTicket.rating == 0 {
+                                showRatingSheet = true
+                            }
+                        }
+                    }
+                }
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(Color(hex: "#10B981"))
+            )
+        }
+    }
+
+    // MARK: - FULLSCREEN IMAGE OVERLAY
+    @ViewBuilder
+    private func fullscreenImageOverlay(_ imgUrl: String) -> some View {
+        ZStack {
+            Color.black.opacity(0.92).ignoresSafeArea()
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: { selectedPreviewImageUrl = nil }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundColor(.white)
+                            .padding(16)
+                    }
+                }
+
+                Spacer()
+
+                if let url = URL(string: imgUrl) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .empty:
+                            ProgressView().tint(.white)
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFit()
+                                .padding()
+                        case .failure:
+                            VStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.white)
+                                Text("Không thể tải hình ảnh")
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 13))
+                            }
+                        @unknown default:
+                            EmptyView()
+                        }
+                    }
+                }
+
+                Spacer()
+            }
+        }
+    }
+
+    private func categoryBadgeText(_ cat: String) -> String {
+        switch cat.uppercased() {
+        case "HARDWARE": return "🖥️ Phần cứng"
+        case "SOFTWARE": return "💾 Phần mềm"
+        case "NETWORK": return "🌐 Mạng/Internet"
+        case "PRINTER": return "🖨️ Máy in"
+        case "ACCOUNT": return "👤 Tài khoản"
+        case "OTHER": return "➕ Khác"
+        default: return "➕ \(cat.isEmpty ? "Khác" : cat)"
+        }
+    }
+
+    private func priorityBadgeInfo(_ p: String) -> (String, Color, Color) {
+        switch p.uppercased() {
+        case "URGENT", "CRITICAL": return ("🔴 Gấp (<1h)", Color(hex: "#FEE2E2"), Color(hex: "#DC2626"))
+        case "HIGH": return ("🟡 Cần gấp (4h)", Color(hex: "#FEF3C7"), Color(hex: "#D97706"))
+        default: return ("🟢 Thường (24h)", Color(hex: "#DCFCE7"), Color(hex: "#16A34A"))
+        }
+    }
+
+    private func formatDate(_ ms: Int64) -> String {
+        guard ms > 0 else { return "" }
+        let d = Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
+        let f = DateFormatter()
+        f.dateFormat = "dd/MM HH:mm"
+        return f.string(from: d)
+    }
+
+    private func documentIconName(_ type: String) -> String {
+        let t = type.lowercased()
+        if t.contains("pdf") { return "doc.text.fill" }
+        if t.contains("doc") || t.contains("word") { return "doc.fill" }
+        if t.contains("xls") || t.contains("sheet") || t.contains("excel") { return "tablecells.fill" }
+        if t.contains("zip") || t.contains("rar") { return "archivebox.fill" }
+        return "doc.fill"
     }
 }

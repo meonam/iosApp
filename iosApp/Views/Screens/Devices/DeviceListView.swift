@@ -451,9 +451,10 @@ public struct DeviceListView: View {
             viewModel.loadDepartmentsAndUnits()
             viewModel.loadDeviceTypes()
         }
-        // SCANNER SHEET
+        // SCANNER SHEET (Tự động tra cứu thiết bị và điều hướng 1:1 Android)
         .sheet(isPresented: $showScanner) {
             QRScannerView(
+                viewModel: viewModel,
                 onScanResult: { scannedCode in
                     self.showScanner = false
                     if viewModel.isBatchModeEnabled {
@@ -464,7 +465,17 @@ public struct DeviceListView: View {
                         showToast("🔍 Tìm kiếm: \(scannedCode)")
                     }
                 },
-                onDismiss: { self.showScanner = false }
+                onDismiss: { self.showScanner = false },
+                onNavigateToDetail: { devId in
+                    self.showScanner = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        self.selectedDeviceForDetail = devId
+                    }
+                },
+                onNavigateToAdd: { _ in
+                    self.showScanner = false
+                    self.onNavigateToAdd()
+                }
             )
         }
         // MODERN ACTION BOTTOM SHEET

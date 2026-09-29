@@ -491,9 +491,30 @@ public struct StaffSupportView: View {
 // MARK: - SHEET TẠO YÊU CẦU HỖ TRỢ MỚI ĐẦY ĐỦ 1:1 VỚI ANDROID
 public struct CreateTicketSheetView: View {
     @ObservedObject var supportVM: SupportViewModel
-    @ObservedObject var authViewModel: AuthViewModel
-    var onSuccess: () -> Void
-    var onCancel: () -> Void
+    var authViewModel: AuthViewModel? = nil
+    public var initialAssetId: String = ""
+    public var initialAssetName: String = ""
+    public var initialCategory: String = "HARDWARE"
+    public var onSuccess: () -> Void
+    public var onCancel: () -> Void
+
+    public init(
+        supportVM: SupportViewModel,
+        authViewModel: AuthViewModel? = nil,
+        initialAssetId: String = "",
+        initialAssetName: String = "",
+        initialCategory: String = "HARDWARE",
+        onSuccess: @escaping () -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self.supportVM = supportVM
+        self.authViewModel = authViewModel
+        self.initialAssetId = initialAssetId
+        self.initialAssetName = initialAssetName
+        self.initialCategory = initialCategory
+        self.onSuccess = onSuccess
+        self.onCancel = onCancel
+    }
 
     @State private var currentStep: Int = 0 // 0: Phân loại & Thiết bị, 1: Chi tiết sự cố
     @State private var ticketScope: String = "UNIT" // "UNIT" or "DEPARTMENT"
@@ -506,6 +527,12 @@ public struct CreateTicketSheetView: View {
     @State private var message: String = ""
     @State private var donVi: String = ""
     @State private var isSubmitting: Bool = false
+
+    // Đính kèm hình ảnh & tệp tài liệu (đồng bộ 100% Android)
+    @State private var pendingImages: [UIImage] = []
+    @State private var pendingDocs: [ChatPendingAttachment] = []
+    @State private var showImagePicker: Bool = false
+    @State private var showDocPicker: Bool = false
 
     let categories = [
         ("HARDWARE", "🖥️ Phần cứng / Thiết bị"),
@@ -555,6 +582,38 @@ public struct CreateTicketSheetView: View {
                     }
                 }
             )
+            .sheet(isPresented: $showImagePicker) {
+                ChatImagePicker(maxSelection: max(1, 5 - pendingImages.count)) { images in
+                    for img in images {
+                        if pendingImages.count < 5 {
+                            pendingImages.append(img)
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $showDocPicker) {
+                ChatDocumentPicker { urls in
+                    Task {
+                        for url in urls {
+                            if url.startAccessingSecurityScopedResource() {
+                                defer { url.stopAccessingSecurityScopedResource() }
+                                if let data = try? Data(contentsOf: url) {
+                                    let fileName = url.lastPathComponent
+                                    let attachment = ChatPendingAttachment(
+                                        data: data,
+                                        fileName: fileName,
+                                        fileSize: Int64(data.count),
+                                        type: "file"
+                                    )
+                                    if pendingDocs.count < 5 && !pendingDocs.contains(where: { $0.fileName == attachment.fileName }) {
+                                        pendingDocs.append(attachment)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             .overlay {
                 if isSubmitting {
                     Color.black.opacity(0.3).ignoresSafeArea()
@@ -563,9 +622,18 @@ public struct CreateTicketSheetView: View {
             }
         }
         .onAppear {
-            let u = authViewModel.currentUser
-            phone = u?.phone ?? ""
-            donVi = u?.donVi ?? ""
+            let u = authViewModel?.currentUser ?? supportVM.user
+            phone = u.phone
+            donVi = u.donVi
+            if !initialAssetId.isEmpty {
+                assetId = initialAssetId
+            }
+            if !initialAssetName.isEmpty {
+                assetName = initialAssetName
+            }
+            if !initialCategory.isEmpty {
+                category = initialCategory
+            }
         }
     }
 
@@ -638,8 +706,86 @@ public struct CreateTicketSheetView: View {
 
             Section(header: Text("Mô tả chi tiết *")) {
                 TextEditor(text: $message)
-                    .frame(minHeight: 120)
+                    .frame(minHeight: 100)
                     .font(.system(size: 13.5))
+            }
+
+            // ẢNH CHỤP HIỆN TRƯỜNG (ĐỒNG BỘ ANDROID)
+            Section(header: Text("Ảnh chụp hiện trường / màn hình lỗi (tối đa 5 ảnh)")) {
+                if !pendingImages.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(Array(pendingImages.enumerated()), id: \.offset) { index, img in
+                                ZStack(alignment: .topTrailing) {
+                                    Image(uiImage: img)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 72, height: 72)
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                    Button(action: {
+                                        pendingImages.remove(at: index)
+                                    }) {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .foregroundColor(.red)
+                                            .background(Color.white.clipShape(Circle()))
+                                    }
+                                    .padding(2)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+
+                if pendingImages.count < 5 {
+                    Button(action: { showImagePicker = true }) {
+                        HStack {
+                            Image(systemName: "camera.fill")
+                            Text("Thêm ảnh chụp sự cố (\(pendingImages.count)/5)")
+                                .font(.system(size: 13, weight: .medium))
+                        }
+                        .foregroundColor(Color.appPrimaryPink)
+                    }
+                }
+            }
+
+            // TỆP TÀI LIỆU ĐÍNH KÈM (ĐỒNG BỘ ANDROID)
+            Section(header: Text("Tệp tài liệu đính kèm (Log, Word, Excel, PDF...)")) {
+                if !pendingDocs.isEmpty {
+                    ForEach(Array(pendingDocs.enumerated()), id: \.offset) { index, doc in
+                        HStack {
+                            Image(systemName: "doc.fill")
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(doc.fileName)
+                                    .font(.system(size: 12.5, weight: .medium))
+                                    .lineLimit(1)
+                                Text("\(max(1, doc.fileSize / 1024)) KB")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.gray)
+                            }
+                            Spacer()
+                            Button(action: {
+                                pendingDocs.remove(at: index)
+                            }) {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
+                        }
+                    }
+                }
+
+                if pendingDocs.count < 5 {
+                    Button(action: { showDocPicker = true }) {
+                        HStack {
+                            Image(systemName: "paperclip")
+                            Text("Đính kèm tệp tài liệu (\(pendingDocs.count)/5)")
+                                .font(.system(size: 13, weight: .medium))
+                        }
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                    }
+                }
             }
 
             Section(footer: Text("Yêu cầu sẽ được tự động điều phối tới bộ phận kỹ thuật / chuyên viên phụ trách.")) {
@@ -653,24 +799,55 @@ public struct CreateTicketSheetView: View {
               !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
         isSubmitting = true
-        supportVM.createTicket(
-            subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),
-            message: message.trimmingCharacters(in: .whitespacesAndNewlines),
-            category: category,
-            priority: priority,
-            assetId: assetId.trimmingCharacters(in: .whitespacesAndNewlines),
-            assetName: assetName.trimmingCharacters(in: .whitespacesAndNewlines),
-            phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
-            images: [],
-            donVi: donVi.trimmingCharacters(in: .whitespacesAndNewlines),
-            gpsLat: 0.0,
-            gpsLng: 0.0,
-            scope: ticketScope
-        ) { success in
-            DispatchQueue.main.async {
-                self.isSubmitting = false
-                if success {
-                    self.onSuccess()
+        Task {
+            // 1. Tải ảnh lên Cloudinary
+            var uploadedImageUrls: [String] = []
+            for img in pendingImages {
+                if let data = img.jpegData(compressionQuality: 0.8),
+                   let url = await CloudinaryService.uploadImageData(data, folder: "support_tickets") {
+                    uploadedImageUrls.append(url)
+                }
+            }
+
+            // 2. Tải tệp tài liệu lên Cloudinary
+            var uploadedAttachments: [AttachmentItem] = []
+            for doc in pendingDocs {
+                if let url = await CloudinaryService.uploadRawData(doc.data, folder: "support_tickets", fileName: doc.fileName) {
+                    let ext = (doc.fileName as NSString).pathExtension.lowercased()
+                    let typeStr = ["pdf", "doc", "docx", "xls", "xlsx", "txt", "zip", "rar"].contains(ext) ? ext : "file"
+                    let item = AttachmentItem(
+                        id: UUID().uuidString,
+                        name: doc.fileName,
+                        url: url,
+                        size: doc.fileSize,
+                        type: typeStr,
+                        uploadedAt: Int64(Date().timeIntervalSince1970 * 1000)
+                    )
+                    uploadedAttachments.append(item)
+                }
+            }
+
+            // 3. Tạo ticket trên Firestore
+            supportVM.createTicket(
+                subject: subject.trimmingCharacters(in: .whitespacesAndNewlines),
+                message: message.trimmingCharacters(in: .whitespacesAndNewlines),
+                category: category,
+                priority: priority,
+                assetId: assetId.trimmingCharacters(in: .whitespacesAndNewlines),
+                assetName: assetName.trimmingCharacters(in: .whitespacesAndNewlines),
+                phone: phone.trimmingCharacters(in: .whitespacesAndNewlines),
+                images: uploadedImageUrls,
+                donVi: donVi.trimmingCharacters(in: .whitespacesAndNewlines),
+                gpsLat: 0.0,
+                gpsLng: 0.0,
+                scope: ticketScope,
+                attachments: uploadedAttachments
+            ) { success in
+                DispatchQueue.main.async {
+                    self.isSubmitting = false
+                    if success {
+                        self.onSuccess()
+                    }
                 }
             }
         }

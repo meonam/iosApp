@@ -10,6 +10,9 @@ public struct DeviceDetailView: View {
     @State private var device: ThietBi?
     @State private var showDeleteConfirmAlert = false
     @State private var showHistoryCover = false
+    @State private var showCreateTicketSheet = false
+    @State private var showShareSheet = false
+    @State private var qrShareImage: UIImage? = nil
     @State private var isLoading = false
 
     private let context = CIContext()
@@ -147,16 +150,50 @@ public struct DeviceDetailView: View {
 
                                 // 3. Action Buttons
                                 VStack(spacing: 10) {
+                                    // 🚨 BÁO HỎNG / TẠO YÊU CẦU HỖ TRỢ (ĐỒNG BỘ 100% VỚI ANDROID)
+                                    Button(action: { showCreateTicketSheet = true }) {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "exclamationmark.triangle.fill")
+                                            Text("🚨 Báo hỏng / Tạo yêu cầu hỗ trợ")
+                                        }
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 46)
+                                        .background(Color.appPrimaryPink)
+                                        .cornerRadius(12)
+                                    }
+
+                                    // 🖨️ IN TEM / CHIA SẺ MÃ QR
+                                    Button(action: {
+                                        if let qr = generateQRCode(from: dev.id) {
+                                            self.qrShareImage = qr
+                                            self.showShareSheet = true
+                                        }
+                                    }) {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "printer.fill")
+                                            Text("🖨️ In tem / Chia sẻ mã QR")
+                                        }
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(Color.appSecondaryDarkBlue)
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 46)
+                                        .background(Color.appSecondaryDarkBlue.opacity(0.12))
+                                        .cornerRadius(12)
+                                    }
+
+                                    // XEM NHẬT KÝ LỊCH SỬ
                                     Button(action: { showHistoryCover = true }) {
                                         HStack(spacing: 6) {
                                             Image(systemName: "clock.arrow.circlepath")
                                             Text("Xem nhật ký lịch sử")
                                         }
                                         .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(Color.appSecondaryDarkBlue)
+                                        .foregroundColor(Color(hex: "#475569"))
                                         .frame(maxWidth: .infinity)
                                         .frame(height: 46)
-                                        .background(Color.appSecondaryDarkBlue.opacity(0.1))
+                                        .background(Color(hex: "#F1F5F9"))
                                         .cornerRadius(12)
                                     }
 
@@ -192,6 +229,27 @@ public struct DeviceDetailView: View {
         .ignoresSafeArea(edges: .top)
         .onAppear {
             loadDeviceDetails()
+        }
+        .sheet(isPresented: $showCreateTicketSheet) {
+            if let dev = device {
+                CreateTicketSheetView(
+                    supportVM: SupportViewModel(user: viewModel.user),
+                    initialAssetId: dev.id,
+                    initialAssetName: dev.ten,
+                    initialCategory: "HARDWARE",
+                    onSuccess: {
+                        showCreateTicketSheet = false
+                    },
+                    onCancel: {
+                        showCreateTicketSheet = false
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let img = qrShareImage {
+                DeviceActivityViewController(activityItems: [img, "Mã thiết bị: \(deviceId)"])
+            }
         }
         .fullScreenCover(isPresented: $showHistoryCover) {
             LichSuView(companyId: viewModel.companyId, idToken: viewModel.idToken, thietBiId: deviceId, onBack: { showHistoryCover = false })
@@ -253,4 +311,16 @@ public struct DeviceDetailView: View {
         }
         return nil
     }
+}
+
+// MARK: - ActivityViewController for Sharing QR Code
+struct DeviceActivityViewController: UIViewControllerRepresentable {
+    var activityItems: [Any]
+    var applicationActivities: [UIActivity]? = nil
+
+    func makeUIViewController(context: UIViewControllerRepresentableContext<DeviceActivityViewController>) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: UIViewControllerRepresentableContext<DeviceActivityViewController>) {}
 }

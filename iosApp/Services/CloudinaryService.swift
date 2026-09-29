@@ -68,4 +68,57 @@ public enum CloudinaryService {
             return nil
         }
     }
+
+    /// Tải tệp tài liệu, văn bản (PDF, Word, Excel, CSV, Text...) lên Cloudinary (raw upload), đồng bộ CloudinaryHelper.kt
+    public static func uploadRawData(
+        _ data: Data,
+        folder: String = "support_tickets",
+        fileName: String = "attachment.dat"
+    ) async -> String? {
+        let safeFileName = fileName.replacingOccurrences(of: "[^a-zA-Z0-9._-]", with: "_", options: .regularExpression)
+        let isImage = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"].contains { safeFileName.lowercased().hasSuffix($0) }
+        let endpoint = isImage ? "image/upload" : "raw/upload"
+        guard let url = URL(string: "https://api.cloudinary.com/v1_1/\(cloudName)/\(endpoint)") else { return nil }
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 45
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"upload_preset\"\r\n\r\n".data(using: .utf8)!)
+        body.append("\(uploadPreset)\r\n".data(using: .utf8)!)
+
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"folder\"\r\n\r\n".data(using: .utf8)!)
+        body.append("\(folder)\r\n".data(using: .utf8)!)
+
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(safeFileName)\"\r\n\r\n".data(using: .utf8)!)
+        body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+        body.append(data)
+        body.append("\r\n".data(using: .utf8)!)
+
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+
+        do {
+            let (respData, response) = try await URLSession.shared.data(for: request)
+            guard let httpResp = response as? HTTPURLResponse, (200...299).contains(httpResp.statusCode) else {
+                return nil
+            }
+            guard let json = try JSONSerialization.jsonObject(with: respData) as? [String: Any] else {
+                return nil
+            }
+            if let secureUrl = json["secure_url"] as? String {
+                return secureUrl
+            }
+            return json["url"] as? String
+        } catch {
+            return nil
+        }
+    }
 }
+

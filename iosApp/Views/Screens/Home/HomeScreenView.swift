@@ -31,7 +31,10 @@ public struct HomeScreenView: View {
 
     // Quick Action Sheets
     @State private var showQRScannerSheet: Bool = false
+    @State private var showDetailSheet: Bool = false
+    @State private var selectedDetailDeviceId: String = ""
     @State private var showAddDeviceSheet: Bool = false
+    @State private var addInitialDeviceId: String = ""
     @State private var showPrintQrSheet: Bool = false
     @State private var showStatisticsSheet: Bool = false
 
@@ -236,14 +239,45 @@ public struct HomeScreenView: View {
                 onDismiss: { viewModel.showChangePasswordModal = false }
             )
         }
-        // Sheet Quét QR
+        // Sheet Quét QR (Tự động tra cứu thiết bị và điều hướng 1:1 Android)
         .sheet(isPresented: $showQRScannerSheet) {
             QRScannerView(
+                viewModel: DeviceViewModel(
+                    user: viewModel.user,
+                    companyId: viewModel.companyId,
+                    idToken: viewModel.idToken
+                ),
                 onScanResult: { _ in },
-                onDismiss: { showQRScannerSheet = false }
+                onDismiss: { showQRScannerSheet = false },
+                onNavigateToDetail: { devId in
+                    showQRScannerSheet = false
+                    selectedDetailDeviceId = devId
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showDetailSheet = true
+                    }
+                },
+                onNavigateToAdd: { newCode in
+                    showQRScannerSheet = false
+                    addInitialDeviceId = newCode
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showAddDeviceSheet = true
+                    }
+                }
             )
         }
-        // Sheet Thêm thiết bị
+        // Sheet Chi tiết thiết bị (khi quét QR tìm thấy mã thiết bị)
+        .sheet(isPresented: $showDetailSheet) {
+            DeviceDetailView(
+                viewModel: DeviceViewModel(
+                    user: viewModel.user,
+                    companyId: viewModel.companyId,
+                    idToken: viewModel.idToken
+                ),
+                deviceId: selectedDetailDeviceId,
+                onBack: { showDetailSheet = false }
+            )
+        }
+        // Sheet Thêm thiết bị (khi bấm Thêm TB hoặc Quét QR không tìm thấy)
         .sheet(isPresented: $showAddDeviceSheet) {
             AddDeviceView(
                 viewModel: DeviceViewModel(
@@ -251,8 +285,16 @@ public struct HomeScreenView: View {
                     companyId: viewModel.companyId,
                     idToken: viewModel.idToken
                 ),
-                onDismiss: { showAddDeviceSheet = false },
-                onSuccess: { _ in viewModel.loadDashboardData() }
+                initialDeviceId: addInitialDeviceId,
+                onBack: {
+                    showAddDeviceSheet = false
+                    addInitialDeviceId = ""
+                },
+                onSuccess: { _ in
+                    showAddDeviceSheet = false
+                    addInitialDeviceId = ""
+                    viewModel.loadDashboardData()
+                }
             )
         }
         // Sheet In tem QR
