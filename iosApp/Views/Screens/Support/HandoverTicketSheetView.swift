@@ -388,6 +388,7 @@ public struct HandoverTicketSheetView: View {
                             targetCluster: selectedTab == 0 ? selectedTech?.maKhuVuc ?? "" : "",
                             targetDeptId: selectedTab == 0 ? selectedTech?.departmentId ?? "" : "",
                             targetDeptName: selectedTab == 0 ? selectedTech?.departmentName ?? "" : "",
+                            targetIsSpecialist: selectedTab == 0 ? (selectedTech?.isSpecialist ?? false) : false,
                             reason: cleanReason
                         ) { success in
                             isSubmitting = false

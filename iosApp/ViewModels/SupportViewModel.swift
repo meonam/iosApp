@@ -154,9 +154,13 @@ public class SupportViewModel: ObservableObject {
                 return true
             }
 
-            // 2b. Người thuộc đơn vị thấy
-            if !cleanDonVi.isEmpty && (tDonVi == cleanDonVi || tDonVi.contains(cleanDonVi) || cleanDonVi.contains(tDonVi)) {
-                return true
+            // 2b. Chỉ Nhân viên thường thuộc đơn vị mới thấy ticket đơn vị mình
+            // KTV, Chuyên viên, Quản trị viên, HelpDesk: KHÔNG áp dụng quy tắc đơn vị này (vì KTV chỉ giải quyết ticket được giao đích danh hoặc cụm/phòng ban)
+            let isNormalStaff = !user.isAdmin && !user.isSuperAdmin && !user.isHelpDesk && !user.isTechnician && !user.isSpecialist && !user.isManager
+            if isNormalStaff {
+                if !cleanDonVi.isEmpty && (tDonVi == cleanDonVi || tDonVi.contains(cleanDonVi) || cleanDonVi.contains(tDonVi)) {
+                    return true
+                }
             }
 
             // 3. KTV hoặc Specialist được phân công
@@ -852,6 +856,11 @@ public class SupportViewModel: ObservableObject {
                 }
                 VoiceNotificationHelper.shared.processTicketUpdates(tickets: self.rawTickets, currentUser: self.user)
                 VoiceNotificationHelper.shared.syncAdminConfig(companyId: self.companyId, idToken: self.idToken)
+
+                let autoRateCandidates = self.scopedTickets.filter { $0.isAutoRateEligible }
+                if !autoRateCandidates.isEmpty {
+                    self.checkAndApplyAutoRatings(candidates: autoRateCandidates)
+                }
             }
         }
 
@@ -1003,7 +1012,14 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
-    public func sendMessage(ticketId: String, text: String, isInternal: Bool = false, attachmentUrls: [String] = []) {
+    public func sendMessage(
+        ticketId: String,
+        text: String,
+        isInternal: Bool = false,
+        attachmentUrls: [String] = [],
+        customSenderName: String? = nil,
+        isSystemMessage: Bool = false
+    ) {
         let cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanText.isEmpty || !attachmentUrls.isEmpty else { return }
 
@@ -1027,15 +1043,17 @@ public class SupportViewModel: ObservableObject {
                 ]
             ]
 
+            let effectiveSenderName = customSenderName ?? (!user.fullName.isEmpty ? user.fullName : user.email)
             var fields: [String: Any] = [
                 "senderEmail": ["stringValue": user.email],
-                "senderName": ["stringValue": !user.fullName.isEmpty ? user.fullName : user.email],
+                "senderName": ["stringValue": effectiveSenderName],
                 "message": ["stringValue": cleanText.isEmpty ? "📎 Đã gửi \(attachmentUrls.count) tệp đính kèm" : cleanText],
                 "timestamp": ["integerValue": String(now)],
-                "isAdminReply": ["booleanValue": user.isAdmin || user.isHelpDesk || user.isTechnician],
+                "isAdminReply": ["booleanValue": user.isAdmin || user.isHelpDesk || user.isTechnician || user.isSpecialist],
                 "donVi": ["stringValue": user.donVi],
                 "departmentId": ["stringValue": user.departmentId],
-                "isInternal": ["booleanValue": isInternal]
+                "isInternal": ["booleanValue": isInternal],
+                "isSystemMessage": ["booleanValue": isSystemMessage]
             ]
             for (k, v) in attachmentsField { fields[k] = v }
 
@@ -1446,6 +1464,7 @@ public class SupportViewModel: ObservableObject {
         targetCluster: String = "",
         targetDeptId: String = "",
         targetDeptName: String = "",
+        targetIsSpecialist: Bool = false,
         reason: String,
         completion: ((Bool) -> Void)? = nil
     ) {
@@ -1458,6 +1477,8 @@ public class SupportViewModel: ObservableObject {
 
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let fromName = !user.fullName.isEmpty ? user.fullName : user.email
+            let fromTitle = user.isSpecialist ? "Chuyên viên" : "KTV"
+            let targetTitle = targetIsSpecialist ? "Chuyên viên" : "KTV"
 
             var maskFields = [
                 "assignedByEmail", "assignedByName", "assignedAt",
@@ -1482,13 +1503,15 @@ public class SupportViewModel: ObservableObject {
 
             if toType == "TECHNICIAN" {
                 let cleanTargetEmail = targetTechEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let targetName = !targetTechName.isEmpty ? targetTechName : cleanTargetEmail
-                systemMsg = "🔄 [Bàn giao ca] KTV \(fromName) đã bàn giao yêu cầu cho KTV \(targetName). Lý do: \(cleanReason)"
+                let targetName = !targetTechName.isEmpty ? targetTechName : (cleanTargetEmail.components(separatedBy: "@").first ?? cleanTargetEmail)
+                systemMsg = "🔄 [Bàn giao ca] \(fromTitle) \(fromName) đã bàn giao yêu cầu cho \(targetTitle) \(targetName). Lý do: \(cleanReason)"
 
                 f["assignedAt"] = ["integerValue": String(now)]
-                maskFields.append(contentsOf: ["assignedToEmail", "assignedToName", "assignedCluster"])
+                maskFields.append(contentsOf: ["assignedTo", "assignedToEmail", "assignedToName", "assignedRole", "assignedCluster"])
+                f["assignedTo"] = ["stringValue": cleanTargetEmail]
                 f["assignedToEmail"] = ["stringValue": cleanTargetEmail]
                 f["assignedToName"] = ["stringValue": targetName]
+                f["assignedRole"] = ["stringValue": targetIsSpecialist ? "SPECIALIST" : "TECH"]
                 f["assignedCluster"] = ["stringValue": targetCluster]
                 if !targetDeptId.isEmpty {
                     maskFields.append("assignedDepartmentId")
@@ -1499,16 +1522,18 @@ public class SupportViewModel: ObservableObject {
                     f["assignedDepartmentName"] = ["stringValue": targetDeptName]
                 }
             } else {
-                systemMsg = "↩️ [Chuyển về HelpDesk] KTV \(fromName) đã chuyển trả ticket cho HelpDesk tiếp nhận lại. Lý do: \(cleanReason)"
+                systemMsg = "↩️ [Chuyển về HelpDesk] \(fromTitle) \(fromName) đã chuyển trả ticket cho HelpDesk tiếp nhận lại. Lý do: \(cleanReason)"
 
                 f["assignedAt"] = ["integerValue": "0"]
                 maskFields.append(contentsOf: [
-                    "status", "assignedToEmail", "assignedToName", "assignedCluster",
+                    "status", "assignedTo", "assignedToEmail", "assignedToName", "assignedRole", "assignedCluster",
                     "assignedDepartmentId", "assignedDepartmentName", "helpdeskAcknowledgedAt"
                 ])
                 f["status"] = ["stringValue": "OPEN"]
+                f["assignedTo"] = ["stringValue": ""]
                 f["assignedToEmail"] = ["stringValue": ""]
                 f["assignedToName"] = ["stringValue": ""]
+                f["assignedRole"] = ["stringValue": "TECH"]
                 f["assignedCluster"] = ["stringValue": ""]
                 f["assignedDepartmentId"] = ["stringValue": ""]
                 f["assignedDepartmentName"] = ["stringValue": ""]
@@ -1530,10 +1555,58 @@ public class SupportViewModel: ObservableObject {
 
             _ = await FirestoreHelper.executeSafeRequest(request)
 
-            sendMessage(ticketId: ticketId, text: systemMsg)
+            sendMessage(
+                ticketId: ticketId,
+                text: systemMsg,
+                customSenderName: "\(fromName) (\(fromTitle))",
+                isSystemMessage: true
+            )
             VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
+        }
+    }
+
+    // MARK: - TỰ ĐỘNG GHI NHẬN 5★ SAU 24H HOÀN TẤT (ĐỒNG BỘ 1:1 VỚI ANDROID checkAndApplyAutoRatings)
+    public func checkAndApplyAutoRatings(candidates: [SupportTicket]) {
+        guard !companyId.isEmpty, !candidates.isEmpty else { return }
+        Task {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let autoMsg = "🤖 [Hệ thống tự động ghi nhận 5★ sau 24h hoàn tất]: Phiếu hỗ trợ đã được đóng nghiệm thu."
+            let autoFb = "[Hệ thống tự động ghi nhận Rất hài lòng (5★) sau 24h hoàn tất]"
+
+            for ticket in candidates {
+                let maskStr = "updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt&updateMask.fieldPaths=isAutoRated&updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
+                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticket.id)?\(maskStr)"
+                guard let url = URL(string: urlStr) else { continue }
+
+                var request = URLRequest(url: url)
+                request.httpMethod = "PATCH"
+                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+                let closedTime = ticket.closedAt > 0 ? ticket.closedAt : now
+                let f: [String: Any] = [
+                    "rating": ["integerValue": "5"],
+                    "feedback": ["stringValue": autoFb],
+                    "feedbackAt": ["integerValue": String(now)],
+                    "isAutoRated": ["booleanValue": true],
+                    "status": ["stringValue": "CLOSED"],
+                    "closedAt": ["integerValue": String(closedTime)],
+                    "lastMessage": ["stringValue": autoMsg],
+                    "lastMessageAt": ["integerValue": String(now)]
+                ]
+                request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
+                _ = await FirestoreHelper.executeSafeRequest(request)
+
+                // Gửi tin nhắn nghiệm thu tự động vào messages subcollection
+                sendMessage(
+                    ticketId: ticket.id,
+                    text: autoMsg,
+                    customSenderName: "Hệ thống (Nghiệm thu)",
+                    isSystemMessage: true
+                )
+            }
         }
     }
 

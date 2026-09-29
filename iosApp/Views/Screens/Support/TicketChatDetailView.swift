@@ -1056,17 +1056,149 @@ public struct TicketChatDetailView: View {
         }
     }
 
+    private func formatTimestamp(_ ms: Int64, format: String = "dd/MM HH:mm") -> String {
+        guard ms > 0 else { return "" }
+        let date = Date(timeIntervalSince1970: Double(ms) / 1000.0)
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "vi_VN")
+        df.dateFormat = format
+        return df.string(from: date)
+    }
+
     private var closedTicketFooter: some View {
-        HStack {
-            Image(systemName: "lock.fill")
-                .foregroundColor(Color.gray)
-            Text("Phiếu hỗ trợ này đã hoàn tất và đóng")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(Color.gray)
+        let effectiveRating = currentTicket.effectiveRating
+        let hasRating = effectiveRating > 0
+
+        return VStack(spacing: 0) {
+            if hasRating {
+                // Đã đánh giá hoặc tự động 5 sao sau 24h → hiển thị Card đánh giá cố định ở cuối màn hình với icon ổ khoá
+                let isHighRating = effectiveRating >= 3
+                let containerBg = isHighRating ? Color(hex: "#F0FDF4") : Color(hex: "#FEF2F2")
+                let containerBorder = isHighRating ? Color(hex: "#BBF7D0") : Color(hex: "#FECACA")
+                let themeColor = isHighRating ? Color(hex: "#15803D") : Color(hex: "#B91C1C")
+
+                VStack(alignment: .leading, spacing: 8) {
+                    // Header sao & thời gian
+                    HStack {
+                        HStack(spacing: 5) {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(themeColor)
+
+                            // 5 sao
+                            HStack(spacing: 2) {
+                                ForEach(1...5, id: \.self) { star in
+                                    Image(systemName: star <= effectiveRating ? "star.fill" : "star")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(star <= effectiveRating ? Color(hex: "#F59E0B") : Color(hex: "#CBD5E1"))
+                                }
+                            }
+
+                            Text("\(effectiveRating)/5 ⭐")
+                                .font(.system(size: 12.5, weight: .bold))
+                                .foregroundColor(themeColor)
+                        }
+
+                        Spacer()
+
+                        // Thời gian đánh giá hoặc hoàn tất
+                        let displayTime = currentTicket.feedbackAt > 0 ? currentTicket.feedbackAt : (currentTicket.closedAt > 0 ? currentTicket.closedAt : currentTicket.lastMessageAt)
+                        if displayTime > 0 {
+                            Text(formatTimestamp(displayTime))
+                                .font(.system(size: 11))
+                                .foregroundColor(Color.gray)
+                        }
+                    }
+
+                    // Nhận xét (Feedback)
+                    let effectiveFb = currentTicket.effectiveFeedback
+                    if !effectiveFb.isEmpty {
+                        HStack(alignment: .top, spacing: 6) {
+                            Text("💬 Nhận xét: \"\(effectiveFb)\"")
+                                .font(.system(size: 11.5, weight: .medium))
+                                .italic()
+                                .foregroundColor(Color(hex: "#1E293B"))
+                                .padding(8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.white.opacity(0.85))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color(hex: "#E2E8F0"), lineWidth: 1)
+                                )
+                        }
+                    }
+
+                    // Phụ chú khóa
+                    HStack(spacing: 4) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 9))
+                            .foregroundColor(Color.gray.opacity(0.7))
+                        Text("🔒 Đánh giá đã được ghi nhận vào hồ sơ KPI và tự động khóa.")
+                            .font(.system(size: 10))
+                            .foregroundColor(Color.gray.opacity(0.85))
+                    }
+                }
+                .padding(12)
+                .background(containerBg)
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(containerBorder, lineWidth: 1)
+                )
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+            } else {
+                // Phiếu đã đóng nhưng chưa đánh giá
+                if isCreator {
+                    // Người tạo yêu cầu: hiển thị nút đánh giá
+                    VStack(spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "star.circle.fill")
+                                .foregroundColor(Color(hex: "#F59E0B"))
+                                .font(.system(size: 16))
+                            Text("Yêu cầu đã được đóng. Mời bạn đánh giá dịch vụ hỗ trợ:")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(Color(hex: "#1E293B"))
+                        }
+
+                        Button(action: {
+                            showRatingSheet = true
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 13))
+                                Text("Đánh giá ngay (⭐ 1-5 sao)")
+                                    .font(.system(size: 13, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(Color(hex: "#10B981"))
+                            .cornerRadius(8)
+                        }
+                    }
+                    .padding(12)
+                    .background(Color(hex: "#F8FAFC"))
+                    .overlay(
+                        Rectangle().frame(height: 1).foregroundColor(Color(hex: "#E2E8F0")),
+                        alignment: .top
+                    )
+                } else {
+                    // KTV / người khác xem: hiển thị chờ đánh giá
+                    HStack(spacing: 6) {
+                        Image(systemName: "lock.fill")
+                            .foregroundColor(Color.gray)
+                        Text("Phiếu đã đóng. Đang chờ người dùng đánh giá chất lượng dịch vụ.")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.gray)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity)
+                    .background(Color(hex: "#F1F5F9"))
+                }
+            }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity)
-        .background(Color(hex: "#F1F5F9"))
     }
 
     private var ticketRejectedBar: some View {

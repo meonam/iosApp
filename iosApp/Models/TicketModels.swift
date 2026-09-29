@@ -504,6 +504,19 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         return 0
     }
 
+    public var effectiveFeedback: String {
+        if isInvalid || !invalidReason.isEmpty || status.uppercased() == "CANCELED" { return "" }
+        if !feedback.isEmpty { return feedback }
+        if isAutoRated || isAutoRateEligible {
+            return "[Hệ thống tự động ghi nhận Rất hài lòng (5★) sau 24h hoàn tất]"
+        }
+        return ""
+    }
+
+    public var isEffectivelyAutoRated: Bool {
+        isAutoRated || (rating <= 0 && isAutoRateEligible)
+    }
+
     public var isSpecialistAssigned: Bool {
         assignedRole.uppercased() == "SPECIALIST" ||
         !assignedApplication.isEmpty ||
