@@ -251,6 +251,7 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
     public var resolvedBy: String
     public var resolvedByName: String
     public var resolutionNote: String
+    public var resolvedReason: String
     public var closedAt: Int64
     public var closedByEmail: String
     public var closedByName: String
@@ -338,6 +339,7 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         resolvedBy: String = "",
         resolvedByName: String = "",
         resolutionNote: String = "",
+        resolvedReason: String = "",
         closedAt: Int64 = 0,
         closedByEmail: String = "",
         closedByName: String = "",
@@ -424,6 +426,7 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         self.resolvedBy = resolvedBy
         self.resolvedByName = resolvedByName
         self.resolutionNote = resolutionNote
+        self.resolvedReason = resolvedReason
         self.closedAt = closedAt
         self.closedByEmail = closedByEmail
         self.closedByName = closedByName
@@ -517,15 +520,20 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         isAutoRated || (rating <= 0 && isAutoRateEligible)
     }
 
+    public var isSelfResolved: Bool {
+        resolvedReason.uppercased() == "SELF_RESOLVED"
+    }
+
     public var isSpecialistAssigned: Bool {
-        assignedRole.uppercased() == "SPECIALIST" ||
-        !assignedApplication.isEmpty ||
-        assignedDepartmentId.uppercased().hasPrefix("TO_") ||
-        assignedDepartmentName.localizedCaseInsensitiveContains("Ứng Dụng") ||
-        assignedDepartmentName.localizedCaseInsensitiveContains("Nghiệp Vụ") ||
-        assignedDepartmentName.localizedCaseInsensitiveContains("Dữ Liệu") ||
-        assignedDepartmentName.localizedCaseInsensitiveContains("Hạ Tầng Mạng") ||
-        assignedDepartmentName.localizedCaseInsensitiveContains("Bảo Mật")
+        if assignedRole.uppercased() == "TECH" { return false }
+        if assignedRole.uppercased() == "SPECIALIST" { return true }
+        return !assignedApplication.isEmpty ||
+            assignedDepartmentId.uppercased().hasPrefix("TO_") ||
+            assignedDepartmentName.localizedCaseInsensitiveContains("Ứng Dụng") ||
+            assignedDepartmentName.localizedCaseInsensitiveContains("Nghiệp Vụ") ||
+            assignedDepartmentName.localizedCaseInsensitiveContains("Dữ Liệu") ||
+            assignedDepartmentName.localizedCaseInsensitiveContains("Hạ Tầng Mạng") ||
+            assignedDepartmentName.localizedCaseInsensitiveContains("Bảo Mật")
     }
 
     public var assigneeTitle: String {

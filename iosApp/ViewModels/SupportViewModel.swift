@@ -23,6 +23,8 @@ public class SupportViewModel: ObservableObject {
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String? = nil
 
+    @Published public var isTicketReopenEnabled: Bool = false
+
     // Chat realtime
     @Published public var currentTicket: SupportTicket? = nil
     @Published public var messages: [SupportMessage] = []
@@ -104,6 +106,34 @@ public class SupportViewModel: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             self?.fetchTicketsSilent()
+        }
+
+        fetchSystemToggleConfig()
+    }
+
+    // MARK: - SYSTEM TOGGLE CONFIG (ĐỒNG BỘ CẤU HÌNH ADMIN / REOPEN TICKET)
+    public func fetchSystemToggleConfig() {
+        guard !companyId.isEmpty else { return }
+        Task {
+            let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/system_toggle_config"
+            guard let url = URL(string: urlStr) else { return }
+            var req = URLRequest(url: url)
+            if !idToken.isEmpty {
+                req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            }
+            if let (data, httpResp) = await FirestoreHelper.executeSafeRequest(req), httpResp.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let fields = json["fields"] as? [String: Any] {
+                let allowReopen = (fields["allowTicketReopen"] as? [String: Any])?["booleanValue"] as? Bool ?? false
+                await MainActor.run {
+                    self.isTicketReopenEnabled = allowReopen
+                }
+            } else {
+                await MainActor.run {
+                    self.isTicketReopenEnabled = false
+                }
+            }
         }
     }
 
@@ -808,6 +838,7 @@ public class SupportViewModel: ObservableObject {
                     resolvedBy: FirestoreHelper.getString(fields["resolvedBy"] as? [String: Any]),
                     resolvedByName: FirestoreHelper.getString(fields["resolvedByName"] as? [String: Any]),
                     resolutionNote: FirestoreHelper.getString(fields["resolutionNote"] as? [String: Any]),
+                    resolvedReason: FirestoreHelper.getString(fields["resolvedReason"] as? [String: Any]),
                     closedAt: FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any]),
                     closedByEmail: FirestoreHelper.getString(fields["closedByEmail"] as? [String: Any]),
                     closedByName: FirestoreHelper.getString(fields["closedByName"] as? [String: Any]),
@@ -1150,9 +1181,12 @@ public class SupportViewModel: ObservableObject {
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
             _ = await FirestoreHelper.executeSafeRequest(request)
 
+            let ticket = rawTickets.first { $0.id == ticketId }
+            let isSpecialist = ticket?.isSpecialistAssigned == true || (ticket?.assignedRole.uppercased() == "SPECIALIST") || (user.isSpecialist && ticket?.assignedRole.uppercased() != "TECH")
+            let rolePrefix = isSpecialist ? "Chuyên viên" : "KTV"
             let msg = method == "REMOTE"
-                ? "💻 KTV \(user.fullName) đã tiếp nhận và chọn phương án Xử lý từ xa (UltraViewer / ĐT)"
-                : "🛵 KTV \(user.fullName) đã tiếp nhận và đang di chuyển tới đơn vị"
+                ? "💻 \(rolePrefix) \(user.fullName) đã tiếp nhận và chọn phương án Xử lý từ xa (UltraViewer / ĐT)"
+                : "🛵 \(rolePrefix) \(user.fullName) đã tiếp nhận và đang di chuyển tới đơn vị"
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
@@ -1183,7 +1217,10 @@ public class SupportViewModel: ObservableObject {
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
             _ = await FirestoreHelper.executeSafeRequest(request)
 
-            let msg = "🛠️ KTV \(user.fullName) báo cáo ĐÃ XỬ LÝ XONG: \(note). Mời bạn nghiệm thu & đánh giá chất lượng."
+            let ticket = rawTickets.first { $0.id == ticketId }
+            let isSpecialist = ticket?.isSpecialistAssigned == true || (ticket?.assignedRole.uppercased() == "SPECIALIST") || (user.isSpecialist && ticket?.assignedRole.uppercased() != "TECH")
+            let rolePrefix = isSpecialist ? "Chuyên viên" : "KTV"
+            let msg = "🛠️ \(rolePrefix) \(user.fullName) báo cáo ĐÃ XỬ LÝ XONG: \(note). Mời bạn nghiệm thu & đánh giá chất lượng."
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
@@ -1288,10 +1325,14 @@ public class SupportViewModel: ObservableObject {
 
     // MARK: - REOPEN TICKET (MỞ LẠI SỰ CỐ)
     public func reopenTicket(ticketId: String, reason: String, completion: ((Bool) -> Void)? = nil) {
+        guard isTicketReopenEnabled else {
+            completion?(false)
+            return
+        }
         guard let ticket = rawTickets.first(where: { $0.id == ticketId }) else { completion?(false); return }
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=status&updateMask.fieldPaths=reopenCount&updateMask.fieldPaths=reopenedAt&updateMask.fieldPaths=reopenedByEmail&updateMask.fieldPaths=reopenedByName&updateMask.fieldPaths=reopenReason&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=resolvedAt&updateMask.fieldPaths=previousRating&updateMask.fieldPaths=previousFeedback"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=status&updateMask.fieldPaths=reopenCount&updateMask.fieldPaths=reopenedAt&updateMask.fieldPaths=reopenedByEmail&updateMask.fieldPaths=reopenedByName&updateMask.fieldPaths=reopenReason&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=resolvedAt&updateMask.fieldPaths=resolvedReason&updateMask.fieldPaths=rating&updateMask.fieldPaths=isQualityPassed&updateMask.fieldPaths=previousRating&updateMask.fieldPaths=previousFeedback"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -1309,6 +1350,9 @@ public class SupportViewModel: ObservableObject {
                     "reopenReason": ["stringValue": reason],
                     "closedAt": ["integerValue": "0"],
                     "resolvedAt": ["integerValue": "0"],
+                    "resolvedReason": ["stringValue": ""],
+                    "rating": ["integerValue": "0"],
+                    "isQualityPassed": ["booleanValue": false],
                     "previousRating": ["integerValue": String(ticket.rating)],
                     "previousFeedback": ["stringValue": ticket.feedback]
                 ]
@@ -1507,7 +1551,8 @@ public class SupportViewModel: ObservableObject {
                 "dispatchNote", "lastMessage", "lastMessageAt",
                 "isAcknowledged", "acknowledged", "acknowledgedAt",
                 "acknowledgedBy", "acknowledgedByName", "handlingMethod",
-                "assignedTechnicianEmails", "tracking"
+                "assignedTechnicianEmails", "tracking",
+                "toNghiepVu", "assignedApplication", "scope", "isSpecialistAssigned"
             ]
 
             var f: [String: Any] = [
@@ -1537,14 +1582,33 @@ public class SupportViewModel: ObservableObject {
                 f["assignedToEmail"] = ["stringValue": cleanTargetEmail]
                 f["assignedToName"] = ["stringValue": targetName]
                 f["assignedRole"] = ["stringValue": targetIsSpecialist ? "SPECIALIST" : "TECH"]
-                f["assignedCluster"] = ["stringValue": targetCluster]
-                if !targetDeptId.isEmpty {
-                    maskFields.append("assignedDepartmentId")
-                    f["assignedDepartmentId"] = ["stringValue": targetDeptId]
-                }
-                if !targetDeptName.isEmpty {
-                    maskFields.append("assignedDepartmentName")
-                    f["assignedDepartmentName"] = ["stringValue": targetDeptName]
+                f["scope"] = ["stringValue": targetIsSpecialist ? "DEPARTMENT" : "UNIT"]
+                f["isSpecialistAssigned"] = ["booleanValue": targetIsSpecialist]
+
+                if targetIsSpecialist {
+                    f["assignedCluster"] = ["stringValue": ""]
+                    f["toNghiepVu"] = ["stringValue": !targetDeptName.isEmpty ? targetDeptName : targetDeptId]
+                    f["assignedApplication"] = ["stringValue": ""]
+                    if !targetDeptId.isEmpty {
+                        maskFields.append("assignedDepartmentId")
+                        f["assignedDepartmentId"] = ["stringValue": targetDeptId]
+                    }
+                    if !targetDeptName.isEmpty {
+                        maskFields.append("assignedDepartmentName")
+                        f["assignedDepartmentName"] = ["stringValue": targetDeptName]
+                    }
+                } else {
+                    f["assignedCluster"] = ["stringValue": targetCluster]
+                    f["toNghiepVu"] = ["stringValue": ""]
+                    f["assignedApplication"] = ["stringValue": ""]
+                    if !targetDeptId.isEmpty {
+                        maskFields.append("assignedDepartmentId")
+                        f["assignedDepartmentId"] = ["stringValue": targetDeptId]
+                    }
+                    if !targetDeptName.isEmpty {
+                        maskFields.append("assignedDepartmentName")
+                        f["assignedDepartmentName"] = ["stringValue": targetDeptName]
+                    }
                 }
             } else {
                 systemMsg = "↩️ [Chuyển về HelpDesk] \(fromTitle) \(fromName) đã chuyển trả ticket cho HelpDesk tiếp nhận lại. Lý do: \(cleanReason)"
@@ -1560,6 +1624,10 @@ public class SupportViewModel: ObservableObject {
                 f["assignedToEmail"] = ["stringValue": ""]
                 f["assignedToName"] = ["stringValue": ""]
                 f["assignedRole"] = ["stringValue": "TECH"]
+                f["scope"] = ["stringValue": "UNIT"]
+                f["isSpecialistAssigned"] = ["booleanValue": false]
+                f["toNghiepVu"] = ["stringValue": ""]
+                f["assignedApplication"] = ["stringValue": ""]
                 f["assignedCluster"] = ["stringValue": ""]
                 f["assignedDepartmentId"] = ["stringValue": ""]
                 f["assignedDepartmentName"] = ["stringValue": ""]

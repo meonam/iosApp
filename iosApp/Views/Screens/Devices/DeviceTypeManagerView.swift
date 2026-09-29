@@ -347,11 +347,11 @@ public struct DeviceTypeManagerView: View {
         return "square.grid.2x2.fill"
     }
 
-    // MARK: - FIRESTORE OPERATIONS (USING "types" TO MATCH ANDROID)
+    // MARK: - FIRESTORE OPERATIONS (USING "device_types" TO MATCH ANDROID)
     private func loadDeviceTypes() {
         self.isLoading = true
         let companyId = effectiveCompanyId
-        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/types"
+        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types?pageSize=300"
 
         guard let requestUrl = URL(string: url) else {
             self.isLoading = false
@@ -380,7 +380,10 @@ public struct DeviceTypeManagerView: View {
                         for doc in docs {
                             if let fields = doc["fields"] as? [String: Any] {
                                 let id = (doc["name"] as? String)?.components(separatedBy: "/").last ?? ""
-                                let name = FirestoreHelper.getString(fields, "name").isEmpty ? FirestoreHelper.getString(fields, "displayName") : FirestoreHelper.getString(fields, "name")
+                                let name = FirestoreHelper.getString(fields, "name")
+                                    .ifEmpty(FirestoreHelper.getString(fields, "displayName"))
+                                    .ifEmpty(FirestoreHelper.getString(fields, "tenLoai"))
+                                    .ifEmpty(FirestoreHelper.getString(fields, "typeId"))
                                 let pb = FirestoreHelper.getString(fields, "phongBan")
                                 res.append(DeviceType(id: id, name: name.isEmpty ? id : name, phongBan: pb, companyId: companyId))
                             }
@@ -417,7 +420,7 @@ public struct DeviceTypeManagerView: View {
             .replacingOccurrences(of: " ", with: "_")
             .filter { $0.isLetter || $0.isNumber || $0 == "_" }
 
-        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/types/\(generatedId)"
+        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types/\(generatedId)"
         guard let requestUrl = URL(string: url) else { return }
 
         var request = URLRequest(url: requestUrl)
@@ -449,7 +452,7 @@ public struct DeviceTypeManagerView: View {
         guard !cleanName.isEmpty else { return }
 
         let companyId = effectiveCompanyId
-        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/types/\(id)?updateMask.fieldPaths=name&updateMask.fieldPaths=displayName"
+        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types/\(id)?updateMask.fieldPaths=name&updateMask.fieldPaths=displayName"
         guard let requestUrl = URL(string: url) else { return }
 
         var request = URLRequest(url: requestUrl)
@@ -476,7 +479,7 @@ public struct DeviceTypeManagerView: View {
 
     private func deleteDeviceType(id: String) {
         let companyId = effectiveCompanyId
-        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/types/\(id)"
+        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types/\(id)"
         guard let requestUrl = URL(string: url) else { return }
 
         var request = URLRequest(url: requestUrl)

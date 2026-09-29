@@ -94,7 +94,7 @@ public struct TicketChatDetailView: View {
     }
 
     private var canReopen: Bool {
-        isClosed && ticket.reopenCount < 2 && (ticket.isWithinQualityTrackingWindow || isAdminOrHelpDesk) && (isCreator || isAdminOrHelpDesk || isAssignedTech)
+        viewModel.isTicketReopenEnabled && isClosed && ticket.reopenCount < 2 && (ticket.isWithinQualityTrackingWindow || isAdminOrHelpDesk) && (isCreator || isAdminOrHelpDesk)
     }
 
     public var body: some View {

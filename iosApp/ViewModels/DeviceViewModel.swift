@@ -74,24 +74,28 @@ public class DeviceViewModel: ObservableObject {
 
     // Filtered devices with client-side sort & filter (Role matching Android 1:1)
     public var filteredDevices: [ThietBi] {
-        let isFullAccess = user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isWarehouse
+        let isFullAccess = user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isWarehouse || user.isTechnician || user.isSpecialist
         let isDeptManager = user.isManager
         let myEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let myDonVi = user.donVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let myDept = user.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
         // 1. Role filter
         let baseList: [ThietBi]
         if isFullAccess {
             baseList = rawDevices
         } else if isDeptManager {
-            let myDept = user.departmentId.lowercased()
             baseList = rawDevices.filter { dev in
                 let d = (dev.phongBan ?? "").lowercased()
-                return !myDept.isEmpty && (d == myDept || d.contains(myDept) || myDept.contains(d))
+                let u = dev.tenDonVi.lowercased()
+                return (!myDept.isEmpty && (d == myDept || d.contains(myDept) || myDept.contains(d))) ||
+                       (!myDonVi.isEmpty && u == myDonVi)
             }
         } else {
             baseList = rawDevices.filter { dev in
                 let c = (dev.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                return !c.isEmpty && c == myEmail
+                let u = dev.tenDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                return (!c.isEmpty && c == myEmail) || (!myDonVi.isEmpty && u == myDonVi)
             }
         }
 
@@ -213,7 +217,7 @@ public class DeviceViewModel: ObservableObject {
         errorMessage = nil
 
         Task {
-            var urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices?pageSize=1000"
+            var urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices?pageSize=300"
             if let token = nextPageToken, !isRefresh {
                 urlStr += "&pageToken=\(token)"
             }
@@ -376,7 +380,7 @@ public class DeviceViewModel: ObservableObject {
     // MARK: - LOAD DEVICE TYPES
     public func loadDeviceTypes() {
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/types"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types?pageSize=300"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -391,7 +395,10 @@ public class DeviceViewModel: ObservableObject {
                     guard let namePath = doc["name"] as? String,
                           let fields = doc["fields"] as? [String: Any] else { return nil }
                     let id = namePath.components(separatedBy: "/").last ?? ""
-                    let name = FirestoreHelper.getString(fields, "name").ifEmpty(FirestoreHelper.getString(fields, "displayName"))
+                    let name = FirestoreHelper.getString(fields, "name")
+                        .ifEmpty(FirestoreHelper.getString(fields, "displayName"))
+                        .ifEmpty(FirestoreHelper.getString(fields, "tenLoai"))
+                        .ifEmpty(FirestoreHelper.getString(fields, "typeId"))
                     let phongBan = FirestoreHelper.getString(fields, "phongBan")
                     let compId = FirestoreHelper.getString(fields, "companyId")
                     return DeviceType(id: id, name: name.isEmpty ? id : name, phongBan: phongBan, companyId: compId)
@@ -422,7 +429,7 @@ public class DeviceViewModel: ObservableObject {
             .replacingOccurrences(of: " ", with: "_")
             .filter { $0.isLetter || $0.isNumber || $0 == "_" }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/types/\(docId)"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types/\(docId)"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -459,7 +466,7 @@ public class DeviceViewModel: ObservableObject {
         let cleanName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanName.isEmpty else { return }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/types/\(typeId)?updateMask.fieldPaths=name"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types/\(typeId)?updateMask.fieldPaths=name"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -485,7 +492,7 @@ public class DeviceViewModel: ObservableObject {
     }
 
     public func deleteDeviceType(typeId: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/types/\(typeId)"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types/\(typeId)"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -507,7 +514,7 @@ public class DeviceViewModel: ObservableObject {
     public func deleteAllDeviceTypes(completion: @escaping (Result<Void, Error>) -> Void) {
         Task {
             for t in deviceTypes {
-                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/types/\(t.id)"
+                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types/\(t.id)"
                 if let url = URL(string: urlStr) {
                     var req = URLRequest(url: url)
                     req.httpMethod = "DELETE"

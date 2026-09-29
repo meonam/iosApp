@@ -459,14 +459,21 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     // MARK: - 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ
-    public func notifyTicketResolved(ticketId: String, donViName: String, subject: String, techName: String) {
+    // MARK: - 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ / NGƯỜI YÊU CẦU TỰ XỬ LÝ
+    public func notifyTicketResolved(ticketId: String, donViName: String, subject: String, techName: String, resolvedReason: String = "") {
         let dv = cleanDonViName(donViName)
+        let isSelfResolved = resolvedReason.uppercased() == "SELF_RESOLVED"
         let name = techName.isEmpty ? "Kỹ thuật viên" : techName
-        let text = "Kỹ thuật viên \(name) báo đã xử lý xong sự cố cho đơn vị \(dv)"
+
+        let title = isSelfResolved ? "💡 NGƯỜI YÊU CẦU ĐÃ TỰ XỬ LÝ" : "🛠️ ĐÃ XỬ LÝ XONG SỰ CỐ"
+        let message = isSelfResolved ? "📍 \(dv) - Người yêu cầu đã tự xử lý xong sự cố • Dừng KTV" : "📍 \(dv) - \(name) đã hoàn tất"
+        let text = isSelfResolved
+            ? "Người yêu cầu tại \(dv) đã tự xử lý xong sự cố."
+            : "Kỹ thuật viên \(name) báo đã xử lý xong sự cố cho đơn vị \(dv)"
 
         showHeadsUpNotification(
-            title: "🛠️ ĐÃ XỬ LÝ XONG SỰ CỐ",
-            message: "📍 \(dv) - \(name) đã hoàn tất",
+            title: title,
+            message: message,
             ticketId: ticketId,
             actionTitle: "🔍 NGHIỆM THU NGAY",
             actionType: "VIEW_TICKET"
@@ -518,8 +525,8 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         }
 
         for t in tickets {
-            // Không xử lý ticket đã đóng, hủy hoặc bị từ chối
-            if t.isInvalid || !t.invalidReason.isEmpty || t.status.uppercased() == "REJECTED" || t.status.uppercased() == "TU_CHOI" || t.status.uppercased() == "CLOSED" {
+            // Không xử lý ticket bị hủy hoặc bị từ chối
+            if t.isInvalid || !t.invalidReason.isEmpty || t.status.uppercased() == "REJECTED" || t.status.uppercased() == "TU_CHOI" {
                 continue
             }
 
@@ -532,7 +539,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
             if !seenTicketIds.contains(t.id) {
                 seenTicketIds.insert(t.id)
-                if !isDispatched && isCreatedAfterStart && isNotSelf && currentUser.isHelpDesk {
+                if !isDispatched && isCreatedAfterStart && isNotSelf && currentUser.isHelpDesk && t.status.uppercased() == "OPEN" {
                     notifyNewSupportRequest(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, source: t.source)
                 }
             }
@@ -563,7 +570,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 currentUser.maKhuVuc == t.assignedCluster || currentUser.isAdmin
             )
 
-            let isAssignedToMe = (isPrimary || isSpecialistMatch || isClusterMatch) && !t.isAcknowledged
+            let isAssignedToMe = (isPrimary || isSpecialistMatch || isClusterMatch) && !t.isAcknowledged && !t.isClosed && !t.isResolved
 
             let effectiveAssignedAt = t.assignedAt > 0 ? (t.assignedAt < 10_000_000_000 ? t.assignedAt * 1000 : t.assignedAt) : t.createdAt
 
@@ -594,15 +601,19 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 }
             }
 
-            // 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ
-            if t.resolvedAt > 0 && t.isResolved && (currentUser.isAdmin || currentUser.isHelpDesk) {
+            // 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ / NGƯỜI YÊU CẦU TỰ XỬ LÝ
+            let isSelf = t.isSelfResolved || t.resolvedReason.uppercased() == "SELF_RESOLVED"
+            let isResolvedCase = (t.resolvedAt > 0 && t.isResolved) || (isSelf && (t.isClosed || t.isResolved))
+            let isStaffTarget = currentUser.isAdmin || currentUser.isHelpDesk || t.isUserAssigned(email: cleanEmail)
+            if isResolvedCase && isStaffTarget {
+                let resolvedTimestamp = t.resolvedAt > 0 ? t.resolvedAt : t.closedAt
                 let lastSeenRes = seenResolved[t.id] ?? 0
-                let isFreshResolved = t.resolvedAt > lastSeenRes && (t.resolvedAt >= appStartTime || t.resolvedAt >= fiveMinutesAgo)
+                let isFreshResolved = resolvedTimestamp > lastSeenRes && (resolvedTimestamp >= appStartTime || resolvedTimestamp >= fiveMinutesAgo)
                 if isFreshResolved {
-                    seenResolved[t.id] = t.resolvedAt
-                    notifyTicketResolved(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, techName: t.resolvedByName)
+                    seenResolved[t.id] = resolvedTimestamp
+                    notifyTicketResolved(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, techName: t.resolvedByName, resolvedReason: t.resolvedReason)
                 } else if lastSeenRes == 0 {
-                    seenResolved[t.id] = t.resolvedAt
+                    seenResolved[t.id] = resolvedTimestamp
                 }
             }
         }

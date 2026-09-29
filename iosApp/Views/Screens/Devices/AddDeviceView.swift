@@ -34,6 +34,8 @@ public struct AddDeviceView: View {
 
     // Navigation to Type Manager
     @State private var showTypeManager: Bool = false
+    @State private var showTypePickerSheet: Bool = false
+    @State private var typeSearchText: String = ""
 
     public init(
         viewModel: DeviceViewModel,
@@ -144,8 +146,108 @@ public struct AddDeviceView: View {
         .sheet(isPresented: $showTypeManager) {
             DeviceTypeManagerView(
                 viewModel: viewModel,
-                onBack: { showTypeManager = false }
+                onBack: {
+                    showTypeManager = false
+                    viewModel.loadDeviceTypes()
+                }
             )
+        }
+        .sheet(isPresented: $showTypePickerSheet) {
+            typePickerSheetView
+        }
+    }
+
+    // MARK: - TYPE PICKER BOTTOM SHEET
+    private var typePickerSheetView: some View {
+        NavigationView {
+            VStack(spacing: 12) {
+                // Search field
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(Color.appTextSecondary)
+                    TextField("Tìm kiếm loại thiết bị...", text: $typeSearchText)
+                        .font(.system(size: 14))
+                    if !typeSearchText.isEmpty {
+                        Button(action: { typeSearchText = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(Color.appTextSecondary)
+                        }
+                    }
+                }
+                .padding(10)
+                .background(Color.white)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                .padding(.horizontal, 16)
+                .padding(.top, 8)
+
+                List {
+                    Button(action: {
+                        selectedLoaiThietBi = ""
+                        showTypePickerSheet = false
+                    }) {
+                        HStack {
+                            Text("Chưa chọn / Để trống")
+                                .font(.system(size: 14, weight: selectedLoaiThietBi.isEmpty ? .bold : .normal))
+                                .foregroundColor(selectedLoaiThietBi.isEmpty ? Color.appPrimaryPink : Color.appTextSecondary)
+                            Spacer()
+                            if selectedLoaiThietBi.isEmpty {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(Color.appPrimaryPink)
+                            }
+                        }
+                    }
+
+                    let filteredTypes = viewModel.deviceTypes.filter { t in
+                        typeSearchText.isEmpty || t.displayName.localizedCaseInsensitiveContains(typeSearchText)
+                    }
+
+                    ForEach(filteredTypes) { t in
+                        Button(action: {
+                            selectedLoaiThietBi = t.id
+                            showTypePickerSheet = false
+                        }) {
+                            HStack {
+                                Text(t.displayName)
+                                    .font(.system(size: 14, weight: (selectedLoaiThietBi == t.id || selectedLoaiThietBi == t.name) ? .bold : .normal))
+                                    .foregroundColor((selectedLoaiThietBi == t.id || selectedLoaiThietBi == t.name) ? Color.appPrimaryPink : Color.appTextPrimary)
+                                Spacer()
+                                if selectedLoaiThietBi == t.id || selectedLoaiThietBi == t.name {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(Color.appPrimaryPink)
+                                }
+                            }
+                        }
+                    }
+                }
+                .listStyle(PlainListStyle())
+            }
+            .navigationTitle("Chọn loại thiết bị")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if canManageType {
+                        Button(action: {
+                            showTypePickerSheet = false
+                            if let onNav = onNavigateToTypeManager {
+                                onNav()
+                            } else {
+                                showTypeManager = true
+                            }
+                        }) {
+                            Text("+ Thêm loại")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appPrimaryPink)
+                        }
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Đóng") {
+                        showTypePickerSheet = false
+                    }
+                    .font(.system(size: 14, weight: .bold))
+                }
+            }
         }
     }
 
@@ -257,18 +359,9 @@ public struct AddDeviceView: View {
                     }
                 }
 
-                Menu {
-                    Button("Chọn loại thiết bị...") {
-                        selectedLoaiThietBi = ""
-                    }
-                    ForEach(viewModel.deviceTypes) { t in
-                        Button(t.displayName) {
-                            selectedLoaiThietBi = t.id
-                        }
-                    }
-                } label: {
+                Button(action: { showTypePickerSheet = true }) {
                     HStack {
-                        let currentDisplay = viewModel.deviceTypes.first(where: { $0.id == selectedLoaiThietBi })?.displayName ?? "Chọn loại thiết bị..."
+                        let currentDisplay = viewModel.deviceTypes.first(where: { $0.id == selectedLoaiThietBi || $0.name == selectedLoaiThietBi })?.displayName ?? (selectedLoaiThietBi.isEmpty ? "Chọn loại thiết bị..." : selectedLoaiThietBi)
                         Text(currentDisplay)
                             .font(.system(size: 14))
                             .foregroundColor(selectedLoaiThietBi.isEmpty ? Color.appTextSecondary : Color.appTextPrimary)
