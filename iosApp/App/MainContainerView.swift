@@ -7,6 +7,7 @@ public struct MainContainerView: View {
     @StateObject private var homeViewModel = HomeViewModel(user: User(), companyId: "SGCOOP", idToken: "")
     @StateObject private var supportViewModel = SupportViewModel(user: User(), companyId: "SGCOOP", idToken: "")
     @StateObject private var adminViewModel = AdminViewModel(user: User(), companyId: "SGCOOP", idToken: "")
+    @StateObject private var deviceViewModel = DeviceViewModel(user: User(), companyId: "SGCOOP", idToken: "")
     @StateObject private var incomingCallManager = IncomingCallManager.shared
     @State private var currentDestination: DrawerDestination = .home
     @State private var isDrawerOpen: Bool = false
@@ -155,6 +156,10 @@ public struct MainContainerView: View {
                         adminViewModel.companyId = compId
                         adminViewModel.idToken = token
                         adminViewModel.fetchAllDataIfNeeded()
+
+                        deviceViewModel.user = user
+                        deviceViewModel.companyId = compId.isEmpty || compId == "DEFAULT" ? "SGCOOP" : compId
+                        deviceViewModel.idToken = token
                     }
                     .onChange(of: authViewModel.currentUser) { newUser in
                         if let u = newUser {
@@ -180,6 +185,10 @@ public struct MainContainerView: View {
                             adminViewModel.companyId = cid
                             adminViewModel.idToken = tok
                             adminViewModel.fetchAllDataIfNeeded()
+
+                            deviceViewModel.user = u
+                            deviceViewModel.companyId = cid.isEmpty || cid == "DEFAULT" ? "SGCOOP" : cid
+                            deviceViewModel.idToken = tok
                         } else {
                             incomingCallManager.stopListening()
                             supportViewModel.stopAutoPolling()
@@ -373,27 +382,38 @@ public struct MainContainerView: View {
 
         case .deviceList:
             DeviceListView(
-                viewModel: DeviceViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: deviceViewModel,
                 onBack: { currentDestination = .home },
                 onNavigateToAdd: { showAddDeviceSheet = true },
                 onNavigateToPrint: { currentDestination = .printBarcode }
             )
             .sheet(isPresented: $showAddDeviceSheet) {
                 AddDeviceView(
-                    viewModel: DeviceViewModel(user: user, companyId: compId, idToken: token),
-                    onDismiss: { showAddDeviceSheet = false }
+                    viewModel: deviceViewModel,
+                    onDismiss: {
+                        showAddDeviceSheet = false
+                        deviceViewModel.fetchDevices(isRefresh: true)
+                    },
+                    onSuccess: { _ in
+                        showAddDeviceSheet = false
+                        deviceViewModel.fetchDevices(isRefresh: true)
+                    }
                 )
             }
 
         case .addDevice:
             AddDeviceView(
-                viewModel: DeviceViewModel(user: user, companyId: compId, idToken: token),
-                onDismiss: { currentDestination = .deviceList }
+                viewModel: deviceViewModel,
+                onDismiss: { currentDestination = .deviceList },
+                onSuccess: { _ in
+                    currentDestination = .deviceList
+                    deviceViewModel.fetchDevices(isRefresh: true)
+                }
             )
 
         case .printBarcode:
             PrintQrLabelView(
-                viewModel: DeviceViewModel(user: user, companyId: compId, idToken: token),
+                viewModel: deviceViewModel,
                 onBack: { currentDestination = .home }
             )
 

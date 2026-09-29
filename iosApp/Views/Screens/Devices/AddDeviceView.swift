@@ -65,12 +65,14 @@ public struct AddDeviceView: View {
 
     private var userDonVi: String {
         let u = viewModel.user.unitId.trimmingCharacters(in: .whitespacesAndNewlines)
-        return u.isEmpty ? "PCNTT" : u
+        if !u.isEmpty && u.uppercased() != "ALL" { return u }
+        return viewModel.units.first ?? "Co.opMart Thắng Nhất"
     }
 
     private var userPhongBan: String {
         let p = viewModel.user.departmentId.trimmingCharacters(in: .whitespacesAndNewlines)
-        return p.isEmpty ? "PCNTT" : p
+        if !p.isEmpty && p.uppercased() != "ALL" { return p }
+        return viewModel.departments.first ?? "Phòng Kế Toán"
     }
 
     private var canManageType: Bool {

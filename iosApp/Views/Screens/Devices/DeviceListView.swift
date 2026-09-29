@@ -404,6 +404,9 @@ public struct DeviceListView: View {
                             .padding(12)
                             .padding(.bottom, viewModel.isBatchModeEnabled && !viewModel.selectedBatchDeviceIds.isEmpty ? 80 : 20)
                         }
+                        .refreshable {
+                            viewModel.fetchDevices(isRefresh: true)
+                        }
                     }
                 }
 
@@ -463,9 +466,7 @@ public struct DeviceListView: View {
         }
         .ignoresSafeArea(edges: .top)
         .onAppear {
-            if viewModel.rawDevices.isEmpty {
-                viewModel.fetchDevices()
-            }
+            viewModel.fetchDevices(isRefresh: true)
             viewModel.loadDepartmentsAndUnits()
             viewModel.loadDeviceTypes()
         }

@@ -196,6 +196,18 @@ public class AuthViewModel: ObservableObject {
                     }
                 }
             }
+
+            // Luôn đồng bộ lại thông tin profile mới nhất từ Firestore để cập nhật phòng ban/đơn vị
+            Task {
+                let (compId, freshUser) = await AuthService.shared.resolveUserProfile(email: savedEmail, idToken: self.currentIdToken)
+                if let u = freshUser {
+                    await MainActor.run {
+                        self.currentUser = u
+                        if !compId.isEmpty { self.currentCompanyId = self.normalizeCompanyId(compId) }
+                        self.saveSession()
+                    }
+                }
+            }
         }
     }
 }

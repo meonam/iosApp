@@ -108,14 +108,14 @@ public class DeviceViewModel: ObservableObject {
                 let u = dev.tenDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 let d = (dev.phongBan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
-                let matchCreated = !c.isEmpty && !myEmail.isEmpty && c == myEmail
+                let matchCreated = !c.isEmpty && !myEmail.isEmpty && (c == myEmail || c.contains(myEmail) || myEmail.contains(c))
                 let matchUnit = !myDonVi.isEmpty && (u == myDonVi || u.contains(myDonVi) || myDonVi.contains(u))
                 let matchDept = !myDept.isEmpty && (d == myDept || d.contains(myDept) || myDept.contains(d))
                 return matchCreated || matchUnit || matchDept
             }
 
-            // Nếu user profile chưa thiết lập đơn vị/phòng ban và chưa tạo thiết bị nào, hiển thị danh sách thiết bị để không bị rỗng
-            if staffMatched.isEmpty && myDonVi.isEmpty && myDept.isEmpty {
+            // Nếu lọc theo tài khoản/đơn vị chưa khớp (do cấu hình đơn vị mới), hiển thị toàn bộ thiết bị đã tải để không bị mất thiết bị
+            if staffMatched.isEmpty {
                 baseList = rawDevices
             } else {
                 baseList = staffMatched
@@ -269,24 +269,45 @@ public class DeviceViewModel: ObservableObject {
                     guard let name = doc["name"] as? String,
                           let fields = doc["fields"] as? [String: Any] else { return nil }
                     let id = name.components(separatedBy: "/").last ?? ""
+                    let ten = FirestoreHelper.getString(fields, "ten")
+                        .ifEmpty(FirestoreHelper.getString(fields, "name"))
+                        .ifEmpty(id)
+                    let donVi = FirestoreHelper.getString(fields, "tenDonVi")
+                        .ifEmpty(FirestoreHelper.getString(fields, "donVi"))
+                        .ifEmpty(FirestoreHelper.getString(fields, "unitId"))
+                    let trangThai = FirestoreHelper.getString(fields, "trangThai")
+                        .ifEmpty(FirestoreHelper.getString(fields, "status"))
+                        .ifEmpty(DeviceStatusConstants.statusInStock)
+                    let loai = FirestoreHelper.getString(fields, "loai")
+                        .ifEmpty(FirestoreHelper.getString(fields, "deviceType"))
+                    let phongBan = FirestoreHelper.getString(fields, "phongBan")
+                        .ifEmpty(FirestoreHelper.getString(fields, "departmentId"))
+                        .ifEmpty(FirestoreHelper.getString(fields, "role"))
+                    let moTa = FirestoreHelper.getString(fields, "moTa")
+                        .ifEmpty(FirestoreHelper.getString(fields, "description"))
+                    let createdBy = FirestoreHelper.getString(fields, "createdBy")
+                        .ifEmpty(FirestoreHelper.getString(fields, "created_by"))
+                    let companyId = FirestoreHelper.getString(fields, "companyId")
+                        .ifEmpty("SGCOOP")
+
                     return ThietBi(
                         id: id,
-                        ten: FirestoreHelper.getString(fields, "ten"),
-                        tenDonVi: FirestoreHelper.getString(fields, "tenDonVi"),
-                        trangThai: FirestoreHelper.getString(fields, "trangThai"),
+                        ten: ten,
+                        tenDonVi: donVi,
+                        trangThai: trangThai,
                         createdAt: FirestoreHelper.getInt64(fields, "createdAt"),
                         role: FirestoreHelper.getString(fields, "role"),
-                        loai: FirestoreHelper.getString(fields, "loai"),
-                        phongBan: FirestoreHelper.getString(fields, "phongBan"),
-                        moTa: FirestoreHelper.getString(fields, "moTa"),
-                        createdBy: FirestoreHelper.getString(fields, "createdBy"),
-                        companyId: FirestoreHelper.getString(fields, "companyId"),
+                        loai: loai,
+                        phongBan: phongBan,
+                        moTa: moTa,
+                        createdBy: createdBy,
+                        companyId: companyId,
                         synced: true,
-                        donViMuon: FirestoreHelper.getString(fields, "donViMuon"),
-                        phongBanMuon: FirestoreHelper.getString(fields, "phongBanMuon"),
-                        nguoiMuon: FirestoreHelper.getString(fields, "nguoiMuon"),
-                        ngayMuon: FirestoreHelper.getString(fields, "ngayMuon"),
-                        ngayHenTra: FirestoreHelper.getString(fields, "ngayHenTra")
+                        donViMuon: FirestoreHelper.getString(fields, "donViMuon").ifEmpty(FirestoreHelper.getString(fields, "don_vi_muon")),
+                        phongBanMuon: FirestoreHelper.getString(fields, "phongBanMuon").ifEmpty(FirestoreHelper.getString(fields, "phong_ban_muon")),
+                        nguoiMuon: FirestoreHelper.getString(fields, "nguoiMuon").ifEmpty(FirestoreHelper.getString(fields, "nguoi_muon")),
+                        ngayMuon: FirestoreHelper.getString(fields, "ngayMuon").ifEmpty(FirestoreHelper.getString(fields, "ngay_muon")),
+                        ngayHenTra: FirestoreHelper.getString(fields, "ngayHenTra").ifEmpty(FirestoreHelper.getString(fields, "ngay_hen_tra"))
                     )
                 }
 
@@ -586,6 +607,7 @@ public class DeviceViewModel: ObservableObject {
             return
         }
 
+        let effectiveCompId = self.companyId.isEmpty ? "SGCOOP" : self.companyId
         let effectiveStatus = DeviceStatusConstants.normalize(customStatus, phongBan: phongBan, roleOrUser: user.role)
         let isLoan = effectiveStatus == DeviceStatusConstants.statusOnLoan
         let now = Int64(Date().timeIntervalSince1970 * 1000)
@@ -600,7 +622,7 @@ public class DeviceViewModel: ObservableObject {
             "phongBan": ["stringValue": phongBan],
             "loai": ["stringValue": loai.lowercased().replacingOccurrences(of: " ", with: "")],
             "trangThai": ["stringValue": effectiveStatus],
-            "companyId": ["stringValue": companyId],
+            "companyId": ["stringValue": effectiveCompId],
             "createdAt": ["integerValue": "\(now)"],
             "createdBy": ["stringValue": user.email]
         ]
@@ -613,7 +635,7 @@ public class DeviceViewModel: ObservableObject {
             fields["ngayMuon"] = ["stringValue": dateStr]
         }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(cleanId)"
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(effectiveCompId)/devices/\(cleanId)"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -629,8 +651,34 @@ public class DeviceViewModel: ObservableObject {
             let res = await FirestoreHelper.executeSafeRequest(request)
             self.isLoading = false
             if let (data, http) = res, (200...299).contains(http.statusCode) {
+                let newDevice = ThietBi(
+                    id: cleanId,
+                    ten: cleanTen,
+                    tenDonVi: donVi,
+                    trangThai: effectiveStatus,
+                    createdAt: now,
+                    role: self.user.role,
+                    loai: loai,
+                    phongBan: phongBan,
+                    moTa: nil,
+                    createdBy: self.user.email,
+                    companyId: effectiveCompId,
+                    synced: true,
+                    donViMuon: donViMuon,
+                    phongBanMuon: phongBanMuon,
+                    nguoiMuon: nguoiMuon,
+                    ngayMuon: isLoan ? dateStr : nil,
+                    ngayHenTra: ngayHenTra
+                )
+                // Chèn trực tiếp vào đầu danh sách để cập nhật tức thì trong bộ nhớ
+                if let idx = self.rawDevices.firstIndex(where: { $0.id.caseInsensitiveCompare(cleanId) == .orderedSame }) {
+                    self.rawDevices[idx] = newDevice
+                } else {
+                    self.rawDevices.insert(newDevice, at: 0)
+                }
+                self.autoExpandAllGroups()
                 self.successMessage = "Đã thêm thiết bị thành công"
-                self.fetchDevices()
+                self.fetchDevices(isRefresh: true)
                 completion(.success(cleanId))
             } else {
                 let errMsg = res != nil ? (String(data: res!.0, encoding: .utf8) ?? "Lỗi thêm thiết bị") : "Lỗi kết nối máy chủ"
