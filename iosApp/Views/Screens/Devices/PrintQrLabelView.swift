@@ -308,7 +308,7 @@ public struct PrintQrLabelView: View {
                 .toggleStyle(SwitchToggleStyle(tint: Color.appPrimaryPink))
             }
             .padding(14)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(14)
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
 
@@ -344,7 +344,7 @@ public struct PrintQrLabelView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color.appPrimaryPink)
                     .frame(width: 80, height: 48)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(12)
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appPrimaryPink, lineWidth: 1.5))
                 }
@@ -490,7 +490,7 @@ public struct PrintQrLabelView: View {
                 }
             }
             .padding(10)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(10)
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
 
@@ -532,7 +532,7 @@ public struct PrintQrLabelView: View {
                                 .cornerRadius(6)
                         }
                         .padding(10)
-                        .background(isSelected ? Color.appPrimaryPink.opacity(0.06) : Color.white)
+                        .background(isSelected ? Color.appPrimaryPink.opacity(0.06) : Color.appSurface)
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(isSelected ? Color.appPrimaryPink : Color.appCardBorder, lineWidth: isSelected ? 1.5 : 1))
                     }
@@ -563,14 +563,14 @@ public struct PrintQrLabelView: View {
                             Spacer()
                         }
                         .padding(12)
-                        .background(isSel ? Color.appPrimaryPink.opacity(0.06) : Color.white)
+                        .background(isSel ? Color.appPrimaryPink.opacity(0.06) : Color.appSurface)
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(isSel ? Color.appPrimaryPink : Color.appCardBorder, lineWidth: 1))
                     }
                 }
             }
             .padding(14)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(14)
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
 
@@ -605,7 +605,7 @@ public struct PrintQrLabelView: View {
                     .foregroundColor(Color.appPrimaryPink)
             }
             .padding(14)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(14)
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
 
@@ -650,14 +650,14 @@ public struct PrintQrLabelView: View {
                             Spacer()
                         }
                         .padding(12)
-                        .background(isSel ? Color.appPrimaryPink.opacity(0.06) : Color.white)
+                        .background(isSel ? Color.appPrimaryPink.opacity(0.06) : Color.appSurface)
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(isSel ? Color.appPrimaryPink : Color.appCardBorder, lineWidth: 1))
                     }
                 }
             }
             .padding(14)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(14)
             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
 

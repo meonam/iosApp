@@ -155,7 +155,7 @@ public struct DeviceListView: View {
                             }
                         }
                         .padding(10)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(12)
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
 
@@ -616,11 +616,11 @@ public struct DeviceListView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(isExpanded ? Color.appPrimaryPink.opacity(0.08) : Color.white)
+            .background(isExpanded ? Color.appPrimaryPink.opacity(0.08) : Color.appSurface)
             .cornerRadius(14)
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
-                    .stroke(isExpanded ? Color.appPrimaryPink.opacity(0.5) : Color(hex: "#DDE2E5"), lineWidth: isExpanded ? 1.5 : 1)
+                    .stroke(isExpanded ? Color.appPrimaryPink.opacity(0.5) : Color.appCardBorder, lineWidth: isExpanded ? 1.5 : 1)
             )
         }
         .buttonStyle(PlainButtonStyle())
@@ -639,7 +639,7 @@ public struct DeviceListView: View {
                 // Icon tòa nhà
                 ZStack {
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(isExpanded ? Color.appSecondaryDarkBlue.opacity(0.15) : Color(hex: "#E2E8F0"))
+                        .fill(isExpanded ? Color.appSecondaryDarkBlue.opacity(0.15) : Color.appCardBorder)
                         .frame(width: 28, height: 28)
 
                     Image(systemName: iconName)
@@ -656,7 +656,7 @@ public struct DeviceListView: View {
 
                     Text("\(deviceCount) thiết bị")
                         .font(.system(size: 11))
-                        .foregroundColor(Color.gray)
+                        .foregroundColor(Color.appTextSecondary)
                         .lineLimit(1)
                 }
 
@@ -668,11 +668,11 @@ public struct DeviceListView: View {
                     .foregroundColor(Color.appSecondaryDarkBlue)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(6)
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
-                            .stroke(Color(hex: "#E2E8F0"), lineWidth: 1)
+                            .stroke(Color.appCardBorder, lineWidth: 1)
                     )
 
                 // Chevron mũi tên
@@ -920,11 +920,11 @@ public struct DeviceListView: View {
             }
         }
         .padding(14)
-        .background(isSelectedInBatch ? Color.appPrimaryPink.opacity(0.06) : Color.white)
+        .background(isSelectedInBatch ? Color.appPrimaryPink.opacity(0.06) : Color.appSurface)
         .cornerRadius(14)
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(isSelectedInBatch ? Color.appPrimaryPink : Color(hex: "#DDE2E5"), lineWidth: isSelectedInBatch ? 1.5 : 1)
+                .stroke(isSelectedInBatch ? Color.appPrimaryPink : Color.appCardBorder, lineWidth: isSelectedInBatch ? 1.5 : 1)
         )
         .opacity(isLiquidated ? 0.5 : 1.0)
     }
@@ -939,8 +939,9 @@ public struct DeviceListView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(Color.appSecondaryDarkBlue)
                     TextField("Tên thiết bị", text: $editTen)
+                        .foregroundColor(Color.appTextPrimary)
                         .padding(12)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                 }
@@ -950,8 +951,9 @@ public struct DeviceListView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(Color.appSecondaryDarkBlue)
                     TextField("Số serial", text: $editSerial)
+                        .foregroundColor(Color.appTextPrimary)
                         .padding(12)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                 }
@@ -1043,7 +1045,7 @@ public struct ModernActionBottomSheetView: View {
                                     .foregroundColor(Color.appTextSecondary)
                             }
                             .padding(12)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(10)
                             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                         }
@@ -1056,8 +1058,9 @@ public struct ModernActionBottomSheetView: View {
                             .foregroundColor(Color.appSecondaryDarkBlue)
 
                         TextField("Nhập lý do chuyển trạng thái, thông tin bổ sung...", text: $actionNote)
+                            .foregroundColor(Color.appTextPrimary)
                             .padding(12)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(10)
                             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                     }
@@ -1067,7 +1070,7 @@ public struct ModernActionBottomSheetView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("📋 Thông tin bên tiếp nhận mượn")
                                 .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(Color(hex: "#7E22CE"))
+                                .foregroundColor(Color.dynamic(light: "#7E22CE", dark: "#D8B4FE"))
 
                             // Đơn vị mượn
                             Menu {
@@ -1090,31 +1093,34 @@ public struct ModernActionBottomSheetView: View {
                                         .foregroundColor(Color.appTextSecondary)
                                 }
                                 .padding(10)
-                                .background(Color.white)
+                                .background(Color.appSurface)
                                 .cornerRadius(8)
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#C084FC"), lineWidth: 1))
                             }
 
                             TextField("Phòng ban mượn...", text: $phongBanMuon)
+                                .foregroundColor(Color.appTextPrimary)
                                 .padding(10)
-                                .background(Color.white)
+                                .background(Color.appSurface)
                                 .cornerRadius(8)
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#C084FC"), lineWidth: 1))
 
                             TextField("Người mượn (Tên/SĐT)...", text: $nguoiMuon)
+                                .foregroundColor(Color.appTextPrimary)
                                 .padding(10)
-                                .background(Color.white)
+                                .background(Color.appSurface)
                                 .cornerRadius(8)
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#C084FC"), lineWidth: 1))
 
                             TextField("Ngày hẹn trả (dd/MM/yyyy)...", text: $ngayHenTra)
+                                .foregroundColor(Color.appTextPrimary)
                                 .padding(10)
-                                .background(Color.white)
+                                .background(Color.appSurface)
                                 .cornerRadius(8)
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#C084FC"), lineWidth: 1))
                         }
                         .padding(12)
-                        .background(Color(hex: "#F3E8FF").opacity(0.6))
+                        .background(Color.dynamic(light: "#F3E8FF", dark: "#3B1B54").opacity(0.6))
                         .cornerRadius(12)
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#C084FC"), lineWidth: 1))
                     }

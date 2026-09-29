@@ -89,7 +89,7 @@ public struct LichSuView: View {
                             }
                         }
                         .padding(10)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
 
@@ -234,7 +234,7 @@ public struct LichSuView: View {
             }
         }
         .padding(12)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }

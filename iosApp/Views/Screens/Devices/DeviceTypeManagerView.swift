@@ -182,8 +182,9 @@ public struct DeviceTypeManagerView: View {
                         .foregroundColor(Color.appSecondaryDarkBlue)
 
                     TextField("Ví dụ: Máy scan, Máy chấm công...", text: $newTypeName)
+                        .foregroundColor(Color.appTextPrimary)
                         .padding(12)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
 
@@ -224,8 +225,9 @@ public struct DeviceTypeManagerView: View {
                         .foregroundColor(Color.appSecondaryDarkBlue)
 
                     TextField("Tên mới", text: $editTypeName)
+                        .foregroundColor(Color.appTextPrimary)
                         .padding(12)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
 
@@ -330,7 +332,7 @@ public struct DeviceTypeManagerView: View {
             }
         }
         .padding(12)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }

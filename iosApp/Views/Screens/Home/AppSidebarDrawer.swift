@@ -544,24 +544,24 @@ public struct AppSidebarDrawer: View {
                         .foregroundColor(Color(hex: "#DC2626"))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 7)
-                        .background(Color(hex: "#FEF2F2"))
+                        .background(Color.dynamic(light: "#FEF2F2", dark: "#450A0A"))
                         .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#FCA5A5"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.dynamic(light: "#FCA5A5", dark: "#991B1B"), lineWidth: 1))
                     }
 
                     Spacer()
 
                     Text("v1.2.0")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color.gray)
+                        .foregroundColor(Color.appTextSecondary)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
                 .padding(.bottom, max(geometry.safeAreaInsets.bottom - 4, 4))
-                .background(Color.white)
+                .background(Color.appSurface)
             }
             .frame(width: min(geometry.size.width * 0.82, 320))
-            .background(Color(hex: "#F8FAFC"))
+            .background(Color.appBackground)
             .ignoresSafeArea(edges: .all)
         }
     }

@@ -143,7 +143,7 @@ public struct DeviceDetailView: View {
                                         detailRow(label: "Ghi chú", value: moTa)
                                     }
                                 }
-                                .background(Color.white)
+                                .background(Color.appSurface)
                                 .cornerRadius(14)
                                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
                                 .padding(.horizontal, 16)

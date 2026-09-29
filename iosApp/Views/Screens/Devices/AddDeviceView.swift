@@ -169,6 +169,7 @@ public struct AddDeviceView: View {
                         .foregroundColor(Color.appTextSecondary)
                     TextField("Tìm kiếm loại thiết bị...", text: $typeSearchText)
                         .font(.system(size: 14))
+                        .foregroundColor(Color.appTextPrimary)
                     if !typeSearchText.isEmpty {
                         Button(action: { typeSearchText = "" }) {
                             Image(systemName: "xmark.circle.fill")
@@ -177,7 +178,7 @@ public struct AddDeviceView: View {
                     }
                 }
                 .padding(10)
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(10)
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                 .padding(.horizontal, 16)
@@ -199,6 +200,7 @@ public struct AddDeviceView: View {
                             }
                         }
                     }
+                    .listRowBackground(Color.appSurface)
 
                     let filteredTypes = viewModel.deviceTypes.filter { t in
                         typeSearchText.isEmpty || t.displayName.localizedCaseInsensitiveContains(typeSearchText)
@@ -220,10 +222,13 @@ public struct AddDeviceView: View {
                                 }
                             }
                         }
+                        .listRowBackground(Color.appSurface)
                     }
                 }
                 .listStyle(PlainListStyle())
+                .background(Color.appBackground)
             }
+            .background(Color.appBackground)
             .navigationTitle("Chọn loại thiết bị")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -283,7 +288,7 @@ public struct AddDeviceView: View {
                     }
                 }
                 .padding(12)
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(10)
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
 
@@ -328,7 +333,7 @@ public struct AddDeviceView: View {
                         .font(.system(size: 14))
                 }
                 .padding(12)
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(10)
                 .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
             }
@@ -375,7 +380,7 @@ public struct AddDeviceView: View {
                             .foregroundColor(Color.appTextSecondary)
                     }
                     .padding(12)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(10)
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                 }
@@ -406,7 +411,7 @@ public struct AddDeviceView: View {
                             .foregroundColor(Color.appTextSecondary)
                     }
                     .padding(12)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(10)
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                 }
@@ -417,13 +422,13 @@ public struct AddDeviceView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("📋 Thông tin bên tiếp nhận mượn")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(Color(hex: "#7E22CE"))
+                        .foregroundColor(Color.dynamic(light: "#7E22CE", dark: "#D8B4FE"))
 
                     // Đơn vị mượn
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Đơn vị mượn *")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color(hex: "#7E22CE"))
+                            .foregroundColor(Color.dynamic(light: "#7E22CE", dark: "#D8B4FE"))
 
                         Menu {
                             ForEach(viewModel.units, id: \.self) { u in
@@ -447,7 +452,7 @@ public struct AddDeviceView: View {
                                     .foregroundColor(Color.appTextSecondary)
                             }
                             .padding(10)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(8)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#C084FC"), lineWidth: 1))
                         }
@@ -457,19 +462,20 @@ public struct AddDeviceView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Phòng ban mượn")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color(hex: "#7E22CE"))
+                            .foregroundColor(Color.dynamic(light: "#7E22CE", dark: "#D8B4FE"))
 
                         TextField("Nhập hoặc tự động gán phòng ban mượn...", text: $phongBanMuon)
                             .font(.system(size: 14))
+                            .foregroundColor(Color.appTextPrimary)
                             .padding(10)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(8)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#C084FC"), lineWidth: 1))
 
                         if !donViMuon.isEmpty && !phongBanMuon.isEmpty {
                             Text("✓ Tự động gán theo phòng ban quản lý đơn vị")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(Color(hex: "#16A34A"))
+                                .foregroundColor(Color.dynamic(light: "#16A34A", dark: "#4ADE80"))
                         }
                     }
 
@@ -477,12 +483,13 @@ public struct AddDeviceView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Người mượn (Tên/SĐT)")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color(hex: "#7E22CE"))
+                            .foregroundColor(Color.dynamic(light: "#7E22CE", dark: "#D8B4FE"))
 
                         TextField("Nhập tên hoặc số điện thoại người mượn...", text: $nguoiMuon)
                             .font(.system(size: 14))
+                            .foregroundColor(Color.appTextPrimary)
                             .padding(10)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(8)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#C084FC"), lineWidth: 1))
                     }
@@ -491,18 +498,19 @@ public struct AddDeviceView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Ngày hẹn trả (dd/MM/yyyy)")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color(hex: "#7E22CE"))
+                            .foregroundColor(Color.dynamic(light: "#7E22CE", dark: "#D8B4FE"))
 
                         TextField("Ví dụ: 30/12/2026", text: $ngayHenTra)
                             .font(.system(size: 14))
+                            .foregroundColor(Color.appTextPrimary)
                             .padding(10)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(8)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#C084FC"), lineWidth: 1))
                     }
                 }
                 .padding(12)
-                .background(Color(hex: "#F3E8FF").opacity(0.6))
+                .background(Color.dynamic(light: "#F3E8FF", dark: "#3B1B54").opacity(0.6))
                 .cornerRadius(12)
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#C084FC"), lineWidth: 1))
             }
@@ -556,7 +564,7 @@ public struct AddDeviceView: View {
             .padding(.top, 6)
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(16)
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.appCardBorder, lineWidth: 1))
     }

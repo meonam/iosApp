@@ -1,39 +1,73 @@
 import SwiftUI
+import UIKit
 
-// MARK: - APP THEME COLORS (ĐỒNG BỘ 1:1 VỚI ANDROID THEME & COLOR.KT)
+// MARK: - UI COLOR HEX EXTENSION
+public extension UIColor {
+    convenience init(hex: String) {
+        let cleanHex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: cleanHex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch cleanHex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (255, 0, 0, 0)
+        }
+        self.init(
+            red: CGFloat(r) / 255.0,
+            green: CGFloat(g) / 255.0,
+            blue: CGFloat(b) / 255.0,
+            alpha: CGFloat(a) / 255.0
+        )
+    }
+}
+
+// MARK: - APP THEME COLORS (ĐỒNG BỘ 1:1 VỚI ANDROID THEME & COLOR.KT, HỖ TRỢ DARK MODE TỰ ĐỘNG)
 public extension Color {
+    // Tiện ích tạo màu động thích ứng Light / Dark mode
+    static func dynamic(light: String, dark: String) -> Color {
+        Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark ? UIColor(hex: dark) : UIColor(hex: light)
+        })
+    }
+
     // 1. Mã màu chủ đạo thương hiệu (chuẩn 1:1 theo Color.kt trên Android)
     static let appPrimaryPink = Color(hex: "#F40266")          // Hồng rực rỡ thương hiệu
     static let appPrimaryPinkLight = Color(hex: "#FF4081")     // Hồng sáng
-    static let appPrimaryPinkContainer = Color(hex: "#FCE4EC") // Hồng nhạt container
-    static let appSecondaryDarkBlue = Color(hex: "#002A8F")   // Xanh Đậm / Dark Navy Blue
-    static let appDarkBlueContainer = Color(hex: "#E8EAF6")    // Xanh đậm container nhạt
-    static let appTopBarColor = Color(hex: "#002A8F")          // Xanh Đậm (Thanh trên)
-    static let appPrimary = Color(hex: "#002A8F")              // Xanh Đậm Primary
+    static let appPrimaryPinkContainer = Color.dynamic(light: "#FCE4EC", dark: "#4A0020") // Hồng nhạt container
+    static let appSecondaryDarkBlue = Color.dynamic(light: "#002A8F", dark: "#60A5FA")   // Xanh Đậm trong Light, Sky Blue trong Dark
+    static let appDarkBlueContainer = Color.dynamic(light: "#E8EAF6", dark: "#1E293B")    // Xanh đậm container nhạt
+    static let appTopBarColor = Color.dynamic(light: "#002A8F", dark: "#0A192F")          // Xanh Đậm (Thanh trên)
+    static let appPrimary = Color.dynamic(light: "#002A8F", dark: "#60A5FA")              // Xanh Đậm Primary
 
     // 2. Màu thanh điều hướng dưới & Nút nổi FAB
-    static let appBottomBarBackground = Color(hex: "#0A192F")  // Xanh Đậm Đêm (Thanh dưới)
+    static let appBottomBarBackground = Color.dynamic(light: "#0A192F", dark: "#0A192F")  // Xanh Đậm Đêm (Thanh dưới)
     static let appBottomBarSelected = Color(hex: "#F40266")    // Hồng Highlight khi chọn
     static let appBottomBarUnselected = Color(hex: "#94A3B8")  // Slate Muted
     static let appFabGreen = Color(hex: "#2E7D32")             // Xanh lá nút nổi Hỗ trợ (FAB)
 
-    // 3. Màu nền và text hệ thống
-    static let appBackground = Color(hex: "#F8FAFC")
-    static let appSurface = Color.white
-    static let appSurfaceVariant = Color(hex: "#F1F5F9")
-    static let appCardBorder = Color(hex: "#E2E8F0")
-    static let appTextPrimary = Color(hex: "#0F172A")
-    static let appTextSecondary = Color(hex: "#475569")
-    static let appTextMuted = Color(hex: "#94A3B8")
-    static let appDivider = Color(hex: "#CBD5E1")
+    // 3. Màu nền và text hệ thống (Tự động thích ứng Light / Dark mode)
+    static let appBackground = Color.dynamic(light: "#F8FAFC", dark: "#0B1120")
+    static let appSurface = Color.dynamic(light: "#FFFFFF", dark: "#1E293B")
+    static let appSurfaceVariant = Color.dynamic(light: "#F1F5F9", dark: "#334155")
+    static let appCardBorder = Color.dynamic(light: "#E2E8F0", dark: "#334155")
+    static let appTextPrimary = Color.dynamic(light: "#0F172A", dark: "#F8FAFC")
+    static let appTextSecondary = Color.dynamic(light: "#475569", dark: "#CBD5E1")
+    static let appTextMuted = Color.dynamic(light: "#94A3B8", dark: "#64748B")
+    static let appDivider = Color.dynamic(light: "#CBD5E1", dark: "#334155")
 
-    // 3. Màu trạng thái hệ thống
+    // 4. Màu trạng thái hệ thống
     static let appSuccess = Color(hex: "#10B981")
     static let appWarning = Color(hex: "#F59E0B")
     static let appDanger = Color(hex: "#EF4444")
-    static let appInfo = Color(hex: "#3B82F6")
+    static let appInfo = Color.dynamic(light: "#3B82F6", dark: "#60A5FA")
 
-    // 4. Màu trạng thái thiết bị chuẩn (DeviceStatusConstants)
+    // 5. Màu trạng thái thiết bị chuẩn (DeviceStatusConstants)
     static let statusNew = Color(hex: "#3B82F6")          // Mới nhập - Xanh dương
     static let statusInStock = Color(hex: "#10B981")     // Trong kho (Sẵn sàng) - Xanh lá
     static let statusInUse = Color(hex: "#8B5CF6")       // Đang sử dụng - Tím

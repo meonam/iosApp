@@ -330,7 +330,7 @@ public struct AssetStatisticsView: View {
                 .foregroundColor(isSelected ? .white : Color.appSecondaryDarkBlue)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .background(isSelected ? Color.appPrimaryPink : Color.white)
+                .background(isSelected ? Color.appPrimaryPink : Color.appSurface)
                 .cornerRadius(12)
                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(isSelected ? Color.appPrimaryPink : Color.appCardBorder, lineWidth: 1))
         }
@@ -417,7 +417,7 @@ public struct AssetStatisticsView: View {
             }
         }
         .padding(10)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
@@ -477,7 +477,7 @@ public struct AssetStatisticsView: View {
                                     .foregroundColor(.gray)
                             }
                             .padding(12)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                         }
 
                         // Danh sách loại thiết bị con
@@ -550,7 +550,7 @@ public struct AssetStatisticsView: View {
                             .padding(10)
                         }
                     }
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(12)
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
                 }
@@ -611,7 +611,7 @@ public struct AssetStatisticsView: View {
                                     .foregroundColor(.gray)
                             }
                             .padding(12)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                         }
 
                         if isExpanded {
@@ -649,7 +649,7 @@ public struct AssetStatisticsView: View {
                             .padding(10)
                         }
                     }
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(12)
                     .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
                 }
@@ -668,7 +668,7 @@ public struct AssetStatisticsView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(32)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }

@@ -466,15 +466,15 @@ public struct HomeScreenView: View {
                     }
                     Text("🏬 Đơn vị: \(viewModel.user.donVi.isEmpty ? "Chưa gán" : viewModel.user.donVi)")
                         .font(.system(size: 11.5, weight: .medium))
-                        .foregroundColor(Color(hex: "#334155"))
+                        .foregroundColor(Color.appTextSecondary)
                         .lineLimit(1)
                 }
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(20)
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.appCardBorder, lineWidth: 1))
         .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
     }
 
@@ -604,9 +604,9 @@ public struct HomeScreenView: View {
             }
             .padding(10)
             .frame(maxWidth: .infinity)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(16)
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.appCardBorder, lineWidth: 1))
             .shadow(color: Color.black.opacity(0.02), radius: 4, x: 0, y: 1)
         }
     }
@@ -771,9 +771,9 @@ public struct HomeScreenView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(14)
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
             .shadow(color: Color.black.opacity(0.02), radius: 4, x: 0, y: 1)
         }
     }
@@ -793,11 +793,11 @@ public struct HomeScreenView: View {
 
             Text("Truy cập bị giới hạn")
                 .font(.system(size: 18, weight: .bold))
-                .foregroundColor(Color(hex: "#0F172A"))
+                .foregroundColor(Color.appTextPrimary)
 
             Text(message)
                 .font(.system(size: 13.5))
-                .foregroundColor(Color(hex: "#64748B"))
+                .foregroundColor(Color.appTextSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(3)
 
@@ -807,12 +807,12 @@ public struct HomeScreenView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
-                    .background(Color(hex: "#0F172A"))
+                    .background(Color.appSecondaryDarkBlue)
                     .cornerRadius(10)
             }
         }
         .padding(20)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(20)
         .shadow(color: Color.black.opacity(0.15), radius: 12)
     }
@@ -1010,7 +1010,7 @@ public struct HomeScreenView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
@@ -1129,7 +1129,7 @@ public struct ChangePasswordModalView: View {
                             }
                         }
                         .padding(12)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                     }
@@ -1153,7 +1153,7 @@ public struct ChangePasswordModalView: View {
                             }
                         }
                         .padding(12)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                     }
@@ -1177,7 +1177,7 @@ public struct ChangePasswordModalView: View {
                             }
                         }
                         .padding(12)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(10)
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                     }

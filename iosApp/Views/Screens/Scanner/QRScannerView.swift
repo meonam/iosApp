@@ -335,11 +335,11 @@ public struct QRScannerView: View {
                             .foregroundColor(Color.appSecondaryDarkBlue)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(8)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                                    .stroke(Color.appCardBorder, lineWidth: 1)
                             )
                     }
 
@@ -367,7 +367,7 @@ public struct QRScannerView: View {
                 .padding(.top, 4)
             }
             .padding(22)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(18)
             .shadow(color: Color.black.opacity(0.25), radius: 16, x: 0, y: 8)
             .padding(.horizontal, 28)
@@ -391,11 +391,12 @@ public struct QRScannerView: View {
 
                 Text("Nhập mã thiết bị (Serial / ID) cần tra cứu hoặc gán:")
                     .font(.system(size: 13))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Color.appTextSecondary)
                     .multilineTextAlignment(.center)
 
                 TextField("Ví dụ: TB001, POCO-X6...", text: $manualCode)
                     .font(.system(size: 15))
+                    .foregroundColor(Color.appTextPrimary)
                     .padding(12)
                     .background(Color.appBackground)
                     .cornerRadius(8)
@@ -414,9 +415,9 @@ public struct QRScannerView: View {
                             .foregroundColor(Color.appSecondaryDarkBlue)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                     }
 
                     Button(action: {
@@ -438,7 +439,7 @@ public struct QRScannerView: View {
                 }
             }
             .padding(22)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(18)
             .padding(.horizontal, 28)
         }
