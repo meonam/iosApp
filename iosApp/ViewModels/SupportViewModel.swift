@@ -89,9 +89,10 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
-    public init(user: User, companyId: String, idToken: String) {
+    public init(user: User, companyId: String = "", idToken: String = "") {
         self.user = user
-        self.companyId = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let resolvedComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? user.companyId : companyId
+        self.companyId = resolvedComp.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         self.idToken = idToken
         let saved = UserDefaults.standard.stringArray(forKey: "support_prefs_deleted_ids") ?? []
         self.deletedTicketIds = Set(saved)

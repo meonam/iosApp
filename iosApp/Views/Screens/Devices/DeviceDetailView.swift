@@ -233,7 +233,7 @@ public struct DeviceDetailView: View {
         .sheet(isPresented: $showCreateTicketSheet) {
             if let dev = device {
                 CreateTicketSheetView(
-                    supportVM: SupportViewModel(user: viewModel.user),
+                    supportVM: SupportViewModel(user: viewModel.user, companyId: viewModel.companyId, idToken: viewModel.idToken),
                     initialAssetId: dev.id,
                     initialAssetName: dev.ten,
                     initialCategory: "HARDWARE",
