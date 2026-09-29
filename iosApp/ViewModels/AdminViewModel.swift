@@ -931,7 +931,7 @@ public class AdminViewModel: ObservableObject {
 
         if !targetId.isEmpty && targetId != unitId.uppercased() {
             // Tao document moi voi ma moi va xoa document cu
-            await addUnit(id: targetId, name: cleanName, region: cleanRegion)
+            await addUnit(name: cleanName, unitId: targetId, region: cleanRegion)
             await deleteUnit(unitId: unitId)
         } else {
             let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/units/\(unitId)?updateMask.fieldPaths=unitName&updateMask.fieldPaths=name&updateMask.fieldPaths=maKhuVuc&updateMask.fieldPaths=updatedAt"
