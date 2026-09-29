@@ -307,7 +307,14 @@ public class DeviceViewModel: ObservableObject {
                         phongBanMuon: FirestoreHelper.getString(fields, "phongBanMuon").ifEmpty(FirestoreHelper.getString(fields, "phong_ban_muon")),
                         nguoiMuon: FirestoreHelper.getString(fields, "nguoiMuon").ifEmpty(FirestoreHelper.getString(fields, "nguoi_muon")),
                         ngayMuon: FirestoreHelper.getString(fields, "ngayMuon").ifEmpty(FirestoreHelper.getString(fields, "ngay_muon")),
-                        ngayHenTra: FirestoreHelper.getString(fields, "ngayHenTra").ifEmpty(FirestoreHelper.getString(fields, "ngay_hen_tra"))
+                        ngayHenTra: FirestoreHelper.getString(fields, "ngayHenTra").ifEmpty(FirestoreHelper.getString(fields, "ngay_hen_tra")),
+                        serialNumber: FirestoreHelper.getString(fields, "serialNumber"),
+                        giaTri: FirestoreHelper.getDouble(fields, "giaTri"),
+                        viTri: FirestoreHelper.getString(fields, "viTri"),
+                        ghiChu: FirestoreHelper.getString(fields, "ghiChu").ifEmpty(moTa),
+                        cauHinh: FirestoreHelper.getString(fields, "cauHinh").ifEmpty(FirestoreHelper.getString(fields, "description")),
+                        qrCodeUrl: FirestoreHelper.getString(fields, "qrCodeUrl"),
+                        hinhAnh: FirestoreHelper.getString(fields, "hinhAnh")
                     )
                 }
 
@@ -368,7 +375,14 @@ public class DeviceViewModel: ObservableObject {
             phongBanMuon: FirestoreHelper.getString(fields, "phongBanMuon"),
             nguoiMuon: FirestoreHelper.getString(fields, "nguoiMuon"),
             ngayMuon: FirestoreHelper.getString(fields, "ngayMuon"),
-            ngayHenTra: FirestoreHelper.getString(fields, "ngayHenTra")
+            ngayHenTra: FirestoreHelper.getString(fields, "ngayHenTra"),
+            serialNumber: FirestoreHelper.getString(fields, "serialNumber"),
+            giaTri: FirestoreHelper.getDouble(fields, "giaTri"),
+            viTri: FirestoreHelper.getString(fields, "viTri"),
+            ghiChu: FirestoreHelper.getString(fields, "ghiChu").ifEmpty(moTa),
+            cauHinh: FirestoreHelper.getString(fields, "cauHinh").ifEmpty(FirestoreHelper.getString(fields, "description")),
+            qrCodeUrl: FirestoreHelper.getString(fields, "qrCodeUrl"),
+            hinhAnh: FirestoreHelper.getString(fields, "hinhAnh")
         )
     }
 

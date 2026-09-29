@@ -48,6 +48,9 @@ public struct User: Identifiable, Codable, Hashable {
     public var isOnline: Bool
     public var permissions: [String]
     public var disabledReason: String
+    public var emailVerified: Bool
+    public var disabledAt: Int64
+    public var disabledBy: String
 
     public init(
         maNhanVien: String = "",
@@ -67,7 +70,10 @@ public struct User: Identifiable, Codable, Hashable {
         lastActiveAt: Int64 = 0,
         isOnline: Bool = false,
         permissions: [String] = [],
-        disabledReason: String = ""
+        disabledReason: String = "",
+        emailVerified: Bool = false,
+        disabledAt: Int64 = 0,
+        disabledBy: String = ""
     ) {
         self.maNhanVien = maNhanVien
         self.email = email
@@ -87,6 +93,9 @@ public struct User: Identifiable, Codable, Hashable {
         self.isOnline = isOnline
         self.permissions = permissions
         self.disabledReason = disabledReason
+        self.emailVerified = emailVerified
+        self.disabledAt = disabledAt
+        self.disabledBy = disabledBy
     }
 
     // Computed Properties phân quyền chuẩn xác 1:1 theo User.kt
@@ -100,56 +109,39 @@ public struct User: Identifiable, Codable, Hashable {
     public var isAdmin: Bool {
         if isSuperAdmin { return true }
         let r = role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        return r == "ADMIN" || r == "QUANTRI" || r == "QUAN_TRI" || r.contains("ADMIN")
+        return r == "ADMIN" || r == "QUANTRI" || r == "QUAN_TRI"
     }
 
     public var isHelpDesk: Bool {
         let r = role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        return r == "HELPDESK" || r == "HELP_DESK" || r == "HD" || r.contains("HELPDESK")
+        return r == "HELPDESK" || r == "HELP_DESK" || r == "HD"
     }
 
     public var isWarehouse: Bool {
         let r = role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        return ["WAREHOUSE", "KHO", "THUKHO", "QUANLYKHO"].contains(r) || r.contains("KHO") || r.contains("WAREHOUSE")
+        return ["WAREHOUSE", "KHO", "THUKHO", "QUANLYKHO"].contains(r)
     }
 
     public var isSpecialist: Bool {
-        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse { return false }
+        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse || isManager { return false }
         let r = role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        let d = departmentId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        let dv = donVi.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        let t = toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        if ["CHUYENVIEN", "CHUYEN_VIEN", "SPECIALIST"].contains(r) ||
-           r.contains("CHUYENVIEN") || r.contains("SPECIALIST") || r.contains("CHUYEN VIEN") ||
-           !t.isEmpty {
-            return true
-        }
-        if isManager { return false }
-        return d.hasPrefix("TO_") || d.contains("NGHIỆP VỤ") || d.contains("NGHIEP VU") ||
-               d.contains("ỨNG DỤNG") || d.contains("UNG DUNG") ||
-               dv.contains("NGHIỆP VỤ") || dv.contains("NGHIEP VU")
+        let t = toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ["CHUYENVIEN", "CHUYEN_VIEN", "SPECIALIST", "CHUYÊN VIÊN"].contains(r) ||
+               r.contains("CHUYENVIEN") || r.contains("SPECIALIST") || r.contains("CHUYEN VIEN") ||
+               !t.isEmpty
     }
 
     public var isManager: Bool {
         if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse { return false }
         let r = role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        if ["CHUYENVIEN", "CHUYEN_VIEN", "SPECIALIST"].contains(r) || r.contains("CHUYENVIEN") || r.contains("SPECIALIST") {
-            return false
-        }
-        return ["PHONGBAN", "QUANLY", "MANAGER", "LEADER", "TRUONGPHONG", "PHOPHONG"].contains(r) ||
-               r.contains("PHONG") || r.contains("QUANLY") || r.contains("TRUONG") || r.contains("MANAGER")
+        return ["PHONGBAN", "QUANLY", "MANAGER", "LEADER", "TRUONGPHONG", "PHOPHONG"].contains(r)
     }
 
     public var isTechnician: Bool {
         if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse || isManager || isSpecialist { return false }
         let r = role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        let d = departmentId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        let dv = donVi.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        let isTechRoleOrDept = ["KYTHUAT", "KYTHUATVIEN", "KTV", "TECHNICIAN", "IT"].contains(r) ||
-               r.contains("KTV") || r.contains("KYTHUAT") || r.contains("TECH") || r.contains("SUPPORT") ||
-               d.contains("XỬ LÝ") || d.contains("SỰ CỐ") || d.contains("KỸ THUẬT") || d.contains("IT") || d.contains("BẢO TRÌ") ||
-               dv.contains("KỸ THUẬT")
-        return isTechRoleOrDept
+        return ["KYTHUAT", "KYTHUATVIEN", "KTV", "KY_THUAT", "TECHNICIAN", "KỸ THUẬT", "KỸ THUẬT VIÊN"].contains(r) ||
+               r.contains("KTV") || r.contains("KYTHUAT")
     }
 
     public var isStaff: Bool {
@@ -159,6 +151,7 @@ public struct User: Identifiable, Codable, Hashable {
     public var roleTitle: String {
         if isAdmin { return "Quản trị viên (Admin)" }
         if isHelpDesk { return "Phòng Helpdesk" }
+        if isWarehouse { return "Quản trị kho" }
         if isManager { return "Quản lý phòng ban" }
         if isSpecialist { return "Chuyên viên" }
         if isTechnician { return "KTV" }
@@ -170,7 +163,7 @@ public struct User: Identifiable, Codable, Hashable {
     }
 
     public var departmentName: String {
-        return !donVi.isEmpty ? donVi : departmentId
+        return !departmentId.isEmpty ? departmentId : donVi
     }
 
     public var companyName: String {

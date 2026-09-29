@@ -87,6 +87,13 @@ public struct ThietBi: Identifiable, Codable, Hashable {
     public var ngayMuon: String?
     public var ngayHenTra: String?
     public var timestamp: Double
+    public var serialNumber: String?
+    public var giaTri: Double?
+    public var viTri: String?
+    public var ghiChu: String?
+    public var cauHinh: String?
+    public var qrCodeUrl: String?
+    public var hinhAnh: String?
 
     public init(
         id: String,
@@ -106,7 +113,14 @@ public struct ThietBi: Identifiable, Codable, Hashable {
         nguoiMuon: String? = nil,
         ngayMuon: String? = nil,
         ngayHenTra: String? = nil,
-        timestamp: Double = 0.0
+        timestamp: Double = 0.0,
+        serialNumber: String? = nil,
+        giaTri: Double? = nil,
+        viTri: String? = nil,
+        ghiChu: String? = nil,
+        cauHinh: String? = nil,
+        qrCodeUrl: String? = nil,
+        hinhAnh: String? = nil
     ) {
         self.id = id
         self.ten = ten
@@ -126,6 +140,13 @@ public struct ThietBi: Identifiable, Codable, Hashable {
         self.ngayMuon = ngayMuon
         self.ngayHenTra = ngayHenTra
         self.timestamp = timestamp
+        self.serialNumber = serialNumber
+        self.giaTri = giaTri
+        self.viTri = viTri
+        self.ghiChu = ghiChu
+        self.cauHinh = cauHinh
+        self.qrCodeUrl = qrCodeUrl
+        self.hinhAnh = hinhAnh
     }
 
     public var statusNormalized: String {
