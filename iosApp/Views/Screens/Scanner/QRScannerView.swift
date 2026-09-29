@@ -3,6 +3,7 @@ import AVFoundation
 import Vision
 
 // MARK: - MÀN HÌNH QUÉT MÃ QR / BARCODE (ĐỒNG BỘ 1:1 HOÀN TOÀN VỚI QRSCANNERSCREEN.KT TRÊN ANDROID)
+@MainActor
 public struct QRScannerView: View {
     public var viewModel: DeviceViewModel? = nil
     public var onScanResult: (String) -> Void
@@ -75,7 +76,11 @@ public struct QRScannerView: View {
                                     isFlashOn: $isFlashOn,
                                     cameraPosition: $cameraPosition,
                                     isProcessing: $isProcessing,
-                                    onScanResult: handleScannedCode
+                                    onScanResult: { scanned in
+                                        Task { @MainActor in
+                                            handleScannedCode(scanned)
+                                        }
+                                    }
                                 )
                                 .edgesIgnoringSafeArea(.bottom)
 
@@ -484,9 +489,9 @@ public struct QRScannerView: View {
             }
 
             // 2. Tra cứu trực tiếp từ Firestore qua Document ID
-            Task {
+            Task { @MainActor in
                 if let dev = await vm.getDeviceById(cleanCode) {
-                    showToastNotification("✅ Đã tìm thấy: \(dev.ten)")
+                    self.showToastNotification("✅ Đã tìm thấy: \(dev.ten)")
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                         self.isProcessing = false
                         if let navigateDetail = self.onNavigateToDetail {
@@ -566,12 +571,12 @@ public struct QRScannerView: View {
                   let first = results.first,
                   let payload = first.payloadStringValue,
                   !payload.isEmpty else {
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self.showToastNotification("Không nhận diện được mã QR/Barcode trong ảnh")
                 }
                 return
             }
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self.handleScannedCode(payload)
             }
         }
@@ -587,7 +592,7 @@ public struct QRScannerView: View {
             isPermissionDetermined = true
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { granted in
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     self.hasCameraPermission = granted
                     self.isPermissionDetermined = true
                 }
@@ -703,7 +708,9 @@ class ScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDel
               let stringValue = readableObject.stringValue,
               !stringValue.isEmpty else { return }
 
-        onScanResult?(stringValue)
+        DispatchQueue.main.async {
+            self.onScanResult?(stringValue)
+        }
     }
 
     func updateFlash(isFlashOn: Bool) {

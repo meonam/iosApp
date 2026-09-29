@@ -214,9 +214,9 @@ public struct AssetStatisticsView: View {
 
                         // Company Banner Ticker
                         CompanyBannerTickerView(
-                            isActive: viewModel.isCompanyBannerActive,
                             text: viewModel.companyBannerText,
-                            type: viewModel.companyBannerType
+                            type: CompanyBannerTickerView.BannerType(rawValue: viewModel.companyBannerType.uppercased()) ?? .info,
+                            isActive: viewModel.isCompanyBannerActive
                         )
                     }
                     .background(Color.appTopBarColor)
