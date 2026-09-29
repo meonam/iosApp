@@ -81,44 +81,44 @@ public class DeviceViewModel: ObservableObject {
         self.errorMessage = nil
     }
 
-    // Filtered devices with client-side sort & filter (Role matching Android 1:1)
+    // Filtered devices with client-side sort & filter (Đồng bộ chuẩn 100% tất cả nền tảng)
     public var filteredDevices: [ThietBi] {
-        let isFullAccess = user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isWarehouse || user.isTechnician || user.isSpecialist
-        let isDeptManager = user.isManager
+        let r = user.role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let d = user.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+
+        // 1. Phân quyền truy cập chính xác:
+        // - Toàn quyền (isFullAccess): Warehouse, Admin, Super Admin, Helpdesk -> Thấy toàn bộ thiết bị
+        let isFullAccess = user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isWarehouse ||
+                           r == "ADMIN" || r.contains("ADMIN") || r == "SUPER_ADMIN" || r == "SUPERADMIN" || r == "QUANTRI" ||
+                           ["HELPDESK", "HELP_DESK", "HD"].contains(r) || r.contains("HELPDESK") || d.contains("HELPDESK") ||
+                           ["WAREHOUSE", "KHO", "THUKHO", "QUANLYKHO"].contains(r) || r.contains("WAREHOUSE") || r.contains("KHO") || d.contains("KHO")
+
+        // - Quản lý phòng ban (isDeptManager): Thấy thiết bị của TẤT CẢ các đơn vị thuộc phòng ban mình quản lý
+        let isDeptManager = !isFullAccess && (
+            user.isManager ||
+            ["PHONGBAN", "QUANLY", "MANAGER", "LEADER", "TRUONGPHONG", "PHOPHONG"].contains(r) ||
+            r.contains("PHONG") || r.contains("QUANLY") || r.contains("TRUONG") || r.contains("MANAGER")
+        )
+
         let myEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let myDonVi = user.donVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let myDept = user.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
-        // 1. Role filter
+        // 2. Lọc danh sách theo vai trò
         let baseList: [ThietBi]
         if isFullAccess {
+            // Admin, Warehouse, Helpdesk: Thấy tất cả thiết bị
             baseList = rawDevices
         } else if isDeptManager {
+            // Quản lý phòng ban: Thấy tất cả thiết bị thuộc các đơn vị do phòng ban mình quản lý
             baseList = rawDevices.filter { dev in
-                let d = (dev.phongBan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let u = dev.tenDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let matchDept = !myDept.isEmpty && (d == myDept || d.contains(myDept) || myDept.contains(d))
-                let matchUnit = !myDonVi.isEmpty && (u == myDonVi || u.contains(myDonVi) || myDonVi.contains(u))
-                return matchDept || matchUnit
+                let devDept = (dev.phongBan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                return !myDept.isEmpty && (devDept == myDept || devDept.contains(myDept) || myDept.contains(devDept))
             }
         } else {
-            // Nhân viên thường: thấy thiết bị do mình tạo (createdBy) HOẶC thuộc đơn vị/phòng ban của mình
-            let staffMatched = rawDevices.filter { dev in
-                let c = (dev.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let u = dev.tenDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let d = (dev.phongBan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-                let matchCreated = !c.isEmpty && !myEmail.isEmpty && (c == myEmail || c.contains(myEmail) || myEmail.contains(c))
-                let matchUnit = !myDonVi.isEmpty && (u == myDonVi || u.contains(myDonVi) || myDonVi.contains(u))
-                let matchDept = !myDept.isEmpty && (d == myDept || d.contains(myDept) || myDept.contains(d))
-                return matchCreated || matchUnit || matchDept
-            }
-
-            // Nếu lọc theo tài khoản/đơn vị chưa khớp (do cấu hình đơn vị mới), hiển thị toàn bộ thiết bị đã tải để không bị mất thiết bị
-            if staffMatched.isEmpty {
-                baseList = rawDevices
-            } else {
-                baseList = staffMatched
+            // Nhân viên thường / KTV / Chuyên viên: CHỈ user nào thêm thiết bị, CHỈ người đó thấy thiết bị của mình
+            baseList = rawDevices.filter { dev in
+                let devCreatedBy = (dev.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                return !myEmail.isEmpty && devCreatedBy == myEmail
             }
         }
 
