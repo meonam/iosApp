@@ -563,10 +563,18 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         isWithinQualityTrackingWindow()
     }
 
-    public func getSlaTargetMinutes(deptResolveMinutes: Int? = nil) -> Int {
+    public func getSlaTargetMinutes(deptResolveMinutes: Int? = nil, slaConfig: SlaConfig? = nil) -> Int {
         if let d = deptResolveMinutes {
             if d == 0 { return 0 }
             if d > 0 { return d }
+        }
+        if let cfg = slaConfig {
+            switch priority.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() {
+            case "CRITICAL", "URGENT", "KHANCAP": return cfg.resolveMinutesUrgent
+            case "HIGH", "CAO":                   return cfg.resolveMinutesHigh
+            case "LOW", "THAP":                   return cfg.resolveMinutesLow
+            default:                              return cfg.resolveMinutesNormal
+            }
         }
         switch priority.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() {
         case "URGENT": return 60
@@ -575,7 +583,15 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         }
     }
 
-    public func getQualityTrackingWindowHours() -> Int64 {
+    public func getQualityTrackingWindowHours(slaConfig: SlaConfig? = nil) -> Int64 {
+        if let cfg = slaConfig {
+            switch priority.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() {
+            case "CRITICAL", "URGENT", "KHANCAP": return Int64(cfg.qualityTrackingHoursUrgent)
+            case "HIGH", "CAO":                   return Int64(cfg.qualityTrackingHoursHigh)
+            case "LOW", "THAP":                   return Int64(cfg.qualityTrackingHoursLow)
+            default:                              return Int64(cfg.qualityTrackingHoursNormal)
+            }
+        }
         switch priority.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() {
         case "CRITICAL", "URGENT": return 120
         case "HIGH":               return 72
@@ -585,10 +601,10 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         }
     }
 
-    public func isWithinQualityTrackingWindow(eventTimeMs: Int64 = Int64(Date().timeIntervalSince1970 * 1000)) -> Bool {
+    public func isWithinQualityTrackingWindow(eventTimeMs: Int64 = Int64(Date().timeIntervalSince1970 * 1000), slaConfig: SlaConfig? = nil) -> Bool {
         let finishTime = closedAt > 0 ? closedAt : (resolvedAt > 0 ? resolvedAt : 0)
         if finishTime <= 0 { return true }
-        let windowMs = getQualityTrackingWindowHours() * 3600 * 1000
+        let windowMs = getQualityTrackingWindowHours(slaConfig: slaConfig) * 3600 * 1000
         return (eventTimeMs - finishTime) <= windowMs
     }
 
@@ -596,13 +612,62 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         getRemainingQualityTrackingHours()
     }
 
-    public func getRemainingQualityTrackingHours(eventTimeMs: Int64 = Int64(Date().timeIntervalSince1970 * 1000)) -> Int64 {
+    public func getRemainingQualityTrackingHours(eventTimeMs: Int64 = Int64(Date().timeIntervalSince1970 * 1000), slaConfig: SlaConfig? = nil) -> Int64 {
         let finishTime = closedAt > 0 ? closedAt : (resolvedAt > 0 ? resolvedAt : 0)
-        if finishTime <= 0 { return getQualityTrackingWindowHours() }
-        let windowMs = getQualityTrackingWindowHours() * 3600 * 1000
+        if finishTime <= 0 { return getQualityTrackingWindowHours(slaConfig: slaConfig) }
+        let windowMs = getQualityTrackingWindowHours(slaConfig: slaConfig) * 3600 * 1000
         let elapsedMs = eventTimeMs - finishTime
         let remainMs = max(0, windowMs - elapsedMs)
         return remainMs / (3600 * 1000)
+    }
+
+    public func getResolveDurationMinutes() -> Int64 {
+        let endTime: Int64
+        if closedAt > 0 {
+            endTime = closedAt
+        } else if resolvedAt > 0 {
+            endTime = resolvedAt
+        } else if feedbackAt > 0 {
+            endTime = feedbackAt
+        } else if status.uppercased() == "CLOSED" && lastMessageAt > 0 {
+            endTime = lastMessageAt
+        } else {
+            endTime = Int64(Date().timeIntervalSince1970 * 1000)
+        }
+        let diffMs = max(0, endTime - createdAt)
+        return diffMs / (60 * 1000)
+    }
+
+    public func isSlaBreached(deptResolveMinutes: Int? = nil, slaConfig: SlaConfig? = nil) -> Bool {
+        if isInvalid || status.uppercased() == "CANCELED" || status.uppercased() == "REJECTED" || status.uppercased() == "TU_CHOI" {
+            return false
+        }
+        let targetMin = getSlaTargetMinutes(deptResolveMinutes: deptResolveMinutes, slaConfig: slaConfig)
+        if targetMin <= 0 { return false }
+        let actualMin = getResolveDurationMinutes()
+        return actualMin > Int64(targetMin)
+    }
+
+    public func isResponseSlaBreached(slaConfig: SlaConfig? = nil) -> Bool {
+        if isInvalid || status.uppercased() == "CANCELED" || status.uppercased() == "REJECTED" || status.uppercased() == "TU_CHOI" {
+            return false
+        }
+        let targetMin = slaConfig?.responseMinutesDefault ?? 30
+        let respTime: Int64
+        if isAcknowledged && acknowledgedAt > 0 {
+            respTime = acknowledgedAt
+        } else if helpdeskAcknowledgedAt > 0 {
+            respTime = helpdeskAcknowledgedAt
+        } else if assignedAt > 0 {
+            respTime = assignedAt
+        } else if let tr = tracking, tr.status.uppercased() == "ACCEPTED" && tr.lastUpdatedAt > 0 {
+            respTime = tr.lastUpdatedAt
+        } else {
+            respTime = Int64(Date().timeIntervalSince1970 * 1000)
+        }
+        let diffMs = max(0, respTime - createdAt)
+        let diffMinutes = diffMs / (60 * 1000)
+        return diffMinutes > Int64(targetMin)
     }
 
     public func isUserAssigned(email: String) -> Bool {
@@ -691,5 +756,46 @@ public struct SupportMessage: Identifiable, Codable, Hashable {
         self.isSystemMessage = isSystemMessage
         self.isInternal = isInternal
         self.attachments = attachments
+    }
+}
+
+// MARK: - SLA CONFIG (CẤU HÌNH MA TRẬN SLA & THEO DÕI CHẤT LƯỢNG)
+public struct SlaConfig: Codable, Hashable {
+    public var responseMinutesDefault: Int = 30         // Thời gian phản hồi mặc định (phút)
+    public var resolveMinutesUrgent: Int = 60           // Xử lý mức KHẨN CẤP / URGENT (phút)
+    public var resolveMinutesHigh: Int = 240            // Xử lý mức CAO / HIGH (phút)
+    public var resolveMinutesNormal: Int = 1440         // Xử lý mức BÌNH THƯỜNG / NORMAL (phút)
+    public var resolveMinutesLow: Int = 2880            // Xử lý mức THẤP / LOW (phút)
+    public var qualityTrackingHoursUrgent: Int = 120    // Theo dõi chất lượng Khẩn cấp (giờ)
+    public var qualityTrackingHoursHigh: Int = 72       // Theo dõi chất lượng Cao (giờ)
+    public var qualityTrackingHoursNormal: Int = 48     // Theo dõi chất lượng Bình thường (giờ)
+    public var qualityTrackingHoursLow: Int = 24        // Theo dõi chất lượng Thấp (giờ)
+    public var warningBeforeBreachMinutes: Int = 15     // Cảnh báo âm thanh trước khi trễ (phút)
+    public var slaPenaltyPercentDefault: Int = 0         // % Trừ KPI khi vi phạm SLA
+
+    public init(
+        responseMinutesDefault: Int = 30,
+        resolveMinutesUrgent: Int = 60,
+        resolveMinutesHigh: Int = 240,
+        resolveMinutesNormal: Int = 1440,
+        resolveMinutesLow: Int = 2880,
+        qualityTrackingHoursUrgent: Int = 120,
+        qualityTrackingHoursHigh: Int = 72,
+        qualityTrackingHoursNormal: Int = 48,
+        qualityTrackingHoursLow: Int = 24,
+        warningBeforeBreachMinutes: Int = 15,
+        slaPenaltyPercentDefault: Int = 0
+    ) {
+        self.responseMinutesDefault = responseMinutesDefault
+        self.resolveMinutesUrgent = resolveMinutesUrgent
+        self.resolveMinutesHigh = resolveMinutesHigh
+        self.resolveMinutesNormal = resolveMinutesNormal
+        self.resolveMinutesLow = resolveMinutesLow
+        self.qualityTrackingHoursUrgent = qualityTrackingHoursUrgent
+        self.qualityTrackingHoursHigh = qualityTrackingHoursHigh
+        self.qualityTrackingHoursNormal = qualityTrackingHoursNormal
+        self.qualityTrackingHoursLow = qualityTrackingHoursLow
+        self.warningBeforeBreachMinutes = warningBeforeBreachMinutes
+        self.slaPenaltyPercentDefault = slaPenaltyPercentDefault
     }
 }
