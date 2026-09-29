@@ -310,20 +310,30 @@ public class AuthService {
             return nil
         }
 
+        let resolvedDept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
+            .ifEmpty(FirestoreHelper.getString(fields["phongBan"] as? [String: Any]))
+        let resolvedDonVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
+            .ifEmpty(FirestoreHelper.getString(fields["unitId"] as? [String: Any]))
+            .ifEmpty(FirestoreHelper.getString(fields["tenDonVi"] as? [String: Any]))
+        let resolvedCompanyId = FirestoreHelper.getString(fields["companyId"] as? [String: Any])
+            .ifEmpty("SGCOOP")
+        let resolvedKhuVuc = FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any])
+            .ifEmpty(FirestoreHelper.getString(fields["khuVuc"] as? [String: Any]))
+
         return User(
             maNhanVien: FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
             email: FirestoreHelper.getString(fields["email"] as? [String: Any]),
             role: FirestoreHelper.getString(fields["role"] as? [String: Any]),
             fullName: FirestoreHelper.getString(fields["fullName"] as? [String: Any]),
             phone: FirestoreHelper.getString(fields["phone"] as? [String: Any]),
-            donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
-            companyId: FirestoreHelper.getString(fields["companyId"] as? [String: Any]),
-            departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
-            status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
+            donVi: resolvedDonVi,
+            companyId: resolvedCompanyId,
+            departmentId: resolvedDept,
+            status: FirestoreHelper.getString(fields["status"] as? [String: Any]).ifEmpty("ACTIVE"),
             avatarUrl: FirestoreHelper.getString(fields["avatarUrl"] as? [String: Any]),
             createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
             mustChangePassword: FirestoreHelper.getBool(fields["mustChangePassword"] as? [String: Any]),
-            maKhuVuc: FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any]),
+            maKhuVuc: resolvedKhuVuc,
             toNghiepVu: FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any]),
             lastActiveAt: FirestoreHelper.getInt64(fields["lastActiveAt"] as? [String: Any]),
             isOnline: FirestoreHelper.getBool(fields["isOnline"] as? [String: Any]),

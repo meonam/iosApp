@@ -60,8 +60,17 @@ public class DeviceViewModel: ObservableObject {
 
     public init(user: User, companyId: String, idToken: String) {
         self.user = user
-        self.companyId = companyId
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let userComp = user.companyId.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cleanComp.isEmpty && cleanComp.uppercased() != "DEFAULT" {
+            self.companyId = cleanComp
+        } else if !userComp.isEmpty && userComp.uppercased() != "DEFAULT" {
+            self.companyId = userComp
+        } else {
+            self.companyId = "SGCOOP"
+        }
         self.idToken = idToken
+        self.setDefaultDeviceTypes()
     }
 
     public func clearSuccessMessage() {
@@ -86,24 +95,30 @@ public class DeviceViewModel: ObservableObject {
             baseList = rawDevices
         } else if isDeptManager {
             baseList = rawDevices.filter { dev in
-                let d = (dev.phongBan ?? "").lowercased()
-                let u = dev.tenDonVi.lowercased()
-                return (!myDept.isEmpty && (d == myDept || d.contains(myDept) || myDept.contains(d))) ||
-                       (!myDonVi.isEmpty && u == myDonVi)
+                let d = (dev.phongBan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let u = dev.tenDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let matchDept = !myDept.isEmpty && (d == myDept || d.contains(myDept) || myDept.contains(d))
+                let matchUnit = !myDonVi.isEmpty && (u == myDonVi || u.contains(myDonVi) || myDonVi.contains(u))
+                return matchDept || matchUnit
             }
         } else {
-            // Nhân viên thường: thấy thiết bị do mình tạo (createdBy) HOẶC thuộc đơn vị của mình (tenDonVi/phongBan)
-            // Lưu ý: AddDeviceView lưu tenDonVi = donVi || "PCNTT", phongBan = departmentId || "PCNTT"
-            let effectiveDonVi = myDonVi.isEmpty ? "pcntt" : myDonVi
-            let effectiveDept = myDept.isEmpty ? "pcntt" : myDept
-            baseList = rawDevices.filter { dev in
+            // Nhân viên thường: thấy thiết bị do mình tạo (createdBy) HOẶC thuộc đơn vị/phòng ban của mình
+            let staffMatched = rawDevices.filter { dev in
                 let c = (dev.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 let u = dev.tenDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 let d = (dev.phongBan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
                 let matchCreated = !c.isEmpty && !myEmail.isEmpty && c == myEmail
-                let matchUnit = !u.isEmpty && u == effectiveDonVi
-                let matchDept = !d.isEmpty && d == effectiveDept
+                let matchUnit = !myDonVi.isEmpty && (u == myDonVi || u.contains(myDonVi) || myDonVi.contains(u))
+                let matchDept = !myDept.isEmpty && (d == myDept || d.contains(myDept) || myDept.contains(d))
                 return matchCreated || matchUnit || matchDept
+            }
+
+            // Nếu user profile chưa thiết lập đơn vị/phòng ban và chưa tạo thiết bị nào, hiển thị danh sách thiết bị để không bị rỗng
+            if staffMatched.isEmpty && myDonVi.isEmpty && myDept.isEmpty {
+                baseList = rawDevices
+            } else {
+                baseList = staffMatched
             }
         }
 
@@ -225,15 +240,22 @@ public class DeviceViewModel: ObservableObject {
         errorMessage = nil
 
         Task {
-            var urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices?pageSize=300"
+            let effectiveCompId = self.companyId.isEmpty ? "SGCOOP" : self.companyId
+            var urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(effectiveCompId)/devices?pageSize=300"
             if let token = nextPageToken, !isRefresh {
                 urlStr += "&pageToken=\(token)"
             }
 
-            guard let url = URL(string: urlStr) else { return }
+            guard let url = URL(string: urlStr) else {
+                self.isLoading = false
+                self.isFetchingMore = false
+                return
+            }
 
             var request = URLRequest(url: url)
-            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            if !idToken.isEmpty {
+                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            }
 
             if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
                httpResponse.statusCode == 200,
@@ -285,6 +307,7 @@ public class DeviceViewModel: ObservableObject {
             }
         }
     }
+
 
     // MARK: - GET DEVICE BY ID
     public func getDeviceById(_ id: String) async -> ThietBi? {
@@ -387,8 +410,12 @@ public class DeviceViewModel: ObservableObject {
 
     // MARK: - LOAD DEVICE TYPES
     public func loadDeviceTypes() {
+        if self.deviceTypes.isEmpty {
+            self.setDefaultDeviceTypes()
+        }
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types?pageSize=300"
+            let effectiveCompId = self.companyId.isEmpty ? "SGCOOP" : self.companyId
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(effectiveCompId)/device_types?pageSize=300"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -412,18 +439,20 @@ public class DeviceViewModel: ObservableObject {
                     return DeviceType(id: id, name: name.isEmpty ? id : name, phongBan: phongBan, companyId: compId)
                 }
 
-                if typesList.isEmpty {
-                    self.setDefaultDeviceTypes()
-                } else {
+                if !typesList.isEmpty {
                     self.deviceTypes = typesList.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+                } else if self.deviceTypes.isEmpty {
+                    self.setDefaultDeviceTypes()
                 }
             } else {
-                self.setDefaultDeviceTypes()
+                if self.deviceTypes.isEmpty {
+                    self.setDefaultDeviceTypes()
+                }
             }
         }
     }
 
-    private func setDefaultDeviceTypes() {
+    public func setDefaultDeviceTypes() {
         let defaultNames = ["Laptop", "Máy tính để bàn (PC)", "Máy in", "Màn hình", "Máy chiếu", "Switch mạng", "Router Wifi", "Khác"]
         self.deviceTypes = defaultNames.map { name in
             DeviceType(id: name.lowercased().replacingOccurrences(of: " ", with: "_"), name: name)
