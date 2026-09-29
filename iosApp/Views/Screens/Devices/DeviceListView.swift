@@ -69,7 +69,7 @@ public struct DeviceListView: View {
                                     .foregroundColor(.white)
                             }
 
-                            Text(isAdmin ? "Quản lý thiết bị hệ thống (\(viewModel.filteredDevices.count))" : "Danh sách thiết bị (\(viewModel.filteredDevices.count))")
+                            Text("Danh sách thiết bị")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.white)
                                 .lineLimit(1)
@@ -131,14 +131,14 @@ public struct DeviceListView: View {
                     }
                     .background(Color.appTopBarColor)
 
-                    // 2. SEARCH BAR & CONTROLS
+                    // 2. SEARCH BAR & CONTROLS (CHUẨN 100% ANDROID)
                     VStack(spacing: 8) {
                         // Thanh tìm kiếm
                         HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(Color.appTextSecondary)
 
-                            TextField(viewModel.isBatchModeEnabled ? "Đang chọn hàng loạt..." : "Tìm mã thiết bị, tên, serial, phòng ban...", text: $viewModel.searchQuery)
+                            TextField(viewModel.isBatchModeEnabled ? "Đang chọn hàng loạt..." : "Tìm kiếm...", text: $viewModel.searchQuery)
                                 .font(.system(size: 14))
 
                             if !viewModel.searchQuery.isEmpty {
@@ -150,7 +150,7 @@ public struct DeviceListView: View {
 
                             Button(action: { showScanner = true }) {
                                 Image(systemName: "qrcode.viewfinder")
-                                    .font(.system(size: 18))
+                                    .font(.system(size: 20))
                                     .foregroundColor(Color.appPrimaryPink)
                             }
                         }
@@ -181,35 +181,95 @@ public struct DeviceListView: View {
                             .cornerRadius(8)
                         }
 
-                        // Chuyển đổi chế độ xem 2 cấp: Phòng ban ➔ Đơn vị, Đơn vị ➔ Phòng ban, Phẳng & Thu gọn/Mở tất cả
-                        HStack {
-                            Picker("Chế độ xem", selection: $viewModel.groupMode) {
-                                ForEach(DeviceGroupMode.allCases) { mode in
-                                    Text(mode.rawValue).tag(mode)
+                        // Toolbar 3 nút điều khiển chuẩn Android: Chế độ nhóm ➔ Danh sách phẳng ➔ Thu gọn/Mở tất cả
+                        HStack(spacing: 8) {
+                            // Option 1: Nhóm Phòng ban ➔ Đơn vị hoặc Đơn vị ➔ Phòng ban
+                            let isGrouped = viewModel.groupMode != .flat
+                            let groupLabel: String = {
+                                if isAdmin || isManager {
+                                    return viewModel.groupMode == .unitThenDept ? "Đơn vị ➔ PB" : "Phòng ban ➔ ĐV"
+                                } else {
+                                    return viewModel.groupMode == .unitThenDept ? "Theo Phòng ban" : "Theo Đơn vị"
                                 }
-                            }
-                            .pickerStyle(.segmented)
+                            }()
 
-                            if viewModel.groupMode != .flat {
-                                Button(action: { viewModel.toggleExpandAll() }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: viewModel.expandedLevel1.isEmpty ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                                            .font(.system(size: 11))
-                                        Text(viewModel.expandedLevel1.isEmpty ? "Mở hết" : "Thu gọn")
-                                            .font(.system(size: 11, weight: .bold))
+                            Button(action: {
+                                withAnimation {
+                                    if viewModel.groupMode == .deptThenUnit {
+                                        viewModel.groupMode = .unitThenDept
+                                    } else {
+                                        viewModel.groupMode = .deptThenUnit
                                     }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 6)
-                                    .background(Color.appPrimaryPink.opacity(0.12))
+                                    viewModel.autoExpandAllGroups()
+                                }
+                            }) {
+                                HStack(spacing: 5) {
+                                    Image(systemName: viewModel.groupMode == .unitThenDept ? "building.2.fill" : "square.grid.2x2.fill")
+                                        .font(.system(size: 13))
+                                    Text(groupLabel)
+                                        .font(.system(size: 12, weight: .bold))
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 7)
+                                .background(isGrouped ? Color.appPrimaryPink.opacity(0.12) : Color.gray.opacity(0.1))
+                                .foregroundColor(isGrouped ? Color.appPrimaryPink : Color.appSecondaryDarkBlue)
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(isGrouped ? Color.appPrimaryPink.opacity(0.4) : Color(hex: "#DDE2E5"), lineWidth: 1)
+                                )
+                            }
+
+                            // Option 2: Danh sách phẳng
+                            Button(action: {
+                                withAnimation {
+                                    viewModel.groupMode = .flat
+                                }
+                            }) {
+                                Image(systemName: "list.bullet")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .background(viewModel.groupMode == .flat ? Color.appPrimaryPink.opacity(0.12) : Color.gray.opacity(0.1))
+                                    .foregroundColor(viewModel.groupMode == .flat ? Color.appPrimaryPink : Color.appSecondaryDarkBlue)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(viewModel.groupMode == .flat ? Color.appPrimaryPink.opacity(0.4) : Color(hex: "#DDE2E5"), lineWidth: 1)
+                                    )
+                            }
+
+                            Spacer()
+
+                            // Option 3: Thu gọn / Mở tất cả (Nút viền hồng chuẩn Android)
+                            if viewModel.groupMode != .flat {
+                                Button(action: {
+                                    withAnimation {
+                                        viewModel.toggleExpandAll()
+                                    }
+                                }) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: viewModel.expandedLevel1.isEmpty ? "arrow.down.right.and.arrow.up.left" : "xmark")
+                                            .font(.system(size: 11, weight: .bold))
+                                        Text(viewModel.expandedLevel1.isEmpty ? "Mở tất cả" : "Thu gọn")
+                                            .font(.system(size: 12, weight: .bold))
+                                    }
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .background(Color.appPrimaryPink.opacity(0.08))
                                     .foregroundColor(Color.appPrimaryPink)
                                     .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.appPrimaryPink.opacity(0.35), lineWidth: 1)
+                                    )
                                 }
                             }
                         }
                     }
                     .padding(12)
 
-                    // 3. DANH SÁCH THIẾT BỊ
+                    // 3. DANH SÁCH THIẾT BỊ (ĐỒNG BỘ 1:1 THEO ANDROID TREE LIST)
                     if viewModel.isLoading {
                         ProgressView("Đang tải dữ liệu...")
                             .padding(.top, 40)
@@ -239,69 +299,47 @@ public struct DeviceListView: View {
                                     ForEach(Array(viewModel.groupedDeptThenUnit.keys.sorted()), id: \.self) { dept in
                                         let unitMap = viewModel.groupedDeptThenUnit[dept] ?? [:]
                                         let totalInDept = unitMap.values.reduce(0) { $0 + $1.count }
-                                        let isL1Expanded = viewModel.expandedLevel1.contains(dept)
+                                        let isL1Expanded = viewModel.searchQuery.isEmpty ? viewModel.expandedLevel1.contains(dept) : true
 
                                         VStack(spacing: 6) {
-                                            // Level 1 Header
-                                            Button(action: { viewModel.toggleLevel1(dept) }) {
-                                                HStack(spacing: 8) {
-                                                    Image(systemName: "folder.fill")
-                                                        .foregroundColor(Color.appSecondaryDarkBlue)
-                                                    Text(dept)
-                                                        .font(.system(size: 14, weight: .bold))
-                                                        .foregroundColor(Color.appTextPrimary)
-                                                    Spacer()
-                                                    Text("\(totalInDept) TB • \(unitMap.count) ĐV")
-                                                        .font(.system(size: 11, weight: .semibold))
-                                                        .foregroundColor(Color.appSecondaryDarkBlue)
-                                                        .padding(.horizontal, 8)
-                                                        .padding(.vertical, 2)
-                                                        .background(Color.appSecondaryDarkBlue.opacity(0.1))
-                                                        .cornerRadius(8)
-                                                    Image(systemName: isL1Expanded ? "chevron.down" : "chevron.right")
-                                                        .font(.system(size: 12, weight: .bold))
-                                                        .foregroundColor(Color.appTextSecondary)
+                                            // Level 1 Header (Phòng Ban)
+                                            level1HeaderCard(
+                                                title: dept,
+                                                subText: "\(totalInDept) thiết bị • \(unitMap.count) đơn vị",
+                                                iconName: "square.grid.2x2.fill",
+                                                badgeCount: totalL1DevicesCount(unitMap),
+                                                isExpanded: isL1Expanded,
+                                                onToggle: {
+                                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                                        viewModel.toggleLevel1(dept)
+                                                    }
                                                 }
-                                                .padding(12)
-                                                .background(Color.white)
-                                                .cornerRadius(12)
-                                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
-                                            }
+                                            )
 
-                                            // Level 2 Sub-groups
+                                            // Level 2 Sub-groups (Đơn vị)
                                             if isL1Expanded {
                                                 ForEach(Array(unitMap.keys.sorted()), id: \.self) { unit in
                                                     let devs = unitMap[unit] ?? []
                                                     let l2Key = "\(dept)__\(unit)"
-                                                    let isL2Expanded = viewModel.expandedLevel2.contains(l2Key)
+                                                    let isL2Expanded = viewModel.searchQuery.isEmpty ? viewModel.expandedLevel2.contains(l2Key) : true
 
                                                     VStack(spacing: 6) {
-                                                        Button(action: { viewModel.toggleLevel2(l2Key) }) {
-                                                            HStack(spacing: 6) {
-                                                                Image(systemName: "building.2.fill")
-                                                                    .foregroundColor(Color.appInfo)
-                                                                Text(unit)
-                                                                    .font(.system(size: 13, weight: .semibold))
-                                                                    .foregroundColor(Color.appTextPrimary)
-                                                                Spacer()
-                                                                Text("\(devs.count)")
-                                                                    .font(.system(size: 11, weight: .bold))
-                                                                    .foregroundColor(Color.appInfo)
-                                                                Image(systemName: isL2Expanded ? "chevron.down" : "chevron.right")
-                                                                    .font(.system(size: 11))
-                                                                    .foregroundColor(Color.appTextSecondary)
+                                                        level2HeaderCard(
+                                                            title: unit,
+                                                            deviceCount: devs.count,
+                                                            iconName: "building.2.fill",
+                                                            isExpanded: isL2Expanded,
+                                                            onToggle: {
+                                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                                    viewModel.toggleLevel2(l2Key)
+                                                                }
                                                             }
-                                                            .padding(.horizontal, 12)
-                                                            .padding(.vertical, 8)
-                                                            .background(Color.white.opacity(0.8))
-                                                            .cornerRadius(8)
-                                                        }
-                                                        .padding(.leading, 12)
+                                                        )
 
                                                         if isL2Expanded {
                                                             ForEach(Array(devs.enumerated()), id: \.element.id) { idx, dev in
                                                                 deviceItemCard(dev, index: idx)
-                                                                    .padding(.leading, 20)
+                                                                    .padding(.leading, 24)
                                                             }
                                                         }
                                                     }
@@ -314,67 +352,46 @@ public struct DeviceListView: View {
                                     ForEach(Array(viewModel.groupedUnitThenDept.keys.sorted()), id: \.self) { unit in
                                         let deptMap = viewModel.groupedUnitThenDept[unit] ?? [:]
                                         let totalInUnit = deptMap.values.reduce(0) { $0 + $1.count }
-                                        let isL1Expanded = viewModel.expandedLevel1.contains(unit)
+                                        let isL1Expanded = viewModel.searchQuery.isEmpty ? viewModel.expandedLevel1.contains(unit) : true
 
                                         VStack(spacing: 6) {
-                                            Button(action: { viewModel.toggleLevel1(unit) }) {
-                                                HStack(spacing: 8) {
-                                                    Image(systemName: "building.2.fill")
-                                                        .foregroundColor(Color.appSecondaryDarkBlue)
-                                                    Text(unit)
-                                                        .font(.system(size: 14, weight: .bold))
-                                                        .foregroundColor(Color.appTextPrimary)
-                                                    Spacer()
-                                                    Text("\(totalInUnit) TB")
-                                                        .font(.system(size: 11, weight: .semibold))
-                                                        .foregroundColor(Color.appSecondaryDarkBlue)
-                                                        .padding(.horizontal, 8)
-                                                        .padding(.vertical, 2)
-                                                        .background(Color.appSecondaryDarkBlue.opacity(0.1))
-                                                        .cornerRadius(8)
-                                                    Image(systemName: isL1Expanded ? "chevron.down" : "chevron.right")
-                                                        .font(.system(size: 12, weight: .bold))
-                                                        .foregroundColor(Color.appTextSecondary)
+                                            // Level 1 Header (Đơn vị)
+                                            level1HeaderCard(
+                                                title: unit,
+                                                subText: "\(totalInUnit) thiết bị • \(deptMap.count) phòng ban",
+                                                iconName: "building.2.fill",
+                                                badgeCount: totalInUnit,
+                                                isExpanded: isL1Expanded,
+                                                onToggle: {
+                                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                                        viewModel.toggleLevel1(unit)
+                                                    }
                                                 }
-                                                .padding(12)
-                                                .background(Color.white)
-                                                .cornerRadius(12)
-                                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
-                                            }
+                                            )
 
                                             if isL1Expanded {
                                                 ForEach(Array(deptMap.keys.sorted()), id: \.self) { dept in
                                                     let devs = deptMap[dept] ?? []
                                                     let l2Key = "\(unit)__\(dept)"
-                                                    let isL2Expanded = viewModel.expandedLevel2.contains(l2Key)
+                                                    let isL2Expanded = viewModel.searchQuery.isEmpty ? viewModel.expandedLevel2.contains(l2Key) : true
 
                                                     VStack(spacing: 6) {
-                                                        Button(action: { viewModel.toggleLevel2(l2Key) }) {
-                                                            HStack(spacing: 6) {
-                                                                Image(systemName: "folder.fill")
-                                                                    .foregroundColor(Color.appInfo)
-                                                                Text(dept)
-                                                                    .font(.system(size: 13, weight: .semibold))
-                                                                    .foregroundColor(Color.appTextPrimary)
-                                                                Spacer()
-                                                                Text("\(devs.count)")
-                                                                    .font(.system(size: 11, weight: .bold))
-                                                                    .foregroundColor(Color.appInfo)
-                                                                Image(systemName: isL2Expanded ? "chevron.down" : "chevron.right")
-                                                                    .font(.system(size: 11))
-                                                                    .foregroundColor(Color.appTextSecondary)
+                                                        level2HeaderCard(
+                                                            title: dept,
+                                                            deviceCount: devs.count,
+                                                            iconName: "square.grid.2x2.fill",
+                                                            isExpanded: isL2Expanded,
+                                                            onToggle: {
+                                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                                    viewModel.toggleLevel2(l2Key)
+                                                                }
                                                             }
-                                                            .padding(.horizontal, 12)
-                                                            .padding(.vertical, 8)
-                                                            .background(Color.white.opacity(0.8))
-                                                            .cornerRadius(8)
-                                                        }
-                                                        .padding(.leading, 12)
+                                                        )
 
                                                         if isL2Expanded {
                                                             ForEach(Array(devs.enumerated()), id: \.element.id) { idx, dev in
                                                                 deviceItemCard(dev, index: idx)
-                                                                    .padding(.leading, 20)
+                                                                    .padding(.leading, 24)
                                                             }
                                                         }
                                                     }
@@ -389,6 +406,7 @@ public struct DeviceListView: View {
                         }
                     }
                 }
+
 
                 // 4. FLOATING ACTION BOTTOM BAR FOR BATCH SELECTION
                 if viewModel.isBatchModeEnabled && !viewModel.selectedBatchDeviceIds.isEmpty {
@@ -539,6 +557,142 @@ public struct DeviceListView: View {
         }
     }
 
+    // MARK: - LEVEL 1 GROUP HEADER (1:1 VỚI ANDROID LEVEL1GROUPHEADER)
+    private func totalL1DevicesCount(_ unitMap: [String: [ThietBi]]) -> Int {
+        unitMap.values.reduce(0) { $0 + $1.count }
+    }
+
+    private func level1HeaderCard(
+        title: String,
+        subText: String,
+        iconName: String,
+        badgeCount: Int,
+        isExpanded: Bool,
+        onToggle: @escaping () -> Void
+    ) -> some View {
+        Button(action: onToggle) {
+            HStack(spacing: 12) {
+                // Icon hộp vuông bo góc (Đổi sang nền hồng khi mở như Android)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(isExpanded ? Color.appPrimaryPink : Color.appSecondaryDarkBlue.opacity(0.1))
+                        .frame(width: 38, height: 38)
+
+                    Image(systemName: iconName)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(isExpanded ? .white : Color.appSecondaryDarkBlue)
+                }
+
+                // Tiêu đề & Số lượng con
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .lineLimit(1)
+
+                    Text(subText)
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.gray)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                // Badge số lượng (Hồng khi mở, xám khi đóng)
+                Text("\(badgeCount)")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(isExpanded ? Color.appPrimaryPink : Color.appSecondaryDarkBlue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(isExpanded ? Color.appPrimaryPink.opacity(0.15) : Color(hex: "#F1F5F9"))
+                    .cornerRadius(8)
+
+                // Chevron mũi tên
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(isExpanded ? Color.appPrimaryPink : Color.gray)
+                    .frame(width: 20)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(isExpanded ? Color.appPrimaryPink.opacity(0.08) : Color.white)
+            .cornerRadius(14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(isExpanded ? Color.appPrimaryPink.opacity(0.5) : Color(hex: "#DDE2E5"), lineWidth: isExpanded ? 1.5 : 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
+    // MARK: - LEVEL 2 SUB-GROUP HEADER (1:1 VỚI ANDROID LEVEL2SUBGROUPHEADER)
+    private func level2HeaderCard(
+        title: String,
+        deviceCount: Int,
+        iconName: String,
+        isExpanded: Bool,
+        onToggle: @escaping () -> Void
+    ) -> some View {
+        Button(action: onToggle) {
+            HStack(spacing: 10) {
+                // Icon tòa nhà
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isExpanded ? Color.appSecondaryDarkBlue.opacity(0.15) : Color(hex: "#E2E8F0"))
+                        .frame(width: 28, height: 28)
+
+                    Image(systemName: iconName)
+                        .font(.system(size: 14))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                }
+
+                // Tên đơn vị / phòng ban con
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .lineLimit(1)
+
+                    Text("\(deviceCount) thiết bị")
+                        .font(.system(size: 11))
+                        .foregroundColor(Color.gray)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                // Badge số lượng nền trắng viền xám
+                Text("\(deviceCount)")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.white)
+                    .cornerRadius(6)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color(hex: "#E2E8F0"), lineWidth: 1)
+                    )
+
+                // Chevron mũi tên
+                Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .frame(width: 16)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(isExpanded ? Color.appSecondaryDarkBlue.opacity(0.08) : Color(hex: "#F8FAFC"))
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(isExpanded ? Color.appSecondaryDarkBlue.opacity(0.3) : Color(hex: "#E2E8F0"), lineWidth: 1)
+            )
+            .padding(.leading, 14)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+
     // MARK: - DEVICE ITEM CARD (1:1 VỚI ANDROID DEVICEITEMCARD)
     private func deviceItemCard(_ device: ThietBi, index: Int) -> some View {
         let isSelectedInBatch = viewModel.selectedBatchDeviceIds.contains(device.id)
@@ -553,8 +707,8 @@ public struct DeviceListView: View {
         let canDeleteThis = !isOnLoan && (isAdmin || (isManager && (device.phongBan?.caseInsensitiveCompare(viewModel.user.departmentId) == .orderedSame)) || (isStaff && isOwner))
 
         return VStack(alignment: .leading, spacing: 8) {
-            // HÀNG 1: Tên thiết bị & Nút thao tác
-            HStack(alignment: .top) {
+            // HÀNG 1: Tên thiết bị (trái) & Nút thao tác (phải)
+            HStack(alignment: .center) {
                 if viewModel.isBatchModeEnabled {
                     Button(action: {
                         if isSelectedInBatch {
@@ -570,12 +724,10 @@ public struct DeviceListView: View {
                     .padding(.trailing, 4)
                 }
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("\(index + 1). \(device.ten)")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(Color.appSecondaryDarkBlue)
-                        .lineLimit(2)
-                }
+                Text("\(index + 1). \(device.ten)")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .lineLimit(2)
 
                 Spacer()
 
@@ -584,9 +736,9 @@ public struct DeviceListView: View {
                     // Lịch sử
                     Button(action: { selectedDeviceForHistory = device.id }) {
                         Image(systemName: "clock.arrow.circlepath")
-                            .font(.system(size: 15))
+                            .font(.system(size: 16))
                             .foregroundColor(Color.appSecondaryDarkBlue)
-                            .frame(width: 30, height: 30)
+                            .frame(width: 32, height: 32)
                     }
 
                     // Đổi trạng thái (nếu không phải đang mượn và chưa thanh lý)
@@ -596,9 +748,9 @@ public struct DeviceListView: View {
                             showActionBottomSheet = true
                         }) {
                             Image(systemName: "slider.horizontal.3")
-                                .font(.system(size: 15))
+                                .font(.system(size: 16))
                                 .foregroundColor(isLiquidated ? Color.gray : Color.appPrimaryPink)
-                                .frame(width: 30, height: 30)
+                                .frame(width: 32, height: 32)
                         }
                         .disabled(isLiquidated)
                     }
@@ -611,9 +763,9 @@ public struct DeviceListView: View {
                         showEditDialog = true
                     }) {
                         Image(systemName: "pencil")
-                            .font(.system(size: 15))
+                            .font(.system(size: 16))
                             .foregroundColor(isLiquidated ? Color.gray : Color.appSecondaryDarkBlue)
-                            .frame(width: 30, height: 30)
+                            .frame(width: 32, height: 32)
                     }
                     .disabled(isLiquidated)
 
@@ -624,22 +776,22 @@ public struct DeviceListView: View {
                             showDeleteConfirmAlert = true
                         }) {
                             Image(systemName: "trash")
-                                .font(.system(size: 15))
+                                .font(.system(size: 16))
                                 .foregroundColor(Color.appDanger)
-                                .frame(width: 30, height: 30)
+                                .frame(width: 32, height: 32)
                         }
                     }
                 }
             }
 
-            // HÀNG 2: MÃ THIẾT BỊ + TRẠNG THÁI + NÚT TRẢ/THU HỒI
+            // HÀNG 2: MÃ THIẾT BỊ (BARCODE) + TRẠNG THÁI + NÚT TRẢ/THU HỒI
             HStack(spacing: 8) {
                 // 1. Tag Mã thiết bị (Click để copy)
                 Button(action: {
                     UIPasteboard.general.string = device.id
                     showToast("📋 Đã sao chép: \(device.id)")
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 5) {
                         Image(systemName: "qrcode")
                             .font(.system(size: 12))
                             .foregroundColor(Color(hex: "#64748B"))
@@ -657,7 +809,8 @@ public struct DeviceListView: View {
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
                 }
 
-                // 2. Badge Trạng thái
+                // 2. Badge Trạng thái (Màu sắc chuẩn 1:1 Android)
+                let normStatus = device.statusNormalized
                 let badgeText: String = {
                     if isBorrowedByMe {
                         return "Đang mượn tạm (của: \(device.tenDonVi))"
@@ -665,16 +818,41 @@ public struct DeviceListView: View {
                         let targetDesc = !(device.donViMuon?.isEmpty ?? true) ? device.donViMuon! : (device.nguoiMuon ?? "")
                         return "Đang cho mượn (cho: \(targetDesc))"
                     } else {
-                        return device.statusNormalized
+                        return normStatus
+                    }
+                }()
+
+                let (badgeBg, badgeFg): (Color, Color) = {
+                    let lower = normStatus.lowercased()
+                    if isBorrowedByMe {
+                        return (Color(hex: "#DBEAFE"), Color(hex: "#1D4ED8"))
+                    } else if isLentByMe {
+                        return (Color(hex: "#F3E8FF"), Color(hex: "#7E22CE"))
+                    } else if lower.contains("mới") || lower.contains("moi") {
+                        return (Color(hex: "#CCFBF1"), Color(hex: "#0F766E"))
+                    } else if lower.contains("trong kho") || lower.contains("sẵn sàng") || lower.contains("san sang") {
+                        return (Color(hex: "#DCFCE7"), Color(hex: "#15803D"))
+                    } else if lower.contains("sử dụng") || lower.contains("su dung") {
+                        return (Color(hex: "#DBEAFE"), Color(hex: "#1D4ED8"))
+                    } else if lower.contains("mượn") || lower.contains("muon") {
+                        return (Color(hex: "#F3E8FF"), Color(hex: "#7E22CE"))
+                    } else if lower.contains("bảo hành") || lower.contains("sửa") || lower.contains("bao hanh") {
+                        return (Color(hex: "#FFEDD5"), Color(hex: "#C2410C"))
+                    } else if lower.contains("hỏng") || lower.contains("xử lý") || lower.contains("hong") {
+                        return (Color(hex: "#FEE2E2"), Color(hex: "#B91C1C"))
+                    } else if lower.contains("thanh lý") || lower.contains("thanh ly") {
+                        return (Color(hex: "#F1F5F9"), Color(hex: "#475569"))
+                    } else {
+                        return (Color(hex: "#DCFCE7"), Color(hex: "#15803D"))
                     }
                 }()
 
                 Text(badgeText)
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(device.statusColor)
+                    .foregroundColor(badgeFg)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(device.statusColor.opacity(0.12))
+                    .background(badgeBg)
                     .cornerRadius(6)
 
                 Spacer()
@@ -709,30 +887,21 @@ public struct DeviceListView: View {
                 }
             }
 
-            // HÀNG 3: Đơn vị & Phòng ban
-            HStack(spacing: 6) {
-                Image(systemName: "building.2")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color.appPrimaryPink)
-                Text("Đơn vị: \(device.tenDonVi)")
+            // HÀNG 3: Đơn vị (Màu hồng chuẩn Android)
+            Text("🏢 Đơn vị: \(device.tenDonVi)")
+                .font(.system(size: 12))
+                .foregroundColor(Color.appPrimaryPink)
+                .lineLimit(1)
+
+            // HÀNG 4: Phòng ban chuyên môn (Màu xanh đen chuẩn Android)
+            if let pb = device.phongBan, !pb.isEmpty {
+                Text("🏛️ Phòng ban chuyên môn: \(pb)")
                     .font(.system(size: 12))
-                    .foregroundColor(Color.appPrimaryPink)
+                    .foregroundColor(Color.appSecondaryDarkBlue.opacity(0.8))
                     .lineLimit(1)
             }
 
-            if let pb = device.phongBan, !pb.isEmpty {
-                HStack(spacing: 6) {
-                    Image(systemName: "folder")
-                        .font(.system(size: 11))
-                        .foregroundColor(Color.appSecondaryDarkBlue.opacity(0.8))
-                    Text("Phòng ban: \(pb)")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color.appSecondaryDarkBlue.opacity(0.8))
-                        .lineLimit(1)
-                }
-            }
-
-            // HÀNG 4: Ghi chú
+            // HÀNG 5: Ghi chú nếu có
             if let moTa = device.moTa, !moTa.isEmpty {
                 HStack(alignment: .top, spacing: 6) {
                     Image(systemName: "note.text")
@@ -754,10 +923,11 @@ public struct DeviceListView: View {
         .cornerRadius(14)
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(isSelectedInBatch ? Color.appPrimaryPink : Color.appCardBorder, lineWidth: isSelectedInBatch ? 1.5 : 1)
+                .stroke(isSelectedInBatch ? Color.appPrimaryPink : Color(hex: "#DDE2E5"), lineWidth: isSelectedInBatch ? 1.5 : 1)
         )
         .opacity(isLiquidated ? 0.5 : 1.0)
     }
+
 
     // MARK: - EDIT DEVICE SHEET
     private func editDeviceSheet() -> some View {
