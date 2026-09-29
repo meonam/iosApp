@@ -14,6 +14,7 @@ public struct UnitManagerView: View {
 
     // Edit state
     @State private var editingUnit: DonVi? = nil
+    @State private var editUnitId: String = ""
     @State private var editName: String = ""
     @State private var editRegion: String = ""
     @State private var showEditSheet: Bool = false
@@ -430,6 +431,7 @@ public struct UnitManagerView: View {
                 HStack(spacing: 8) {
                     Button(action: {
                         editingUnit = unit
+                        editUnitId = unit.id
                         editName = unit.tenDonVi
                         editRegion = unit.maKhuVuc
                         showEditSheet = true
@@ -458,16 +460,24 @@ public struct UnitManagerView: View {
 
     // MARK: - EDIT UNIT SHEET
     private var editUnitSheet: some View {
-        NavigationView {
+        let cleanNewId = editUnitId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let isDuplicate = !cleanNewId.isEmpty && cleanNewId != (editingUnit?.id ?? "").uppercased() && viewModel.units.contains { $0.id.uppercased() == cleanNewId }
+
+        return NavigationView {
             Form {
                 Section(header: Text("Thông tin đơn vị")) {
-                    HStack {
-                        Text("Mã đơn vị:")
-                            .font(.system(size: 13, weight: .medium))
-                        Spacer()
-                        Text(editingUnit?.id ?? "")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.gray)
+                    TextField("Mã đơn vị (*)", text: $editUnitId)
+                        .autocapitalization(.allCharacters)
+                        .disableAutocorrection(true)
+
+                    if isDuplicate {
+                        Text("⚠️ Mã đơn vị '\(cleanNewId)' đã tồn tại trong hệ thống!")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.red)
+                    } else if cleanNewId != (editingUnit?.id ?? "").uppercased() {
+                        Text("💡 Đổi mã sẽ tạo đơn vị mới và đồng bộ dữ liệu liên quan.")
+                            .font(.system(size: 11))
+                            .foregroundColor(.orange)
                     }
 
                     TextField("Tên đơn vị (*)", text: $editName)
@@ -485,13 +495,14 @@ public struct UnitManagerView: View {
             .navigationBarItems(
                 leading: Button("Hủy") { showEditSheet = false },
                 trailing: Button("Lưu") {
-                    if let u = editingUnit, !editName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    if let u = editingUnit, !cleanNewId.isEmpty, !editName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !isDuplicate {
                         Task {
-                            await viewModel.updateUnit(unitId: u.id, name: editName, region: editRegion)
+                            await viewModel.updateUnit(unitId: u.id, newUnitId: cleanNewId, name: editName, region: editRegion)
                             showEditSheet = false
                         }
                     }
                 }
+                .disabled(cleanNewId.isEmpty || editName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDuplicate)
                 .font(.headline)
                 .foregroundColor(.appPrimary)
             )

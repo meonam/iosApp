@@ -923,27 +923,36 @@ public class AdminViewModel: ObservableObject {
         fetchUnitsAndRegions()
     }
 
-    public func updateUnit(unitId: String, name: String, region: String) async {
+    public func updateUnit(unitId: String, newUnitId: String? = nil, name: String, region: String) async {
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/units/\(unitId)?updateMask.fieldPaths=unitName&updateMask.fieldPaths=name&updateMask.fieldPaths=maKhuVuc&updateMask.fieldPaths=updatedAt"
-        guard let url = URL(string: urlString) else { return }
+        let targetId = (newUnitId ?? unitId).trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let cleanRegion = region.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "PATCH"
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+        if !targetId.isEmpty && targetId != unitId.uppercased() {
+            // Tao document moi voi ma moi va xoa document cu
+            await addUnit(id: targetId, name: cleanName, region: cleanRegion)
+            await deleteUnit(unitId: unitId)
+        } else {
+            let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/units/\(unitId)?updateMask.fieldPaths=unitName&updateMask.fieldPaths=name&updateMask.fieldPaths=maKhuVuc&updateMask.fieldPaths=updatedAt"
+            guard let url = URL(string: urlString) else { return }
 
-        let body: [String: Any] = [
-            "fields": [
-                "unitName": ["stringValue": cleanName],
-                "name": ["stringValue": cleanName],
-                "maKhuVuc": ["stringValue": region.trimmingCharacters(in: .whitespacesAndNewlines)],
-                "updatedAt": ["integerValue": String(Int64(Date().timeIntervalSince1970 * 1000))]
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+            if !idToken.isEmpty { request.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+
+            let body: [String: Any] = [
+                "fields": [
+                    "unitName": ["stringValue": cleanName],
+                    "name": ["stringValue": cleanName],
+                    "maKhuVuc": ["stringValue": cleanRegion],
+                    "updatedAt": ["integerValue": String(Int64(Date().timeIntervalSince1970 * 1000))]
+                ]
             ]
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        _ = await FirestoreHelper.executeSafeRequest(request)
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            _ = await FirestoreHelper.executeSafeRequest(request)
+        }
         fetchUnitsAndRegions()
     }
 
