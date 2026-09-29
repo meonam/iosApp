@@ -92,10 +92,18 @@ public class DeviceViewModel: ObservableObject {
                        (!myDonVi.isEmpty && u == myDonVi)
             }
         } else {
+            // Nhân viên thường: thấy thiết bị do mình tạo (createdBy) HOẶC thuộc đơn vị của mình (tenDonVi/phongBan)
+            // Lưu ý: AddDeviceView lưu tenDonVi = donVi || "PCNTT", phongBan = departmentId || "PCNTT"
+            let effectiveDonVi = myDonVi.isEmpty ? "pcntt" : myDonVi
+            let effectiveDept = myDept.isEmpty ? "pcntt" : myDept
             baseList = rawDevices.filter { dev in
                 let c = (dev.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 let u = dev.tenDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                return (!c.isEmpty && c == myEmail) || (!myDonVi.isEmpty && u == myDonVi)
+                let d = (dev.phongBan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let matchCreated = !c.isEmpty && !myEmail.isEmpty && c == myEmail
+                let matchUnit = !u.isEmpty && u == effectiveDonVi
+                let matchDept = !d.isEmpty && d == effectiveDept
+                return matchCreated || matchUnit || matchDept
             }
         }
 
