@@ -358,6 +358,9 @@ public class DeviceViewModel: ObservableObject {
             return nil
         }
 
+        let moTa = FirestoreHelper.getString(fields, "moTa")
+            .ifEmpty(FirestoreHelper.getString(fields, "description"))
+
         return ThietBi(
             id: cleanId,
             ten: FirestoreHelper.getString(fields, "ten"),
@@ -367,7 +370,7 @@ public class DeviceViewModel: ObservableObject {
             role: FirestoreHelper.getString(fields, "role"),
             loai: FirestoreHelper.getString(fields, "loai"),
             phongBan: FirestoreHelper.getString(fields, "phongBan"),
-            moTa: FirestoreHelper.getString(fields, "moTa"),
+            moTa: moTa,
             createdBy: FirestoreHelper.getString(fields, "createdBy"),
             companyId: FirestoreHelper.getString(fields, "companyId"),
             synced: true,
