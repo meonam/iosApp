@@ -11,6 +11,7 @@ public class AdminViewModel: ObservableObject {
     @Published public var departments: [Department] = []
     @Published public var units: [DonVi] = []
     @Published public var regions: [KhuVuc] = []
+    @Published public var suggestedStores: [SgcoopStore] = SgcoopStores.list
     @Published public var userCountByDept: [String: Int] = [:]
     @Published public var deviceCountByDept: [String: Int] = [:]
     @Published public var deviceTypes: [String] = [
@@ -660,6 +661,34 @@ public class AdminViewModel: ObservableObject {
                     }
                 }
             }
+
+            // Suggested Stores
+            let storeUrlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/suggested_stores?pageSize=300"
+            if let storeUrl = URL(string: storeUrlString) {
+                var storeRequest = URLRequest(url: storeUrl)
+                if !idToken.isEmpty { storeRequest.addValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+
+                if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(storeRequest), httpResponse.statusCode == 200,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let documents = json["documents"] as? [[String: Any]] {
+                    let parsed: [SgcoopStore] = documents.compactMap { doc -> SgcoopStore? in
+                        guard let name = doc["name"] as? String,
+                              let fields = doc["fields"] as? [String: Any] else { return nil }
+                        let docId = doc["id"] as? String ?? name.components(separatedBy: "/").last ?? ""
+                        let code = FirestoreHelper.getString(fields["code"] as? [String: Any]).isEmpty ? docId : FirestoreHelper.getString(fields["code"] as? [String: Any])
+                        let shortName = FirestoreHelper.getString(fields["shortName"] as? [String: Any])
+                        let fullName = FirestoreHelper.getString(fields["fullName"] as? [String: Any]).isEmpty ?
+                            FirestoreHelper.getString(fields["name"] as? [String: Any]) :
+                            FirestoreHelper.getString(fields["fullName"] as? [String: Any])
+                        if code.isEmpty { return nil }
+                        return SgcoopStore(code: code, shortName: shortName, fullName: fullName.isEmpty ? code : fullName)
+                    }
+                    if !parsed.isEmpty {
+                        self.suggestedStores = parsed
+                    }
+                }
+            }
+
             self.isLoading = false
         }
     }

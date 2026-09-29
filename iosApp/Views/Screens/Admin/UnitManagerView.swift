@@ -41,7 +41,8 @@ public struct UnitManagerView: View {
         let q = storeSearchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !q.isEmpty else { return [] }
         let qNorm = q.folding(options: .diacriticInsensitive, locale: .current)
-        return Array(SgcoopStores.list.filter { st in
+        let sourceList = viewModel.suggestedStores.isEmpty ? SgcoopStores.list : viewModel.suggestedStores
+        return Array(sourceList.filter { st in
             st.code.lowercased().contains(q) ||
             st.shortName.lowercased().contains(q) ||
             st.shortName.folding(options: .diacriticInsensitive, locale: .current).lowercased().contains(qNorm) ||
