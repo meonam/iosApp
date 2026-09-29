@@ -501,7 +501,8 @@ public struct MainContainerView: View {
         case .attendanceReport:
             AttendanceReportView(
                 authViewModel: authViewModel,
-                onBack: { currentDestination = .home }
+                onBack: { currentDestination = .home },
+                onNavigateToSettings: { currentDestination = .systemSettings }
             )
 
         case .shiftSchedule:
