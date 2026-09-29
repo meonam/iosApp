@@ -189,10 +189,35 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let userInfo = response.notification.request.content.userInfo
-        if let ticketId = userInfo["ticketId"] as? String {
+        let actionId = response.actionIdentifier
+        let ticketId = userInfo["ticketId"] as? String ?? ""
+
+        // Dừng chuông alert nếu có ticketId
+        if !ticketId.isEmpty {
             VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
         }
+
+        // Điều hướng đến màn hình chat ticket khi:
+        // 1. Bấm nút "✅ TIẾP NHẬN XỬ LÝ" (ACK_DISPATCH)
+        // 2. Bấm nút "✅ ĐÃ TIẾP NHẬN" (ACK_NEW_TICKET)
+        // 3. Bấm vào bất kỳ thông báo nào có ticketId (UNNotificationDefaultActionIdentifier)
+        let isNavigateAction = actionId == "ACK_DISPATCH"
+            || actionId == "ACK_NEW_TICKET"
+            || actionId == UNNotificationDefaultActionIdentifier
+
+        if !ticketId.isEmpty && isNavigateAction {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                NotificationCenter.default.post(
+                    name: Notification.Name("QLTB_NavigateToTicket"),
+                    object: nil,
+                    userInfo: [
+                        "ticketId": ticketId,
+                        "action": actionId
+                    ]
+                )
+            }
+        }
+
         completionHandler()
     }
-}
-
+} // end AppDelegate

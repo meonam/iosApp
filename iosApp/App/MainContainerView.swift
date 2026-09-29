@@ -11,6 +11,7 @@ public struct MainContainerView: View {
     @State private var currentDestination: DrawerDestination = .home
     @State private var isDrawerOpen: Bool = false
     @State private var selectedTicketForChat: SupportTicket? = nil
+    @State private var pendingNavTicketId: String? = nil   // Điều hướng từ notification "Tiếp nhận"
 
     // Sheets mở từ khắp nơi
     @State private var showAddDeviceSheet: Bool = false
@@ -210,6 +211,28 @@ public struct MainContainerView: View {
                             break
                         }
                     }
+                    // MARK: - XỬ LÝ ĐIỀU HƯỚNG TỪ THÔNG BÁO "TIẾP NHẬN" (ĐỒNG BỘ ANDROID MainActivity.handleNotificationIntent)
+                    .onReceive(NotificationCenter.default.publisher(for: Notification.Name("QLTB_NavigateToTicket"))) { note in
+                        guard let tid = note.userInfo?["ticketId"] as? String, !tid.isEmpty else { return }
+                        // Chuyển về tab Hỗ trợ
+                        currentDestination = .staffSupport
+                        // Tìm ticket trong cache hiện tại
+                        if let found = supportViewModel.tickets.first(where: { $0.id == tid }) {
+                            selectedTicketForChat = found
+                        } else {
+                            // Chưa có trong cache → lưu pending, sau khi fetch xong sẽ mở
+                            pendingNavTicketId = tid
+                            supportViewModel.fetchTickets()
+                        }
+                    }
+                    // Theo dõi danh sách ticket: nếu đang pending điều hướng từ notification thì mở ngay khi có
+                    .onChange(of: supportViewModel.tickets) { newTickets in
+                        if let tid = pendingNavTicketId,
+                           let found = newTickets.first(where: { $0.id == tid }) {
+                            pendingNavTicketId = nil
+                            selectedTicketForChat = found
+                        }
+                    }
                     }
                 }
             }
@@ -393,6 +416,13 @@ public struct MainContainerView: View {
                 authViewModel: authViewModel,
                 onBack: { currentDestination = .home }
             )
+            .sheet(item: $selectedTicketForChat) { ticket in
+                TicketChatDetailView(
+                    viewModel: supportViewModel,
+                    ticket: ticket,
+                    onBack: { selectedTicketForChat = nil }
+                )
+            }
 
         case .supportHub:
             SupportHubView(

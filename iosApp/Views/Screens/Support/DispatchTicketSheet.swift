@@ -15,29 +15,35 @@ public struct SpecialistTeamInfo: Identifiable, Hashable {
 
 public let DEFAULT_SPECIALIST_TEAMS: [SpecialistTeamInfo] = [
     SpecialistTeamInfo(
+        id: "TO_HA_TANG_BAO_MAT",
+        name: "Tổ Hạ Tầng Mạng & Bảo Mật",
+        applications: ["HẠ TẦNG & MẠNG", "AN NINH BẢO MẬT"]
+    ),
+    SpecialistTeamInfo(
         id: "TO_KY_THUAT_UNG_DUNG",
         name: "Tổ Kỹ Thuật Ứng Dụng",
-        applications: ["ERP", "POS", "SAP", "CRM", "WMS", "HRM"]
+        applications: ["MMS (Kỹ thuật)", "ORACLE", "Văn phòng điện tử", "KHTV", "TOPOS"]
     ),
     SpecialistTeamInfo(
-        id: "TO_HA_TANG_HE_THONG",
-        name: "Tổ Hạ Tầng & Hệ Thống",
-        applications: ["SERVER", "NETWORK", "CLOUD", "BACKUP", "FIREWALL"]
+        id: "TO_PHAN_TICH_NGHIEP_VU",
+        name: "Tổ Phân Tích Nghiệp Vụ",
+        applications: ["MMS (Nghiệp vụ)", "OMNI", "Nhập liệu tự động", "ERP MCS/Bách Hóa"]
     ),
     SpecialistTeamInfo(
-        id: "TO_PHAN_MEM_DU_LIEU",
-        name: "Tổ Phần Mềm & Dữ Liệu",
-        applications: ["DATABASE", "API", "REPORT", "WEB_PORTAL", "APP_MOBILE"]
+        id: "TO_NEN_TANG_DU_LIEU",
+        name: "Tổ Nền Tảng Dữ Liệu",
+        applications: ["TOOLS NỘI BỘ", "REPORT TOOL"]
     ),
     SpecialistTeamInfo(
-        id: "TO_VAN_HANH_AN_NINH_MANG",
-        name: "Tổ Vận Hành & An Ninh Mạng",
-        applications: ["SECURITY", "SOC", "CCTV", "ACCESS_CONTROL"]
+        id: "TO_RND_CONG_NGHE",
+        name: "Tổ Nghiên Cứu & Phát Triển Công Nghệ",
+        applications: ["CHƯƠNG TRÌNH ĐẶT HÀNG OMS", "CHƯƠNG TRÌNH ĐẶT HÀNG D&F", "APP CHÀO HÀNG ONLINE"]
     )
 ]
 
-// MARK: - DISPATCH TICKET SHEET (ĐỒNG BỘ 1:1 VỚI ANDROID ANDROIDDISPATCHDIALOG & SCREENSHOT media_1790509285860.png)
+// MARK: - DISPATCH TICKET SHEET (ĐỒNG BỘ 1:1 VỚI ANDROID)
 public struct DispatchTicketSheet: View {
+
     public var ticket: SupportTicket
     @ObservedObject public var viewModel: SupportViewModel
     public var onDismiss: () -> Void
