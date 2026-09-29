@@ -188,7 +188,7 @@ public struct AddDeviceView: View {
                     }) {
                         HStack {
                             Text("Chưa chọn / Để trống")
-                                .font(.system(size: 14, weight: selectedLoaiThietBi.isEmpty ? .bold : .normal))
+                                .font(.system(size: 14, weight: selectedLoaiThietBi.isEmpty ? .bold : .regular))
                                 .foregroundColor(selectedLoaiThietBi.isEmpty ? Color.appPrimaryPink : Color.appTextSecondary)
                             Spacer()
                             if selectedLoaiThietBi.isEmpty {
@@ -209,7 +209,7 @@ public struct AddDeviceView: View {
                         }) {
                             HStack {
                                 Text(t.displayName)
-                                    .font(.system(size: 14, weight: (selectedLoaiThietBi == t.id || selectedLoaiThietBi == t.name) ? .bold : .normal))
+                                    .font(.system(size: 14, weight: (selectedLoaiThietBi == t.id || selectedLoaiThietBi == t.name) ? .bold : .regular))
                                     .foregroundColor((selectedLoaiThietBi == t.id || selectedLoaiThietBi == t.name) ? Color.appPrimaryPink : Color.appTextPrimary)
                                 Spacer()
                                 if selectedLoaiThietBi == t.id || selectedLoaiThietBi == t.name {

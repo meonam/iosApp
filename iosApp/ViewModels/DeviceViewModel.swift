@@ -855,8 +855,8 @@ public class DeviceViewModel: ObservableObject {
     }
 }
 
-private extension String {
-    func ifEmpty(_ fallback: String) -> String {
+extension String {
+    public func ifEmpty(_ fallback: String) -> String {
         return self.isEmpty ? fallback : self
     }
 }
