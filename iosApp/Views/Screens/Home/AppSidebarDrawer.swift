@@ -467,7 +467,7 @@ public struct AppSidebarDrawer: View {
                         if isSystemExpanded {
                             VStack(spacing: 2) {
                                 drawerItemRow(
-                                    title: "Cài đặt máy in / máy quét",
+                                    title: "Cài đặt máy in & máy quét",
                                     icon: "printer.dotmatrix.fill",
                                     color: Color(hex: "#64748B"),
                                     isSelected: currentDestination == .peripherals

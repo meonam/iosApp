@@ -57,7 +57,7 @@ public struct AttendanceCheckInView: View {
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color(hex: "#F8FAFC").ignoresSafeArea()
+                Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // TOP BAR CHUẨN ANDROID (Xanh Đậm #002A8F)
@@ -431,16 +431,16 @@ public struct AttendanceCheckInView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("💡 Chưa có lịch phân ca hôm nay")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color(hex: "#0F172A"))
+                            .foregroundColor(Color.appTextPrimary)
 
                         Text("Hệ thống đã tự động gợi ý ca theo giờ thực tế. Bạn có thể chọn lại ca bên dưới và bấm Điểm danh bình thường.")
                             .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "#475569"))
+                            .foregroundColor(Color.appTextSecondary)
                     }
                 }
                 .padding(10)
-                .background(Color(hex: "#F8FAFC"))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                .background(Color.appSurfaceVariant)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                 .cornerRadius(8)
             }
 
@@ -453,7 +453,7 @@ public struct AttendanceCheckInView: View {
 
                     Text("Chọn ca làm việc:")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(Color(hex: "#002A8F"))
+                        .foregroundColor(Color.appTextPrimary)
                 }
 
                 Spacer()
@@ -487,9 +487,9 @@ public struct AttendanceCheckInView: View {
             }
         }
         .padding(14)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(14)
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     private func shiftButtonView(item: (id: String, title: String, time: String, activeColor: Color)) -> some View {
@@ -501,19 +501,19 @@ public struct AttendanceCheckInView: View {
             VStack(spacing: 2) {
                 Text(item.title)
                     .font(.system(size: 11.5, weight: .bold))
-                    .foregroundColor(isSelected ? .white : Color(hex: "#334155"))
+                    .foregroundColor(isSelected ? .white : Color.appTextPrimary)
 
                 Text(item.time)
                     .font(.system(size: 10))
-                    .foregroundColor(isSelected ? Color.white.opacity(0.9) : Color(hex: "#64748B"))
+                    .foregroundColor(isSelected ? Color.white.opacity(0.9) : Color.appTextSecondary)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 46)
-            .background(isSelected ? item.activeColor : Color(hex: "#F8FAFC"))
+            .background(isSelected ? item.activeColor : Color.appSurfaceVariant)
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isSelected ? item.activeColor : Color(hex: "#E2E8F0"), lineWidth: 1)
+                    .stroke(isSelected ? item.activeColor : Color.appCardBorder, lineWidth: 1)
             )
         }
     }
@@ -546,7 +546,7 @@ public struct AttendanceCheckInView: View {
 
                 Text("VÀO CA (\(shiftLabel))")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Color(hex: "#002A8F"))
+                    .foregroundColor(Color.appTextPrimary)
                     .multilineTextAlignment(.center)
 
                 Text(isCheckedIn ? viewModel.todayRecord!.checkInTimeFormatted : "--:--")
@@ -583,11 +583,11 @@ public struct AttendanceCheckInView: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity)
-            .background(isCheckedIn ? Color(hex: "#DCFCE7") : Color.white)
+            .background(isCheckedIn ? Color.dynamic(light: "#DCFCE7", dark: "#064E3B").opacity(0.35) : Color.appSurface)
             .cornerRadius(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(isCheckedIn ? Color(hex: "#16A34A") : Color(hex: "#CBD5E1"), lineWidth: 1.5)
+                    .stroke(isCheckedIn ? Color(hex: "#16A34A") : Color.appCardBorder, lineWidth: 1.5)
             )
 
             // Thẻ CHECK-OUT
@@ -599,12 +599,12 @@ public struct AttendanceCheckInView: View {
 
                     Image(systemName: "arrow.right.from.line")
                         .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(isCheckedOut ? .white : Color(hex: "#002A8F"))
+                        .foregroundColor(isCheckedOut ? .white : Color.appPrimary)
                 }
 
                 Text("TAN CA (\(shiftLabel))")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Color(hex: "#002A8F"))
+                    .foregroundColor(Color.appTextPrimary)
                     .multilineTextAlignment(.center)
 
                 Text(isCheckedOut ? viewModel.todayRecord!.checkOutTimeFormatted : "--:--")
@@ -642,11 +642,11 @@ public struct AttendanceCheckInView: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity)
-            .background(isCheckedOut ? Color(hex: "#EFF6FF") : Color.white)
+            .background(isCheckedOut ? Color.dynamic(light: "#EFF6FF", dark: "#1E3A8A").opacity(0.35) : Color.appSurface)
             .cornerRadius(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
-                    .stroke(isCheckedOut ? Color(hex: "#2563EB") : Color(hex: "#CBD5E1"), lineWidth: 1.5)
+                    .stroke(isCheckedOut ? Color(hex: "#2563EB") : Color.appCardBorder, lineWidth: 1.5)
             )
         }
     }
@@ -705,36 +705,37 @@ public struct AttendanceCheckInView: View {
                 Spacer()
                 Text("⏱️ Tổng: \(record.workHoursFormatted)")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Color(hex: "#0F172A"))
+                    .foregroundColor(Color.appTextPrimary)
             }
 
             if !record.checkOutAddress.isEmpty {
                 Text("📍 \(record.checkOutAddress)")
                     .font(.system(size: 11))
-                    .foregroundColor(Color(hex: "#64748B"))
+                    .foregroundColor(Color.appTextSecondary)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .padding(14)
-        .background(Color(hex: "#EFF6FF"))
+        .background(Color.appSurface)
         .cornerRadius(14)
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#93C5FD"), lineWidth: 1.5))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1.5))
     }
 
     // MARK: - 5. NOTE INPUT
     private var noteInputField: some View {
         HStack {
             Image(systemName: "square.and.pencil")
-                .foregroundColor(Color(hex: "#94A3B8"))
+                .foregroundColor(Color.appTextSecondary)
 
             TextField("Ghi chú ca làm việc (vd: Đi công tác, sửa máy...)", text: $viewModel.noteInput)
                 .font(.system(size: 13))
+                .foregroundColor(Color.appTextPrimary)
         }
         .padding(12)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(10)
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     // MARK: - 6. HISTORY NAVIGATION CARD
@@ -756,12 +757,12 @@ public struct AttendanceCheckInView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Lịch Sử Điểm Danh Chấm Công")
                         .font(.system(size: 13.5, weight: .bold))
-                        .foregroundColor(Color(hex: "#002A8F"))
+                        .foregroundColor(Color.appTextPrimary)
                         .lineLimit(1)
 
                     Text("Đã ghi nhận \(viewModel.totalMonthDays) ngày công tháng này")
                         .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "#64748B"))
+                        .foregroundColor(Color.appTextSecondary)
                         .lineLimit(1)
                 }
 
@@ -778,9 +779,9 @@ public struct AttendanceCheckInView: View {
                 }
             }
             .padding(14)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(14)
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
             .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
         }
     }
@@ -804,12 +805,12 @@ public struct AttendanceCheckInView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Báo Cáo Chấm Công & Chi Phí")
                         .font(.system(size: 13.5, weight: .bold))
-                        .foregroundColor(Color(hex: "#002A8F"))
+                        .foregroundColor(Color.appTextPrimary)
                         .lineLimit(1)
 
                     Text("Bảng tổng hợp KTV & quyết toán")
                         .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "#64748B"))
+                        .foregroundColor(Color.appTextSecondary)
                         .lineLimit(1)
                 }
 
@@ -826,9 +827,9 @@ public struct AttendanceCheckInView: View {
                 }
             }
             .padding(14)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(14)
-            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
             .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
         }
     }
@@ -845,12 +846,12 @@ public struct AttendanceCheckInView: View {
 
                 Text(viewModel.geofenceAlertTitle)
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundColor(Color(hex: "#002A8F"))
+                    .foregroundColor(Color.appTextPrimary)
                     .multilineTextAlignment(.center)
 
                 Text(viewModel.geofenceAlertMessage)
                     .font(.system(size: 13.5))
-                    .foregroundColor(Color(hex: "#334155"))
+                    .foregroundColor(Color.appTextSecondary)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
 
@@ -860,10 +861,10 @@ public struct AttendanceCheckInView: View {
                     }) {
                         Text("Đóng")
                             .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(Color(hex: "#64748B"))
+                            .foregroundColor(Color.appTextSecondary)
                             .frame(maxWidth: .infinity)
                             .frame(height: 42)
-                            .background(Color(hex: "#F1F5F9"))
+                            .background(Color.appSurfaceVariant)
                             .cornerRadius(8)
                     }
 
@@ -882,7 +883,7 @@ public struct AttendanceCheckInView: View {
                 }
             }
             .padding(20)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(16)
             .padding(.horizontal, 28)
             .shadow(radius: 10)
@@ -898,7 +899,7 @@ public struct AttendanceCheckInView: View {
                 HStack {
                     Text("💡 Hướng Dẫn Điểm Danh Chấm Công")
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(Color(hex: "#002A8F"))
+                        .foregroundColor(Color.appTextPrimary)
                     Spacer()
                     Button(action: { showGuideDialog = false }) {
                         Image(systemName: "xmark.circle.fill")
@@ -920,12 +921,12 @@ public struct AttendanceCheckInView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 42)
-                        .background(Color(hex: "#002A8F"))
+                        .background(Color.appPrimary)
                         .cornerRadius(8)
                 }
             }
             .padding(20)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(16)
             .padding(.horizontal, 24)
         }
@@ -934,12 +935,12 @@ public struct AttendanceCheckInView: View {
     private func guideRow(step: String, title: String, desc: String) -> some View {
         HStack(alignment: .top, spacing: 10) {
             ZStack {
-                Circle().fill(Color(hex: "#002A8F")).frame(width: 22, height: 22)
+                Circle().fill(Color.appPrimary).frame(width: 22, height: 22)
                 Text(step).font(.system(size: 11, weight: .bold)).foregroundColor(.white)
             }
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.system(size: 13, weight: .bold)).foregroundColor(Color(hex: "#0F172A"))
-                Text(desc).font(.system(size: 12)).foregroundColor(Color(hex: "#64748B"))
+                Text(title).font(.system(size: 13, weight: .bold)).foregroundColor(Color.appTextPrimary)
+                Text(desc).font(.system(size: 12)).foregroundColor(Color.appTextSecondary)
             }
         }
     }
@@ -954,12 +955,12 @@ public struct AttendanceCheckInView: View {
 
             Text("Phân Hệ Chấm Công & Công Tác Phí")
                 .font(.system(size: 18, weight: .bold))
-                .foregroundColor(Color(hex: "#002A8F"))
+                .foregroundColor(Color.appTextPrimary)
                 .multilineTextAlignment(.center)
 
             Text("Chức năng chấm công GPS hiện chỉ áp dụng cho Quản trị viên, HelpDesk và Nhân viên / Kỹ thuật viên thuộc phòng ban tiếp nhận & xử lý sự cố kỹ thuật.")
                 .font(.system(size: 13.5))
-                .foregroundColor(.gray)
+                .foregroundColor(Color.appTextSecondary)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
                 .padding(.horizontal, 24)
@@ -967,10 +968,10 @@ public struct AttendanceCheckInView: View {
             Button(action: onBack) {
                 Text("Quay lại Trang chủ")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color(hex: "#002A8F"))
+                    .foregroundColor(Color.appPrimary)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 10)
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#002A8F"), lineWidth: 1.5))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appPrimary, lineWidth: 1.5))
             }
             Spacer()
         }

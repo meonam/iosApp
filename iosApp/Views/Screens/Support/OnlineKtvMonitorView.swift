@@ -411,7 +411,7 @@ public struct OnlineKtvMonitorView: View {
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color(hex: "#F8FAFC").ignoresSafeArea()
+                Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // 1. TOP BAR ĐỒNG BỘ 1:1 VỚI ANDROID
@@ -480,12 +480,13 @@ public struct OnlineKtvMonitorView: View {
                                     .frame(width: 8, height: 8)
                                 Text("Định vị: \(ktvsWithLocation.count)/\(totalCount) KTV")
                                     .font(.system(size: 11.5, weight: .bold))
-                                    .foregroundColor(Color(hex: "#002A8F"))
+                                    .foregroundColor(Color.appTextPrimary)
                             }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(Color.white.opacity(0.92))
+                            .background(Color.appSurface.opacity(0.92))
                             .cornerRadius(20)
+                            .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.appCardBorder, lineWidth: 1))
                             .shadow(color: Color.black.opacity(0.12), radius: 3)
                             .padding(8)
 
@@ -497,10 +498,11 @@ public struct OnlineKtvMonitorView: View {
                                         Button(action: fitAllTechnicians) {
                                             Image(systemName: "dot.scope")
                                                 .font(.system(size: 16, weight: .bold))
-                                                .foregroundColor(Color(hex: "#002A8F"))
+                                                .foregroundColor(Color.appTextPrimary)
                                                 .padding(8)
-                                                .background(Color.white.opacity(0.92))
+                                                .background(Color.appSurface.opacity(0.92))
                                                 .clipShape(Circle())
+                                                .overlay(Circle().stroke(Color.appCardBorder, lineWidth: 1))
                                                 .shadow(color: Color.black.opacity(0.18), radius: 3)
                                         }
                                     }
@@ -517,7 +519,7 @@ public struct OnlineKtvMonitorView: View {
                         tabButton(title: "Trực tuyến (\(onlineCount))", tabIndex: 0, isWarning: false)
                         tabButton(title: "Vi phạm / Blacklist (\(violationList.count))", tabIndex: 1, isWarning: true)
                     }
-                    .background(Color.white)
+                    .background(Color.appSurface)
 
                     Divider()
 
@@ -709,12 +711,12 @@ public struct OnlineKtvMonitorView: View {
 
                     Text(title)
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(selectedTab == tabIndex ? Color(hex: "#002A8F") : Color(hex: "#64748B"))
+                        .foregroundColor(selectedTab == tabIndex ? Color.appPrimary : Color.appTextSecondary)
                 }
                 .padding(.top, 10)
 
                 Rectangle()
-                    .fill(selectedTab == tabIndex ? Color(hex: "#002A8F") : Color.clear)
+                    .fill(selectedTab == tabIndex ? Color.appPrimary : Color.clear)
                     .frame(height: 3)
             }
         }
@@ -728,32 +730,33 @@ public struct OnlineKtvMonitorView: View {
             // Search field
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(Color.gray)
+                    .foregroundColor(Color.appTextSecondary)
                     .font(.system(size: 14))
 
                 TextField("Tìm theo tên / MNV / email...", text: $searchQuery)
                     .font(.system(size: 13))
+                    .foregroundColor(Color.appTextPrimary)
 
                 if !searchQuery.isEmpty {
                     Button(action: { searchQuery = "" }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(Color.gray)
+                            .foregroundColor(Color.appTextMuted)
                             .font(.system(size: 14))
                     }
                 }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(8)
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 0.8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 0.8))
 
             // Cluster filter chips
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     Text("Cụm:")
                         .font(.system(size: 11.5, weight: .bold))
-                        .foregroundColor(Color.gray)
+                        .foregroundColor(Color.appTextSecondary)
 
                     ForEach(clusters, id: \.self) { cl in
                         chipButton(
@@ -770,7 +773,7 @@ public struct OnlineKtvMonitorView: View {
                 HStack(spacing: 6) {
                     Text("Trạng thái:")
                         .font(.system(size: 11.5, weight: .bold))
-                        .foregroundColor(Color.gray)
+                        .foregroundColor(Color.appTextSecondary)
 
                     let statusList: [(String, String)] = [
                         ("ALL", "Tất cả"),
@@ -794,7 +797,7 @@ public struct OnlineKtvMonitorView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color(hex: "#F8FAFC"))
+        .background(Color.appSurfaceVariant)
     }
 
     @ViewBuilder
@@ -802,14 +805,14 @@ public struct OnlineKtvMonitorView: View {
         Button(action: onTap) {
             Text(title)
                 .font(.system(size: 11, weight: isSelected ? .bold : .medium))
-                .foregroundColor(isSelected ? .white : Color(hex: "#334155"))
+                .foregroundColor(isSelected ? .white : Color.appTextPrimary)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
-                .background(isSelected ? Color(hex: "#002A8F") : Color.white)
+                .background(isSelected ? Color.appPrimary : Color.appSurface)
                 .cornerRadius(14)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(isSelected ? Color(hex: "#002A8F") : Color(hex: "#CBD5E1"), lineWidth: 0.8)
+                        .stroke(isSelected ? Color.appPrimary : Color.appCardBorder, lineWidth: 0.8)
                 )
         }
         .buttonStyle(PlainButtonStyle())
@@ -841,18 +844,18 @@ public struct OnlineKtvMonitorView: View {
                         HStack(spacing: 6) {
                             Text(ktv.name)
                                 .font(.system(size: 14.5, weight: .bold))
-                                .foregroundColor(Color(hex: "#002A8F"))
+                                .foregroundColor(Color.appTextPrimary)
                                 .lineLimit(1)
 
                             // Role badge
                             Text(ktv.isSpecialist ? "Chuyên viên" : "KTV")
                                 .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(ktv.isSpecialist ? Color(hex: "#7E22CE") : Color(hex: "#0369A1"))
+                                .foregroundColor(ktv.isSpecialist ? Color.dynamic(light: "#7E22CE", dark: "#D8B4FE") : Color.dynamic(light: "#0369A1", dark: "#7DD3FC"))
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 1)
-                                .background(ktv.isSpecialist ? Color(hex: "#F3E8FF") : Color(hex: "#E0F2FE"))
+                                .background(ktv.isSpecialist ? Color.dynamic(light: "#F3E8FF", dark: "#3B0764") : Color.dynamic(light: "#E0F2FE", dark: "#0C4A6E"))
                                 .cornerRadius(4)
-                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(ktv.isSpecialist ? Color(hex: "#D8B4FE") : Color(hex: "#BAE6FD"), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(ktv.isSpecialist ? Color(hex: "#D8B4FE").opacity(0.4) : Color(hex: "#BAE6FD").opacity(0.4), lineWidth: 1))
 
                             // Blacklist tag
                             if ktv.isBlacklisted {
@@ -861,7 +864,7 @@ public struct OnlineKtvMonitorView: View {
                                     .foregroundColor(Color(hex: "#DC2626"))
                                     .padding(.horizontal, 4)
                                     .padding(.vertical, 1)
-                                    .background(Color(hex: "#FEE2E2"))
+                                    .background(Color.dynamic(light: "#FEE2E2", dark: "#450A0A"))
                                     .cornerRadius(4)
                             }
                         }
@@ -870,12 +873,12 @@ public struct OnlineKtvMonitorView: View {
                         HStack(spacing: 6) {
                             Text("MNV: \(ktv.mnvDisplay)")
                                 .font(.system(size: 10.5, weight: .bold))
-                                .foregroundColor(Color(hex: "#1D4ED8"))
+                                .foregroundColor(Color.dynamic(light: "#1D4ED8", dark: "#93C5FD"))
                                 .padding(.horizontal, 4)
                                 .padding(.vertical, 1)
-                                .background(Color(hex: "#EFF6FF"))
+                                .background(Color.dynamic(light: "#EFF6FF", dark: "#1E293B"))
                                 .cornerRadius(4)
-                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(hex: "#BFDBFE"), lineWidth: 0.8))
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.dynamic(light: "#BFDBFE", dark: "#334155"), lineWidth: 0.8))
 
                             if !ktv.phone.isEmpty {
                                 Text("• 📞 \(ktv.phone)")
@@ -886,7 +889,7 @@ public struct OnlineKtvMonitorView: View {
 
                         Text(ktv.email)
                             .font(.system(size: 11))
-                            .foregroundColor(Color.gray)
+                            .foregroundColor(Color.appTextSecondary)
                             .lineLimit(1)
                     }
 
@@ -919,15 +922,15 @@ public struct OnlineKtvMonitorView: View {
                     if ktv.isScheduledOff {
                         Text("✓ Nghỉ ca")
                             .font(.system(size: 10.5, weight: .medium))
-                            .foregroundColor(Color(hex: "#16A34A"))
+                            .foregroundColor(Color.dynamic(light: "#16A34A", dark: "#4ADE80"))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color(hex: "#F0FDF4"))
+                            .background(Color.dynamic(light: "#F0FDF4", dark: "#052E16"))
                             .cornerRadius(4)
                     } else if ktv.lastActiveAt > 0 {
                         Text(ktv.isOnline ? "🟢 \(ktv.lastSeen)" : "⚪ \(ktv.lastSeen)")
                             .font(.system(size: 11))
-                            .foregroundColor(ktv.isOnline ? Color(hex: "#059669") : Color.gray)
+                            .foregroundColor(ktv.isOnline ? Color.dynamic(light: "#059669", dark: "#34D399") : Color.appTextSecondary)
                     }
                 }
 
@@ -935,19 +938,19 @@ public struct OnlineKtvMonitorView: View {
                 HStack(spacing: 6) {
                     Text("🎯 Cụm: \(ktv.maKhuVuc.isEmpty ? "Chưa gán" : ktv.maKhuVuc)")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Color(hex: "#0369A1"))
+                        .foregroundColor(Color.dynamic(light: "#0369A1", dark: "#38BDF8"))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color(hex: "#E0F2FE"))
+                        .background(Color.dynamic(light: "#E0F2FE", dark: "#0C4A6E"))
                         .cornerRadius(4)
 
                     Text("🏢 \(ktv.unitName.isEmpty ? "IT TẬP TRUNG" : ktv.unitName)")
                         .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "#475569"))
+                        .foregroundColor(Color.appTextSecondary)
                         .lineLimit(1)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(Color(hex: "#F1F5F9"))
+                        .background(Color.appSurfaceVariant)
                         .cornerRadius(4)
 
                     Spacer()
@@ -955,10 +958,10 @@ public struct OnlineKtvMonitorView: View {
                     if ktv.latitude != 0 && ktv.longitude != 0 {
                         Text("📍 Định vị")
                             .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(Color(hex: "#166534"))
+                            .foregroundColor(Color.dynamic(light: "#166534", dark: "#86EFAC"))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color(hex: "#DCFCE7"))
+                            .background(Color.dynamic(light: "#DCFCE7", dark: "#14532D"))
                             .cornerRadius(4)
                     }
 
@@ -966,19 +969,19 @@ public struct OnlineKtvMonitorView: View {
                     Button(action: { selectedKtv = ktv }) {
                         Image(systemName: "info.circle")
                             .font(.system(size: 15))
-                            .foregroundColor(Color(hex: "#002A8F"))
+                            .foregroundColor(Color.appPrimaryPink)
                     }
                 }
             }
             .padding(12)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(
-                        isSelected ? Color(hex: "#002A8F") :
+                        isSelected ? Color.appPrimaryPink :
                         (isBlacklist ? Color(hex: "#EF4444") :
-                         (ktv.isOnline ? Color(hex: "#10B981").opacity(0.5) : Color(hex: "#E2E8F0"))),
+                         (ktv.isOnline ? Color(hex: "#10B981").opacity(0.5) : Color.appCardBorder)),
                         lineWidth: isSelected ? 2 : 1
                     )
             )
@@ -991,22 +994,22 @@ public struct OnlineKtvMonitorView: View {
     private var violationExplanationBanner: some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "info.circle.fill")
-                .foregroundColor(Color(hex: "#D97706"))
+                .foregroundColor(Color.dynamic(light: "#D97706", dark: "#F59E0B"))
                 .font(.system(size: 18))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("BÁO CÁO VI PHẠM & BLACKLIST (CHỈ TRÌNH LÃNH ĐẠO)")
                     .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Color(hex: "#92400E"))
+                    .foregroundColor(Color.dynamic(light: "#92400E", dark: "#FCD34D"))
 
                 Text("• Offline > 15 phút: Cảnh báo vắng mặt.\n• ≥ 3 lần/tháng: Đề xuất trừ KPI định kỳ.\n• ≥ 5 lần/tháng: Đưa vào danh sách Blacklist.\n• Danh sách Blacklist chỉ gửi Lãnh đạo ra quyết định, không tự động khóa tài khoản app.")
                     .font(.system(size: 11.5))
-                    .foregroundColor(Color(hex: "#B45309"))
+                    .foregroundColor(Color.dynamic(light: "#B45309", dark: "#FDE68A"))
                     .lineSpacing(2)
             }
         }
         .padding(12)
-        .background(Color(hex: "#FEF3C7"))
+        .background(Color.dynamic(light: "#FEF3C7", dark: "#451A03").opacity(0.7))
         .cornerRadius(8)
     }
 
@@ -1025,20 +1028,20 @@ public struct OnlineKtvMonitorView: View {
                     HStack(spacing: 6) {
                         Text(violator.name)
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(Color(hex: "#002A8F"))
+                            .foregroundColor(Color.appTextPrimary)
 
                         Text("MNV: \(violator.mnvDisplay)")
                             .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(Color(hex: "#1D4ED8"))
+                            .foregroundColor(Color.dynamic(light: "#1D4ED8", dark: "#93C5FD"))
                             .padding(.horizontal, 4)
                             .padding(.vertical, 1)
-                            .background(Color(hex: "#EFF6FF"))
+                            .background(Color.dynamic(light: "#EFF6FF", dark: "#1E293B"))
                             .cornerRadius(4)
                     }
 
                     Text("🎯 Cụm: \(violator.maKhuVuc.isEmpty ? "Chưa gán" : violator.maKhuVuc) • 🏢 \(violator.unitName.isEmpty ? "IT TẬP TRUNG" : violator.unitName)" + (!violator.phone.isEmpty ? " • 📞 \(violator.phone)" : ""))
                         .font(.system(size: 11))
-                        .foregroundColor(Color.gray)
+                        .foregroundColor(Color.appTextSecondary)
                 }
 
                 Spacer()
@@ -1054,22 +1057,22 @@ public struct OnlineKtvMonitorView: View {
 
             Text("Email: \(violator.email)")
                 .font(.system(size: 11.5))
-                .foregroundColor(Color.secondary)
+                .foregroundColor(Color.appTextSecondary)
 
             Text("Số lần offline trong ca tháng này: \(violator.violationsThisMonth) lần")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(isBlacklist ? Color(hex: "#BE123C") : Color(hex: "#B45309"))
+                .foregroundColor(isBlacklist ? Color.dynamic(light: "#BE123C", dark: "#FDA4AF") : Color.dynamic(light: "#B45309", dark: "#FCD34D"))
 
             Text("📌 Báo cáo gửi Lãnh đạo xem xét và ra quyết định xử lý.")
                 .font(.system(size: 11))
-                .foregroundColor(Color.gray)
+                .foregroundColor(Color.appTextSecondary)
         }
         .padding(12)
-        .background(isBlacklist ? Color(hex: "#FFF1F2") : Color(hex: "#FFFBEB"))
+        .background(isBlacklist ? Color.dynamic(light: "#FFF1F2", dark: "#4C0519").opacity(0.6) : Color.dynamic(light: "#FFFBEB", dark: "#451A03").opacity(0.6))
         .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(isBlacklist ? Color(hex: "#FECDD3") : Color(hex: "#FDE68A"), lineWidth: 1)
+                .stroke(isBlacklist ? Color.dynamic(light: "#FECDD3", dark: "#881337") : Color.dynamic(light: "#FDE68A", dark: "#78350F"), lineWidth: 1)
         )
     }
 
@@ -1147,20 +1150,20 @@ struct KtvDetailSheet: View {
                     HStack(spacing: 6) {
                         Text(ktv.name)
                             .font(.system(size: 19, weight: .bold))
-                            .foregroundColor(Color(hex: "#0F172A"))
+                            .foregroundColor(Color.appTextPrimary)
 
                         Text(ktv.isSpecialist ? "Chuyên viên" : "KTV")
                             .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(ktv.isSpecialist ? Color(hex: "#7E22CE") : Color(hex: "#0369A1"))
+                            .foregroundColor(ktv.isSpecialist ? Color.dynamic(light: "#7E22CE", dark: "#D8B4FE") : Color.dynamic(light: "#0369A1", dark: "#7DD3FC"))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(ktv.isSpecialist ? Color(hex: "#F3E8FF") : Color(hex: "#E0F2FE"))
+                            .background(ktv.isSpecialist ? Color.dynamic(light: "#F3E8FF", dark: "#3B0764") : Color.dynamic(light: "#E0F2FE", dark: "#0C4A6E"))
                             .cornerRadius(4)
                     }
 
                     Text(ktv.isOnline ? "🟢 Đang trực tuyến" : "⚪ Ngoại tuyến (\(ktv.lastSeen))")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(ktv.isOnline ? Color(hex: "#10B981") : Color.gray)
+                        .foregroundColor(ktv.isOnline ? Color(hex: "#10B981") : Color.appTextSecondary)
                 }
                 Spacer()
             }
@@ -1213,29 +1216,29 @@ struct KtvDetailSheet: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
-                    .background((ktv.latitude == 0 && ktv.longitude == 0) ? Color.gray : Color(hex: "#002A8F"))
+                    .background((ktv.latitude == 0 && ktv.longitude == 0) ? Color.gray : Color.appSecondaryDarkBlue)
                     .cornerRadius(10)
                 }
                 .disabled(ktv.latitude == 0 && ktv.longitude == 0)
             }
             .padding(16)
         }
-        .background(Color.white)
+        .background(Color.appSurface)
     }
 
     private func detailRow(icon: String, title: String, value: String) -> some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
                 .font(.system(size: 15))
-                .foregroundColor(Color(hex: "#64748B"))
+                .foregroundColor(Color.appTextSecondary)
                 .frame(width: 24)
             Text(title)
                 .font(.system(size: 13.5))
-                .foregroundColor(Color(hex: "#64748B"))
+                .foregroundColor(Color.appTextSecondary)
             Spacer()
             Text(value)
                 .font(.system(size: 13.5, weight: .semibold))
-                .foregroundColor(Color(hex: "#0F172A"))
+                .foregroundColor(Color.appTextPrimary)
         }
     }
 

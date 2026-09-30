@@ -82,7 +82,7 @@ public struct AttendanceHistoryView: View {
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color(hex: "#F8FAFC").ignoresSafeArea()
+                Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // TOP BAR CHUẨN ANDROID (Xanh Đậm #002A8F)
@@ -227,27 +227,28 @@ public struct AttendanceHistoryView: View {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 14))
-                    .foregroundColor(Color(hex: "#64748B"))
+                    .foregroundColor(Color.appTextSecondary)
 
                 TextField("Tìm theo ngày (vd: 2026-08-29), ghi chú...", text: $searchQuery)
                     .font(.system(size: 12.5))
+                    .foregroundColor(Color.appTextPrimary)
 
                 if !searchQuery.isEmpty {
                     Button(action: { searchQuery = "" }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 14))
-                            .foregroundColor(Color(hex: "#94A3B8"))
+                            .foregroundColor(Color.appTextMuted)
                     }
                 }
             }
             .padding(10)
-            .background(Color(hex: "#F8FAFC"))
+            .background(Color.appSurfaceVariant)
             .cornerRadius(8)
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(Color.white)
+        .background(Color.appSurface)
         .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
     }
 
@@ -255,12 +256,12 @@ public struct AttendanceHistoryView: View {
     private var kpiSummarySection: some View {
         VStack(spacing: 10) {
             HStack(spacing: 10) {
-                kpiCard(title: "Tổng Ngày Công", value: "\(totalRecords) ngày", icon: "calendar.badge.checkmark", iconColor: Color(hex: "#2563EB"), bg: Color(hex: "#EFF6FF"))
-                kpiCard(title: "Tỷ Lệ Đúng Giờ", value: String(format: "%.0f%%", onTimePercent), icon: "checkmark.circle.fill", iconColor: Color(hex: "#16A34A"), bg: Color(hex: "#DCFCE7"))
+                kpiCard(title: "Tổng Ngày Công", value: "\(totalRecords) ngày", icon: "calendar.badge.checkmark", iconColor: Color(hex: "#2563EB"), bg: Color.dynamic(light: "#EFF6FF", dark: "#1E293B"))
+                kpiCard(title: "Tỷ Lệ Đúng Giờ", value: String(format: "%.0f%%", onTimePercent), icon: "checkmark.circle.fill", iconColor: Color(hex: "#16A34A"), bg: Color.dynamic(light: "#DCFCE7", dark: "#064E3B").opacity(0.35))
             }
             HStack(spacing: 10) {
-                kpiCard(title: "Đi Muộn / Sớm", value: "\(lateCount) lần", icon: "exclamationmark.triangle.fill", iconColor: Color(hex: "#D97706"), bg: Color(hex: "#FEF3C7"))
-                kpiCard(title: "Tổng Giờ Làm", value: String(format: "%.1f giờ", totalWorkHours), icon: "hourglass", iconColor: Color(hex: "#7C3AED"), bg: Color(hex: "#F3E8FF"))
+                kpiCard(title: "Đi Muộn / Sớm", value: "\(lateCount) lần", icon: "exclamationmark.triangle.fill", iconColor: Color(hex: "#D97706"), bg: Color.dynamic(light: "#FEF3C7", dark: "#78350F").opacity(0.35))
+                kpiCard(title: "Tổng Giờ Làm", value: String(format: "%.1f giờ", totalWorkHours), icon: "hourglass", iconColor: Color(hex: "#7C3AED"), bg: Color.dynamic(light: "#F3E8FF", dark: "#581C87").opacity(0.35))
             }
         }
     }
@@ -274,11 +275,11 @@ public struct AttendanceHistoryView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: 11))
-                    .foregroundColor(Color(hex: "#64748B"))
+                    .foregroundColor(Color.appTextSecondary)
                     .lineLimit(1)
                 Text(value)
                     .font(.system(size: 14.5, weight: .black))
-                    .foregroundColor(Color(hex: "#0F172A"))
+                    .foregroundColor(Color.appTextPrimary)
                     .lineLimit(1)
             }
             Spacer()
@@ -287,7 +288,7 @@ public struct AttendanceHistoryView: View {
         .frame(maxWidth: .infinity)
         .background(bg)
         .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(iconColor.opacity(0.2), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     // MARK: - RECORD CARD VIEW
@@ -304,7 +305,7 @@ public struct AttendanceHistoryView: View {
                 HStack(spacing: 6) {
                     Text(record.date)
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(hex: "#002A8F"))
+                        .foregroundColor(Color.appTextPrimary)
 
                     // Ca ngày / đêm
                     Text(record.isNightShift ? "🌙 Ca đêm" : "☀️ Ca ngày")
@@ -353,11 +354,11 @@ public struct AttendanceHistoryView: View {
                     .foregroundColor(onTime ? Color(hex: "#15803D") : Color(hex: "#B45309"))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(onTime ? Color(hex: "#DCFCE7") : Color(hex: "#FEF3C7"))
+                    .background(onTime ? Color.dynamic(light: "#DCFCE7", dark: "#064E3B").opacity(0.4) : Color.dynamic(light: "#FEF3C7", dark: "#78350F").opacity(0.4))
                     .cornerRadius(6)
             }
 
-            Divider().background(Color(hex: "#F1F5F9"))
+            Divider().background(Color.appDivider)
 
             // Hàng 2: Giờ Vào & Giờ Ra & Tổng Giờ
             HStack {
@@ -369,7 +370,7 @@ public struct AttendanceHistoryView: View {
                             .frame(width: 8, height: 8)
                         Text(record.isNightShift ? "Vào ca (Đêm)" : "Vào ca (Sáng)")
                             .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "#64748B"))
+                            .foregroundColor(Color.appTextSecondary)
                     }
                     Text(record.checkInTimeFormatted)
                         .font(.system(size: 14.5, weight: .bold))
@@ -385,7 +386,7 @@ public struct AttendanceHistoryView: View {
                             .frame(width: 8, height: 8)
                         Text(record.isNightShift ? "Tan ca (Đêm)" : "Tan ca (Chiều)")
                             .font(.system(size: 11))
-                            .foregroundColor(Color(hex: "#64748B"))
+                            .foregroundColor(Color.appTextSecondary)
                     }
                     Text(record.checkOutTimeFormatted)
                         .font(.system(size: 14.5, weight: .bold))
@@ -397,10 +398,10 @@ public struct AttendanceHistoryView: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("⏱️ Tổng giờ")
                         .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "#64748B"))
+                        .foregroundColor(Color.appTextSecondary)
                     Text(record.workHoursFormatted)
                         .font(.system(size: 14.5, weight: .heavy))
-                        .foregroundColor(Color(hex: "#0F172A"))
+                        .foregroundColor(Color.appTextPrimary)
                 }
             }
 
@@ -412,7 +413,7 @@ public struct AttendanceHistoryView: View {
                             Text("📝")
                             Text(record.note)
                                 .font(.system(size: 11.5))
-                                .foregroundColor(Color(hex: "#334155"))
+                                .foregroundColor(Color.appTextSecondary)
                         }
                     }
                     if !record.checkInAddress.isEmpty {
@@ -420,21 +421,21 @@ public struct AttendanceHistoryView: View {
                             Text("📍")
                             Text(record.checkInAddress)
                                 .font(.system(size: 11))
-                                .foregroundColor(Color(hex: "#64748B"))
+                                .foregroundColor(Color.appTextMuted)
                                 .lineLimit(1)
                         }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(6)
-                .background(Color(hex: "#F8FAFC"))
+                .background(Color.appSurfaceVariant)
                 .cornerRadius(6)
             }
         }
         .padding(14)
-        .background(isToday ? Color(hex: "#F0FDF4") : Color.white)
+        .background(isToday ? Color.dynamic(light: "#F0FDF4", dark: "#064E3B").opacity(0.35) : Color.appSurface)
         .cornerRadius(14)
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(isToday ? Color(hex: "#86EFAC") : Color(hex: "#E2E8F0"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(isToday ? Color(hex: "#10B981") : Color.appCardBorder, lineWidth: 1))
         .shadow(color: Color.black.opacity(0.03), radius: 2, y: 1)
     }
 
@@ -442,17 +443,18 @@ public struct AttendanceHistoryView: View {
         VStack(spacing: 10) {
             Image(systemName: "calendar.badge.exclamationmark")
                 .font(.system(size: 44))
-                .foregroundColor(.gray)
+                .foregroundColor(Color.appTextMuted)
 
             Text("Không có dữ liệu chấm công cho kỳ \(selectedMonth)")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundColor(.gray)
+                .foregroundColor(Color.appTextSecondary)
         }
         .frame(maxWidth: .infinity)
         .padding(32)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
+    }
     }
 
     // MARK: - LOAD DATA

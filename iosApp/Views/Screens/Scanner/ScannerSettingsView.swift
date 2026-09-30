@@ -48,7 +48,7 @@ public struct ScannerSettingsView: View {
                                     .font(.system(size: 18, weight: .bold))
                                     .foregroundColor(.white)
                             }
-                            Text("Cài đặt Scanner & Máy in")
+                            Text("Cài đặt máy in & máy quét")
                                 .font(.system(size: 17, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()
