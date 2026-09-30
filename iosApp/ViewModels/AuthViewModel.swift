@@ -24,6 +24,9 @@ public class AuthViewModel: ObservableObject {
     @Published public var showForgotPasswordDialog: Bool = false
     @Published public var forgotPasswordSuccessMessage: String? = nil
 
+    // State ghi nhớ mật khẩu
+    @Published public var rememberPassword: Bool = true
+
     private func normalizeCompanyId(_ compId: String) -> String {
         let clean = compId.trimmingCharacters(in: .whitespacesAndNewlines)
         if clean.isEmpty || clean.uppercased() == "SAIGONCOOP" || clean.uppercased() == "SAIGON CO-OP" || clean.uppercased() == "SAIGON_COOP" {
@@ -142,31 +145,51 @@ public class AuthViewModel: ObservableObject {
         self.currentUser = nil
         self.currentIdToken = ""
         self.currentRefreshToken = ""
-        self.password = ""
-        UserDefaults.standard.removeObject(forKey: "saved_auth_email")
-        UserDefaults.standard.removeObject(forKey: "saved_auth_company_id")
+        if !rememberPassword {
+            self.password = ""
+            UserDefaults.standard.removeObject(forKey: "saved_auth_password")
+        } else {
+            if let savedPass = UserDefaults.standard.string(forKey: "saved_auth_password") {
+                self.password = savedPass
+            }
+        }
         UserDefaults.standard.removeObject(forKey: "saved_auth_token")
         UserDefaults.standard.removeObject(forKey: "saved_auth_refresh_token")
         UserDefaults.standard.removeObject(forKey: "saved_auth_user_data")
     }
 
     private func saveSession() {
+        UserDefaults.standard.set(rememberPassword, forKey: "saved_remember_password")
         UserDefaults.standard.set(currentUser?.email, forKey: "saved_auth_email")
         UserDefaults.standard.set(currentCompanyId, forKey: "saved_auth_company_id")
         UserDefaults.standard.set(currentIdToken, forKey: "saved_auth_token")
         UserDefaults.standard.set(currentRefreshToken, forKey: "saved_auth_refresh_token")
+        if rememberPassword {
+            UserDefaults.standard.set(password, forKey: "saved_auth_password")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "saved_auth_password")
+        }
         if let u = currentUser, let data = try? JSONEncoder().encode(u) {
             UserDefaults.standard.set(data, forKey: "saved_auth_user_data")
         }
     }
 
     private func loadSavedSession() {
+        let isRemember = UserDefaults.standard.object(forKey: "saved_remember_password") as? Bool ?? true
+        self.rememberPassword = isRemember
+
         if let savedEmail = UserDefaults.standard.string(forKey: "saved_auth_email"), !savedEmail.isEmpty {
             self.email = savedEmail
             let savedComp = UserDefaults.standard.string(forKey: "saved_auth_company_id") ?? "SGCOOP"
             self.currentCompanyId = normalizeCompanyId(savedComp)
             self.currentIdToken = UserDefaults.standard.string(forKey: "saved_auth_token") ?? ""
             self.currentRefreshToken = UserDefaults.standard.string(forKey: "saved_auth_refresh_token") ?? ""
+
+            if isRemember {
+                if let savedPass = UserDefaults.standard.string(forKey: "saved_auth_password"), !savedPass.isEmpty {
+                    self.password = savedPass
+                }
+            }
             
             if let data = UserDefaults.standard.data(forKey: "saved_auth_user_data"),
                let savedUser = try? JSONDecoder().decode(User.self, from: data) {

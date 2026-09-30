@@ -189,6 +189,30 @@ public struct LoginView: View {
                                 }
                                 .id("passwordSection")
 
+                                // Hàng Ghi nhớ mật khẩu
+                                Button(action: {
+                                    viewModel.rememberPassword.toggle()
+                                    if !viewModel.rememberPassword {
+                                        UserDefaults.standard.set(false, forKey: "saved_remember_password")
+                                        UserDefaults.standard.removeObject(forKey: "saved_auth_password")
+                                    } else {
+                                        UserDefaults.standard.set(true, forKey: "saved_remember_password")
+                                    }
+                                }) {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: viewModel.rememberPassword ? "checkmark.square.fill" : "square")
+                                            .font(.system(size: 17))
+                                            .foregroundColor(viewModel.rememberPassword ? Color.appPrimaryPink : Color.appTextSecondary)
+                                        Text("Ghi nhớ mật khẩu")
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundColor(viewModel.rememberPassword ? Color(hex: "#0F172A") : Color.appTextSecondary)
+                                        Spacer()
+                                    }
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                                .padding(.horizontal, 2)
+                                .padding(.top, 2)
+
                                 // Thông báo lỗi nếu có
                                 if let errorMsg = viewModel.errorMessage, !errorMsg.isEmpty {
                                     HStack(spacing: 6) {
