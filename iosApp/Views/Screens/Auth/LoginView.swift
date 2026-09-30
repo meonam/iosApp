@@ -441,7 +441,7 @@ public struct ForgotPasswordSheet: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
-                        .background(Color.appSecondaryDarkBlue)
+                        .background(Color.appDarkButtonBackground)
                         .cornerRadius(10)
                 }
 

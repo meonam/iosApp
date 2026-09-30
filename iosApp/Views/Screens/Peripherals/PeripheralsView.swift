@@ -236,7 +236,7 @@ public struct PeripheralsView: View {
                     }
                 }
                 .padding()
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(16, corners: [.bottomLeft, .bottomRight])
                 .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
             }
@@ -423,7 +423,7 @@ public struct PeripheralsView: View {
                     .disabled(isTestingConnection)
                 }
                 .padding()
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(16, corners: [.bottomLeft, .bottomRight])
                 .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
             }

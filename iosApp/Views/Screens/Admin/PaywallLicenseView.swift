@@ -474,7 +474,7 @@ public struct PaywallLicenseView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(viewModel.isActivating ? Color.gray : Color.appSecondaryDarkBlue)
+                .background(viewModel.isActivating ? Color.gray : Color.appDarkButtonBackground)
                 .cornerRadius(10)
             }
             .disabled(viewModel.isActivating)
@@ -502,7 +502,7 @@ public struct PaywallLicenseView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(Color.blue)
+                .background(Color.appDarkButtonBackground)
                 .cornerRadius(8)
             }
         }
@@ -518,7 +518,7 @@ public struct PaywallLicenseView: View {
                 .foregroundColor(Color.appSuccess)
             Text(text)
                 .font(.system(size: 13))
-                .foregroundColor(.black)
+                .foregroundColor(Color.appTextPrimary)
             Spacer()
         }
     }

@@ -270,16 +270,16 @@ public struct SupportHubView: View {
             switch tag {
             case "OPEN": return Color(hex: "#DCFCE7")
             case "CLOSED": return Color.appSurface
-            case "HIDDEN": return Color.appSurface
-            default: return Color.appSecondaryDarkBlue
+            case "HIDDEN": return Color(hex: "#FEE2E2")
+            default: return Color.appSurface
             }
         }()
         let activeFg: Color = {
             switch tag {
             case "OPEN": return Color(hex: "#16A34A")
             case "CLOSED": return Color.appTextPrimary
-            case "HIDDEN": return Color.appTextSecondary
-            default: return .white
+            case "HIDDEN": return Color(hex: "#DC2626")
+            default: return Color.appSecondaryDarkBlue
             }
         }()
 

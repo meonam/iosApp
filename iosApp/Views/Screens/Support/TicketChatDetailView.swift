@@ -769,7 +769,7 @@ public struct TicketChatDetailView: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Sự cố chưa được giải quyết triệt để?")
                             .font(.system(size: 11.5, weight: .bold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
+                            .foregroundColor(Color(hex: "#92400E"))
                         Text("Còn \(ticket.remainingQualityTrackingHours) giờ bảo hành xử lý sự cố.")
                             .font(.system(size: 10.5))
                             .foregroundColor(Color.gray)
@@ -864,11 +864,11 @@ public struct TicketChatDetailView: View {
                 HStack(spacing: 4) {
                     Text("💻 Thiết bị: \(assetLabel) \(currentTicket.assetId.isEmpty ? "" : "(\(currentTicket.assetId))")")
                         .font(.system(size: 10.5, weight: .semibold))
-                        .foregroundColor(Color(hex: "#334155"))
+                        .foregroundColor(Color.appTextPrimary)
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 3)
-                .background(Color(hex: "#F1F5F9"))
+                .background(Color.appSurfaceVariant)
                 .cornerRadius(4)
             }
 
@@ -876,14 +876,14 @@ public struct TicketChatDetailView: View {
             if !currentTicket.donVi.isEmpty {
                 Text("🏬 Đơn vị: \(currentTicket.donVi)")
                     .font(.system(size: 10.5))
-                    .foregroundColor(Color(hex: "#475569"))
+                    .foregroundColor(Color.appTextSecondary)
             }
 
             // Số điện thoại liên hệ
             if !currentTicket.creatorPhone.isEmpty {
                 Text("📞 SĐT người tạo: \(currentTicket.creatorPhone)")
                     .font(.system(size: 10.5, weight: .medium))
-                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .foregroundColor(Color.appPrimary)
             }
 
             // App User đã đăng ký
@@ -901,7 +901,7 @@ public struct TicketChatDetailView: View {
             if !currentTicket.initialMessage.isEmpty {
                 Text("📝 Vấn đề: \(currentTicket.initialMessage)")
                     .font(.system(size: 12))
-                    .foregroundColor(Color(hex: "#1E293B"))
+                    .foregroundColor(Color.appTextPrimary)
             }
 
             // Hình ảnh chụp hiện trường ban đầu
@@ -909,7 +909,7 @@ public struct TicketChatDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("📷 Ảnh sự cố ban đầu:")
                         .font(.system(size: 10.5, weight: .bold))
-                        .foregroundColor(Color(hex: "#475569"))
+                        .foregroundColor(Color.appTextSecondary)
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
@@ -946,7 +946,7 @@ public struct TicketChatDetailView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("📎 Tệp đính kèm:")
                         .font(.system(size: 10.5, weight: .bold))
-                        .foregroundColor(Color(hex: "#475569"))
+                        .foregroundColor(Color.appTextSecondary)
 
                     ForEach(currentTicket.attachments) { att in
                         Button(action: {
@@ -1933,9 +1933,9 @@ public struct TicketChatDetailView: View {
                 TextField("Nhận xét thêm (không bắt buộc)...", text: $ratingComment)
                     .font(.system(size: 12.5))
                     .padding(8)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
 
                 Button(action: {
                     viewModel.rateTicket(ticketId: ticket.id, rating: selectedRating, feedback: ratingComment) { _ in }
@@ -1950,9 +1950,9 @@ public struct TicketChatDetailView: View {
                 }
             }
             .padding(12)
-            .background(Color(hex: "#FFFBEB"))
+            .background(Color.dynamic(light: "#FFFBEB", dark: "#2C2002"))
             .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#FDE68A"), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.dynamic(light: "#FDE68A", dark: "#78350F"), lineWidth: 1))
         } else {
             // KTV / Quản trị viên xem khi chưa có đánh giá
             HStack(spacing: 6) {

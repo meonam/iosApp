@@ -449,7 +449,7 @@ public struct DeviceListView: View {
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
-                        .background(Color.appSecondaryDarkBlue)
+                        .background(Color.appDarkButtonBackground)
                         .cornerRadius(16)
                         .shadow(color: Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
                         .padding(.horizontal, 16)

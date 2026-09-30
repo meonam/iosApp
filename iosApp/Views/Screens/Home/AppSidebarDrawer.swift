@@ -240,7 +240,7 @@ public struct AppSidebarDrawer: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 14)
-                .background(Color.appSecondaryDarkBlue)
+                .background(Color.appHeaderDarkNavy)
 
                 // === 2. DANH SÁCH MENU ĐIỀU HƯỚNG CUỘN (ACCORDIONS) ===
                 ScrollView {

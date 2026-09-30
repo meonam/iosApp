@@ -235,7 +235,7 @@ public struct AdminTicketListView: View {
             )
         }
         .padding(4)
-        .background(Color(hex: "#F1F5F9"))
+        .background(Color.appSurfaceVariant)
         .cornerRadius(12)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -246,7 +246,7 @@ public struct AdminTicketListView: View {
         count: Int,
         tag: String,
         activeColor: Color = Color.appSecondaryDarkBlue,
-        activeBg: Color = Color.white
+        activeBg: Color = Color.appSurface
     ) -> some View {
         let isSel = filterStatus == tag
         return Button(action: {
@@ -262,7 +262,7 @@ public struct AdminTicketListView: View {
                         .font(.system(size: 10, weight: isSel ? .bold : .regular))
                 }
             }
-            .foregroundColor(isSel ? activeColor : Color.gray)
+            .foregroundColor(isSel ? activeColor : Color.appTextSecondary)
             .frame(maxWidth: .infinity)
             .frame(height: 32)
             .background(isSel ? activeBg : Color.clear)
@@ -291,9 +291,9 @@ public struct AdminTicketListView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(10)
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
         .padding(.horizontal, 12)
         .padding(.bottom, 6)
     }

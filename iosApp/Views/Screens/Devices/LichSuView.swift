@@ -204,7 +204,7 @@ public struct LichSuView: View {
             if !item.thietBiId.isEmpty {
                 Text("🏷️ Mã TB: \(item.thietBiId)")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(Color(hex: "#334155"))
+                    .foregroundColor(Color.appTextPrimary)
             }
 
             if !item.donVi.isEmpty {
@@ -217,13 +217,13 @@ public struct LichSuView: View {
                 HStack(alignment: .top, spacing: 6) {
                     Image(systemName: "pencil.and.outline")
                         .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "#E65100"))
+                        .foregroundColor(Color.dynamic(light: "#E65100", dark: "#FDBA74"))
                     Text(item.moTa)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Color(hex: "#E65100"))
+                        .foregroundColor(Color.dynamic(light: "#E65100", dark: "#FDBA74"))
                 }
                 .padding(8)
-                .background(Color(hex: "#FFF3E0"))
+                .background(Color.dynamic(light: "#FFF3E0", dark: "#3D2403"))
                 .cornerRadius(8)
             }
 

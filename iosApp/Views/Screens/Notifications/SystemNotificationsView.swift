@@ -231,7 +231,7 @@ public struct SystemNotificationsView: View {
                 HStack {
                     Text(notif.title)
                         .font(.system(size: 15, weight: notif.isRead ? .regular : .bold))
-                        .foregroundColor(notif.isRead ? .appTextPrimary : .black)
+                        .foregroundColor(Color.appTextPrimary)
                     Spacer()
                     if !notif.isRead {
                         Circle()
@@ -258,7 +258,7 @@ public struct SystemNotificationsView: View {
             }
         }
         .padding(14)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
         .onTapGesture {

@@ -40,25 +40,25 @@ struct MaterialOutlinedField: View {
                 } else if let trText = trailingText {
                     Text(trText)
                         .font(.system(size: 10.5))
-                        .foregroundColor(Color(hex: "#64748B"))
+                        .foregroundColor(Color.appTextSecondary)
                 }
             }
             .padding(.horizontal, 10)
             .frame(height: 48)
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color(hex: "#CBD5E1"), lineWidth: 1)
+                    .stroke(Color.appCardBorder, lineWidth: 1)
             )
             .padding(.top, 7)
 
             // Floating Label
             Text(label)
                 .font(.system(size: 11, weight: .medium))
-                .foregroundColor(Color(hex: "#64748B"))
+                .foregroundColor(Color.appTextSecondary)
                 .padding(.horizontal, 4)
-                .background(Color.white)
+                .background(Color.appSurface)
                 .padding(.leading, 10)
         }
     }
@@ -74,15 +74,15 @@ struct MaterialSuggestionChip: View {
         Button(action: action) {
             Text(label)
                 .font(.system(size: 10, weight: isSelected ? .bold : .medium))
-                .foregroundColor(isSelected ? Color(hex: "#1D4ED8") : Color(hex: "#334155"))
+                .foregroundColor(isSelected ? Color.appPrimaryPink : Color.appTextSecondary)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 5)
-                .background(isSelected ? Color(hex: "#EFF6FF") : Color.white)
+                .background(isSelected ? Color.appPrimaryPink.opacity(0.12) : Color.appSurface)
                 .cornerRadius(8)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(isSelected ? Color(hex: "#2563EB") : Color(hex: "#CBD5E1"), lineWidth: isSelected ? 1.2 : 0.8)
+                        .stroke(isSelected ? Color.appPrimaryPink : Color.appCardBorder, lineWidth: isSelected ? 1.2 : 0.8)
                 )
         }
     }
@@ -259,7 +259,7 @@ public struct AttendanceReportView: View {
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color(hex: "#F8FAFC").ignoresSafeArea()
+                Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // 1. TOP BAR CHUẨN ANDROID (XANH ĐẬM #002A8F)
@@ -474,11 +474,11 @@ public struct AttendanceReportView: View {
                 tabButton(title: "⚙️ Cấu Hình Định Mức", tabIndex: 2)
             }
         }
-        .background(Color.white)
+        .background(Color.appSurface)
         .overlay(
             Rectangle()
                 .frame(height: 1)
-                .foregroundColor(Color(hex: "#E2E8F0")),
+                .foregroundColor(Color.appCardBorder),
             alignment: .bottom
         )
     }
@@ -581,9 +581,9 @@ public struct AttendanceReportView: View {
                         }
                     }
                 }
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
 
                 // Detailed Logs Section Header
                 HStack {
@@ -609,7 +609,7 @@ public struct AttendanceReportView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.system(size: 10, weight: .bold))
-                .foregroundColor(Color(hex: "#64748B"))
+                .foregroundColor(Color.appTextSecondary)
                 .lineLimit(1)
 
             Text(value)
@@ -621,9 +621,9 @@ public struct AttendanceReportView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(10)
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     // Technician Row in Summary Card
@@ -697,7 +697,7 @@ public struct AttendanceReportView: View {
             HStack(spacing: 6) {
                 Text(record.userName)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Color(hex: "#0F172A"))
+                    .foregroundColor(Color.appTextPrimary)
                     .lineLimit(1)
 
                 if !record.mnvDisplay.isEmpty {
@@ -713,10 +713,10 @@ public struct AttendanceReportView: View {
                 if !record.scheduledShiftCode.isEmpty {
                     Text(record.isUnscheduled ? "Ngoài lịch (\(record.scheduledShiftCode))" : "Lịch: \(record.scheduledShiftCode)")
                         .font(.system(size: 9.5, weight: .bold))
-                        .foregroundColor(record.isUnscheduled ? Color(hex: "#DC2626") : Color(hex: "#475569"))
+                        .foregroundColor(record.isUnscheduled ? Color(hex: "#DC2626") : Color.appTextSecondary)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
-                        .background(record.isUnscheduled ? Color(hex: "#FEE2E2") : Color(hex: "#F1F5F9"))
+                        .background(record.isUnscheduled ? Color(hex: "#FEE2E2") : Color.appSurfaceVariant)
                         .cornerRadius(4)
                 } else if record.isUnscheduled {
                     Text("Ngoài lịch (Chưa xếp ca)")
@@ -732,7 +732,7 @@ public struct AttendanceReportView: View {
             // Line 3: Times
             Text("Vào ca: \(record.checkInTimeShort) • Tan ca: \(record.checkOutTimeShort)")
                 .font(.system(size: 11.5))
-                .foregroundColor(Color(hex: "#475569"))
+                .foregroundColor(Color.appTextSecondary)
 
             // Line 4: GPS Address
             if !record.checkInAddress.isEmpty {
@@ -744,9 +744,9 @@ public struct AttendanceReportView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(10)
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     private func shiftBadge(shiftType: String, displayName: String) -> some View {
@@ -880,19 +880,19 @@ public struct AttendanceReportView: View {
                                 Text("Cài đặt ⚙️")
                                     .font(.system(size: 11, weight: .bold))
                             }
-                            .foregroundColor(Color(hex: "#334155"))
+                            .foregroundColor(Color.appTextPrimary)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
-                            .background(Color(hex: "#F8FAFC"))
+                            .background(Color.appSurfaceVariant)
                             .cornerRadius(6)
-                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
                         }
                     }
                 }
                 .padding(12)
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
 
                 // 3 KPI Cards
                 HStack(spacing: 8) {
@@ -991,9 +991,9 @@ public struct AttendanceReportView: View {
                         }
                     }
                 }
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
 
                 // Detailed Expense Records List
                 HStack {
@@ -1111,9 +1111,9 @@ public struct AttendanceReportView: View {
                         }
                     }
                     .padding(12)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(10)
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                 }
             }
             .padding(.horizontal, 14)
@@ -1261,9 +1261,9 @@ public struct AttendanceReportView: View {
                     }
                 }
                 .padding(20)
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(16)
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.appCardBorder, lineWidth: 1))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 14)

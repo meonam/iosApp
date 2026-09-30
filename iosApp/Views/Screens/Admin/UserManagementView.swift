@@ -187,7 +187,7 @@ public struct UserManagementView: View {
 
                             Text("Bạn có chắc chắn muốn vô hiệu hóa tài khoản của \(target.fullName.isEmpty ? target.email : target.fullName) (\(target.email))?")
                                 .font(.system(size: 13.5))
-                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .foregroundColor(Color.appTextPrimary)
 
                             Text("⚠️ Người dùng này sẽ bị đẩy ra khỏi ứng dụng ngay lập tức trên mọi thiết bị và không thể đăng nhập cho đến khi được mở khóa.")
                                 .font(.system(size: 12))
@@ -203,9 +203,9 @@ public struct UserManagementView: View {
                                 TextField("vd: Nghỉ việc, Tạm đình chỉ, Vi phạm...", text: $lockReasonInput)
                                     .font(.system(size: 13))
                                     .padding(9)
-                                    .background(Color(hex: "#F8FAFC"))
+                                    .background(Color.appSurfaceVariant)
                                     .cornerRadius(8)
-                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                             }
 
                             HStack(spacing: 10) {
@@ -214,10 +214,10 @@ public struct UserManagementView: View {
                                     lockReasonInput = ""
                                 }
                                 .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.gray)
+                                .foregroundColor(Color.appTextSecondary)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 38)
-                                .background(Color(hex: "#F1F5F9"))
+                                .background(Color.appSurfaceVariant)
                                 .cornerRadius(8)
 
                                 Button("Khóa tài khoản") {
@@ -236,7 +236,7 @@ public struct UserManagementView: View {
                             }
                         }
                         .padding(16)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(14)
                         .shadow(radius: 10)
                         .padding(.horizontal, 24)
@@ -337,9 +337,9 @@ public struct UserManagementView: View {
                         }
                     }
                     .padding(10)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                 }
 
                 // Vai trò hệ thống
@@ -366,9 +366,9 @@ public struct UserManagementView: View {
                                 .foregroundColor(.gray)
                         }
                         .padding(10)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                     }
                 }
 
@@ -400,9 +400,9 @@ public struct UserManagementView: View {
                                 .foregroundColor(.gray)
                         }
                         .padding(10)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                     }
                 }
 
@@ -428,9 +428,9 @@ public struct UserManagementView: View {
                                 .foregroundColor(.gray)
                         }
                         .padding(10)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                     }
                 }
 
@@ -456,9 +456,9 @@ public struct UserManagementView: View {
                                 .foregroundColor(.gray)
                         }
                         .padding(10)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                     }
                 }
 
@@ -484,9 +484,9 @@ public struct UserManagementView: View {
                                 .foregroundColor(.gray)
                         }
                         .padding(10)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                     }
                 }
 
@@ -530,7 +530,7 @@ public struct UserManagementView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .frame(height: 46)
-                    .background(addEmail.isEmpty || addFullName.isEmpty ? Color.gray.opacity(0.5) : Color.appSecondaryDarkBlue)
+                    .background(addEmail.isEmpty || addFullName.isEmpty ? Color.gray.opacity(0.5) : Color.appDarkButtonBackground)
                     .cornerRadius(10)
                 }
                 .disabled(addEmail.isEmpty || addFullName.isEmpty)
@@ -594,9 +594,9 @@ public struct UserManagementView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 11)
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(10)
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
 
                 // 3. HORIZONTAL SCROLL STATUS FILTER CHIPS
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -882,7 +882,7 @@ public struct UserManagementView: View {
                     .foregroundColor(Color.appPrimaryPink)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(8)
                     .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appPrimaryPink, lineWidth: 1))
                 }
@@ -903,7 +903,7 @@ public struct UserManagementView: View {
                             .foregroundColor(Color(hex: "#16A34A"))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(8)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#16A34A"), lineWidth: 1))
                         }
@@ -922,7 +922,7 @@ public struct UserManagementView: View {
                             .foregroundColor(Color(hex: "#DC2626"))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(8)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#DC2626"), lineWidth: 1))
                         }
@@ -932,9 +932,9 @@ public struct UserManagementView: View {
             }
         }
         .padding(12)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     private func userRoleBadge(_ u: User, isSpecialist: Bool) -> some View {
@@ -1020,9 +1020,9 @@ public struct UserManagementView: View {
                     }
                 }
                 .padding(14)
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(14)
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
 
                 // Detail Form for Selected User
                 if let user = permSelectedUser {
@@ -1235,7 +1235,7 @@ public struct UserManagementView: View {
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 44)
-                            .background(Color.appSecondaryDarkBlue)
+                            .background(Color.appDarkButtonBackground)
                             .cornerRadius(10)
                         }
                         .disabled(isSavingPerm)
@@ -1258,9 +1258,9 @@ public struct UserManagementView: View {
                         }
                     }
                     .padding(14)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(14)
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
                 } else {
                     VStack(spacing: 12) {
                         Spacer().frame(height: 30)
@@ -1357,9 +1357,9 @@ public struct UserManagementView: View {
                                 .foregroundColor(.gray)
                         }
                         .padding(10)
-                        .background(Color(hex: "#F8FAFC"))
+                        .background(Color.appSurfaceVariant)
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                     }
 
                     // Email input
@@ -1369,10 +1369,11 @@ public struct UserManagementView: View {
                             .foregroundColor(Color.appSecondaryDarkBlue)
                         TextField("email@sgcoop.vn", text: $resetEmailInput)
                             .font(.system(size: 13))
+                            .foregroundColor(Color.appTextPrimary)
                             .padding(10)
-                            .background(Color(hex: "#F8FAFC"))
+                            .background(Color.appSurfaceVariant)
                             .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                     }
 
                     // Mật khẩu mới
@@ -1399,9 +1400,11 @@ public struct UserManagementView: View {
                             if isResetPasswordVisible {
                                 TextField("Nhập mật khẩu mới (ít nhất 6 ký tự)", text: $resetPasswordInput)
                                     .font(.system(size: 13))
+                                    .foregroundColor(Color.appTextPrimary)
                             } else {
                                 SecureField("Nhập mật khẩu mới (ít nhất 6 ký tự)", text: $resetPasswordInput)
                                     .font(.system(size: 13))
+                                    .foregroundColor(Color.appTextPrimary)
                             }
 
                             Button(action: { isResetPasswordVisible.toggle() }) {
@@ -1411,9 +1414,9 @@ public struct UserManagementView: View {
                             }
                         }
                         .padding(10)
-                        .background(Color(hex: "#F8FAFC"))
+                        .background(Color.appSurfaceVariant)
                         .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                     }
 
                     // Nút Đặt lại Mật Khẩu
@@ -1444,7 +1447,7 @@ public struct UserManagementView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
-                        .background(resetEmailInput.isEmpty || resetPasswordInput.count < 6 ? Color.gray.opacity(0.5) : Color.appSecondaryDarkBlue)
+                        .background(resetEmailInput.isEmpty || resetPasswordInput.count < 6 ? Color.gray.opacity(0.5) : Color.appDarkButtonBackground)
                         .cornerRadius(10)
                     }
                     .disabled(resetEmailInput.isEmpty || resetPasswordInput.count < 6 || isResetting)
@@ -1474,7 +1477,7 @@ public struct UserManagementView: View {
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 6)
-                                    .background(Color.appSecondaryDarkBlue)
+                                    .background(Color.appDarkButtonBackground)
                                     .cornerRadius(6)
                                 }
                             }
@@ -1486,15 +1489,15 @@ public struct UserManagementView: View {
                             }
                         }
                         .padding(12)
-                        .background(Color(hex: "#F0FDF4"))
+                        .background(Color.dynamic(light: "#F0FDF4", dark: "#064E3B"))
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#BBF7D0"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.dynamic(light: "#BBF7D0", dark: "#065F46"), lineWidth: 1))
                     }
                 }
                 .padding(14)
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(14)
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
             }
             .padding(16)
         }

@@ -190,10 +190,10 @@ public struct DeviceDetailView: View {
                                             Text("Xem nhật ký lịch sử")
                                         }
                                         .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(Color(hex: "#475569"))
+                                        .foregroundColor(Color.appTextPrimary)
                                         .frame(maxWidth: .infinity)
                                         .frame(height: 46)
-                                        .background(Color(hex: "#F1F5F9"))
+                                        .background(Color.appSurfaceVariant)
                                         .cornerRadius(12)
                                     }
 

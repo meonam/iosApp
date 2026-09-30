@@ -241,9 +241,9 @@ public struct ShiftScheduleView: View {
                 .foregroundColor(Color.appSecondaryDarkBlue)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(6)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appSecondaryDarkBlue.opacity(0.4), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appSecondaryDarkBlue.opacity(0.6), lineWidth: 1))
             }
 
             Spacer()
@@ -256,7 +256,7 @@ public struct ShiftScheduleView: View {
                         .foregroundColor(Color.appSecondaryDarkBlue)
                     Text("Tuần \(String(format: "%02d", viewModel.currentWeekNumber))")
                         .font(.system(size: 13.5, weight: .bold))
-                        .foregroundColor(Color(hex: "#0F172A"))
+                        .foregroundColor(Color.appTextPrimary)
                 }
 
                 if !viewModel.weekDateRangeLabel.isEmpty {
@@ -282,15 +282,15 @@ public struct ShiftScheduleView: View {
                 .foregroundColor(Color.appSecondaryDarkBlue)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(Color.white)
+                .background(Color.appSurface)
                 .cornerRadius(6)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appSecondaryDarkBlue.opacity(0.4), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appSecondaryDarkBlue.opacity(0.6), lineWidth: 1))
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        .background(Color(hex: "#F8FAFC"))
-        .border(Color(hex: "#E2E8F0"), width: 0.5)
+        .background(Color.appSurfaceVariant)
+        .border(Color.appCardBorder, width: 0.5)
     }
 
     // MARK: - 3. SHIFT LEGEND ROW
@@ -309,19 +309,19 @@ public struct ShiftScheduleView: View {
 
                         Text(ShiftCode.label(code))
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(Color(hex: "#334155"))
+                            .foregroundColor(Color.appTextSecondary)
                     }
                     .padding(.horizontal, 6)
                     .padding(.vertical, 4)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(6)
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
                 }
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
         }
-        .background(Color.white)
+        .background(Color.appSurface)
     }
 
     // MARK: - 4. EDITOR TOOLBAR
@@ -343,7 +343,7 @@ public struct ShiftScheduleView: View {
                     .foregroundColor(Color.appSecondaryDarkBlue)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(6)
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appSecondaryDarkBlue, lineWidth: 1))
                 }
@@ -359,7 +359,7 @@ public struct ShiftScheduleView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Color.appSecondaryDarkBlue)
+                    .background(Color.appDarkButtonBackground)
                     .cornerRadius(6)
                 }
 
@@ -389,7 +389,7 @@ public struct ShiftScheduleView: View {
                     .foregroundColor(Color.appSecondaryDarkBlue)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(6)
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appSecondaryDarkBlue, lineWidth: 1))
                 }
@@ -397,7 +397,7 @@ public struct ShiftScheduleView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
         }
-        .background(Color(hex: "#F1F5F9"))
+        .background(Color.appSurfaceVariant)
     }
 
     private var readOnlyBanner: some View {
@@ -414,7 +414,7 @@ public struct ShiftScheduleView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        .background(Color(hex: "#FFFBEB"))
+        .background(Color.dynamic(light: "#FFFBEB", dark: "#2D2206"))
         .cornerRadius(6)
         .padding(8)
     }
@@ -441,7 +441,7 @@ public struct ShiftScheduleView: View {
                         headerCell("Xóa", width: 44)
                     }
                 }
-                .background(Color.appSecondaryDarkBlue)
+                .background(Color.appHeaderDarkNavy)
 
                 // DATA ROWS
                 if entries.isEmpty {
@@ -453,36 +453,36 @@ public struct ShiftScheduleView: View {
                     ForEach(Array(entries.enumerated()), id: \.element.employeeId) { idx, entry in
                         let isSelf = entry.employeeName.lowercased() == viewModel.user.fullName.lowercased() ||
                                      entry.employeeId.lowercased() == viewModel.user.email.lowercased()
-                        let rowBg = isSelf ? Color(hex: "#FFF9C4") : (idx % 2 == 0 ? Color.white : Color(hex: "#F8FAFC"))
+                        let rowBg = isSelf ? Color.dynamic(light: "#FFF9C4", dark: "#3E381E") : (idx % 2 == 0 ? Color.appSurface : Color.appSurfaceVariant)
 
                         HStack(spacing: 0) {
                             // MNV
                             Text(entry.employeeId)
                                 .font(.system(size: 11.5, weight: .bold))
-                                .foregroundColor(Color(hex: "#1E293B"))
+                                .foregroundColor(Color.appTextPrimary)
                                 .frame(width: 72, height: 46, alignment: .center)
-                                .border(Color(hex: "#E2E8F0"), width: 0.5)
+                                .border(Color.appCardBorder, width: 0.5)
 
                             // Tên KTV
                             Text(entry.employeeName)
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(Color(hex: "#0F172A"))
+                                .foregroundColor(Color.appTextPrimary)
                                 .lineLimit(1)
                                 .frame(width: 145, height: 46, alignment: .leading)
                                 .padding(.horizontal, 6)
-                                .border(Color(hex: "#E2E8F0"), width: 0.5)
+                                .border(Color.appCardBorder, width: 0.5)
 
                             // Cụm / Khu vực
                             BoxView(width: 85, height: 46) {
                                 Text(entry.maKhuVuc.isEmpty ? "Chưa gán" : "Cụm \(entry.maKhuVuc)")
                                     .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(entry.maKhuVuc.isEmpty ? .gray : Color(hex: "#0369A1"))
+                                    .foregroundColor(entry.maKhuVuc.isEmpty ? .gray : Color.appSecondaryDarkBlue)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(entry.maKhuVuc.isEmpty ? Color(hex: "#F1F5F9") : Color(hex: "#E0F2FE"))
+                                    .background(entry.maKhuVuc.isEmpty ? Color.appSurfaceVariant : Color.dynamic(light: "#E0F2FE", dark: "#1E3A8A"))
                                     .cornerRadius(4)
                             }
-                            .border(Color(hex: "#E2E8F0"), width: 0.5)
+                            .border(Color.appCardBorder, width: 0.5)
 
                             // 7 Ngày trong tuần
                             ForEach(0..<dayKeys.count, id: \.self) { dIdx in
@@ -511,7 +511,7 @@ public struct ShiftScheduleView: View {
                                         self.showingEditSheet = true
                                     }
                                 }
-                                .border(Color(hex: "#E2E8F0"), width: 0.5)
+                                .border(Color.appCardBorder, width: 0.5)
                             }
 
                             // Nút xóa (chỉ Admin)
@@ -525,7 +525,7 @@ public struct ShiftScheduleView: View {
                                             .foregroundColor(Color(hex: "#EF4444"))
                                     }
                                 }
-                                .border(Color(hex: "#E2E8F0"), width: 0.5)
+                                .border(Color.appCardBorder, width: 0.5)
                             }
                         }
                         .background(rowBg)
@@ -705,7 +705,7 @@ public struct ShiftScheduleView: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 12)
-                        .background(newName.isEmpty ? Color.gray : Color.appSecondaryDarkBlue)
+                        .background(newName.isEmpty ? Color.gray : Color.appDarkButtonBackground)
                         .cornerRadius(10)
                 }
                 .disabled(newName.isEmpty)
@@ -749,9 +749,9 @@ public struct ShiftScheduleView: View {
                         .pickerStyle(MenuPickerStyle())
                         .frame(maxWidth: .infinity)
                         .padding(8)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                     }
 
                     // Chọn mã ca
@@ -777,9 +777,9 @@ public struct ShiftScheduleView: View {
                                                 .foregroundColor(isSel ? Color.appSecondaryDarkBlue : .gray)
                                         }
                                         .padding(6)
-                                        .background(isSel ? Color(hex: "#EFF6FF") : Color.white)
+                                        .background(isSel ? Color.dynamic(light: "#EFF6FF", dark: "#1E3A8A") : Color.appSurface)
                                         .cornerRadius(8)
-                                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(isSel ? Color.appSecondaryDarkBlue : Color(hex: "#E2E8F0"), lineWidth: 1.5))
+                                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(isSel ? Color.appSecondaryDarkBlue : Color.appCardBorder, lineWidth: 1.5))
                                     }
                                 }
                             }
@@ -834,10 +834,10 @@ public struct ShiftScheduleView: View {
         }) {
             Text(day.name)
                 .font(.system(size: 13, weight: .bold))
-                .foregroundColor(isSel ? .white : Color(hex: "#475569"))
+                .foregroundColor(isSel ? .white : Color.appTextSecondary)
                 .frame(maxWidth: .infinity)
                 .frame(height: 38)
-                .background(isSel ? Color.appSecondaryDarkBlue : Color(hex: "#F1F5F9"))
+                .background(isSel ? Color.appDarkButtonBackground : Color.appSurfaceVariant)
                 .cornerRadius(8)
         }
     }
@@ -852,7 +852,7 @@ public struct ShiftScheduleView: View {
 
             Text("Truy Cập Bị Giới Hạn")
                 .font(.system(size: 18, weight: .bold))
-                .foregroundColor(Color(hex: "#1E293B"))
+                .foregroundColor(Color.appTextPrimary)
 
             Text("Chức năng Lịch trực & Phân ca kỹ thuật chỉ dành cho Kỹ thuật viên, Chuyên viên và Ban quản lý. Người dùng thông thường không có quyền truy cập.")
                 .font(.system(size: 13))
@@ -866,7 +866,7 @@ public struct ShiftScheduleView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 28)
                     .padding(.vertical, 10)
-                    .background(Color.appSecondaryDarkBlue)
+                    .background(Color.appDarkButtonBackground)
                     .cornerRadius(8)
             }
             Spacer()

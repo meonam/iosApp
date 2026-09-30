@@ -148,7 +148,7 @@ public struct SystemSettingsView: View {
                 settingTextField(title: "Email", text: $companyEmail)
             }
         }
-        .padding(14).background(Color.white).cornerRadius(12)
+        .padding(14).background(Color.appSurface).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     @ViewBuilder
@@ -193,7 +193,7 @@ public struct SystemSettingsView: View {
                     }
                 }
                 .padding(10)
-                .background(Color(hex: "#F8FAFC"))
+                .background(Color.appSurfaceVariant)
                 .cornerRadius(8)
 
                 settingNumberField(title: "Cho phép đi muộn (phút)", value: $lateThresholdMinutes)
@@ -208,7 +208,7 @@ public struct SystemSettingsView: View {
                 settingDoubleField(title: "Tọa độ Lng", value: $gpsLng)
             }
         }
-        .padding(14).background(Color.white).cornerRadius(12)
+        .padding(14).background(Color.appSurface).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     @ViewBuilder
@@ -241,7 +241,7 @@ public struct SystemSettingsView: View {
                 }
             }
         }
-        .padding(14).background(Color.white).cornerRadius(12)
+        .padding(14).background(Color.appSurface).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
     
     @ViewBuilder
@@ -254,7 +254,7 @@ public struct SystemSettingsView: View {
                 settingNumberField(title: "SLA Thường (giờ)", value: $slaNormalHours)
             }
         }
-        .padding(14).background(Color.white).cornerRadius(12)
+        .padding(14).background(Color.appSurface).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
     
     @ViewBuilder
@@ -266,7 +266,7 @@ public struct SystemSettingsView: View {
                 Toggle("Bật Paywall / Giấy phép", isOn: $paywallEnabled).font(.system(size: 13))
             }
         }
-        .padding(14).background(Color.white).cornerRadius(12)
+        .padding(14).background(Color.appSurface).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
     
     @ViewBuilder
@@ -277,7 +277,7 @@ public struct SystemSettingsView: View {
                 Toggle("Bật thông báo đẩy", isOn: $notificationsEnabled).font(.system(size: 13))
             }
         }
-        .padding(14).background(Color.white).cornerRadius(12)
+        .padding(14).background(Color.appSurface).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
     
     private func settingTextField(title: String, text: Binding<String>) -> some View {

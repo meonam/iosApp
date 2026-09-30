@@ -118,7 +118,7 @@ public struct ScannerSettingsView: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(14)
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
     }
@@ -201,7 +201,7 @@ public struct ScannerSettingsView: View {
             }
         }
         .padding(16)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(14)
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
     }

@@ -43,6 +43,8 @@ public extension Color {
     static let appSecondaryDarkBlue = Color.dynamic(light: "#002A8F", dark: "#60A5FA")   // Xanh Đậm trong Light, Sky Blue trong Dark
     static let appDarkBlueContainer = Color.dynamic(light: "#E8EAF6", dark: "#1E293B")    // Xanh đậm container nhạt
     static let appTopBarColor = Color.dynamic(light: "#002A8F", dark: "#0A192F")          // Xanh Đậm (Thanh trên)
+    static let appHeaderDarkNavy = Color.dynamic(light: "#002A8F", dark: "#0A192F")       // Header Dark Navy (Đảm bảo chữ trắng luôn tương phản cao, không bị chói)
+    static let appDarkButtonBackground = Color.dynamic(light: "#002A8F", dark: "#1E40AF") // Nền nút xanh đậm (Đảm bảo chữ trắng luôn sắc nét)
     static let appPrimary = Color.dynamic(light: "#002A8F", dark: "#60A5FA")              // Xanh Đậm Primary
 
     // 2. Màu thanh điều hướng dưới & Nút nổi FAB
