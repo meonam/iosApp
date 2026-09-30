@@ -47,7 +47,7 @@ public struct PeripheralsView: View {
                         Color.clear.frame(height: SafeAreaHelper.top(geometry))
                         topBar
                     }
-                    .background(Color.appPrimary)
+                    .background(Color.appTopBarColor)
                     
                     ScrollView {
                         VStack(spacing: 16) {
@@ -76,7 +76,7 @@ public struct PeripheralsView: View {
                     .padding()
             }
             
-            Text("Cài đặt hệ thống")
+            Text("Cài đặt máy in & Máy quét")
                 .font(.headline)
                 .foregroundColor(.white)
             
@@ -92,22 +92,27 @@ public struct PeripheralsView: View {
                     if isScannerExpanded { isPrinterExpanded = false }
                 }
             }) {
-                HStack {
+                HStack(spacing: 12) {
                     Image(systemName: "qrcode.viewfinder")
-                        .foregroundColor(isScannerExpanded ? .white : .appPrimary)
+                        .font(.title3)
+                        .foregroundColor(isScannerExpanded ? .white : Color.appPrimaryPink)
                     Text("Cài đặt máy quét")
                         .font(.headline)
-                        .foregroundColor(isScannerExpanded ? .white : .primary)
+                        .foregroundColor(isScannerExpanded ? .white : Color.appTextPrimary)
                     Spacer()
                     Image(systemName: isScannerExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(isScannerExpanded ? .white : .gray)
+                        .foregroundColor(isScannerExpanded ? .white : Color.appTextMuted)
                 }
                 .padding()
-                .background(isScannerExpanded ? Color.appPrimary : Color.white)
+                .background(isScannerExpanded ? Color.appPrimaryPink : Color.appSurface)
                 .cornerRadius(isScannerExpanded ? 16 : 16, corners: [.topLeft, .topRight])
                 .cornerRadius(isScannerExpanded ? 0 : 16, corners: [.bottomLeft, .bottomRight])
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(isScannerExpanded ? Color.clear : Color.appCardBorder, lineWidth: 1)
+                )
             }
-            .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
+            .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
             
             if isScannerExpanded {
                 VStack(alignment: .leading, spacing: 16) {
@@ -117,7 +122,7 @@ public struct PeripheralsView: View {
                         Text("Chế độ quét")
                             .font(.subheadline)
                             .fontWeight(.semibold)
-                            .foregroundColor(.appPrimary)
+                            .foregroundColor(Color.appSecondaryDarkBlue)
                         
                         let modes: [(String, String)] = [
                             ("ALL", "Tất cả"),
@@ -128,12 +133,12 @@ public struct PeripheralsView: View {
                         HStack(spacing: 8) {
                             ForEach(modes, id: \.0) { mode in
                                 Button(action: { scannerMode = mode.0 }) {
-                                    HStack {
+                                    HStack(spacing: 6) {
                                         Image(systemName: scannerMode == mode.0 ? "largecircle.fill.circle" : "circle")
-                                            .foregroundColor(scannerMode == mode.0 ? .appPrimary : .gray)
+                                            .foregroundColor(scannerMode == mode.0 ? Color.appPrimaryPink : Color.appTextMuted)
                                         Text(mode.1)
                                             .font(.caption)
-                                            .foregroundColor(scannerMode == mode.0 ? .appPrimary : .primary)
+                                            .foregroundColor(scannerMode == mode.0 ? Color.appPrimaryPink : Color.appTextPrimary)
                                             .fontWeight(scannerMode == mode.0 ? .bold : .regular)
                                             .lineLimit(1)
                                             .minimumScaleFactor(0.8)
@@ -144,57 +149,59 @@ public struct PeripheralsView: View {
                         }
                     }
                     
-                    Divider()
+                    Divider().background(Color.appDivider)
                     
                     // Âm báo
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Âm báo & Phản hồi")
                             .font(.subheadline)
                             .fontWeight(.semibold)
-                            .foregroundColor(.appPrimary)
+                            .foregroundColor(Color.appSecondaryDarkBlue)
                         
                         Toggle("Phát tiếng Beep khi quét", isOn: $beepOnScan)
-                            .tint(.appPrimary)
+                            .foregroundColor(Color.appTextPrimary)
+                            .tint(.appPrimaryPink)
                         Toggle("Rung khi quét", isOn: $vibrateOnScan)
-                            .tint(.appPrimary)
+                            .foregroundColor(Color.appTextPrimary)
+                            .tint(.appPrimaryPink)
                     }
                     
-                    Divider()
+                    Divider().background(Color.appDivider)
                     
                     // Anti-partial
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Image(systemName: "checkmark.seal.fill")
-                                .foregroundColor(enableAntiPartialScan ? .appPrimary : .gray)
-                            Text("Chống quét thiếu mã")
+                                .foregroundColor(enableAntiPartialScan ? Color.appPrimaryPink : Color.appTextMuted)
+                            Text("Chống quét thiếu mã (Xác thực 2 frame)")
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
-                                .foregroundColor(.appPrimary)
+                                .foregroundColor(Color.appSecondaryDarkBlue)
                             Spacer()
                             Toggle("", isOn: $enableAntiPartialScan)
                                 .labelsHidden()
-                                .tint(.appPrimary)
+                                .tint(.appPrimaryPink)
                         }
                         Text("Tránh nhận nhầm khi lia camera qua mã vạch 1D (Code 128 / Code 39) chưa bao trọn toàn bộ mã.")
                             .font(.caption)
-                            .foregroundColor(.gray)
+                            .foregroundColor(Color.appTextSecondary)
                     }
                     .padding()
-                    .background(enableAntiPartialScan ? Color.appPrimary.opacity(0.05) : Color(UIColor.systemGray6))
+                    .background(enableAntiPartialScan ? Color.appPrimaryPink.opacity(0.08) : Color.appSurfaceVariant)
                     .cornerRadius(12)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(enableAntiPartialScan ? Color.appPrimary.opacity(0.3) : Color(UIColor.systemGray4), lineWidth: 1)
+                            .stroke(enableAntiPartialScan ? Color.appPrimaryPink.opacity(0.4) : Color.appCardBorder, lineWidth: 1)
                     )
                     
-                    Divider()
+                    Divider().background(Color.appDivider)
                     
                     // Min length
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Độ dài mã tối thiểu:")
                             .font(.subheadline)
                             .fontWeight(.semibold)
-                            .foregroundColor(.appPrimary)
+                            .foregroundColor(Color.appSecondaryDarkBlue)
                         
                         HStack(spacing: 8) {
                             ForEach([3, 4, 6], id: \.self) { len in
@@ -203,42 +210,47 @@ public struct PeripheralsView: View {
                                         .font(.caption)
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 8)
-                                        .background(minBarcodeLength == len ? Color.appPrimary : Color.clear)
-                                        .foregroundColor(minBarcodeLength == len ? .white : .primary)
+                                        .background(minBarcodeLength == len ? Color.appPrimaryPink : Color.appSurfaceVariant)
+                                        .foregroundColor(minBarcodeLength == len ? .white : Color.appTextPrimary)
                                         .cornerRadius(8)
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 8)
-                                                .stroke(minBarcodeLength == len ? Color.clear : Color.gray.opacity(0.3), lineWidth: 1)
+                                                .stroke(minBarcodeLength == len ? Color.clear : Color.appCardBorder, lineWidth: 1)
                                         )
                                 }
                             }
                         }
                     }
                     
-                    Divider()
+                    Divider().background(Color.appDivider)
                     
                     // Formats
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Định dạng mã cho phép:")
                             .font(.subheadline)
-                            .foregroundColor(.gray)
+                            .fontWeight(.semibold)
+                            .foregroundColor(Color.appSecondaryDarkBlue)
                         
                         Group {
-                            Toggle("Code 128", isOn: $enableCode128).tint(.appPrimary)
-                            Toggle("QR Code", isOn: $enableQRCode).tint(.appPrimary)
-                            Toggle("EAN-13", isOn: $enableEAN13).tint(.appPrimary)
-                            Toggle("Code 39", isOn: $enableCode39).tint(.appPrimary)
-                            Toggle("EAN-8", isOn: $enableEAN8).tint(.appPrimary)
-                            Toggle("UPC-A", isOn: $enableUPCA).tint(.appPrimary)
-                            Toggle("Data Matrix", isOn: $enableDataMatrix).tint(.appPrimary)
-                            Toggle("PDF417", isOn: $enablePDF417).tint(.appPrimary)
+                            Toggle("Code 128", isOn: $enableCode128).tint(.appPrimaryPink).foregroundColor(Color.appTextPrimary)
+                            Toggle("QR Code", isOn: $enableQRCode).tint(.appPrimaryPink).foregroundColor(Color.appTextPrimary)
+                            Toggle("EAN-13", isOn: $enableEAN13).tint(.appPrimaryPink).foregroundColor(Color.appTextPrimary)
+                            Toggle("Code 39", isOn: $enableCode39).tint(.appPrimaryPink).foregroundColor(Color.appTextPrimary)
+                            Toggle("EAN-8", isOn: $enableEAN8).tint(.appPrimaryPink).foregroundColor(Color.appTextPrimary)
+                            Toggle("UPC-A", isOn: $enableUPCA).tint(.appPrimaryPink).foregroundColor(Color.appTextPrimary)
+                            Toggle("Data Matrix", isOn: $enableDataMatrix).tint(.appPrimaryPink).foregroundColor(Color.appTextPrimary)
+                            Toggle("PDF417", isOn: $enablePDF417).tint(.appPrimaryPink).foregroundColor(Color.appTextPrimary)
                         }
                     }
                 }
                 .padding()
                 .background(Color.appSurface)
                 .cornerRadius(16, corners: [.bottomLeft, .bottomRight])
-                .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.appCardBorder, lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
             }
         }
     }
@@ -251,22 +263,27 @@ public struct PeripheralsView: View {
                     if isPrinterExpanded { isScannerExpanded = false }
                 }
             }) {
-                HStack {
+                HStack(spacing: 12) {
                     Image(systemName: "printer")
-                        .foregroundColor(isPrinterExpanded ? .white : .appPrimary)
+                        .font(.title3)
+                        .foregroundColor(isPrinterExpanded ? .white : Color.appPrimaryPink)
                     Text("Cài đặt máy in")
                         .font(.headline)
-                        .foregroundColor(isPrinterExpanded ? .white : .primary)
+                        .foregroundColor(isPrinterExpanded ? .white : Color.appTextPrimary)
                     Spacer()
                     Image(systemName: isPrinterExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(isPrinterExpanded ? .white : .gray)
+                        .foregroundColor(isPrinterExpanded ? .white : Color.appTextMuted)
                 }
                 .padding()
-                .background(isPrinterExpanded ? Color.appPrimary : Color.white)
+                .background(isPrinterExpanded ? Color.appPrimaryPink : Color.appSurface)
                 .cornerRadius(isPrinterExpanded ? 16 : 16, corners: [.topLeft, .topRight])
                 .cornerRadius(isPrinterExpanded ? 0 : 16, corners: [.bottomLeft, .bottomRight])
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(isPrinterExpanded ? Color.clear : Color.appCardBorder, lineWidth: 1)
+                )
             }
-            .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
+            .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
             
             if isPrinterExpanded {
                 VStack(alignment: .leading, spacing: 16) {
@@ -276,17 +293,17 @@ public struct PeripheralsView: View {
                         Text("Phương thức kết nối")
                             .font(.subheadline)
                             .fontWeight(.semibold)
-                            .foregroundColor(.appPrimary)
+                            .foregroundColor(Color.appSecondaryDarkBlue)
                         
                         HStack {
                             ForEach(["Bluetooth", "USB-OTG", "Wifi/LAN"], id: \.self) { mode in
                                 Button(action: { connectionType = mode }) {
-                                    HStack {
+                                    HStack(spacing: 6) {
                                         Image(systemName: connectionType == mode ? "largecircle.fill.circle" : "circle")
-                                            .foregroundColor(connectionType == mode ? .appPrimary : .gray)
+                                            .foregroundColor(connectionType == mode ? Color.appPrimaryPink : Color.appTextMuted)
                                         Text(mode)
                                             .font(.caption)
-                                            .foregroundColor(connectionType == mode ? .appPrimary : .primary)
+                                            .foregroundColor(connectionType == mode ? Color.appPrimaryPink : Color.appTextPrimary)
                                             .fontWeight(connectionType == mode ? .bold : .regular)
                                     }
                                 }
@@ -301,19 +318,21 @@ public struct PeripheralsView: View {
                             VStack(alignment: .leading) {
                                 Text("Địa chỉ IP")
                                     .font(.caption)
-                                    .foregroundColor(.gray)
+                                    .foregroundColor(Color.appTextSecondary)
                                 TextField("192.168.1.x", text: $printerIp)
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
                                     .keyboardType(.decimalPad)
+                                    .foregroundColor(Color.appTextPrimary)
                             }
                             
                             VStack(alignment: .leading) {
                                 Text("Cổng (Port)")
                                     .font(.caption)
-                                    .foregroundColor(.gray)
+                                    .foregroundColor(Color.appTextSecondary)
                                 TextField("9100", text: $printerPort)
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
                                     .keyboardType(.numberPad)
+                                    .foregroundColor(Color.appTextPrimary)
                             }
                             .frame(width: 80)
                         }
@@ -330,27 +349,28 @@ public struct PeripheralsView: View {
                                     }
                                 }
                                 .font(.caption)
+                                .fontWeight(.bold)
                                 .foregroundColor(.white)
                                 .padding()
                                 .frame(maxWidth: .infinity)
-                                .background(Color.appPrimary)
+                                .background(Color.appPrimaryPink)
                                 .cornerRadius(8)
                             }
                             
                             if bluetoothDeviceList.isEmpty {
                                 Text(isScanningBt ? "Đang quét..." : "Chưa có thiết bị nào được ghép đôi.")
                                     .font(.caption)
-                                    .foregroundColor(.gray)
+                                    .foregroundColor(Color.appTextSecondary)
                             } else {
                                 VStack(alignment: .leading, spacing: 8) {
                                     ForEach(bluetoothDeviceList, id: \.self) { device in
                                         Button(action: { selectedBtDevice = device }) {
-                                            HStack {
+                                            HStack(spacing: 6) {
                                                 Image(systemName: selectedBtDevice == device ? "largecircle.fill.circle" : "circle")
-                                                    .foregroundColor(selectedBtDevice == device ? .appPrimary : .gray)
+                                                    .foregroundColor(selectedBtDevice == device ? Color.appPrimaryPink : Color.appTextMuted)
                                                 Text(device)
                                                     .font(.caption)
-                                                    .foregroundColor(.primary)
+                                                    .foregroundColor(Color.appTextPrimary)
                                             }
                                         }
                                     }
@@ -360,24 +380,28 @@ public struct PeripheralsView: View {
                     } else {
                         HStack {
                             Image(systemName: "cable.connector")
-                                .foregroundColor(.appPrimary)
+                                .foregroundColor(Color.appPrimaryPink)
                             Text("Đã chọn chế độ in qua cáp USB-OTG.")
                                 .font(.caption)
-                                .foregroundColor(.appPrimary)
+                                .foregroundColor(Color.appTextPrimary)
                         }
                         .padding()
-                        .background(Color.gray.opacity(0.1))
+                        .background(Color.appSurfaceVariant)
                         .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.appCardBorder, lineWidth: 1)
+                        )
                     }
                     
-                    Divider()
+                    Divider().background(Color.appDivider)
                     
                     // Paper size
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Khổ giấy mặc định")
                             .font(.subheadline)
                             .fontWeight(.semibold)
-                            .foregroundColor(.appPrimary)
+                            .foregroundColor(Color.appSecondaryDarkBlue)
                         
                         let sizes = ["Giấy in nhiệt K80", "Giấy in nhiệt K58", "Khổ A4", "Khổ A5"]
                         
@@ -393,7 +417,7 @@ public struct PeripheralsView: View {
                         }
                     }
                     
-                    Divider()
+                    Divider().background(Color.appDivider)
                     
                     // Test button
                     Button(action: {
@@ -417,7 +441,7 @@ public struct PeripheralsView: View {
                         .foregroundColor(.white)
                         .padding()
                         .frame(maxWidth: .infinity)
-                        .background(isTestingConnection ? Color.gray : Color.green)
+                        .background(isTestingConnection ? Color.gray : Color(hex: "#16A34A"))
                         .cornerRadius(8)
                     }
                     .disabled(isTestingConnection)
@@ -425,7 +449,11 @@ public struct PeripheralsView: View {
                 .padding()
                 .background(Color.appSurface)
                 .cornerRadius(16, corners: [.bottomLeft, .bottomRight])
-                .shadow(color: .black.opacity(0.05), radius: 2, y: 1)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color.appCardBorder, lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.04), radius: 3, y: 1)
             }
         }
     }
@@ -448,15 +476,15 @@ public struct PeripheralsView: View {
     @ViewBuilder
     private func paperSizeOption(_ size: String) -> some View {
         Button(action: { paperSize = size }) {
-            HStack {
+            HStack(spacing: 6) {
                 Image(systemName: paperSize == size ? "largecircle.fill.circle" : "circle")
-                    .foregroundColor(paperSize == size ? .appPrimary : .gray)
+                    .foregroundColor(paperSize == size ? Color.appPrimaryPink : Color.appTextMuted)
                 Text(size)
                     .font(.caption)
-                    .foregroundColor(.primary)
+                    .foregroundColor(paperSize == size ? Color.appPrimaryPink : Color.appTextPrimary)
+                    .fontWeight(paperSize == size ? .bold : .regular)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
-
