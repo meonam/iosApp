@@ -213,47 +213,13 @@ public struct SupportHubView: View {
         }
     }
 
-    // MARK: - DESKTOP HEADER & FILTER BAR (HÌNH 2)
+    // MARK: - DESKTOP HEADER & FILTER BAR (ĐỒNG BỘ 1:1 ANDROID IMAGE 3 & DESKTOP)
     @ViewBuilder
     private var desktopHeaderAndFilterBar: some View {
         VStack(spacing: 8) {
-            // Hàng Tiêu Đề Panel: 📋 Hỗ trợ trực tuyến & Xử lý sự cố (N) + Nút Xóa tất cả
-            HStack {
-                HStack(spacing: 6) {
-                    Text("📋")
-                        .font(.system(size: 14))
-                    Text("Hỗ trợ trực tuyến & Xử lý sự cố (\(viewModel.allCount))")
-                        .font(.system(size: 14.5, weight: .bold))
-                        .foregroundColor(Color(hex: "#0B2545"))
-                }
-
-                Spacer()
-
-                if viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isManager {
-                    Button(action: {
-                        if closedTicketsToCleanCount > 0 {
-                            showConfirmCleanClosed = true
-                        }
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "trash")
-                                .font(.system(size: 11))
-                            Text("Xóa tất cả")
-                                .font(.system(size: 11.5, weight: .bold))
-                        }
-                        .foregroundColor(Color(hex: "#E11D48"))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color(hex: "#FFE4E6"))
-                        .cornerRadius(6)
-                    }
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.top, 10)
-
-            // Hàng 1: 4 Tabs Trạng thái (Segmented Tabs nền xám bo tròn)
+            // Hàng 1: 4 Tabs Trạng thái (Segmented Tabs nền xám bo tròn chuẩn Android Image 3)
             statusTabsRow
+                .padding(.top, 6)
 
             // Hàng 2: Omni-Channel Filter Chips (Tất cả, App, Email, Phòng ban - bỏ Zalo)
             omniChannelChipsRow
@@ -264,6 +230,7 @@ public struct SupportHubView: View {
                     .foregroundColor(Color.appTextSecondary)
                 TextField("Tìm mã phiếu, tiêu đề, người gửi, đơn vị...", text: $viewModel.searchQuery)
                     .font(.system(size: 13))
+                    .foregroundColor(Color.appTextPrimary)
                 if !viewModel.searchQuery.isEmpty {
                     Button(action: { viewModel.searchQuery = "" }) {
                         Image(systemName: "xmark.circle.fill")
@@ -273,17 +240,17 @@ public struct SupportHubView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(Color.white)
+            .background(Color.appSurfaceVariant)
             .cornerRadius(8)
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
             .padding(.horizontal, 12)
             .padding(.bottom, 6)
         }
-        .background(Color.white)
+        .background(Color.appSurface)
         .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 2)
     }
 
-    // MARK: - 4 STATUS TABS (HÌNH 2)
+    // MARK: - 4 STATUS TABS (ĐỒNG BỘ 1:1 ANDROID IMAGE 3)
     private var statusTabsRow: some View {
         HStack(spacing: 4) {
             statusTabButton(title: "Tất cả", count: viewModel.allCount, tag: "ALL")
@@ -292,7 +259,7 @@ public struct SupportHubView: View {
             statusTabButton(title: "Đã ẩn", count: viewModel.hiddenCount, tag: "HIDDEN")
         }
         .padding(3)
-        .background(Color(hex: "#E2E8F0").opacity(0.65))
+        .background(Color.appSurfaceVariant)
         .cornerRadius(10)
         .padding(.horizontal, 12)
     }
@@ -302,16 +269,16 @@ public struct SupportHubView: View {
         let activeBg: Color = {
             switch tag {
             case "OPEN": return Color(hex: "#DCFCE7")
-            case "CLOSED": return Color.white
-            case "HIDDEN": return Color.white
-            default: return Color(hex: "#0B2545")
+            case "CLOSED": return Color.appSurface
+            case "HIDDEN": return Color.appSurface
+            default: return Color.appSecondaryDarkBlue
             }
         }()
         let activeFg: Color = {
             switch tag {
             case "OPEN": return Color(hex: "#16A34A")
-            case "CLOSED": return Color(hex: "#1E293B")
-            case "HIDDEN": return Color(hex: "#64748B")
+            case "CLOSED": return Color.appTextPrimary
+            case "HIDDEN": return Color.appTextSecondary
             default: return .white
             }
         }()
@@ -327,7 +294,7 @@ public struct SupportHubView: View {
                 Text("(\(count))")
                     .font(.system(size: 11, weight: isSelected ? .bold : .regular))
             }
-            .foregroundColor(isSelected ? activeFg : Color(hex: "#64748B"))
+            .foregroundColor(isSelected ? activeFg : Color.appTextSecondary)
             .frame(maxWidth: .infinity)
             .frame(height: 34)
             .background(isSelected ? activeBg : Color.clear)
@@ -431,12 +398,12 @@ public struct SupportHubView: View {
         }
     }
 
-    // MARK: - GROUP HEADER (HÌNH 2: v 📅 Hôm nay (2) [2 đang mở])
+    // MARK: - GROUP HEADER (ĐỒNG BỘ 1:1 ANDROID IMAGE 3: v 📅 Hôm nay (30) [ 30 đang mở ])
     private func groupHeader(title: String, totalCount: Int, openCount: Int, isCollapsed: Bool) -> some View {
         HStack(spacing: 6) {
             Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
                 .font(.system(size: 11, weight: .bold))
-                .foregroundColor(openCount > 0 ? Color(hex: "#D97706") : Color.gray)
+                .foregroundColor(openCount > 0 ? Color(hex: "#D97706") : Color.appTextMuted)
                 .frame(width: 14)
 
             Text("📅")
@@ -444,7 +411,7 @@ public struct SupportHubView: View {
 
             Text("\(title) (\(totalCount))")
                 .font(.system(size: 12.5, weight: .bold))
-                .foregroundColor(openCount > 0 ? Color(hex: "#1E293B") : Color(hex: "#64748B"))
+                .foregroundColor(openCount > 0 ? Color.appTextPrimary : Color.appTextSecondary)
 
             if openCount > 0 {
                 Text("\(openCount) đang mở")
@@ -457,10 +424,10 @@ public struct SupportHubView: View {
             } else {
                 Text("✓ Đã xong")
                     .font(.system(size: 10.5, weight: .medium))
-                    .foregroundColor(Color(hex: "#64748B"))
+                    .foregroundColor(Color.appTextSecondary)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color(hex: "#F1F5F9"))
+                    .background(Color.appSurfaceVariant)
                     .cornerRadius(6)
             }
 
@@ -468,22 +435,22 @@ public struct SupportHubView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(Color.white.opacity(0.95))
+        .background(Color.appSurface.opacity(0.95))
         .cornerRadius(8)
     }
 
-    // MARK: - TOP BAR
+    // MARK: - TOP BAR (ĐỒNG BỘ 1:1 ANDROID IMAGE 3: Hỗ trợ kỹ thuật • 💡 • 🚲 • 🗑️ • 📊 • 🔄)
     @ViewBuilder
     private func topBarView(safeAreaTop: CGFloat) -> some View {
         VStack(spacing: 0) {
             Color.clear.frame(height: safeAreaTop)
 
-            HStack(spacing: 4) {
+            HStack(spacing: 2) {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 17, weight: .bold))
                         .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 38, height: 40)
                         .contentShape(Rectangle())
                 }
 
@@ -500,21 +467,21 @@ public struct SupportHubView: View {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 19, weight: .bold))
                             .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
+                            .frame(width: 38, height: 40)
                             .contentShape(Rectangle())
                     }
                 }
 
-                // Nút 1: Hướng dẫn
+                // Nút 1: Hướng dẫn 💡
                 Button(action: { showGuideAlert = true }) {
                     Image(systemName: "lightbulb.fill")
                         .font(.system(size: 16))
                         .foregroundColor(Color(hex: "#FBBF24"))
-                        .frame(width: 40, height: 40)
+                        .frame(width: 38, height: 40)
                         .contentShape(Rectangle())
                 }
 
-                // Nút 2: Giám sát lộ trình KTV (Đồng bộ 1:1 Android StaffSupportScreen / AdminTicketListScreen)
+                // Nút 2: Giám sát lộ trình KTV 🚲 (Đồng bộ 1:1 Android StaffSupportScreen / AdminTicketListScreen)
                 let movingTicket = viewModel.scopedTickets.first(where: { $0.tracking?.status == "EN_ROUTE" })
                 let isManagerOrAdmin = viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk || viewModel.user.isManager
                 if let moving = movingTicket {
@@ -522,42 +489,56 @@ public struct SupportHubView: View {
                         Image(systemName: "bicycle")
                             .font(.system(size: 17, weight: .bold))
                             .foregroundColor(Color(hex: "#10B981"))
-                            .frame(width: 40, height: 40)
+                            .frame(width: 38, height: 40)
                             .contentShape(Rectangle())
                     }
                 } else if isManagerOrAdmin {
                     Button(action: { activeSheet = .ktvMonitor }) {
-                        Image(systemName: "map.fill")
-                            .font(.system(size: 15, weight: .medium))
+                        Image(systemName: "bicycle")
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
+                            .frame(width: 38, height: 40)
                             .contentShape(Rectangle())
                     }
                 }
 
-                // Nút 3: Báo cáo SLA / Đánh giá (Chỉ dành cho Admin, HelpDesk, Quản lý, KTV / Chuyên viên)
-                // Người gửi yêu cầu (isStaff) KHÔNG được xem
+                // Nút 3: Xóa / Dọn dẹp tất cả các phiếu đã đóng 🗑️ (Đồng bộ 1:1 Android Image 3)
+                if isManagerOrAdmin {
+                    Button(action: {
+                        if closedTicketsToCleanCount > 0 {
+                            showConfirmCleanClosed = true
+                        }
+                    }) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 16))
+                            .foregroundColor(closedTicketsToCleanCount > 0 ? Color(hex: "#FCA5A5") : Color.white.opacity(0.45))
+                            .frame(width: 38, height: 40)
+                            .contentShape(Rectangle())
+                    }
+                }
+
+                // Nút 4: Báo cáo SLA / Đánh giá 📊 (Chỉ dành cho Admin, HelpDesk, Quản lý, KTV / Chuyên viên)
                 let canViewRatingReport = viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk || viewModel.user.isManager || viewModel.user.isTechnician || viewModel.user.isSpecialist
                 if canViewRatingReport {
                     Button(action: onOpenRatingReport) {
                         Image(systemName: "chart.bar.fill")
                             .font(.system(size: 16))
                             .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
+                            .frame(width: 38, height: 40)
                             .contentShape(Rectangle())
                     }
                 }
 
-                // Nút 4: Làm mới
+                // Nút 5: Làm mới 🔄
                 Button(action: { viewModel.fetchTickets() }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 38, height: 40)
                         .contentShape(Rectangle())
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 6)
             .padding(.vertical, 4)
         }
         .background(Color.appTopBarColor)

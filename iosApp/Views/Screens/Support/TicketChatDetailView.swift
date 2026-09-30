@@ -49,6 +49,7 @@ public struct TicketChatDetailView: View {
     @State private var selectedRating: Int = 5
     @State private var ratingComment: String = ""
     @State private var rejectReasonText: String = ""
+    @State private var isInternalNote: Bool = false
 
     // SLA countdown timer
     @State private var slaCountdown: String = ""
@@ -257,12 +258,13 @@ public struct TicketChatDetailView: View {
         }
     }
 
-    // MARK: - TOP BAR (ĐỒNG BỘ 1:1 VỚI ANDROID AdminSupportChatScreen.kt)
+    // MARK: - TOP BAR (ĐỒNG BỘ 1:1 VỚI ANDROID Image 2)
     private func topBar(safeAreaTop: CGFloat) -> some View {
         VStack(spacing: 0) {
             Color.clear.frame(height: safeAreaTop)
 
             HStack(spacing: 6) {
+                // Nút quay lại
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 16, weight: .bold))
@@ -271,39 +273,18 @@ public struct TicketChatDetailView: View {
                         .contentShape(Rectangle())
                 }
 
-                // Tiêu đề ngắn gọn chuẩn Android: "Đang hỗ trợ #TK-XXXX"
-                let tCode = ticket.id.prefix(8).uppercased()
-                Text(tCode.isEmpty ? "Đang hỗ trợ" : "Đang hỗ trợ #TK-\(tCode)")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-
-                Spacer(minLength: 2)
-
-                // 1. Nút Đánh giá (nếu là người tạo & đã xử lý xong hoặc đã đóng)
-                if isCreator && (isResolved || isClosed) {
-                    Button(action: { activeSheet = .rating }) {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color(hex: "#F59E0B"))
-                            .frame(width: 32, height: 32)
-                            .contentShape(Rectangle())
-                    }
-                }
-
-                // 2. Nút Bản đồ lộ trình KTV (Live Tracking Map)
+                // 1. Nút Bản đồ lộ trình KTV (Live Tracking Map)
                 Button(action: { activeSheet = .liveTracking }) {
                     Image(systemName: "bicycle")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white)
                         .frame(width: 30, height: 30)
-                        .background(Color(hex: "#002A8F"))
+                        .background(Color.white.opacity(0.15))
                         .clipShape(Circle())
                         .contentShape(Rectangle())
                 }
 
-                // 3. Nút Gọi thoại trực tiếp giữa Người tạo <-> KTV (P2P In-App)
+                // 2. Nút Gọi thoại trực tiếp giữa Người tạo <-> KTV (P2P In-App)
                 let callTargetEmail = isCreator ? ticket.assignedToEmail : ticket.creatorEmail
                 let callTargetName = isCreator
                     ? (ticket.assignedToName.isEmpty ? "Kỹ thuật viên" : ticket.assignedToName)
@@ -332,7 +313,7 @@ public struct TicketChatDetailView: View {
                     }
                 }
 
-                // 4. Nút Gọi thoại Hàng đợi Trực ban HelpDesk
+                // 3. Nút Gọi thoại Hàng đợi Trực ban HelpDesk
                 if !isClosed {
                     Button(action: {
                         WebRtcCallManager.shared.companyId = viewModel.companyId
@@ -356,7 +337,7 @@ public struct TicketChatDetailView: View {
                     }
                 }
 
-                // 5. Nút Bàn giao ca / Chuyển ticket (dành cho KTV được phân công)
+                // 4. Nút Bàn giao ca / Chuyển ticket (dành cho KTV được phân công)
                 if isAssignedTech && !isClosed && !isResolved {
                     Button(action: {
                         viewModel.fetchKtvTechnicians()
@@ -372,7 +353,9 @@ public struct TicketChatDetailView: View {
                     }
                 }
 
-                // 6. Nút Điều phối KTV (Admin/HelpDesk) - Badge Pill nhỏ gọn chuẩn Android
+                Spacer(minLength: 4)
+
+                // 5. Nút Điều phối KTV (Admin/HelpDesk) - Badge Pill chuẩn Android Image 2
                 if isOpen && isAdminOrHelpDesk {
                     Button(action: {
                         viewModel.fetchKtvTechnicians()
@@ -383,56 +366,56 @@ public struct TicketChatDetailView: View {
 
                         HStack(spacing: 3) {
                             Image(systemName: isAssigned ? "checkmark.circle.fill" : "bolt.fill")
-                                .font(.system(size: 9))
+                                .font(.system(size: 10))
                                 .foregroundColor(isAssigned ? Color(hex: "#86EFAC") : Color(hex: "#FCA5A5"))
                             Text(isAssigned ? "✓ \(techDisplay)" : "⚡ Điều phối (*)")
-                                .font(.system(size: 10.5, weight: .bold))
+                                .font(.system(size: 11, weight: .bold))
                                 .lineLimit(1)
                         }
                         .foregroundColor(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4.5)
                         .background(isAssigned ? Color(hex: "#10B981").opacity(0.3) : Color(hex: "#EF4444").opacity(0.3))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 6)
+                            RoundedRectangle(cornerRadius: 8)
                                 .stroke(isAssigned ? Color(hex: "#86EFAC") : Color(hex: "#FCA5A5"), lineWidth: 1)
                         )
-                        .cornerRadius(6)
+                        .cornerRadius(8)
                         .contentShape(Rectangle())
                     }
                 }
 
-                // 7. Nút Đóng / Nghiệm thu / Từ chối (Chuẩn Android icon 30pt có gắn Alert trực tiếp)
+                // 6. Nút Đóng / Nghiệm thu / Từ chối (Chuẩn Android icon 30pt có gắn Alert)
                 if isOpen && isAdminOrHelpDesk {
+                    // Nút Từ chối / Đóng yêu cầu (X)
+                    Button(action: {
+                        rejectReasonText = ""
+                        activeSheet = .rejectReason
+                    }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(Color(hex: "#FCA5A5"))
+                            .frame(width: 30, height: 30)
+                            .background(Color.white.opacity(0.15))
+                            .clipShape(Circle())
+                            .contentShape(Rectangle())
+                    }
+
+                    // Nút Nghiệm thu (✓) khi KTV đã xử lý xong hoặc đóng phiếu
                     if isResolved {
-                        // KTV đã giải quyết xong -> Nghiệm thu & Đóng phiếu
                         Button(action: { showCloseTicketAlert = true }) {
                             Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 15, weight: .bold))
+                                .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(Color(hex: "#86EFAC"))
                                 .frame(width: 30, height: 30)
                                 .background(Color.white.opacity(0.15))
                                 .clipShape(Circle())
                                 .contentShape(Rectangle())
                         }
-                    } else {
-                        // Chưa giải quyết -> Nút Từ chối / Đóng yêu cầu
-                        Button(action: {
-                            rejectReasonText = ""
-                            activeSheet = .rejectReason
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 15, weight: .bold))
-                                .foregroundColor(ticket.assignedToEmail.isEmpty ? Color(hex: "#FCA5A5") : Color.white.opacity(0.9))
-                                .frame(width: 30, height: 30)
-                                .background(Color.white.opacity(0.15))
-                                .clipShape(Circle())
-                                .contentShape(Rectangle())
-                        }
                     }
                 }
 
-                // 8. Nút Mở lại phiếu (nếu đủ điều kiện)
+                // 7. Nút Mở lại phiếu (nếu đủ điều kiện)
                 if canReopen {
                     Button(action: { activeSheet = .reopen }) {
                         Image(systemName: "arrow.counterclockwise.circle.fill")
@@ -449,14 +432,14 @@ public struct TicketChatDetailView: View {
         .background(Color.appTopBarColor)
     }
 
-    // MARK: - TICKET SUMMARY CARD (ĐỒNG BỘ 1:1 VỚI ANDROID AdminSupportChatScreen.kt:736-810)
+    // MARK: - TICKET SUMMARY CARD (ĐỒNG BỘ 1:1 VỚI ANDROID AdminSupportChatScreen.kt:736-879)
     private var ticketSummaryCard: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Hàng 1: Mã phiếu + Tiêu đề sự cố + Badges trạng thái
+        VStack(alignment: .leading, spacing: 3) {
+            // Hàng 1: #TK-TICKET_1 • NANG CAP APP SOAN HANG
             HStack(spacing: 6) {
                 let tCode = ticket.id.prefix(8).uppercased()
                 Text("#TK-\(tCode) • \(ticket.subject.isEmpty ? "Chi tiết hỗ trợ" : ticket.subject)")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color.appSecondaryDarkBlue)
                     .lineLimit(1)
 
@@ -465,34 +448,18 @@ public struct TicketChatDetailView: View {
                 // Badge Trạng thái
                 if isClosed {
                     Text("ĐÃ ĐÓNG")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 9.5, weight: .bold))
                         .foregroundColor(Color(hex: "#64748B"))
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
                         .background(Color(hex: "#F1F5F9"))
-                        .cornerRadius(4)
-                } else if isResolved {
-                    Text(ticket.isSpecialistAssigned ? "💻 CHUYÊN VIÊN ĐÃ XỬ LÝ" : "🛠️ KTV ĐÃ XỬ LÝ")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(Color(hex: "#065F46"))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Color(hex: "#D1FAE5"))
-                        .cornerRadius(4)
-                } else {
-                    Text("ĐANG MỞ")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(Color(hex: "#047857"))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Color(hex: "#ECFDF5"))
                         .cornerRadius(4)
                 }
 
                 // Điểm đánh giá sao nếu có
                 if ticket.rating > 0 {
                     Text("⭐ \(ticket.rating)/5")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 9.5, weight: .bold))
                         .foregroundColor(Color(hex: "#B45309"))
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
@@ -503,7 +470,7 @@ public struct TicketChatDetailView: View {
                 // Miễn trừ KPI nếu có
                 if ticket.isObjectiveExclusion {
                     Text("🛡️ Miễn trừ KPI")
-                        .font(.system(size: 8.5, weight: .bold))
+                        .font(.system(size: 9, weight: .bold))
                         .foregroundColor(Color(hex: "#166534"))
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
@@ -512,64 +479,60 @@ public struct TicketChatDetailView: View {
                 }
             }
 
-            // Hàng 2: Đơn vị yêu cầu + Người tạo + Thời gian + Badge Độ ưu tiên
-            HStack(spacing: 6) {
-                let donViText = ticket.donVi.isEmpty ? "Đơn vị yêu cầu" : ticket.donVi
-                let creatorDisp = ticket.creatorName.isEmpty ? ticket.creatorEmail : ticket.creatorName
+            // Hàng 2: Submeta: 📱 App • 🏬 Co.opmart Phú Lâm • 👤 Co.opmart Phú Lâm • ➡️ IT Tập...
+            HStack(spacing: 5) {
+                let channelText: String = {
+                    switch ticket.source.uppercased() {
+                    case "ZALO": return "💬 Zalo"
+                    case "EMAIL": return "✉️ Email"
+                    default: return "📱 App"
+                    }
+                }()
+                Text(channelText)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Color.appTextSecondary)
 
-                HStack(spacing: 3) {
-                    Image(systemName: "building.2.fill")
-                        .font(.system(size: 9.5))
-                        .foregroundColor(Color.gray)
-                    Text(donViText)
-                        .font(.system(size: 10.5, weight: .medium))
-                        .foregroundColor(Color(hex: "#334155"))
-                        .lineLimit(1)
-                }
-
-                Text("•")
-                    .foregroundColor(Color.gray.opacity(0.6))
-                    .font(.system(size: 9))
-
-                HStack(spacing: 3) {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 9.5))
-                        .foregroundColor(Color.gray)
-                    Text(creatorDisp)
-                        .font(.system(size: 10.5))
-                        .foregroundColor(Color(hex: "#64748B"))
-                        .lineLimit(1)
-                }
-
-                if ticket.createdAt > 0 {
+                if !ticket.donVi.isEmpty {
                     Text("•")
-                        .foregroundColor(Color.gray.opacity(0.6))
-                        .font(.system(size: 9))
-
-                    Text(formatMessageTime(ticket.createdAt))
+                        .foregroundColor(Color.appTextMuted)
                         .font(.system(size: 10))
-                        .foregroundColor(Color.gray)
+                    Text("🏬 \(ticket.donVi)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color.appTextSecondary)
+                        .lineLimit(1)
                 }
 
-                Spacer(minLength: 4)
+                let creatorDisp = ticket.creatorName.isEmpty ? (ticket.creatorEmail.components(separatedBy: "@").first ?? ticket.creatorEmail) : ticket.creatorName
+                if !creatorDisp.isEmpty {
+                    Text("•")
+                        .foregroundColor(Color.appTextMuted)
+                        .font(.system(size: 10))
+                    Text("👤 \(creatorDisp)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color.appTextSecondary)
+                        .lineLimit(1)
+                }
 
-                // Badge Mức độ ưu tiên
-                Text(ticket.priority.uppercased())
-                    .font(.system(size: 8.5, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(priorityColor(ticket.priority))
-                    .cornerRadius(4)
+                if !ticket.assignedDepartmentName.isEmpty {
+                    Text("•")
+                        .foregroundColor(Color.appTextMuted)
+                        .font(.system(size: 10))
+                    Text("➡️ \(ticket.assignedDepartmentName)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color.appTextSecondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 0)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(Color.white)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color.appSurface)
         .overlay(
             Rectangle()
                 .frame(height: 1)
-                .foregroundColor(Color(hex: "#E2E8F0")),
+                .foregroundColor(Color.appCardBorder),
             alignment: .bottom
         )
     }
@@ -701,8 +664,8 @@ public struct TicketChatDetailView: View {
                 .buttonStyle(PlainButtonStyle())
             }
 
-            // ── Banner 3: Chọn phương thức xử lý (cho KTV được phân công) ──
-            if (isAssignedTech || isAdminOrHelpDesk) && isOpen && !isResolved {
+            // ── Banner 3: Chọn phương thức xử lý (CHỈ cho KTV được phân công, ẩn với HelpDesk & Admin) ──
+            if isAssignedTech && !isAdminOrHelpDesk && isOpen && !isResolved {
                 HStack(spacing: 8) {
                     Text("Phương thức:")
                         .font(.system(size: 11, weight: .bold))
@@ -747,8 +710,8 @@ public struct TicketChatDetailView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Color.white)
-                .overlay(Rectangle().frame(height: 1).foregroundColor(Color(hex: "#E2E8F0")), alignment: .bottom)
+                .background(Color.appSurface)
+                .overlay(Rectangle().frame(height: 1).foregroundColor(Color.appCardBorder), alignment: .bottom)
             }
 
             // ── Banner 4: Nghiệm thu & Đánh giá 5 sao (cho Người tạo khi RESOLVED) ──
@@ -1011,20 +974,67 @@ public struct TicketChatDetailView: View {
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 5)
-                            .background(Color.white)
+                            .background(Color.appSurfaceVariant)
                             .cornerRadius(6)
-                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
                         }
                     }
                 }
                 .padding(.top, 2)
             }
+
+            // PHÂN LOẠI NHANH: Dành cho HelpDesk / Admin hoặc Ticket gửi từ Email (ĐỒNG BỘ 1:1 ANDROID Image 2)
+            if (currentTicket.source.uppercased() == "EMAIL" || isAdminOrHelpDesk) && isOpen {
+                Divider()
+                    .background(Color.appCardBorder)
+                    .padding(.vertical, 2)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("⚡ Phân loại sự cố nhanh:")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(Color(hex: "#0369A1"))
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            let cats: [(key: String, label: String)] = [
+                                ("HARDWARE", "🖥️ Phần cứng"),
+                                ("SOFTWARE", "💾 Phần mềm"),
+                                ("NETWORK", "🌐 Mạng/Internet"),
+                                ("PRINTER", "🖨️ Máy in"),
+                                ("ACCOUNT", "👤 Tài khoản"),
+                                ("OTHER", "➕ Khác")
+                            ]
+                            ForEach(cats, id: \.key) { c in
+                                let isCur = currentTicket.category.uppercased() == c.key
+                                Button(action: {
+                                    if !isCur {
+                                        viewModel.updateTicketCategory(ticketId: currentTicket.id, newCategory: c.key)
+                                    }
+                                }) {
+                                    Text(c.label)
+                                        .font(.system(size: 10.5, weight: isCur ? .bold : .medium))
+                                        .foregroundColor(isCur ? Color.white : Color.appTextPrimary)
+                                        .padding(.horizontal, 9)
+                                        .padding(.vertical, 4.5)
+                                        .background(isCur ? Color(hex: "#0284C7") : Color.appSurfaceVariant)
+                                        .cornerRadius(12)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(isCur ? Color(hex: "#0369A1") : Color.appCardBorder, lineWidth: 1)
+                                        )
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                    }
+                }
+            }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(hex: "#F8FAFC"))
+        .background(Color.appSurface)
         .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     // MARK: - MESSAGE BUBBLE & SYSTEM EVENT PILL (ĐỒNG NHẤT 1:1 ANDROID, WEB & DESKTOP)
@@ -1060,14 +1070,14 @@ public struct TicketChatDetailView: View {
 
                     Text(msg.text)
                         .font(.system(size: 13.5))
-                        .foregroundColor(isMine ? Color.white : Color(hex: "#0F172A"))
+                        .foregroundColor(isMine ? Color.white : Color.appTextPrimary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(isMine ? Color.appPrimaryPink : Color.white)
+                        .background(isMine ? Color.appPrimaryPink : Color.appSurface)
                         .cornerRadius(14)
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
-                                .stroke(isMine ? Color.clear : Color(hex: "#E2E8F0"), lineWidth: 1)
+                                .stroke(isMine ? Color.clear : Color.appCardBorder, lineWidth: 1)
                         )
 
                     if msg.timestamp > 0 {
@@ -1273,7 +1283,7 @@ public struct TicketChatDetailView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                 }
-                .background(Color(hex: "#F8FAFC"))
+                .background(Color.appSurfaceVariant)
 
                 // Thông tin dung lượng
                 HStack {
@@ -1304,18 +1314,19 @@ public struct TicketChatDetailView: View {
                         .font(.system(size: 18))
                         .foregroundColor(pendingAttachments.count >= 5 ? Color.gray : Color.appPrimaryPink)
                         .frame(width: 36, height: 36)
-                        .background(Color(hex: "#F1F5F9"))
+                        .background(Color.appSurfaceVariant)
                         .clipShape(Circle())
                 }
                 .disabled(pendingAttachments.count >= 5)
 
-                TextField("Nhập nội dung trao đổi...", text: $inputText)
+                TextField("Nhập nội dung...", text: $inputText)
                     .font(.system(size: 13.5))
+                    .foregroundColor(Color.appTextPrimary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(Color(hex: "#F8FAFC"))
+                    .background(Color.appSurfaceVariant)
                     .cornerRadius(20)
-                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.appCardBorder, lineWidth: 1))
 
                 // Nút gửi — xử lý upload attachment rồi gửi text
                 Button(action: {
@@ -1344,10 +1355,31 @@ public struct TicketChatDetailView: View {
                 )
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.top, 8)
+            .padding(.bottom, (isAdminOrHelpDesk || isAssignedTech) ? 4 : 8)
+
+            // Checkbox Ghi chú nội bộ (ĐỒNG BỘ 1:1 VỚI ANDROID Image 2)
+            if isAdminOrHelpDesk || isAssignedTech {
+                HStack(spacing: 6) {
+                    Button(action: { isInternalNote.toggle() }) {
+                        Image(systemName: isInternalNote ? "checkmark.square.fill" : "square")
+                            .foregroundColor(isInternalNote ? Color(hex: "#EAB308") : Color.appTextMuted)
+                            .font(.system(size: 16))
+                    }
+                    .buttonStyle(PlainButtonStyle())
+
+                    Text("Ghi chú nội bộ (Chat mật KTV / Chuyên viên & Helpdesk/Admin)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(hex: "#B45309"))
+
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 6)
+            }
         }
-        .background(Color.white)
-        .overlay(Rectangle().frame(height: 1).foregroundColor(Color(hex: "#E2E8F0")), alignment: .top)
+        .background(Color.appSurface)
+        .overlay(Rectangle().frame(height: 1).foregroundColor(Color.appCardBorder), alignment: .top)
         .alert(isPresented: Binding(
             get: { attachmentAlertMessage != nil },
             set: { if !$0 { attachmentAlertMessage = nil } }
@@ -1376,13 +1408,16 @@ public struct TicketChatDetailView: View {
         }
 
         isUploadingAttachments = false
+        let sendInternal = isInternalNote
         inputText = ""
+        isInternalNote = false
         pendingAttachments = []
 
         // Gửi tin nhắn kèm danh sách URL ảnh đính kèm
         viewModel.sendMessage(
             ticketId: ticket.id,
             text: text,
+            isInternal: sendInternal,
             attachmentUrls: uploadedUrls
         )
     }

@@ -1052,6 +1052,31 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
+    public func updateTicketCategory(ticketId: String, newCategory: String, completion: ((Bool) -> Void)? = nil) {
+        // Optimistic UI update
+        if let idx = tickets.firstIndex(where: { $0.id == ticketId }) {
+            var updated = tickets[idx]
+            updated.category = newCategory
+            tickets[idx] = updated
+        }
+        Task {
+            let mask = "updateMask.fieldPaths=category"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            guard let url = URL(string: urlStr) else {
+                DispatchQueue.main.async { completion?(false) }
+                return
+            }
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let f: [String: Any] = ["category": ["stringValue": newCategory]]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
+            let ok = await FirestoreHelper.executeSafeRequest(request)
+            DispatchQueue.main.async { completion?(ok) }
+        }
+    }
+
     public func sendMessage(
         ticketId: String,
         text: String,
