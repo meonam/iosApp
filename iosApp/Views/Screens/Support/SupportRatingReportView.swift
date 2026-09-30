@@ -93,9 +93,10 @@ public struct SupportRatingReportView: View {
                                     .foregroundColor(.appPrimary)
                                 Text(formatMonth(selectedMonth))
                                     .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(Color.appTextPrimary)
                             }
                             .padding(10)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(8)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                             .onTapGesture {
@@ -121,19 +122,19 @@ public struct SupportRatingReportView: View {
                                         .foregroundColor(.appPrimary)
                                     Text(selectedKtv)
                                         .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.black)
+                                        .foregroundColor(Color.appTextPrimary)
                                     Image(systemName: "chevron.down")
                                         .font(.system(size: 12))
                                         .foregroundColor(.gray)
                                 }
                                 .padding(10)
-                                .background(Color.white)
+                                .background(Color.appSurface)
                                 .cornerRadius(8)
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                             }
                         }
                         .padding(14)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         
                         if isLoading {
                             Spacer()
@@ -196,7 +197,7 @@ public struct SupportRatingReportView: View {
                                     }
                                 }
                                 .padding(16)
-                                .background(Color.white)
+                                .background(Color.appSurface)
                                 .cornerRadius(12)
                                 .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
                             }
@@ -238,7 +239,7 @@ public struct SupportRatingReportView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 12)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
@@ -255,7 +256,7 @@ public struct SupportRatingReportView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(stat.name)
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.black)
+                    .foregroundColor(Color.appTextPrimary)
                 
                 HStack {
                     Text("Ticket: \(stat.closedTickets)/\(stat.totalTickets)")

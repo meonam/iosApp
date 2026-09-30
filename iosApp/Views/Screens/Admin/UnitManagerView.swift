@@ -119,6 +119,7 @@ public struct UnitManagerView: View {
                                     .foregroundColor(Color.gray)
                                 TextField("Tìm theo tên đơn vị, mã đơn vị...", text: $searchQuery)
                                     .font(.system(size: 14))
+                                    .foregroundColor(Color.appTextPrimary)
                                 if !searchQuery.isEmpty {
                                     Button(action: { searchQuery = "" }) {
                                         Image(systemName: "xmark.circle.fill")
@@ -127,16 +128,16 @@ public struct UnitManagerView: View {
                                 }
                             }
                             .padding(10)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                             .padding(.horizontal, 14)
 
                             // HEADER DANH SÁCH
                             HStack {
                                 Text("DANH SÁCH ĐƠN VỊ (\(filteredUnits.count))")
                                     .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .foregroundColor(Color.appTextPrimary)
                                 Spacer()
                             }
                             .padding(.horizontal, 16)
@@ -196,7 +197,7 @@ public struct UnitManagerView: View {
             HStack {
                 Text("➕ Thêm đơn vị mới")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .foregroundColor(Color.appTextPrimary)
                 Spacer()
             }
 
@@ -205,7 +206,7 @@ public struct UnitManagerView: View {
                 HStack {
                     Text("🔍 Tìm nhanh siêu thị Co.opmart")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .foregroundColor(Color.appTextPrimary)
                     Spacer()
                     Text("123 điểm bán")
                         .font(.system(size: 10))
@@ -217,6 +218,7 @@ public struct UnitManagerView: View {
                         .foregroundColor(.gray)
                     TextField("Gõ mã (151, 515...) hoặc tên (Cống Quỳnh, BRIA...)", text: $storeSearchQuery)
                         .font(.system(size: 13))
+                        .foregroundColor(Color.appTextPrimary)
                         .onChange(of: storeSearchQuery) { val in
                             isStoreDropdownOpen = !val.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                         }
@@ -297,6 +299,7 @@ public struct UnitManagerView: View {
                 }
                 TextField("Ví dụ: 151, 515, BINHTAN2...", text: $newUnitId)
                     .font(.system(size: 13, design: .monospaced))
+                    .foregroundColor(Color.appTextPrimary)
                     .padding(10)
                     .background(isDuplicateUnitId ? Color.red.opacity(0.08) : Color.appSurfaceVariant)
                     .cornerRadius(8)
@@ -318,6 +321,7 @@ public struct UnitManagerView: View {
                 }
                 TextField("Ví dụ: Co.opmart Cống Quỳnh", text: $newUnitName)
                     .font(.system(size: 13))
+                    .foregroundColor(Color.appTextPrimary)
                     .padding(10)
                     .background(Color.appSurfaceVariant)
                     .cornerRadius(8)
@@ -341,7 +345,7 @@ public struct UnitManagerView: View {
                     HStack {
                         Text(newUnitRegion.isEmpty ? "Chọn khu vực (tùy chọn)" : newUnitRegion)
                             .font(.system(size: 13))
-                            .foregroundColor(newUnitRegion.isEmpty ? .gray : .primary)
+                            .foregroundColor(newUnitRegion.isEmpty ? .gray : Color.appTextPrimary)
                         Spacer()
                         Image(systemName: "chevron.down")
                             .font(.system(size: 12))
@@ -375,7 +379,7 @@ public struct UnitManagerView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 42)
-                .background((newUnitName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || newUnitId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDuplicateUnitId) ? Color.gray.opacity(0.5) : Color.appSecondaryDarkBlue)
+                .background((newUnitName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || newUnitId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDuplicateUnitId) ? Color.gray.opacity(0.5) : Color.appDarkButtonBackground)
                 .cornerRadius(10)
             }
             .disabled(newUnitName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || newUnitId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isDuplicateUnitId)
@@ -454,9 +458,9 @@ public struct UnitManagerView: View {
             }
         }
         .padding(12)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     // MARK: - EDIT UNIT SHEET

@@ -22,7 +22,7 @@ public struct InfoView: View {
                         Color.clear.frame(height: SafeAreaHelper.top(geometry))
                         topBar
                     }
-                    .background(Color.appPrimary)
+                    .background(Color.appTopBarColor)
                     
                     ScrollView {
                         VStack(spacing: 20) {
@@ -81,9 +81,10 @@ public struct InfoView: View {
                 Text(authViewModel.currentUser?.fullName ?? "N/A")
                     .font(.title3)
                     .bold()
+                    .foregroundColor(Color.appTextPrimary)
                 Text(authViewModel.currentUser?.email ?? "N/A")
                     .font(.subheadline)
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color.appTextSecondary)
                 
                 Text(authViewModel.currentUser?.role ?? "User")
                     .font(.caption)
@@ -97,8 +98,9 @@ public struct InfoView: View {
         }
         .frame(maxWidth: .infinity)
         .padding()
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
         .padding(.horizontal)
     }
     
@@ -106,7 +108,7 @@ public struct InfoView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("THÔNG TIN ỨNG DỤNG")
                 .font(.caption)
-                .foregroundColor(.gray)
+                .foregroundColor(Color.appTextSecondary)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
             
@@ -117,8 +119,9 @@ public struct InfoView: View {
                 Divider().padding(.leading, 16)
                 infoRow(title: "Mã công ty", value: authViewModel.currentUser?.companyId ?? "SGCOOP")
             }
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
         }
         .padding(.horizontal)
     }
@@ -154,8 +157,9 @@ public struct InfoView: View {
                     .padding()
                 }
             }
-            .background(Color.white)
+            .background(Color.appSurface)
             .cornerRadius(12)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
         }
         .padding(.horizontal)
     }
@@ -163,10 +167,10 @@ public struct InfoView: View {
     private func infoRow(title: String, value: String) -> some View {
         HStack {
             Text(title)
-                .foregroundColor(.primary)
+                .foregroundColor(Color.appTextPrimary)
             Spacer()
             Text(value)
-                .foregroundColor(.gray)
+                .foregroundColor(Color.appTextSecondary)
         }
         .padding()
     }
@@ -175,13 +179,13 @@ public struct InfoView: View {
         Button(action: action) {
             HStack {
                 Image(systemName: icon)
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color.appTextSecondary)
                     .frame(width: 24)
                 Text(title)
-                    .foregroundColor(.primary)
+                    .foregroundColor(Color.appTextPrimary)
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color.appTextSecondary)
                     .font(.caption)
             }
             .padding()

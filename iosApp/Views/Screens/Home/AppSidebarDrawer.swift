@@ -614,7 +614,7 @@ public struct AppSidebarDrawer: View {
 
                 Text(title)
                     .font(.system(size: 13, weight: isSelected ? .bold : .medium))
-                    .foregroundColor(isSelected ? Color(hex: "#0F172A") : Color(hex: "#334155"))
+                    .foregroundColor(isSelected ? Color.appTextPrimary : Color.appTextSecondary)
                     .lineLimit(1)
 
                 Spacer()

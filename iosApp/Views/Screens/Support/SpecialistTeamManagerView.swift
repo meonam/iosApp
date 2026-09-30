@@ -73,16 +73,17 @@ public struct SpecialistTeamManagerView: View {
                             .foregroundColor(Color.appTextSecondary)
                         TextField("Tìm kiếm tổ, mã tổ, ứng dụng...", text: $searchQuery)
                             .font(.system(size: 14))
+                            .foregroundColor(Color.appTextPrimary)
                     }
                     .padding(10)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(10)
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                     .padding(12)
 
                     if filteredTeams.isEmpty {
                         Spacer()
-                        Text("Không có tổ nghiệp vụ nào").foregroundColor(.gray)
+                        Text("Không có tổ nghiệp vụ nào").foregroundColor(Color.appTextSecondary)
                         Spacer()
                     } else {
                         List {
@@ -97,6 +98,7 @@ public struct SpecialistTeamManagerView: View {
                             .listRowSeparator(.hidden)
                         }
                         .listStyle(PlainListStyle())
+                        .scrollContentBackground(.hidden)
                         .refreshable {
                             await viewModel.fetchSpecialistTeams()
                             viewModel.fetchUsers()
@@ -124,9 +126,9 @@ public struct SpecialistTeamManagerView: View {
             HStack(spacing: 12) {
                 Image(systemName: "laptopcomputer.and.iphone")
                     .font(.system(size: 20))
-                    .foregroundColor(Color.appPrimary)
+                    .foregroundColor(Color.appSecondaryDarkBlue)
                     .frame(width: 42, height: 42)
-                    .background(Color.appPrimary.opacity(0.1))
+                    .background(Color.appSecondaryDarkBlue.opacity(0.12))
                     .clipShape(Circle())
 
                 VStack(alignment: .leading, spacing: 3) {
@@ -153,10 +155,10 @@ public struct SpecialistTeamManagerView: View {
             HStack {
                 Text(team.teamId)
                     .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(Color.appPrimary)
+                    .foregroundColor(Color.appSecondaryDarkBlue)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color.appPrimary.opacity(0.1))
+                    .background(Color.appSecondaryDarkBlue.opacity(0.12))
                     .cornerRadius(4)
                 
                 if !team.sdtLienHe.isEmpty {
@@ -192,7 +194,7 @@ public struct SpecialistTeamManagerView: View {
             }
         }
         .padding(14)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }

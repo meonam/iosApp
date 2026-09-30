@@ -147,19 +147,23 @@ struct AdminSettingsView: View {
                                 VStack(alignment: .leading) {
                                     Text("Logo thương hiệu")
                                         .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(Color.appTextPrimary)
                                     Text("Nhấn vào ô để thay đổi")
                                         .font(.system(size: 11))
-                                        .foregroundColor(.gray)
+                                        .foregroundColor(Color.appTextSecondary)
                                 }
                                 Spacer()
                             }
                             
                             TextField("Tên doanh nghiệp", text: $companyName)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .foregroundColor(Color.appTextPrimary)
                             TextField("Mã số thuế", text: $taxCode)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .foregroundColor(Color.appTextPrimary)
                             TextField("Địa chỉ trụ sở", text: $address)
                                 .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .foregroundColor(Color.appTextPrimary)
                         }
                     }
                     
@@ -170,9 +174,10 @@ struct AdminSettingsView: View {
                                 VStack(alignment: .leading) {
                                     Text("Chế độ Bảo trì")
                                         .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(Color.appTextPrimary)
                                     Text("Chặn tất cả người dùng truy cập")
                                         .font(.system(size: 11))
-                                        .foregroundColor(.gray)
+                                        .foregroundColor(Color.appTextSecondary)
                                 }
                             }
                             .tint(Color("PrimaryPink", bundle: nil)) // Fallback if missing
@@ -435,11 +440,11 @@ struct SettingsSectionView<Content: View>: View {
             }
             .padding(16)
         }
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(Color(red: 240/255, green: 242/255, blue: 245/255), lineWidth: 1)
+                .stroke(Color.appCardBorder, lineWidth: 1)
         )
     }
 }

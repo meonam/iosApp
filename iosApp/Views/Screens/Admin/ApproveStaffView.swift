@@ -69,6 +69,7 @@ public struct ApproveStaffView: View {
                             .foregroundColor(Color.appTextSecondary)
                         TextField("Tìm theo tên, email, SĐT, đơn vị...", text: $searchQuery)
                             .font(.system(size: 14))
+                            .foregroundColor(Color.appTextPrimary)
                         if !searchQuery.isEmpty {
                             Button(action: { searchQuery = "" }) {
                                 Image(systemName: "xmark.circle.fill")
@@ -77,7 +78,7 @@ public struct ApproveStaffView: View {
                         }
                     }
                     .padding(10)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(10)
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                     .padding(12)
@@ -203,7 +204,7 @@ public struct ApproveStaffView: View {
             }
         }
         .padding(14)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }

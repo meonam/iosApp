@@ -71,7 +71,7 @@ public struct DepartmentManagerView: View {
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color(hex: "#F8FAFC").ignoresSafeArea()
+                Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
                     // TOP BAR (Đồng bộ Android: Nền xanh đậm, Tiêu đề, nút back, nút icon cụm & thêm)
@@ -110,12 +110,13 @@ public struct DepartmentManagerView: View {
                                 .font(.system(size: 15))
                             TextField("Tìm kiếm phòng ban...", text: $searchQuery)
                                 .font(.system(size: 14))
+                                .foregroundColor(Color.appTextPrimary)
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
 
                         Button(action: { openAdd() }) {
                             HStack(spacing: 4) {
@@ -139,7 +140,7 @@ public struct DepartmentManagerView: View {
                     HStack {
                         Text("Danh sách phòng ban (\(filteredDepts.count))")
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
+                            .foregroundColor(Color.appTextPrimary)
                         Spacer()
                     }
                     .padding(.horizontal, 16)
@@ -234,7 +235,7 @@ public struct DepartmentManagerView: View {
 
                 Text(dept.departmentName)
                     .font(.system(size: 14.5, weight: .bold))
-                    .foregroundColor(dept.isActive ? Color.appSecondaryDarkBlue : Color.gray)
+                    .foregroundColor(dept.isActive ? Color.appTextPrimary : Color.gray)
                     .lineLimit(1)
 
                 Spacer()
@@ -342,9 +343,9 @@ public struct DepartmentManagerView: View {
             }
         }
         .padding(12)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
         .opacity(dept.isActive ? 1.0 : 0.7)
     }
 
@@ -384,7 +385,7 @@ public struct DepartmentManagerView: View {
             HStack {
                 Text(isEditingExisting ? "Chỉnh sửa phòng ban" : "Thêm phòng ban mới")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundColor(Color.appSecondaryDarkBlue)
+                    .foregroundColor(Color.appTextPrimary)
                 Spacer()
             }
             .padding(.top, 4)
@@ -397,18 +398,19 @@ public struct DepartmentManagerView: View {
                             HStack(spacing: 2) {
                                 Text("Mã PB")
                                     .font(.system(size: 11, weight: .semibold))
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .foregroundColor(Color.appTextPrimary)
                                 Text("*")
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(.red)
                             }
                             TextField("Mã PB", text: $editDeptId)
                                 .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
                                 .disabled(isEditingExisting)
                                 .padding(8)
-                                .background(isEditingExisting ? Color(hex: "#F1F5F9") : Color.white)
+                                .background(isEditingExisting ? Color.appSurfaceVariant : Color.appSurface)
                                 .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                         }
                         .frame(maxWidth: .infinity)
 
@@ -416,17 +418,18 @@ public struct DepartmentManagerView: View {
                             HStack(spacing: 2) {
                                 Text("Tên phòng ban")
                                     .font(.system(size: 11, weight: .semibold))
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                    .foregroundColor(Color.appTextPrimary)
                                 Text("*")
                                     .font(.system(size: 11, weight: .bold))
                                     .foregroundColor(.red)
                             }
                             TextField("Tên phòng ban", text: $editDeptName)
                                 .font(.system(size: 13))
+                                .foregroundColor(Color.appTextPrimary)
                                 .padding(8)
-                                .background(Color.white)
+                                .background(Color.appSurfaceVariant)
                                 .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -436,7 +439,7 @@ public struct DepartmentManagerView: View {
                         HStack(spacing: 2) {
                             Text("🏷️ Phân loại nghiệp vụ")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .foregroundColor(Color.appTextPrimary)
                             Text("*")
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(.red)
@@ -459,9 +462,9 @@ public struct DepartmentManagerView: View {
                                     .foregroundColor(.gray)
                             }
                             .padding(9)
-                            .background(Color.white)
+                            .background(Color.appSurfaceVariant)
                             .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                         }
                     }
 
@@ -478,7 +481,7 @@ public struct DepartmentManagerView: View {
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text("⏱️ Cam kết thời gian xử lý (SLA)")
                                             .font(.system(size: 12, weight: .semibold))
-                                            .foregroundColor(Color.appSecondaryDarkBlue)
+                                            .foregroundColor(Color.appTextPrimary)
                                         Text(editDeptSlaEnabled ? "Đo lường thời gian tiếp nhận & xử lý sự cố" : "Đang tắt (phù hợp nội bộ, không áp KPI)")
                                             .font(.system(size: 10.5))
                                             .foregroundColor(.gray)
@@ -497,10 +500,11 @@ public struct DepartmentManagerView: View {
                                         TextField("30", text: $editDeptSlaResponse)
                                             .keyboardType(.numberPad)
                                             .font(.system(size: 13))
+                                            .foregroundColor(Color.appTextPrimary)
                                             .padding(6)
-                                            .background(Color.white)
+                                            .background(Color.appSurfaceVariant)
                                             .cornerRadius(6)
-                                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
                                     }
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Xử lý (phút)")
@@ -509,26 +513,27 @@ public struct DepartmentManagerView: View {
                                         TextField("240", text: $editDeptSlaResolve)
                                             .keyboardType(.numberPad)
                                             .font(.system(size: 13))
+                                            .foregroundColor(Color.appTextPrimary)
                                             .padding(6)
-                                            .background(Color.white)
+                                            .background(Color.appSurfaceVariant)
                                             .cornerRadius(6)
-                                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
                                     }
                                 }
                                 .padding(.top, 2)
                             }
                         }
                         .padding(10)
-                        .background(Color(hex: "#F8FAFC"))
+                        .background(Color.appSurfaceVariant)
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                     }
 
                     // Hàng 4: Trưởng phòng / Phụ trách Dropdown
                     VStack(alignment: .leading, spacing: 4) {
                         Text("👤 Trưởng phòng / Phụ trách")
                             .font(.system(size: 11.5, weight: .semibold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
+                            .foregroundColor(Color.appTextPrimary)
 
                         Menu {
                             Button("(Chưa chỉ định trưởng phòng)") {
@@ -554,9 +559,9 @@ public struct DepartmentManagerView: View {
                                     .foregroundColor(.gray)
                             }
                             .padding(9)
-                            .background(Color.white)
+                            .background(Color.appSurfaceVariant)
                             .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                         }
                     }
 
@@ -565,26 +570,28 @@ public struct DepartmentManagerView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("📞 Hotline")
                                 .font(.system(size: 11.5, weight: .semibold))
-                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .foregroundColor(Color.appTextPrimary)
                             TextField("101, 090...", text: $editHotline)
                                 .font(.system(size: 13))
+                                .foregroundColor(Color.appTextPrimary)
                                 .padding(8)
-                                .background(Color.white)
+                                .background(Color.appSurfaceVariant)
                                 .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                         }
                         .frame(maxWidth: .infinity)
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("📍 Vị trí")
                                 .font(.system(size: 11.5, weight: .semibold))
-                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .foregroundColor(Color.appTextPrimary)
                             TextField("Tầng 2, Nhà A", text: $editLocation)
                                 .font(.system(size: 13))
+                                .foregroundColor(Color.appTextPrimary)
                                 .padding(8)
-                                .background(Color.white)
+                                .background(Color.appSurfaceVariant)
                                 .cornerRadius(8)
-                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                         }
                         .frame(maxWidth: .infinity)
                     }
@@ -598,17 +605,17 @@ public struct DepartmentManagerView: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(editIsActive ? "🟢 Đang hoạt động" : "🔒 Tạm khóa nhận việc")
                                 .font(.system(size: 12.5, weight: .bold))
-                                .foregroundColor(editIsActive ? Color(hex: "#166534") : Color(hex: "#475569"))
+                                .foregroundColor(editIsActive ? Color.green : Color.gray)
                             Text(editIsActive ? "Được phân bổ sự cố bình thường" : "Tạm ngưng điều phối sự cố mới")
                                 .font(.system(size: 10.5))
-                                .foregroundColor(Color(hex: "#64748B"))
+                                .foregroundColor(Color.gray)
                         }
                         Spacer()
                     }
                     .padding(10)
-                    .background(editIsActive ? Color(hex: "#DCFCE7") : Color(hex: "#F1F5F9"))
+                    .background(editIsActive ? Color.green.opacity(0.15) : Color.appSurfaceVariant)
                     .cornerRadius(10)
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(editIsActive ? Color(hex: "#86EFAC") : Color(hex: "#CBD5E1"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(editIsActive ? Color.green.opacity(0.4) : Color.appCardBorder, lineWidth: 1))
                 }
                 .padding(.vertical, 4)
             }
@@ -646,8 +653,9 @@ public struct DepartmentManagerView: View {
             .padding(.top, 4)
         }
         .padding(18)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(18)
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.appCardBorder, lineWidth: 1))
         .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
     }
 

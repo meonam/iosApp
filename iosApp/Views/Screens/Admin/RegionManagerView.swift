@@ -100,20 +100,21 @@ public struct RegionManagerView: View {
                             // SEARCH BAR
                             HStack(spacing: 8) {
                                 Image(systemName: "magnifyingglass")
-                                    .foregroundColor(Color.gray)
+                                    .foregroundColor(Color.appTextSecondary)
                                 TextField("Tìm theo tên khu vực, mã, người phụ trách...", text: $searchQuery)
                                     .font(.system(size: 14))
+                                    .foregroundColor(Color.appTextPrimary)
                                 if !searchQuery.isEmpty {
                                     Button(action: { searchQuery = "" }) {
                                         Image(systemName: "xmark.circle.fill")
-                                            .foregroundColor(.gray)
+                                            .foregroundColor(Color.appTextSecondary)
                                     }
                                 }
                             }
                             .padding(10)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                             .padding(.horizontal, 14)
 
                             // HEADER DANH SÁCH
@@ -135,7 +136,7 @@ public struct RegionManagerView: View {
                                         .foregroundColor(.gray.opacity(0.5))
                                     Text("Không tìm thấy khu vực nào")
                                         .font(.system(size: 14))
-                                        .foregroundColor(.gray)
+                                        .foregroundColor(Color.appTextSecondary)
                                 }
                             } else {
                                 LazyVStack(spacing: 10) {
@@ -191,15 +192,16 @@ public struct RegionManagerView: View {
                 HStack(spacing: 2) {
                     Text("Tên khu vực / vùng")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.gray)
+                        .foregroundColor(Color.appTextSecondary)
                     Text("*").foregroundColor(.red).font(.system(size: 12, weight: .bold))
                 }
                 TextField("Ví dụ: Khu vực Miền Tây, Cụm TP.HCM...", text: $newRegionName)
                     .font(.system(size: 13))
+                    .foregroundColor(Color.appTextPrimary)
                     .padding(10)
-                    .background(Color(hex: "#F8FAFC"))
+                    .background(Color.appSurfaceVariant)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                     .onChange(of: newRegionName) { val in
                         if newRegionId.isEmpty || newRegionId.hasPrefix("KV_") {
                             let slug = val.uppercased().folding(options: .diacriticInsensitive, locale: .current)
@@ -214,25 +216,27 @@ public struct RegionManagerView: View {
                 HStack(spacing: 2) {
                     Text("Mã khu vực")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.gray)
+                        .foregroundColor(Color.appTextSecondary)
                     Text("*").foregroundColor(.red).font(.system(size: 12, weight: .bold))
                 }
                 TextField("Ví dụ: KV_MT, HCM_01...", text: $newRegionId)
                     .font(.system(size: 13))
+                    .foregroundColor(Color.appTextPrimary)
                     .padding(10)
-                    .background(Color(hex: "#F8FAFC"))
+                    .background(Color.appSurfaceVariant)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
             }
 
             HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Người phụ trách")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.gray)
+                        .foregroundColor(Color.appTextSecondary)
                     HStack {
                         TextField("Họ tên", text: $newRegionLeader)
                             .font(.system(size: 13))
+                            .foregroundColor(Color.appTextPrimary)
                         if !viewModel.allUsers.isEmpty {
                             Menu {
                                 ForEach(viewModel.allUsers) { u in
@@ -248,35 +252,37 @@ public struct RegionManagerView: View {
                         }
                     }
                     .padding(10)
-                    .background(Color(hex: "#F8FAFC"))
+                    .background(Color.appSurfaceVariant)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("SĐT liên hệ")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.gray)
+                        .foregroundColor(Color.appTextSecondary)
                     TextField("090...", text: $newRegionPhone)
                         .font(.system(size: 13))
+                        .foregroundColor(Color.appTextPrimary)
                         .keyboardType(.phonePad)
                         .padding(10)
-                        .background(Color(hex: "#F8FAFC"))
+                        .background(Color.appSurfaceVariant)
                         .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                 }
             }
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Mô tả / Ghi chú")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.gray)
+                    .foregroundColor(Color.appTextSecondary)
                 TextField("Phạm vi quản lý...", text: $newRegionDesc)
                     .font(.system(size: 13))
+                    .foregroundColor(Color.appTextPrimary)
                     .padding(10)
-                    .background(Color(hex: "#F8FAFC"))
+                    .background(Color.appSurfaceVariant)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
             }
 
             Button(action: {
@@ -307,15 +313,15 @@ public struct RegionManagerView: View {
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .frame(height: 42)
-                .background(newRegionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray.opacity(0.5) : Color(hex: "#F59E0B"))
+                .background(newRegionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray.opacity(0.5) : Color.appDarkButtonBackground)
                 .cornerRadius(10)
             }
             .disabled(newRegionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
         .padding(14)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(14)
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#DDE2E5"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
         .padding(.horizontal, 14)
     }
 
@@ -398,9 +404,9 @@ public struct RegionManagerView: View {
             }
         }
         .padding(12)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     // MARK: - EDIT REGION SHEET
