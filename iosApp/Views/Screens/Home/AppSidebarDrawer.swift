@@ -75,10 +75,10 @@ public struct AppSidebarDrawer: View {
     var onLogout: () -> Void
     var onCloseDrawer: () -> Void
 
-    // Trạng thái thu gọn/mở rộng các nhóm accordion (mặc định mở giống Android)
-    @State private var isDeviceExpanded: Bool = true
-    @State private var isPersonnelExpanded: Bool = true
-    @State private var isAttendanceExpanded: Bool = true
+    // Trạng thái thu gọn/mở rộng các nhóm accordion (mặc định thu gọn theo yêu cầu)
+    @State private var isDeviceExpanded: Bool = false
+    @State private var isPersonnelExpanded: Bool = false
+    @State private var isAttendanceExpanded: Bool = false
     @State private var isSystemExpanded: Bool = false
 
     public init(
