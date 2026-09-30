@@ -106,6 +106,8 @@ public struct ScannerSettingsView: View {
                     Toggle("PDF-417", isOn: $enablePDF417)
                 }
                 .font(.system(size: 14))
+                .foregroundColor(Color.appTextPrimary)
+                .tint(.appPrimaryPink)
 
                 Divider()
 
@@ -115,6 +117,8 @@ public struct ScannerSettingsView: View {
                     Toggle("Chống quét một phần (Anti-partial)", isOn: $enableAntiPartialScan)
                 }
                 .font(.system(size: 14))
+                .foregroundColor(Color.appTextPrimary)
+                .tint(.appPrimaryPink)
             }
         }
         .padding(16)
@@ -165,6 +169,7 @@ public struct ScannerSettingsView: View {
                                 .font(.system(size: 14))
                                 .padding(10)
                                 .background(Color.appBackground)
+                                .foregroundColor(Color.appTextPrimary)
                                 .cornerRadius(8)
                         }
 
@@ -176,6 +181,7 @@ public struct ScannerSettingsView: View {
                                 .font(.system(size: 14))
                                 .padding(10)
                                 .background(Color.appBackground)
+                                .foregroundColor(Color.appTextPrimary)
                                 .cornerRadius(8)
                         }
                     }
