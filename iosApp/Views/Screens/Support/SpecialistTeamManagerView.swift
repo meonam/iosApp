@@ -98,7 +98,6 @@ public struct SpecialistTeamManagerView: View {
                             .listRowSeparator(.hidden)
                         }
                         .listStyle(PlainListStyle())
-                        .scrollContentBackground(.hidden)
                         .refreshable {
                             await viewModel.fetchSpecialistTeams()
                             viewModel.fetchUsers()
