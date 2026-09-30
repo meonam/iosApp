@@ -698,7 +698,7 @@ public class AdminViewModel: ObservableObject {
 
     public static let defaultSpecialistTeams: [(id: String, name: String, apps: [String], desc: String)] = [
         ("TO_HA_TANG_BAO_MAT", "HẠ TẦNG MẠNG & BẢO MẬT", ["Mạng LAN/WAN", "VPN", "Firewall", "Máy chủ"], "Hỗ trợ hạ tầng kết nối mạng, bảo mật, thiết bị phần cứng"),
-        ("TO_KY_THUAT_UNG_DUNG", "KỸ THUẬT ỨNG DỤNG", ["ERP", "POS", "Phần mềm bán hàng", "QLTB"], "Xử lý lỗi phần mềm bán hàng, POS, máy quét, máy in hoá đơn"),
+        ("TO_KY_THUAT_UNG_DUNG", "KỸ THUẬT ỨNG DỤNG", ["ERP", "POS", "Phần mềm bán hàng", "Quản lý tài sản"], "Xử lý lỗi phần mềm bán hàng, POS, máy quét, máy in hoá đơn"),
         ("TO_PHAN_TICH_NGHIEP_VU", "PHÂN TÍCH NGHIỆP VỤ", ["Quy trình bán hàng", "Kho vận", "Giá bán", "Khuyến mãi"], "Tư vấn và phân tích nghiệp vụ, quy trình vận hành siêu thị"),
         ("TO_NEN_TANG_DU_LIEU", "NỀN TẢNG DỮ LIỆU", ["Database", "Báo cáo BI", "Đồng bộ giá"], "Quản trị cơ sở dữ liệu, đồng bộ danh mục hàng hóa, doanh thu"),
         ("TO_RND_CONG_NGHE", "NGHIÊN CỨU VÀ PHÁT TRIỂN CÔNG NGHỆ", ["App di động", "AI Scanner", "IoT"], "Nghiên cứu các giải pháp công nghệ mới và tự động hóa")

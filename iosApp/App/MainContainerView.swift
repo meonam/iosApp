@@ -19,6 +19,12 @@ public struct MainContainerView: View {
     @State private var showPrintSheet: Bool = false
     @State private var showRatingReportSheet: Bool = false
 
+    // FAB Draggable Position (Cho phép người dùng kéo thả di chuyển nút nổi bất cứ đâu)
+    @AppStorage("floating_fab_offset_x") private var fabOffsetX: Double = 0.0
+    @AppStorage("floating_fab_offset_y") private var fabOffsetY: Double = 0.0
+    @State private var dragTranslation: CGSize = .zero
+    @State private var isDragging: Bool = false
+
     public init() {}
 
     // Các tab chính hiển thị Bottom Navigation Bar & FAB
@@ -72,7 +78,7 @@ public struct MainContainerView: View {
 
                             // 2. NÚT NỔI HỖ TRỢ KỸ THUẬT (FAB - GREEN SUPPORT BUTTON WITH BADGE)
                             if isMainTab && currentDestination != .supportHub && currentDestination != .staffSupport {
-                                floatingSupportButton
+                                floatingSupportButton(geometry: geometry)
                                     .padding(.trailing, 16)
                                     .padding(.bottom, SafeAreaHelper.bottom(geometry) + 64)
                                     .zIndex(10)
@@ -330,34 +336,77 @@ public struct MainContainerView: View {
         }
     }
 
-    // MARK: - FLOATING ACTION BUTTON (GREEN SUPPORT FAB WITH BADGE)
-    private var floatingSupportButton: some View {
-        Button(action: {
-            currentDestination = .supportHub
-        }) {
-            ZStack(alignment: .topTrailing) {
-                Circle()
-                    .fill(Color.appFabGreen)
-                    .frame(width: 56, height: 56)
-                    .shadow(color: Color.appFabGreen.opacity(0.4), radius: 8, x: 0, y: 4)
+    // MARK: - FLOATING ACTION BUTTON (DRAGGABLE GREEN SUPPORT FAB WITH BADGE - DI CHUYỂN BẤT CỨ ĐÂU)
+    private func floatingSupportButton(geometry: GeometryProxy) -> some View {
+        let currentX = CGFloat(fabOffsetX) + dragTranslation.width
+        let currentY = CGFloat(fabOffsetY) + dragTranslation.height
 
-                Image(systemName: "headphones")
-                    .font(.system(size: 24, weight: .bold))
+        let fabSize: CGFloat = 56
+        let margin: CGFloat = 16
+        let topSafe = SafeAreaHelper.top(geometry)
+        let bottomSafe = SafeAreaHelper.bottom(geometry)
+
+        // Tính toán giới hạn màn hình để nút không bị kéo ra ngoài
+        let minX = -(geometry.size.width - fabSize - margin * 2)
+        let maxX: CGFloat = 8
+        let minY = -(geometry.size.height - (bottomSafe + 64 + fabSize) - topSafe - margin)
+        let maxY = CGFloat(bottomSafe + 40)
+
+        return ZStack(alignment: .topTrailing) {
+            Circle()
+                .fill(Color.appFabGreen)
+                .frame(width: fabSize, height: fabSize)
+                .shadow(color: Color.appFabGreen.opacity(isDragging ? 0.6 : 0.4), radius: isDragging ? 12 : 8, x: 0, y: isDragging ? 6 : 4)
+
+            Image(systemName: "headphones")
+                .font(.system(size: 24, weight: .bold))
+                .foregroundColor(.white)
+                .frame(width: fabSize, height: fabSize)
+
+            if homeViewModel.openTicketsCount > 0 {
+                Text(homeViewModel.openTicketsCount > 99 ? "99+" : "\(homeViewModel.openTicketsCount)")
+                    .font(.system(size: 9.5, weight: .bold))
                     .foregroundColor(.white)
-                    .frame(width: 56, height: 56)
-
-                if homeViewModel.openTicketsCount > 0 {
-                    Text(homeViewModel.openTicketsCount > 99 ? "99+" : "\(homeViewModel.openTicketsCount)")
-                        .font(.system(size: 9.5, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Color(hex: "#E11D48"))
-                        .clipShape(Capsule())
-                        .offset(x: 4, y: -2)
-                }
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(Color(hex: "#E11D48"))
+                    .clipShape(Capsule())
+                    .offset(x: 4, y: -2)
             }
         }
+        .contentShape(Circle())
+        .scaleEffect(isDragging ? 1.08 : 1.0)
+        .offset(x: currentX, y: currentY)
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    isDragging = true
+                    dragTranslation = value.translation
+                }
+                .onEnded { value in
+                    let distance = hypot(value.translation.width, value.translation.height)
+                    if distance < 7 {
+                        // Thao tác Click / Chạm mở Hub hỗ trợ
+                        dragTranslation = .zero
+                        isDragging = false
+                        currentDestination = .supportHub
+                    } else {
+                        // Thao tác Kéo thả di chuyển nút FAB
+                        let finalX = CGFloat(fabOffsetX) + value.translation.width
+                        let finalY = CGFloat(fabOffsetY) + value.translation.height
+                        dragTranslation = .zero
+                        isDragging = false
+
+                        let clampedX = min(max(finalX, minX), maxX)
+                        let clampedY = min(max(finalY, minY), maxY)
+
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                            fabOffsetX = Double(clampedX)
+                            fabOffsetY = Double(clampedY)
+                        }
+                    }
+                }
+        )
     }
 
     // MARK: - ROUTER ĐIỀU HƯỚNG MÀN HÌNH (TOÀN BỘ CHỨC NĂNG 1:1 THEO ANDROID)

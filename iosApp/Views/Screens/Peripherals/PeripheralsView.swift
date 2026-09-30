@@ -483,7 +483,7 @@ public struct PeripheralsView: View {
         // Mock Bluetooth scanning
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
             bluetoothDeviceList = [
-                "Máy in QLTB (00:11:22:33:FF:EE)",
+                "Máy in IT Service (00:11:22:33:FF:EE)",
                 "XPrinter XP-58 (AA:BB:CC:DD:EE:FF)"
             ]
             isScanningBt = false

@@ -286,7 +286,7 @@ public struct PrintQrLabelView: View {
         if !labelCustomCompanyHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return labelCustomCompanyHeader.trimmingCharacters(in: .whitespacesAndNewlines)
         }
-        return viewModel.companyId.isEmpty ? "HỆ THỐNG QLTB" : viewModel.companyId
+        return viewModel.companyId.isEmpty ? "IT SERVICE & ASSETS" : viewModel.companyId
     }
 
     // MARK: - BODY
@@ -1361,7 +1361,7 @@ public struct PrintQrLabelView: View {
               <td style='width: 45%;'>
                 <b>\(displayCompanyName.uppercased())</b><br>
                 <span style='font-size: 11px; color: #475569;'>Đơn vị: \(effectiveUnit)</span><br>
-                <span style='font-size: 11px; color: #475569;'>Số: ....../BB-QLTB</span>
+                <span style='font-size: 11px; color: #475569;'>Số: ....../BB-ITSA</span>
               </td>
               <td class='national-title'>
                 <b>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</b><br>
@@ -1424,7 +1424,7 @@ public struct PrintQrLabelView: View {
         let printController = UIPrintInteractionController.shared
         let printInfo = UIPrintInfo(dictionary: nil)
         printInfo.outputType = .general
-        printInfo.jobName = "QLTB_TemNhan_\(displayCompanyName)"
+        printInfo.jobName = "ITSA_TemNhan_\(displayCompanyName)"
         printController.printInfo = printInfo
 
         let images = generateImagesForSelected()

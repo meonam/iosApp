@@ -357,7 +357,7 @@ public struct HelpInstructionSheet: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Hướng dẫn sử dụng hệ thống QLTB")
+                    Text("Hướng dẫn sử dụng hệ thống IT Service & Assets")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(Color.appSecondaryDarkBlue)
 

@@ -86,7 +86,7 @@ public class OsrmRoutingHelper {
 
         var req = URLRequest(url: url)
         req.timeoutInterval = 8
-        req.setValue("QLTB_iOS/1.0", forHTTPHeaderField: "User-Agent")
+        req.setValue("ITServiceAssets_iOS/1.0", forHTTPHeaderField: "User-Agent")
 
         do {
             let (data, response) = try await URLSession.shared.data(for: req)
@@ -122,7 +122,7 @@ public class OsrmRoutingHelper {
 
         var req = URLRequest(url: url)
         req.timeoutInterval = 8
-        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) QLTB/2.0", forHTTPHeaderField: "User-Agent")
+        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) ITServiceAssets/2.0", forHTTPHeaderField: "User-Agent")
 
         do {
             let (data, response) = try await URLSession.shared.data(for: req)
@@ -216,7 +216,7 @@ public class OsrmRoutingHelper {
 
         var req = URLRequest(url: url)
         req.timeoutInterval = 7
-        req.setValue("QLTB_iOS/1.0", forHTTPHeaderField: "User-Agent")
+        req.setValue("ITServiceAssets_iOS/1.0", forHTTPHeaderField: "User-Agent")
 
         do {
             let (data, response) = try await URLSession.shared.data(for: req)
@@ -243,7 +243,7 @@ public class OsrmRoutingHelper {
 
         var req = URLRequest(url: url)
         req.timeoutInterval = 6
-        req.setValue("QLTB_App/1.0 (Equipment Management)", forHTTPHeaderField: "User-Agent")
+        req.setValue("ITServiceAssets_App/1.0 (Equipment Management)", forHTTPHeaderField: "User-Agent")
 
         do {
             let (data, response) = try await URLSession.shared.data(for: req)

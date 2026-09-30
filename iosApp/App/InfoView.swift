@@ -115,12 +115,12 @@ public struct InfoView: View {
                 .cornerRadius(16)
                 .shadow(color: Color.black.opacity(0.08), radius: 4, y: 2)
 
-            Text("QLTB - Quản Lý Thiết Bị")
+            Text("IT Service & Assets")
                 .font(.system(size: 18, weight: .bold))
                 .foregroundColor(Color.appTextPrimary)
                 .multilineTextAlignment(.center)
 
-            Text("Hệ thống quản lý tài sản, trang thiết bị chuyên nghiệp Saigon Co.op")
+            Text("Dịch vụ IT & Quản lý thiết bị")
                 .font(.system(size: 12))
                 .foregroundColor(Color.appTextSecondary)
                 .multilineTextAlignment(.center)
@@ -357,7 +357,7 @@ public struct InfoView: View {
             }
 
             Button(action: {
-                if let url = URL(string: "mailto:devicemanagement0101@gmail.com?subject=[QLTB-iOS]%20Ho%20tro%20ky%20thuat") {
+                if let url = URL(string: "mailto:devicemanagement0101@gmail.com?subject=[IT-Service-Assets-iOS]%20Ho%20tro%20ky%20thuat") {
                     UIApplication.shared.open(url)
                 }
             }) {
@@ -452,7 +452,7 @@ public struct InfoView: View {
         let now = ISO8601DateFormatter().string(from: Date())
         return """
         =====================================================
-        [QLTB iOS System Diagnostic Log]
+        [IT Service & Assets iOS System Diagnostic Log]
         Time: \(now)
         App Version: \(appVersion)
         Device Model: \(UIDevice.current.model)

@@ -553,7 +553,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("QLTB_iOS/1.2.0 (contact@sgcoop.vn)", forHTTPHeaderField: "User-Agent")
+        request.setValue("ITServiceAssets_iOS/1.2.0 (contact@sgcoop.vn)", forHTTPHeaderField: "User-Agent")
         request.timeoutInterval = 4.0
 
         URLSession.shared.dataTask(with: request) { data, _, error in

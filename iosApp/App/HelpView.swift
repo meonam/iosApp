@@ -848,7 +848,7 @@ public class HelpRepository {
                     htmlContent: #"""
 
                             <h3>1. Đăng Ký Doanh Nghiệp Mới & Tài Khoản Quản Trị Tối Cao</h3>
-                            <p>Hệ thống QLTB hoạt động theo kiến trúc <b>Đa Doanh nghiệp (Multi-tenant)</b>, đảm bảo dữ liệu của mỗi công ty hoàn toàn độc lập và bảo mật tuyệt đối.</p>
+                            <p>Hệ thống IT Service & Assets hoạt động theo kiến trúc <b>Đa Doanh nghiệp (Multi-tenant)</b>, đảm bảo dữ liệu của mỗi công ty hoàn toàn độc lập và bảo mật tuyệt đối.</p>
                             
                             <h4>A. Thao tác trên Mobile App</h4>
                             <ol>
@@ -939,7 +939,7 @@ public class HelpRepository {
                     htmlContent: #"""
 
                             <h3>4. Quản Lý Gói Cước & Kích Hoạt Bản Quyền Hệ Thống</h3>
-                            <p>QLTB cung cấp nhiều gói bản quyền linh hoạt phù hợp với mọi quy mô doanh nghiệp từ nhỏ đến tập đoàn lớn.</p>
+                            <p>IT Service & Assets cung cấp nhiều gói bản quyền linh hoạt phù hợp với mọi quy mô doanh nghiệp từ nhỏ đến tập đoàn lớn.</p>
 
                             <h4>A. Danh sách các gói bản quyền</h4>
                             <ul>
@@ -1114,7 +1114,7 @@ public class HelpRepository {
                     htmlContent: #"""
 
                             <h3>3. Quản Trị Vòng Đời Toàn Diện Thiết Bị &amp; Tài Sản</h3>
-                            <p>Hệ thống QLTB chuẩn hóa chu trình quản trị tài sản công nghệ thông tin từ lúc nhập kho đến khi kết thúc vòng đời thanh lý theo tiêu chuẩn quốc tế.</p>
+                            <p>Hệ thống IT Service & Assets chuẩn hóa chu trình quản trị tài sản công nghệ thông tin từ lúc nhập kho đến khi kết thúc vòng đời thanh lý theo tiêu chuẩn quốc tế.</p>
 
                             <h4>A. Sơ đồ 6 Giai đoạn Vòng đời Tài sản</h4>
                             <ol>
@@ -1482,7 +1482,7 @@ public class HelpRepository {
                                         <li>🌙 <b>Ca 3 - Đêm (NIGHT):</b> 22:00 – 06:00 sáng hôm sau (Bảo trì hệ thống, kiểm kê ban đêm).</li>
                                     </ul>
                                 </li>
-                                <li><b>Chuông, Rung &amp; Giọng nói nhắc nhở tan ca:</b> Khi chạm mốc kết thúc ca làm việc (và sau đó 12–15 phút nếu KTV chưa chấm hết ca), ứng dụng QLTB tự động bật thông báo đẩy Heads-Up, rung máy, phát chuông báo động và đọc giọng nói TTS tiếng Việt nhắc nhở KTV mở ứng dụng bấm Check-out tan ca. Bấm vào thông báo sẽ mở ngay màn hình Chấm công.</li>
+                                <li><b>Chuông, Rung &amp; Giọng nói nhắc nhở tan ca:</b> Khi chạm mốc kết thúc ca làm việc (và sau đó 12–15 phút nếu KTV chưa chấm hết ca), ứng dụng IT Service &amp; Assets tự động bật thông báo đẩy Heads-Up, rung máy, phát chuông báo động và đọc giọng nói TTS tiếng Việt nhắc nhở KTV mở ứng dụng bấm Check-out tan ca. Bấm vào thông báo sẽ mở ngay màn hình Chấm công.</li>
                                 <li><b>Trường hợp quên Check-out (không có ticket ngoài ca):</b> Hệ thống tự động <b>chốt trần thời gian làm việc tối đa theo ca chuẩn</b> (8 tiếng cho ca HC, ca 1, ca 2, ca 3), trạng thái <code>NORMAL</code> (nhãn xanh <b>✅ Hoàn thành ca</b>), giúp dữ liệu chấm công không bị nhảy vọt sai thực tế. Sau <b>3.5 giờ</b> kể từ giờ tan ca, nếu KTV chưa check-out và không có ticket nào đang mở, hệ thống sẽ <b>tự động Auto Check-out</b> với ghi chú <code>[Hệ thống tự động chốt do quên check-out (HH:mm)]</code> để giải phóng trạng thái điểm danh cho ca kế tiếp.</li>
                                 <li><b>Trường hợp được điều phối ticket / Tăng ca ngoài giờ (OT):</b> Sau giờ ca, nếu KTV đang xử lý sự cố hoặc có ticket hoàn thành sau giờ ca, hệ thống ghi nhận <b>toàn bộ số phút làm việc thực tế</b> đến khi bấm Check-out, đánh dấu trạng thái <code>OVERTIME</code> (nhãn cam đậm <b>🔥 Tăng ca ngoài giờ (OT)</b>), đồng thời KTV được tính phụ cấp làm thêm ngoài giờ (hệ số x1.5 / x2.0 theo quy chế).</li>
                             </ul>
@@ -1692,7 +1692,7 @@ public class HelpRepository {
 
                             <h4>E. Quy Chế Chấm Hết Ca, Nhắc Nhở Tan Ca &amp; Tăng Ca Ngoài Giờ (OT)</h4>
                             <ul>
-                                <li><b>Cơ chế nhắc nhở tan ca tự động:</b> Khi chạm mốc kết thúc ca làm việc (và sau đó 12–15 phút nếu chưa chấm hết ca), ứng dụng QLTB tự động kích hoạt <b>thông báo đẩy Heads-Up, rung máy và chuông / giọng nói TTS tiếng Việt</b> nhắc nhở KTV mở ứng dụng bấm Check-out tan ca. Bấm vào thông báo sẽ mở trực tiếp màn hình Chấm công.</li>
+                                <li><b>Cơ chế nhắc nhở tan ca tự động:</b> Khi chạm mốc kết thúc ca làm việc (và sau đó 12–15 phút nếu chưa chấm hết ca), ứng dụng IT Service &amp; Assets tự động kích hoạt <b>thông báo đẩy Heads-Up, rung máy và chuông / giọng nói TTS tiếng Việt</b> nhắc nhở KTV mở ứng dụng bấm Check-out tan ca. Bấm vào thông báo sẽ mở trực tiếp màn hình Chấm công.</li>
                                 <li><b>Trường hợp quên Check-out (không có việc ngoài ca):</b> Hệ thống chốt trần thời gian làm việc tối đa theo thời lượng ca chuẩn (8 tiếng cho ca HC, ca 1, ca 2, ca 3), trạng thái <code>NORMAL</code> (nhãn xanh <b>✅ Hoàn thành ca</b>), tránh sai lệch lạm phát giờ công. Sau <b>3.5 giờ</b> kể từ lúc tan ca, nếu KTV chưa check-out và không có ticket nào đang mở, hệ thống sẽ <b>tự động Auto Check-out</b> với ghi chú <code>[Hệ thống tự động chốt do quên check-out (HH:mm)]</code> để giải phóng trạng thái điểm danh cho ca tiếp theo.</li>
                                 <li><b>Trường hợp được điều phối ticket / Xử lý sự cố ngoài ca (OT):</b> Sau giờ ca, nếu KTV đang xử lý ticket hoặc có ticket hoàn thành sau giờ ca, hệ thống ghi nhận <b>toàn bộ thời gian làm việc thực tế</b> đến khi check-out, đánh dấu trạng thái <code>OVERTIME</code> (nhãn cam đậm <b>🔥 Tăng ca ngoài giờ (OT)</b>), đồng thời KTV được tính phụ cấp tăng ca ngoài giờ (hệ số x1.5 / x2.0) theo đúng quy chế.</li>
                             </ul>
@@ -1712,7 +1712,7 @@ public class HelpRepository {
                     htmlContent: #"""
 
                             <h3>1. Báo Cáo Thống Kê & Xuất Văn Bản In Ấn Chuyên Nghiệp</h3>
-                            <p>QLTB trang bị hệ thống tạo biểu mẫu báo cáo chuẩn thể thức văn bản hành chính Việt Nam (Nghị định 30/2020/NĐ-CP).</p>
+                            <p>IT Service & Assets trang bị hệ thống tạo biểu mẫu báo cáo chuẩn thể thức văn bản hành chính Việt Nam (Nghị định 30/2020/NĐ-CP).</p>
 
                             <h4>A. Các loại báo cáo thống kê</h4>
                             <ul>
