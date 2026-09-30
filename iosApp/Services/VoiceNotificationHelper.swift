@@ -28,6 +28,18 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
     public private(set) var activeAlertType: String? = nil
     private var backgroundTaskId: UIBackgroundTaskIdentifier = .invalid
 
+    // Hàng đợi thông báo giọng nói tuần tự (Đồng bộ 1:1 helpdeskQueue trên Android)
+    public struct NotificationQueueItem {
+        let ticketId: String
+        let speechText: String
+        let fallbackBundledName: String?
+        let type: String
+    }
+    private var notificationQueue: [NotificationQueueItem] = []
+    private var isQueueWorkerRunning = false
+    private let queueLock = NSLock()
+    private var processedNotificationKeys = Set<String>()
+
     // MARK: - CẤU HÌNH GIỌNG NÓI & ĐIỀU KHIỂN TỪ ADMIN
     public var isVoiceEnabled: Bool {
         UserDefaults.standard.object(forKey: "key_voice_tts_enabled") as? Bool ?? true
@@ -280,13 +292,93 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         EdgeTtsClient.shared.speak(text: cleanText, fallbackBundledName: fallbackBundledName, voice: "vi-VN-HoaiMyNeural")
     }
 
+    // MARK: - HÀNG ĐỢI THÔNG BÁO GIỌNG NÓI TUẦN TỰ (ĐỒNG BỘ 1:1 VỚI ANDROID)
+    private func enqueueNotification(ticketId: String, speechText: String, fallbackBundledName: String?, type: String) {
+        queueLock.lock()
+        let dedupKey = "\(type)_\(ticketId)"
+        if processedNotificationKeys.contains(dedupKey) {
+            queueLock.unlock()
+            return
+        }
+        processedNotificationKeys.insert(dedupKey)
+        notificationQueue.append(NotificationQueueItem(ticketId: ticketId, speechText: speechText, fallbackBundledName: fallbackBundledName, type: type))
+        queueLock.unlock()
+
+        processNextQueueItem()
+    }
+
+    private func processNextQueueItem() {
+        queueLock.lock()
+        guard !isQueueWorkerRunning, !notificationQueue.isEmpty else {
+            queueLock.unlock()
+            return
+        }
+        isQueueWorkerRunning = true
+        let item = notificationQueue.removeFirst()
+        queueLock.unlock()
+
+        Task { [weak self] in
+            guard let self = self else { return }
+
+            // Nếu đang có cảnh báo điều phối khẩn cấp (activeAlertTicketId != nil), nhường ưu tiên
+            if self.activeAlertTicketId != nil && self.activeAlertType == "DISPATCH" {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                self.queueLock.lock()
+                self.isQueueWorkerRunning = false
+                self.queueLock.unlock()
+                self.processNextQueueItem()
+                return
+            }
+
+            let mode = self.effectiveVoiceMode
+            if self.isVoiceEnabled && mode != "OFF" {
+                self.triggerVibration()
+                let cleanSpeech = self.normalizeVietnameseSpeech(item.speechText)
+
+                if item.type == "NEW_TICKET" {
+                    // CÂU 1 (LUÔN PHÁT TRƯỚC): "Bạn có yêu cầu hỗ trợ mới cần tiếp nhận"
+                    if let bundled = item.fallbackBundledName {
+                        await EdgeTtsClient.shared.playBundledAudioSuspend(named: bundled)
+                        try? await Task.sleep(nanoseconds: 400_000_000)
+                    }
+
+                    // CÂU 2 (THÔNG TIN CHI TIẾT ĐƠN VỊ): Đọc tên đơn vị và nội dung sự cố qua giọng Hoài My Neural
+                    await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
+
+                    // Nếu cấu hình REPEAT: Nghỉ 800ms rồi lặp lại CÂU 2 (tên đơn vị) - KHÔNG lặp lại Câu 1 intro để tránh vấp
+                    if mode == "REPEAT" {
+                        try? await Task.sleep(nanoseconds: 800_000_000)
+                        await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
+                    }
+                } else {
+                    // CÂU 1: Đọc và CHỜ HOÀN TẤT
+                    await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: item.fallbackBundledName)
+
+                    // Nếu cấu hình REPEAT: Nghỉ 800ms rồi lặp lại CÂU 2 và CHỜ HOÀN TẤT
+                    if mode == "REPEAT" {
+                        try? await Task.sleep(nanoseconds: 800_000_000)
+                        await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: item.fallbackBundledName)
+                    }
+                }
+
+                try? await Task.sleep(nanoseconds: 600_000_000)
+            }
+
+            self.queueLock.lock()
+            self.isQueueWorkerRunning = false
+            self.queueLock.unlock()
+
+            self.processNextQueueItem()
+        }
+    }
+
     // MARK: - VÒNG LẶP CẢNH BÁO LẶP LẠI (CHO ĐẾN KHI TIẾP NHẬN HOẶC THEO CẤU HÌNH ADMIN)
     private func startRepeatingAlert(
         ticketId: String,
         speechText: String,
         type: String,
         fallbackBundledName: String? = "voice_dispatch_urgent",
-        intervalSeconds: Double = 6.0
+        intervalSeconds: Double = 8.0
     ) {
         if activeAlertTicketId == ticketId && alertTask != nil {
             return
@@ -305,7 +397,8 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             guard let self = self else { return }
             var repeatCount = 0
             let mode = self.effectiveVoiceMode
-            let maxRepeats = (mode == "OFF" || !self.isVoiceEnabled) ? 0 : (mode == "ONCE" ? 1 : (type == "DISPATCH" ? Int.max : 2))
+            // Cảnh báo khẩn cấp cho KTV: Lặp lại tối đa 6 lần hoặc đến khi bấm nhận, chu kỳ 8s SAU KHI nói xong
+            let maxRepeats = (mode == "OFF" || !self.isVoiceEnabled) ? 0 : (mode == "ONCE" ? 1 : (type == "DISPATCH" ? 6 : 2))
 
             while !Task.isCancelled && self.activeAlertTicketId == ticketId && repeatCount < maxRepeats {
                 repeatCount += 1
@@ -313,18 +406,23 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 // 1. Rung máy mạnh mẽ
                 self.triggerVibration()
 
-                // 2. Đọc giọng nói (ưu tiên giọng VTV chuẩn và tệp âm thanh đóng gói)
+                // 2. Đọc giọng nói (chờ đọc xong hoàn toàn)
                 if self.isVoiceEnabled && mode != "OFF" {
-                    self.speak(text: speechText, fallbackBundledName: fallbackBundledName)
+                    let clean = self.normalizeVietnameseSpeech(speechText)
+                    await EdgeTtsClient.shared.speakSuspend(text: clean, fallbackBundledName: fallbackBundledName)
+                    if mode == "REPEAT" && !Task.isCancelled && self.activeAlertTicketId == ticketId {
+                        try? await Task.sleep(nanoseconds: 600_000_000)
+                        await EdgeTtsClient.shared.speakSuspend(text: clean, fallbackBundledName: fallbackBundledName)
+                    }
                 }
 
-                // 3. Nghỉ chu kỳ lặp lại (6 giây)
-                if repeatCount < maxRepeats {
+                // 3. Nghỉ chu kỳ lặp lại (8 giây SAU KHI NÓI XONG)
+                if repeatCount < maxRepeats && !Task.isCancelled && self.activeAlertTicketId == ticketId {
                     try? await Task.sleep(nanoseconds: UInt64(intervalSeconds * 1_000_000_000))
                 }
             }
 
-            if self.activeAlertTicketId == ticketId && maxRepeats != Int.max {
+            if self.activeAlertTicketId == ticketId {
                 self.stopAlert(ticketId: ticketId)
             }
         }
@@ -332,17 +430,28 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
     public func stopAlert(ticketId: String? = nil) {
         if let tid = ticketId, let cur = activeAlertTicketId, cur != tid {
-            return
+            // Không phải ticket đang cảnh báo
+        } else {
+            activeAlertTicketId = nil
+            activeAlertType = nil
+            alertTask?.cancel()
+            alertTask = nil
+            endBackgroundTask()
+            EdgeTtsClient.shared.stop()
+            if synthesizer.isSpeaking {
+                synthesizer.stopSpeaking(at: .immediate)
+            }
         }
-        activeAlertTicketId = nil
-        activeAlertType = nil
-        alertTask?.cancel()
-        alertTask = nil
-        endBackgroundTask()
-        EdgeTtsClient.shared.stop()
-        if synthesizer.isSpeaking {
-            synthesizer.stopSpeaking(at: .immediate)
+
+        // Xóa khỏi hàng đợi thông báo
+        queueLock.lock()
+        if let tid = ticketId {
+            notificationQueue.removeAll(where: { $0.ticketId == tid })
+        } else {
+            notificationQueue.removeAll()
         }
+        queueLock.unlock()
+
         if let tid = ticketId {
             UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [
                 "qltb_\(tid)_ACK_DISPATCH",
@@ -367,16 +476,8 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             actionType: "ACK_NEW_TICKET"
         )
 
-        triggerVibration()
         let fallback = source.uppercased() == "ZALO" ? "voice_new_ticket_zalo" : "voice_new_ticket"
-        speak(text: text, fallbackBundledName: fallback)
-
-        if effectiveVoiceMode == "REPEAT" {
-            Task {
-                try? await Task.sleep(nanoseconds: 1_200_000_000)
-                self.speak(text: text, fallbackBundledName: fallback)
-            }
-        }
+        enqueueNotification(ticketId: ticketId, speechText: text, fallbackBundledName: fallback, type: "NEW_TICKET")
     }
 
     // MARK: - 1.1 PHIẾU CHUYỂN TRẢ VỀ HELPDESK (Cho TẤT CẢ User HelpDesk)
@@ -395,15 +496,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             actionType: "ACK_NEW_TICKET"
         )
 
-        triggerVibration()
-        speak(text: text, fallbackBundledName: "voice_new_ticket")
-
-        if effectiveVoiceMode == "REPEAT" {
-            Task {
-                try? await Task.sleep(nanoseconds: 1_200_000_000)
-                self.speak(text: text, fallbackBundledName: "voice_new_ticket")
-            }
-        }
+        enqueueNotification(ticketId: ticketId, speechText: text, fallbackBundledName: "voice_new_ticket", type: "HANDOVER")
     }
 
     // MARK: - 2. ĐIỀU PHỐI KTV / CHUYÊN VIÊN (ĐỒNG BỘ 1:1 VỚI ANDROID VOICENOTIFICATIONHELPER.KT)
@@ -430,7 +523,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             speechText: text,
             type: "DISPATCH",
             fallbackBundledName: "voice_dispatch_urgent",
-            intervalSeconds: 6.0
+            intervalSeconds: 8.0
         )
     }
 
@@ -447,18 +540,9 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             actionType: "VIEW_TICKET"
         )
 
-        triggerVibration()
-        speak(text: text, fallbackBundledName: "voice_rating_received")
-
-        if effectiveVoiceMode == "REPEAT" {
-            Task {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                self.speak(text: text, fallbackBundledName: "voice_rating_received")
-            }
-        }
+        enqueueNotification(ticketId: ticketId, speechText: text, fallbackBundledName: "voice_rating_received", type: "TICKET_RATED")
     }
 
-    // MARK: - 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ
     // MARK: - 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ / NGƯỜI YÊU CẦU TỰ XỬ LÝ
     public func notifyTicketResolved(ticketId: String, donViName: String, subject: String, techName: String, resolvedReason: String = "") {
         let dv = cleanDonViName(donViName)
@@ -479,15 +563,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             actionType: "VIEW_TICKET"
         )
 
-        triggerVibration()
-        speak(text: text, fallbackBundledName: "voice_ticket_resolved")
-
-        if effectiveVoiceMode == "REPEAT" {
-            Task {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                self.speak(text: text, fallbackBundledName: "voice_ticket_resolved")
-            }
-        }
+        enqueueNotification(ticketId: ticketId, speechText: text, fallbackBundledName: "voice_ticket_resolved", type: "TICKET_RESOLVED")
     }
 
     // MARK: - BỘ LỌC CHỐNG ĐỌC DỒN KHI MỞ NỀN TẢNG KHÁC (CROSS-PLATFORM DEDUPLICATION)
@@ -505,23 +581,22 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             }
         }
 
-        // Lần đầu mở app: Ghi nhận các vé cũ hơn 5 phút để tránh đọc dồn lịch sử xa xưa
+        // Lần đầu mở app: Ghi nhận tất cả các vé hiện có để tránh đọc dồn lịch sử xa xưa
         if isFirstFetch {
             isFirstFetch = false
             for t in tickets {
                 seenTicketIds.insert(t.id)
                 let effAssign = t.assignedAt > 0 ? (t.assignedAt < 10_000_000_000 ? t.assignedAt * 1000 : t.assignedAt) : t.createdAt
-                if effAssign > 0 && (effAssign < fiveMinutesAgo || t.isAcknowledged) {
+                if effAssign > 0 {
                     seenDispatches[t.id] = effAssign
                 }
                 let rateTime = t.feedbackAt > 0 ? t.feedbackAt : t.closedAt
                 if rateTime > 0 { seenRatings[t.id] = rateTime }
                 if t.resolvedAt > 0 { seenResolved[t.id] = t.resolvedAt }
                 let handoffTime = t.lastMessageAt
-                if handoffTime > 0 && handoffTime < fiveMinutesAgo {
-                    seenHandoffs[t.id] = handoffTime
-                }
+                if handoffTime > 0 { seenHandoffs[t.id] = handoffTime }
             }
+            return
         }
 
         for t in tickets {
@@ -532,21 +607,21 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
             let effectiveDonVi = !t.donVi.isEmpty ? t.donVi : (!t.assignedDepartmentName.isEmpty ? t.assignedDepartmentName : (!t.creatorAddress.isEmpty ? t.creatorAddress : "Hiện trường"))
 
-            // 1. SỰ CỐ MỚI GỬI LÊN (Chỉ HelpDesk mới nhận)
+            // 1. SỰ CỐ MỚI GỬI LÊN (Chỉ HelpDesk và Admin mới nhận)
             let isDispatched = !t.assignedTo.isEmpty || !t.assignedToEmail.isEmpty || t.assignedAt > 0 || !t.assignedDepartmentId.isEmpty
             let isCreatedAfterStart = t.createdAt >= appStartTime && t.createdAt >= fiveMinutesAgo
             let isNotSelf = t.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != cleanEmail
 
             if !seenTicketIds.contains(t.id) {
                 seenTicketIds.insert(t.id)
-                if !isDispatched && isCreatedAfterStart && isNotSelf && currentUser.isHelpDesk && t.status.uppercased() == "OPEN" {
+                if !isDispatched && isCreatedAfterStart && isNotSelf && (currentUser.isHelpDesk || currentUser.isAdmin) && t.status.uppercased() == "OPEN" {
                     notifyNewSupportRequest(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, source: t.source)
                 }
             }
 
-            // 1.1 VÉ ĐƯỢC KTV CHUYỂN TRẢ VỀ CHO HELPDESK TIẾP NHẬN LẠI (TẤT CẢ USER HELPDESK ĐỀU NHẬN)
+            // 1.1 VÉ ĐƯỢC KTV CHUYỂN TRẢ VỀ CHO HELPDESK TIẾP NHẬN LẠI (TẤT CẢ USER HELPDESK / ADMIN ĐỀU NHẬN)
             let isHandedOverToHelpDesk = t.lastMessage.contains("[Chuyển về HelpDesk]") || t.lastMessage.contains("chuyển trả ticket cho HelpDesk")
-            if isHandedOverToHelpDesk && currentUser.isHelpDesk {
+            if isHandedOverToHelpDesk && (currentUser.isHelpDesk || currentUser.isAdmin) {
                 let lastSeenHandoff = seenHandoffs[t.id] ?? 0
                 let effHandoffAt = t.lastMessageAt > 0 ? t.lastMessageAt : now
                 let isFreshHandoff = (now - effHandoffAt) <= 300_000 // Trong vòng 5 phút
@@ -559,18 +634,21 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             }
 
             // 2. LỆNH ĐIỀU PHỐI CHO KTV / CHUYÊN VIÊN
+            // Đồng bộ 1:1 với Android: Admin, HelpDesk, Quản lý KHÔNG BAO GIỜ nhận broadcast dispatch của cụm/chuyên viên!
             let isPrimary = t.isUserAssigned(email: cleanEmail)
-            let isSpecialistMatch = (t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST") && (currentUser.isSpecialist || currentUser.isAdmin) && t.assignedToEmail.isEmpty && (
+            let isSpecialistMatch = (t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST") && currentUser.isSpecialist && t.assignedToEmail.isEmpty && (
                 (!currentUser.toNghiepVu.isEmpty && currentUser.toNghiepVu == t.toNghiepVu) ||
                 (!currentUser.departmentId.isEmpty && currentUser.departmentId == t.assignedDepartmentId) ||
-                (!currentUser.departmentName.isEmpty && currentUser.departmentName == t.assignedDepartmentName) ||
-                currentUser.isAdmin
+                (!currentUser.departmentName.isEmpty && currentUser.departmentName == t.assignedDepartmentName)
             )
-            let isClusterMatch = (currentUser.isTechnician || currentUser.isAdmin) && t.assignedToEmail.isEmpty && !t.assignedCluster.isEmpty && (
-                currentUser.maKhuVuc == t.assignedCluster || currentUser.isAdmin
+            let isClusterMatch = currentUser.isTechnician && t.assignedToEmail.isEmpty && !t.assignedCluster.isEmpty && (
+                currentUser.maKhuVuc == t.assignedCluster
             )
 
-            let isAssignedToMe = (isPrimary || isSpecialistMatch || isClusterMatch) && !t.isAcknowledged && !t.isClosed && !t.isResolved
+            let isFieldTech = currentUser.isTechnician || currentUser.isSpecialist
+            let isAssignedToMe = !currentUser.isAdmin && !currentUser.isHelpDesk && !currentUser.isManager &&
+                                (isPrimary || (isFieldTech && (isSpecialistMatch || isClusterMatch))) &&
+                                !t.isAcknowledged && !t.isClosed && !t.isResolved
 
             let effectiveAssignedAt = t.assignedAt > 0 ? (t.assignedAt < 10_000_000_000 ? t.assignedAt * 1000 : t.assignedAt) : t.createdAt
 

@@ -493,8 +493,9 @@ public struct SupportHubView: View {
 
                 Spacer()
 
-                // Nút Tạo yêu cầu hỗ trợ mới (Đồng nhất cho mọi người dùng)
-                if authViewModel != nil {
+                // Nút Tạo yêu cầu hỗ trợ mới (Chỉ hiển thị cho người dùng/nhân viên, ẩn đối với Admin/HelpDesk)
+                let isHelpDeskOrAdmin = viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk
+                if authViewModel != nil && !isHelpDeskOrAdmin {
                     Button(action: { activeSheet = .createTicket }) {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 19, weight: .bold))

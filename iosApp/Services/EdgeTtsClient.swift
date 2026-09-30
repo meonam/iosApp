@@ -28,6 +28,7 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
     private var audioPlayer: AVAudioPlayer?
     // SỬ DỤNG NSRecursiveLock ĐỂ CHỐNG DEADLOCK TUYỆT ĐỐI KHI GỌI LỒNG NHAU GIỮA CÁC LUỒNG
     private let playerLock = NSRecursiveLock()
+    private var playbackContinuation: CheckedContinuation<Void, Never>?
     private var fallbackSynthesizer: AVSpeechSynthesizer?
 
     private override init() {
@@ -41,6 +42,25 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
         try? FileManager.default.removeItem(at: ttsDir)
     }
 
+    // MARK: - AUDIO PLAYER DELEGATE
+    public func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        playerLock.lock()
+        let cont = playbackContinuation
+        playbackContinuation = nil
+        audioPlayer = nil
+        playerLock.unlock()
+        cont?.resume()
+    }
+
+    public func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        playerLock.lock()
+        let cont = playbackContinuation
+        playbackContinuation = nil
+        audioPlayer = nil
+        playerLock.unlock()
+        cont?.resume()
+    }
+
     // MARK: - GENERATE SEC-MS-GEC SIGNATURE (CHÍNH XÁC 1:1 THEO ANDROID & PYTHON edge-tts)
     private func generateSecMsGec() -> String {
         var ticks = Date().timeIntervalSince1970
@@ -52,40 +72,40 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
         return digest.map { String(format: "%02X", $0) }.joined()
     }
 
-    // MARK: - 1. PHÁT TỆP ÂM THANH GỐC VTV ĐÓNG GÓI SẴN TRONG BUNDLE (ƯU TIÊN TUYỆT ĐỐI)
+    // MARK: - TÌM TỆP ÂM THANH GỐC TRONG BUNDLE
+    public func getBundledAudioUrl(named name: String) -> URL? {
+        let cleanName = name.replacingOccurrences(of: ".mp3", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanName.isEmpty else { return nil }
+
+        let audioFolderUrl = Bundle.main.bundleURL.appendingPathComponent("Audio/\(cleanName).mp3")
+        if FileManager.default.fileExists(atPath: audioFolderUrl.path) {
+            return audioFolderUrl
+        } else if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3", subdirectory: "Audio") {
+            return url
+        } else if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3") {
+            return url
+        } else {
+            let rootUrl = Bundle.main.bundleURL.appendingPathComponent("\(cleanName).mp3")
+            if FileManager.default.fileExists(atPath: rootUrl.path) {
+                return rootUrl
+            }
+        }
+        return nil
+    }
+
+    // MARK: - 1. PHÁT TỆP ÂM THANH GỐC VTV ĐÓNG GÓI SẴN TRONG BUNDLE
     @discardableResult
     public func playBundledAudio(named name: String) -> Bool {
-        let cleanName = name.replacingOccurrences(of: ".mp3", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanName.isEmpty else { return false }
+        guard let finalUrl = getBundledAudioUrl(named: name) else {
+            print("[EdgeTtsClient] ⚠️ Không tìm thấy tệp âm thanh gốc '\(name).mp3' trong bundle!")
+            return false
+        }
 
-        // BẮT BUỘC THỰC THI TRÊN MAIN THREAD ĐỂ CÓ RUNLOOP CHO AVAudioPlayer VÀ TRÁNH TREO APP
         if !Thread.isMainThread {
             DispatchQueue.main.async {
                 self.playBundledAudio(named: name)
             }
             return true
-        }
-
-        var fileUrl: URL? = nil
-
-        // Kiểm tra trực tiếp trong thư mục Audio của Bundle
-        let audioFolderUrl = Bundle.main.bundleURL.appendingPathComponent("Audio/\(cleanName).mp3")
-        if FileManager.default.fileExists(atPath: audioFolderUrl.path) {
-            fileUrl = audioFolderUrl
-        } else if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3", subdirectory: "Audio") {
-            fileUrl = url
-        } else if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3") {
-            fileUrl = url
-        } else {
-            let rootUrl = Bundle.main.bundleURL.appendingPathComponent("\(cleanName).mp3")
-            if FileManager.default.fileExists(atPath: rootUrl.path) {
-                fileUrl = rootUrl
-            }
-        }
-
-        guard let finalUrl = fileUrl else {
-            print("[EdgeTtsClient] ⚠️ Không tìm thấy tệp âm thanh gốc '\(cleanName).mp3' trong bundle!")
-            return false
         }
 
         playerLock.lock()
@@ -104,7 +124,7 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
             audioPlayer?.numberOfLoops = 0
             audioPlayer?.prepareToPlay()
             let started = audioPlayer?.play() ?? false
-            print("[EdgeTtsClient] 🎙️ ĐANG PHÁT GIỌNG GỐC VTV CHUẨN: '\(cleanName).mp3' - Bắt đầu: \(started)")
+            print("[EdgeTtsClient] 🎙️ ĐANG PHÁT GIỌNG GỐC VTV CHUẨN: '\(name).mp3' - Bắt đầu: \(started)")
             return started
         } catch {
             print("[EdgeTtsClient] ❌ Lỗi phát tệp âm thanh gốc: \(error)")
@@ -248,92 +268,120 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
         }
     }
 
-    // MARK: - 3. PHÁT ÂM THANH (ƯU TIÊN TUYỆT ĐỐI GIỌNG NỮ BTV VTV GỐC ĐÓNG GÓI SẴN)
-    public func speak(text: String, fallbackBundledName: String? = nil, voice: String = "vi-VN-HoaiMyNeural") {
-        // === ƯU TIÊN SỐ 1: NẾU CÓ TỆP ÂM THANH VTV GỐC -> PHÁT NGAY LẬP TỨC TRÊN MAIN THREAD ===
-        if let bundled = fallbackBundledName {
+    // MARK: - 3. PLAY AUDIO FILE SUSPEND (CHỜ PHÁT XONG HOÀN TOÀN)
+    public func playAudioFileSuspend(url: URL) async {
+        await withCheckedContinuation { continuation in
             DispatchQueue.main.async {
-                self.playBundledAudio(named: bundled)
+                self.playerLock.lock()
+                let oldCont = self.playbackContinuation
+                self.playbackContinuation = continuation
+                self.playerLock.unlock()
+                oldCont?.resume()
+
+                do {
+                    let session = AVAudioSession.sharedInstance()
+                    try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+                    try? session.setActive(true)
+
+                    self.audioPlayer?.stop()
+                    self.audioPlayer = nil
+                    let player = try AVAudioPlayer(contentsOf: url)
+                    player.delegate = self
+                    player.volume = 1.0
+                    player.numberOfLoops = 0
+                    player.prepareToPlay()
+                    let duration = player.duration
+                    self.audioPlayer = player
+                    if player.play() {
+                        // Timeout an toàn: duration + 0.6s để bảo đảm resume continuation nếu delegate không gọi
+                        DispatchQueue.main.asyncAfter(deadline: .now() + duration + 0.6) {
+                            self.playerLock.lock()
+                            if self.playbackContinuation != nil {
+                                let cont = self.playbackContinuation
+                                self.playbackContinuation = nil
+                                self.audioPlayer = nil
+                                self.playerLock.unlock()
+                                cont?.resume()
+                            } else {
+                                self.playerLock.unlock()
+                            }
+                        }
+                    } else {
+                        self.playerLock.lock()
+                        let cont = self.playbackContinuation
+                        self.playbackContinuation = nil
+                        self.audioPlayer = nil
+                        self.playerLock.unlock()
+                        cont?.resume()
+                    }
+                } catch {
+                    print("[EdgeTtsClient] Play audio error: \(error)")
+                    self.playerLock.lock()
+                    let cont = self.playbackContinuation
+                    self.playbackContinuation = nil
+                    self.audioPlayer = nil
+                    self.playerLock.unlock()
+                    cont?.resume()
+                }
             }
+        }
+    }
+
+    public func playBundledAudioSuspend(named name: String) async {
+        guard let finalUrl = getBundledAudioUrl(named: name) else {
+            print("[EdgeTtsClient] ⚠️ Không tìm thấy tệp bundle '\(name).mp3'")
             return
         }
+        await playAudioFileSuspend(url: finalUrl)
+    }
 
-        // === NẾU KHÔNG CÓ TỆP GỐC: TỔNG HỢP ONLINE QUA EDGE TTS (HOÀI MY NEURAL) ===
+    // MARK: - 4. PHÁT ÂM THANH ASYNC ĐỒNG BỘ 1:1 THEO ANDROID (ƯU TIÊN ONLINE TTS -> DỰ PHÒNG BUNDLE)
+    public func speakSuspend(text: String, fallbackBundledName: String? = nil, voice: String = "vi-VN-HoaiMyNeural") async {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
 
         let md5 = Insecure.MD5.hash(data: Data(clean.utf8)).map { String(format: "%02x", $0) }.joined()
         guard let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else { return }
         let ttsDir = cacheDir.appendingPathComponent("tts_cache")
+        try? FileManager.default.createDirectory(at: ttsDir, withIntermediateDirectories: true)
         let audioFile = ttsDir.appendingPathComponent("vtv_\(md5).mp3")
 
-        Task {
-            var hasAudio = false
-            if FileManager.default.fileExists(atPath: audioFile.path) {
-                if let attrs = try? FileManager.default.attributesOfItem(atPath: audioFile.path),
-                   let size = attrs[.size] as? Int64, size > 500 {
-                    hasAudio = true
-                } else {
-                    try? FileManager.default.removeItem(at: audioFile)
-                }
-            }
-
-            if !hasAudio {
-                hasAudio = await self.synthesizeToFile(text: clean, outputFile: audioFile, voice: voice)
-            }
-
-            if hasAudio && FileManager.default.fileExists(atPath: audioFile.path) {
-                await MainActor.run {
-                    self.playAudioFile(url: audioFile, originalText: clean)
-                }
-                return
-            }
-
-            // Nếu không thể tải online: Phát tệp âm thanh lệnh khẩn cấp mặc định trên Main Thread
-            await MainActor.run {
-                if !self.playBundledAudio(named: "voice_dispatch_urgent") {
-                    self.speakFallback(text: clean)
-                }
+        var hasAudio = false
+        if FileManager.default.fileExists(atPath: audioFile.path) {
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: audioFile.path),
+               let size = attrs[.size] as? Int64, size > 500 {
+                hasAudio = true
+            } else {
+                try? FileManager.default.removeItem(at: audioFile)
             }
         }
-    }
 
-    // MARK: - PLAY AUDIO FILE (LOA NGOÀI, ÂM LƯỢNG CỰC ĐẠI TRÊN MAIN THREAD)
-    private func playAudioFile(url: URL, originalText: String) {
-        if !Thread.isMainThread {
-            DispatchQueue.main.async {
-                self.playAudioFile(url: url, originalText: originalText)
-            }
+        // 1. ƯU TIÊN SỐ 1: Tổng hợp giọng Nữ BTV Hoài My Neural (Đọc rõ ràng cụ thể tên đơn vị & nội dung)
+        if !hasAudio {
+            hasAudio = await synthesizeToFile(text: clean, outputFile: audioFile, voice: voice)
+        }
+
+        if hasAudio && FileManager.default.fileExists(atPath: audioFile.path) {
+            await playAudioFileSuspend(url: audioFile)
             return
         }
 
-        playerLock.lock()
-        defer { playerLock.unlock() }
+        // 2. DỰ PHÒNG KHI OFFLINE / MẤT MẠNG: Phát tệp âm thanh VTV gốc đóng gói sẵn trong Bundle
+        if let bundled = fallbackBundledName {
+            await playBundledAudioSuspend(named: bundled)
+            return
+        }
 
-        do {
-            let session = AVAudioSession.sharedInstance()
-            try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-            try? session.setActive(true)
+        // 3. DỰ PHÒNG CUỐI CÙNG: Giọng đọc hệ thống iOS
+        await MainActor.run {
+            self.speakFallback(text: clean)
+        }
+        try? await Task.sleep(nanoseconds: 3_000_000_000)
+    }
 
-            audioPlayer?.stop()
-            audioPlayer = nil
-            audioPlayer = try AVAudioPlayer(contentsOf: url)
-            audioPlayer?.delegate = self
-            audioPlayer?.volume = 1.0
-            audioPlayer?.numberOfLoops = 0
-            audioPlayer?.prepareToPlay()
-            let started = audioPlayer?.play() ?? false
-            if !started {
-                print("[EdgeTtsClient] Failed to start audioPlayer, falling back to bundled audio")
-                if !playBundledAudio(named: "voice_dispatch_urgent") {
-                    speakFallback(text: originalText)
-                }
-            }
-        } catch {
-            print("[EdgeTtsClient] Play audio error: \(error)")
-            if !playBundledAudio(named: "voice_dispatch_urgent") {
-                speakFallback(text: originalText)
-            }
+    public func speak(text: String, fallbackBundledName: String? = nil, voice: String = "vi-VN-HoaiMyNeural") {
+        Task {
+            await self.speakSuspend(text: text, fallbackBundledName: fallbackBundledName, voice: voice)
         }
     }
 
@@ -373,10 +421,14 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
         }
 
         playerLock.lock()
-        defer { playerLock.unlock() }
-
         audioPlayer?.stop()
         audioPlayer = nil
+        let cont = playbackContinuation
+        playbackContinuation = nil
+        playerLock.unlock()
+
+        cont?.resume()
+
         if fallbackSynthesizer?.isSpeaking == true {
             fallbackSynthesizer?.stopSpeaking(at: .immediate)
         }

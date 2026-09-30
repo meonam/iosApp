@@ -375,7 +375,7 @@ public class SupportViewModel: ObservableObject {
     private var firestoreListenTask: Task<Void, Never>?
     private var isFetchingSilent: Bool = false
 
-    public func startAutoPolling(interval: TimeInterval = 2.0) {
+    public func startAutoPolling(interval: TimeInterval = 3.0) {
         stopAutoPolling()
         // 1. Kích hoạt Keep-Alive âm thanh chạy nền 24/7 để iOS không bao giờ suspend tiến trình
         BackgroundKeepAliveService.shared.start()
@@ -383,7 +383,7 @@ public class SupportViewModel: ObservableObject {
         // 2. Sử dụng DispatchSourceTimer trên background queue để không phụ thuộc vào RunLoop mode
         let queue = DispatchQueue.global(qos: .userInitiated)
         let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now(), repeating: interval, leeway: .milliseconds(150))
+        timer.schedule(deadline: .now(), repeating: interval, leeway: .milliseconds(200))
         timer.setEventHandler { [weak self] in
             Task { @MainActor [weak self] in
                 self?.fetchTicketsSilent()
@@ -392,12 +392,7 @@ public class SupportViewModel: ObservableObject {
         timer.resume()
         self.pollingDispatchSource = timer
 
-        // 3. Dự phòng thêm 1 Timer truyền thống trên RunLoop
-        autoPollingTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            guard let self = self else { return }
-            self.fetchTicketsSilent()
-        }
-        // 4. Firestore Listen stream (gần realtime như addSnapshotListener Android)
+        // 3. Firestore Listen stream (gần realtime như addSnapshotListener Android)
         startFirestoreListen()
     }
 

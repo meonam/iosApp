@@ -274,19 +274,22 @@ public struct StaffSupportView: View {
                     }
                 }
 
-                // Nút Gửi yêu cầu mới
-                Button(action: { showingCreateSheet = true }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 14))
-                        Text("Tạo mới")
-                            .font(.system(size: 12.5, weight: .bold))
+                // Nút Gửi yêu cầu mới (Chỉ hiển thị cho Người dùng/Nhân viên, ẩn đối với Admin/HelpDesk)
+                let isHelpDeskOrAdmin = supportVM.user.isAdmin || supportVM.user.isSuperAdmin || supportVM.user.isHelpDesk
+                if !isHelpDeskOrAdmin {
+                    Button(action: { showingCreateSheet = true }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 14))
+                            Text("Tạo mới")
+                                .font(.system(size: 12.5, weight: .bold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.white.opacity(0.2))
+                        .cornerRadius(8)
                     }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.white.opacity(0.2))
-                    .cornerRadius(8)
                 }
             }
             .padding(.horizontal, 10)
