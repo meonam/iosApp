@@ -455,7 +455,6 @@ public struct AttendanceHistoryView: View {
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
-    }
 
     // MARK: - LOAD DATA
     private func loadData() {
