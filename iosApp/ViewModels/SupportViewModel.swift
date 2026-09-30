@@ -2048,6 +2048,98 @@ public class SupportViewModel: ObservableObject {
                 return
             }
 
+            // 1. Lấy tọa độ GPS thời gian thực từ technician_locations
+            var techGpsMap: [String: (lat: Double, lng: Double)] = [:]
+            if let tLocUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/technician_locations?pageSize=200") {
+                var tLocReq = URLRequest(url: tLocUrl)
+                if !idToken.isEmpty { tLocReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                if let (tData, tResp) = await FirestoreHelper.executeSafeRequest(tLocReq),
+                   tResp.statusCode == 200,
+                   let tJson = try? JSONSerialization.jsonObject(with: tData) as? [String: Any],
+                   let tDocs = tJson["documents"] as? [[String: Any]] {
+                    for td in tDocs {
+                        guard let tFields = td["fields"] as? [String: Any] else { continue }
+                        let docName = (td["name"] as? String)?.components(separatedBy: "/").last ?? ""
+                        let tEmail = FirestoreHelper.getString(tFields["email"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                        let keyEmail = tEmail.isEmpty ? docName.lowercased() : tEmail
+                        let tLat = FirestoreHelper.getDouble(tFields["lat"] as? [String: Any])
+                        let tLng = FirestoreHelper.getDouble(tFields["lng"] as? [String: Any])
+                        if tLat != 0.0 && tLng != 0.0 {
+                            techGpsMap[keyEmail] = (tLat, tLng)
+                            techGpsMap[keyEmail.replacingOccurrences(of: "/", with: "_")] = (tLat, tLng)
+                        }
+                    }
+                }
+            }
+
+            // 2. Lấy tọa độ các đơn vị / chi nhánh từ bảng units
+            var unitCoordsMap: [String: (lat: Double, lng: Double)] = [:]
+            if let unitsUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/units?pageSize=300") {
+                var uReq = URLRequest(url: unitsUrl)
+                if !idToken.isEmpty { uReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                if let (uData, uResp) = await FirestoreHelper.executeSafeRequest(uReq),
+                   uResp.statusCode == 200,
+                   let uJson = try? JSONSerialization.jsonObject(with: uData) as? [String: Any],
+                   let uDocs = uJson["documents"] as? [[String: Any]] {
+                    for ud in uDocs {
+                        guard let uFields = ud["fields"] as? [String: Any] else { continue }
+                        let uName = FirestoreHelper.getString(uFields["unitName"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                        let uLat = FirestoreHelper.getDouble(uFields["lat"] as? [String: Any])
+                        let uLng = FirestoreHelper.getDouble(uFields["lng"] as? [String: Any])
+                        if !uName.isEmpty && uLat != 0.0 && uLng != 0.0 {
+                            unitCoordsMap[uName] = (uLat, uLng)
+                        }
+                    }
+                }
+            }
+
+            // 3. Lấy phân ca làm việc tuần hiện tại
+            var cal = Calendar(identifier: .gregorian)
+            cal.firstWeekday = 2 // Thứ 2
+            let today = Date()
+            let comps = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: today)
+            let currentWeekId = String(format: "%04d-W%02d", comps.yearForWeekOfYear ?? 2026, comps.weekOfYear ?? 1)
+            var shiftCodeMap: [String: String] = [:]
+
+            let dfDate = DateFormatter()
+            dfDate.dateFormat = "yyyy-MM-dd"
+            let todayKeyDate = dfDate.string(from: today)
+            let dfDdMm = DateFormatter()
+            dfDdMm.dateFormat = "dd/MM/yyyy"
+            let todayKeyDdMm = dfDdMm.string(from: today)
+            let weekdayIdx = (cal.component(.weekday, from: today) - 2 + 7) % 7
+            let shortDays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+            let todayKeyShort = shortDays[weekdayIdx]
+
+            if let schedUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/shift_schedules/\(currentWeekId)") {
+                var sReq = URLRequest(url: schedUrl)
+                if !idToken.isEmpty { sReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                if let (sData, sResp) = await FirestoreHelper.executeSafeRequest(sReq),
+                   sResp.statusCode == 200,
+                   let sJson = try? JSONSerialization.jsonObject(with: sData) as? [String: Any],
+                   let sFields = sJson["fields"] as? [String: Any],
+                   let rawEntries = (sFields["entries"] as? [String: Any])?["arrayValue"] as? [String: Any],
+                   let valList = rawEntries["values"] as? [[String: Any]] {
+                    for v in valList {
+                        guard let mapFields = (v["mapValue"] as? [String: Any])?["fields"] as? [String: Any] else { continue }
+                        let empId = FirestoreHelper.getString(mapFields["employeeId"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        let empName = FirestoreHelper.getString(mapFields["employeeName"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        if let daysMap = (mapFields["days"] as? [String: Any])?["mapValue"] as? [String: Any],
+                           let dayFields = daysMap["fields"] as? [String: Any] {
+                            let code = FirestoreHelper.getString(dayFields[todayKeyDate] as? [String: Any]).isEmpty
+                                ? (FirestoreHelper.getString(dayFields[todayKeyShort] as? [String: Any]).isEmpty
+                                    ? FirestoreHelper.getString(dayFields[todayKeyDdMm] as? [String: Any])
+                                    : FirestoreHelper.getString(dayFields[todayKeyShort] as? [String: Any]))
+                                : FirestoreHelper.getString(dayFields[todayKeyDate] as? [String: Any])
+                            if !code.isEmpty {
+                                if !empId.isEmpty { shiftCodeMap[empId] = code }
+                                if !empName.isEmpty { shiftCodeMap[empName] = code }
+                            }
+                        }
+                    }
+                }
+            }
+
             let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
             let onlineWindowMs: Int64 = 15 * 60 * 1000 // 15 phút
 
@@ -2067,7 +2159,7 @@ public class SupportViewModel: ObservableObject {
                 let toNghiepVu = FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 let donVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
-                // 1. Loại trừ các vai trò không thuộc đội kỹ thuật/chuyên viên: User thường, Nhân viên, HelpDesk, Admin
+                // 1. Loại trừ các vai trò không thuộc đội kỹ thuật/chuyên viên
                 let isExcluded = role == "user" || role == "admin" || role == "superadmin" || role == "super_admin" || role == "helpdesk" || role == "hd" ||
                     role.contains("admin") || role.contains("helpdesk") || role.contains("nhan vien") || role.contains("nhanvien") || role.contains("nhân viên")
 
@@ -2083,7 +2175,6 @@ public class SupportViewModel: ObservableObject {
                     donVi.contains("nghiệp vụ") || donVi.contains("nghiep vu") ||
                     !toNghiepVu.isEmpty
 
-                // CHỈ hiển thị nếu là KTV hoặc Chuyên viên, và không nằm trong nhóm bị loại trừ
                 if isExcluded || (!isKtv && !isSpecialist) {
                     continue
                 }
@@ -2112,8 +2203,52 @@ public class SupportViewModel: ObservableObject {
                     else { lastSeen = "\(diffSeconds / 3600) giờ trước" }
                 }
 
-                let latitude = FirestoreHelper.getDouble(fields["latitude"] as? [String: Any])
-                let longitude = FirestoreHelper.getDouble(fields["longitude"] as? [String: Any])
+                let violCount = Int(FirestoreHelper.getInt64(fields["offlineViolationsCount"] as? [String: Any]))
+                let isBlacklisted = (fields["isBlacklisted"] as? [String: Any])?["booleanValue"] as? Bool ?? (violCount >= 5)
+
+                let shiftCode = shiftCodeMap[maNhanVien.lowercased()] ?? shiftCodeMap[name.lowercased()] ?? ""
+                let offCodes = Set(["OFF", "NC", "P", "NM", "NL"])
+                let isScheduledOff = offCodes.contains(shiftCode.uppercased())
+
+                // Giải quyết tọa độ KTV (Ưu tiên: 1. Live GPS -> 2. User doc -> 3. Units -> 4. CoopmartDirectory -> 5. MaKhuVuc)
+                let jitterLat = (Double(abs(email.hashValue) % 70) - 35.0) / 10000.0
+                let jitterLng = (Double(abs((email + "x").hashValue) % 70) - 35.0) / 10000.0
+
+                let liveGps = techGpsMap[email] ?? techGpsMap[email.replacingOccurrences(of: "/", with: "_")]
+                let docLat = FirestoreHelper.getDouble(fields["latitude"] as? [String: Any]) != 0 ? FirestoreHelper.getDouble(fields["latitude"] as? [String: Any]) : FirestoreHelper.getDouble(fields["lat"] as? [String: Any])
+                let docLng = FirestoreHelper.getDouble(fields["longitude"] as? [String: Any]) != 0 ? FirestoreHelper.getDouble(fields["longitude"] as? [String: Any]) : FirestoreHelper.getDouble(fields["lng"] as? [String: Any])
+
+                let unitCoord = unitCoordsMap[unitName.lowercased()] ?? unitCoordsMap[donVi.lowercased()]
+                let coopStore = (liveGps == nil && docLat == 0.0 && unitCoord == nil) ? CoopmartDirectory.resolve(unitName.isEmpty ? donVi : unitName) : nil
+
+                var finalLat: Double = 0.0
+                var finalLng: Double = 0.0
+
+                if let gps = liveGps, gps.lat != 0.0 && gps.lng != 0.0 {
+                    finalLat = gps.lat
+                    finalLng = gps.lng
+                } else if docLat != 0.0 && docLng != 0.0 {
+                    finalLat = docLat
+                    finalLng = docLng
+                } else if let uc = unitCoord, uc.lat != 0.0 && uc.lng != 0.0 {
+                    finalLat = uc.lat + jitterLat
+                    finalLng = uc.lng + jitterLng
+                } else if let cs = coopStore, cs.lat != 0.0 && cs.lng != 0.0 {
+                    finalLat = cs.lat + jitterLat
+                    finalLng = cs.lng + jitterLng
+                } else {
+                    switch maKhuVuc.uppercased() {
+                    case "HCM_1": finalLat = 10.7769 + jitterLat; finalLng = 106.7009 + jitterLng
+                    case "HCM_2": finalLat = 10.7550 + jitterLat; finalLng = 106.6600 + jitterLng
+                    case "HCM_3": finalLat = 10.8000 + jitterLat; finalLng = 106.7200 + jitterLng
+                    case "HCM_BD": finalLat = 10.9450 + jitterLat; finalLng = 106.7020 + jitterLng
+                    case "MIENTAY": finalLat = 10.0333 + jitterLat; finalLng = 105.7833 + jitterLng
+                    case "MIENTRUNG": finalLat = 16.0544 + jitterLat; finalLng = 108.2022 + jitterLng
+                    case "MIENBAC": finalLat = 21.0285 + jitterLat; finalLng = 105.8542 + jitterLng
+                    case "DONGNAI": finalLat = 10.9574 + jitterLat; finalLng = 106.8427 + jitterLng
+                    default: finalLat = 10.7769 + jitterLat; finalLng = 106.7009 + jitterLng
+                    }
+                }
 
                 result.append(KtvOnlineLocation(
                     name: name.isEmpty ? email : name,
@@ -2125,12 +2260,16 @@ public class SupportViewModel: ObservableObject {
                     isOnline: isOnline,
                     lastSeen: lastSeen,
                     lastActiveAt: lastActiveAt,
-                    latitude: latitude,
-                    longitude: longitude,
+                    latitude: finalLat,
+                    longitude: finalLng,
                     role: role,
                     departmentId: deptId,
                     departmentName: deptName,
-                    isSpecialist: isSpecialist
+                    isSpecialist: isSpecialist,
+                    todayShiftCode: shiftCode,
+                    isScheduledOff: isScheduledOff,
+                    violationsThisMonth: violCount,
+                    isBlacklisted: isBlacklisted
                 ))
             }
 
