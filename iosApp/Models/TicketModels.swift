@@ -623,10 +623,10 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
 
     public func getResolveDurationMinutes() -> Int64 {
         let endTime: Int64
-        if closedAt > 0 {
-            endTime = closedAt
-        } else if resolvedAt > 0 {
+        if resolvedAt > 0 {
             endTime = resolvedAt
+        } else if closedAt > 0 {
+            endTime = closedAt
         } else if feedbackAt > 0 {
             endTime = feedbackAt
         } else if status.uppercased() == "CLOSED" && lastMessageAt > 0 {

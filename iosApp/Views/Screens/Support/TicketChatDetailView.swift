@@ -113,6 +113,10 @@ public struct TicketChatDetailView: View {
         !isClosed
     }
 
+    private var isTicketDone: Bool {
+        isClosed || isResolved || currentTicket.resolvedAt > 0
+    }
+
     private var canReopen: Bool {
         viewModel.isTicketReopenEnabled && isClosed && ticket.reopenCount < 2 && (ticket.isWithinQualityTrackingWindow || isAdminOrHelpDesk) && (isCreator || isAdminOrHelpDesk)
     }
@@ -129,8 +133,8 @@ public struct TicketChatDetailView: View {
                     // ── 2. TICKET SUMMARY CARD (ĐỒNG BỘ 1:1 VỚI ANDROID) ─
                     ticketSummaryCard
 
-                    // ── 3. SLA COUNTDOWN BAR (nếu đang OPEN và có áp dụng SLA) ───────────
-                    if isOpen && ticket.slaTargetMinutes > 0 {
+                    // ── 3. SLA COUNTDOWN BAR (Đồng bộ 1:1 với Android: Chỉ đếm ngược khi ticket CHƯA giải quyết và có áp dụng SLA) ───
+                    if !isTicketDone && currentTicket.slaTargetMinutes > 0 {
                         slaCountdownBar
                     }
 
@@ -753,10 +757,23 @@ public struct TicketChatDetailView: View {
                     HStack {
                         Image(systemName: "checkmark.seal.fill")
                             .foregroundColor(Color(hex: "#10B981"))
-                        Text("Kỹ thuật viên đã báo cáo hoàn thành sự cố")
+                        Text(currentTicket.isSpecialistAssigned ? "Chuyên viên đã báo cáo hoàn thành sự cố" : "Kỹ thuật viên đã báo cáo hoàn thành sự cố")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color(hex: "#065F46"))
                         Spacer()
+
+                        // Badge cố định thời hạn SLA đã hoàn tất (Đồng hồ SLA đã dừng khi KTV báo xong)
+                        if currentTicket.slaTargetMinutes > 0 && currentTicket.resolvedAt > 0 {
+                            let deadlineMs = currentTicket.createdAt + Int64(currentTicket.slaTargetMinutes * 60 * 1000)
+                            let isWithinSla = currentTicket.resolvedAt <= deadlineMs
+                            Text(isWithinSla ? "⏱️ Đạt chuẩn SLA" : "⚠️ Quá hạn SLA")
+                                .font(.system(size: 9.5, weight: .bold))
+                                .foregroundColor(isWithinSla ? Color(hex: "#166534") : Color(hex: "#DC2626"))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(isWithinSla ? Color(hex: "#DCFCE7") : Color(hex: "#FEE2E2"))
+                                .cornerRadius(4)
+                        }
                     }
 
                     if isCreator {
@@ -1730,15 +1747,30 @@ public struct TicketChatDetailView: View {
     }
 
     private func startSlaTimer() {
+        if isTicketDone {
+            slaTimer?.invalidate()
+            slaTimer = nil
+            return
+        }
         updateSlaCountdown()
         slaTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { _ in
+            if isTicketDone {
+                slaTimer?.invalidate()
+                slaTimer = nil
+                return
+            }
             updateSlaCountdown()
         }
     }
 
     private func updateSlaCountdown() {
-        let limitMinutes = ticket.slaTargetMinutes
-        let deadlineMs = ticket.createdAt + Int64(limitMinutes * 60 * 1000)
+        if isTicketDone {
+            slaTimer?.invalidate()
+            slaTimer = nil
+            return
+        }
+        let limitMinutes = currentTicket.slaTargetMinutes
+        let deadlineMs = currentTicket.createdAt + Int64(limitMinutes * 60 * 1000)
         let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
         let diffMs = deadlineMs - nowMs
 

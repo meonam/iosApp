@@ -2196,8 +2196,9 @@ public class SupportViewModel: ObservableObject {
                     totalRating += Double(r)
                     ratedCount += 1
                 }
-                if t.closedAt > t.createdAt && t.createdAt > 0 {
-                    let hours = Double(t.closedAt - t.createdAt) / (1000.0 * 3600.0)
+                let finishTime = t.resolvedAt > 0 ? t.resolvedAt : t.closedAt
+                if finishTime > t.createdAt && t.createdAt > 0 {
+                    let hours = Double(finishTime - t.createdAt) / (1000.0 * 3600.0)
                     totalHours += hours
                     resolvedCount += 1
                     let limitHours = Double(t.getSlaTargetMinutes()) / 60.0

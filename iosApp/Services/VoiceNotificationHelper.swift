@@ -336,18 +336,41 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 let cleanSpeech = self.normalizeVietnameseSpeech(item.speechText)
 
                 if item.type == "NEW_TICKET" {
-                    // CÂU 1 (LUÔN PHÁT TRƯỚC): "Bạn có yêu cầu hỗ trợ mới cần tiếp nhận"
+                    if item.fallbackBundledName == "voice_new_ticket_email" {
+                        // Kênh Email: Chỉ phát âm thanh mở đầu
+                        await EdgeTtsClient.shared.playBundledAudioSuspend(named: "voice_new_ticket_email")
+                        if mode == "REPEAT" {
+                            try? await Task.sleep(nanoseconds: 400_000_000)
+                            await EdgeTtsClient.shared.playBundledAudioSuspend(named: "voice_new_ticket_email")
+                        }
+                    } else {
+                        // CÂU 1 (LUÔN PHÁT TRƯỚC 1 LẦN): "Bạn có yêu cầu hỗ trợ mới cần tiếp nhận"
+                        if let bundled = item.fallbackBundledName {
+                            await EdgeTtsClient.shared.playBundledAudioSuspend(named: bundled)
+                            try? await Task.sleep(nanoseconds: 400_000_000)
+                        }
+
+                        // CÂU 2 (TÊN ĐƠN VỊ CẦN HỖ TRỢ): "[Đơn vị] cần hỗ trợ" qua giọng Hoài My Neural
+                        await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
+
+                        // Nếu cấu hình REPEAT: Nghỉ 800ms rồi lặp lại CÂU 2 (tên đơn vị) - KHÔNG lặp lại Câu 1 intro để tránh vấp
+                        if mode == "REPEAT" {
+                            try? await Task.sleep(nanoseconds: 800_000_000)
+                            await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
+                        }
+                    }
+                } else if item.type == "TICKET_RATED" {
+                    // Đánh giá: Lần 1 phát intro, Lần 2 đọc chi tiết số sao
                     if let bundled = item.fallbackBundledName {
                         await EdgeTtsClient.shared.playBundledAudioSuspend(named: bundled)
-                        try? await Task.sleep(nanoseconds: 400_000_000)
+                        try? await Task.sleep(nanoseconds: 300_000_000)
                     }
-
-                    // CÂU 2 (THÔNG TIN CHI TIẾT ĐƠN VỊ): Đọc tên đơn vị và nội dung sự cố qua giọng Hoài My Neural
                     await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
-
-                    // Nếu cấu hình REPEAT: Nghỉ 800ms rồi lặp lại CÂU 2 (tên đơn vị) - KHÔNG lặp lại Câu 1 intro để tránh vấp
+                } else if item.type == "TICKET_RESOLVED" {
+                    // KTV Báo xử lý xong: Phát trực tiếp câu hoàn chỉnh, không lồng intro mp3
+                    await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
                     if mode == "REPEAT" {
-                        try? await Task.sleep(nanoseconds: 800_000_000)
+                        try? await Task.sleep(nanoseconds: 600_000_000)
                         await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
                     }
                 } else {
@@ -460,13 +483,20 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         }
     }
 
-    // MARK: - 1. SỰ CỐ MỚI (Cho Admin / HelpDesk)
-    public func notifyNewSupportRequest(ticketId: String, donViName: String, subject: String, source: String = "APP") {
+    // MARK: - 1. SỰ CỐ MỚI (Cho Admin / HelpDesk - ĐỒNG BỘ 1:1 DESKTOP & WEB & ANDROID)
+    public func notifyNewSupportRequest(ticketId: String, donViName: String, subject: String = "", source: String = "APP") {
         let dv = cleanDonViName(donViName)
-        let sj = subject.isEmpty ? "Hỗ trợ kỹ thuật" : subject
-        let title = "🚨 YÊU CẦU HỖ TRỢ MỚI!"
-        let message = "📍 \(dv): \(sj)"
-        let text = "Có sự cố mới từ đơn vị \(dv). Yêu cầu hỗ trợ: \(sj)"
+        let cleanSource = source.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let isZalo = cleanSource == "ZALO"
+        let isEmail = cleanSource == "EMAIL"
+
+        let title = isZalo ? "💬 HỖ TRỢ ZALO MỚI!" : (isEmail ? "✉️ HỖ TRỢ EMAIL MỚI!" : "🚨 YÊU CẦU HỖ TRỢ MỚI!")
+        let message = isZalo ? "📍 Zalo OA: \(dv) gửi yêu cầu" : (isEmail ? "📍 Email: \(dv) gửi yêu cầu" : "📍 \(dv) cần hỗ trợ kỹ thuật")
+
+        // Thống nhất 100% như Desktop và Web: Không đọc mã ticket hay nội dung sự cố!
+        let speechText = isZalo
+            ? "Có yêu cầu hỗ trợ mới qua Da-lô từ \(dv)"
+            : (isEmail ? "Có yêu cầu hỗ trợ mới qua Email từ \(dv)" : "\(dv) cần hỗ trợ")
 
         showHeadsUpNotification(
             title: title,
@@ -476,12 +506,12 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             actionType: "ACK_NEW_TICKET"
         )
 
-        let fallback = source.uppercased() == "ZALO" ? "voice_new_ticket_zalo" : "voice_new_ticket"
-        enqueueNotification(ticketId: ticketId, speechText: text, fallbackBundledName: fallback, type: "NEW_TICKET")
+        let fallback = isZalo ? "voice_new_ticket_zalo" : (isEmail ? "voice_new_ticket_email" : "voice_new_ticket")
+        enqueueNotification(ticketId: ticketId, speechText: speechText, fallbackBundledName: fallback, type: "NEW_TICKET")
     }
 
     // MARK: - 1.1 PHIẾU CHUYỂN TRẢ VỀ HELPDESK (Cho TẤT CẢ User HelpDesk)
-    public func notifyHandoverToHelpDesk(ticketId: String, donViName: String, subject: String, reason: String = "") {
+    public func notifyHandoverToHelpDesk(ticketId: String, donViName: String, subject: String = "", reason: String = "") {
         let dv = cleanDonViName(donViName)
         let cleanReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         let title = "↩️ PHIẾU CHUYỂN TRẢ VỀ HELPDESK!"
@@ -499,16 +529,15 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         enqueueNotification(ticketId: ticketId, speechText: text, fallbackBundledName: "voice_new_ticket", type: "HANDOVER")
     }
 
-    // MARK: - 2. ĐIỀU PHỐI KTV / CHUYÊN VIÊN (ĐỒNG BỘ 1:1 VỚI ANDROID VOICENOTIFICATIONHELPER.KT)
-    public func notifyTechnicianDispatched(ticketId: String, donViName: String, subject: String, isSpecialist: Bool) {
+    // MARK: - 2. ĐIỀU PHỐI KTV / CHUYÊN VIÊN (ĐỒNG BỘ 1:1 VỚI ANDROID & DESKTOP & WEB)
+    public func notifyTechnicianDispatched(ticketId: String, donViName: String, subject: String = "", isSpecialist: Bool) {
         let cleanDonVi = cleanDonViName(donViName)
         let title = isSpecialist ? "📢 LỆNH PHÂN CÔNG CHUYÊN VIÊN!" : "📢 YÊU CẦU HỖ TRỢ MỚI!"
         let message = "📍 Đơn vị: \(cleanDonVi) (Bấm để nhận ca)"
         let text = isSpecialist ?
-            "Chuyên viên, bạn có yêu cầu hỗ trợ mới từ \(cleanDonVi)!" :
-            "Bạn có yêu cầu hỗ trợ mới từ \(cleanDonVi)!"
+            "Chuyên viên, bạn có yêu cầu hỗ trợ mới từ \(cleanDonVi)! Xin vui lòng bấm tiếp nhận ca!" :
+            "Bạn có yêu cầu hỗ trợ mới từ \(cleanDonVi)! Xin vui lòng bấm tiếp nhận ca!"
 
-        // 1. Thả Heads-up banner từ đỉnh màn hình xuống kèm nút bấm [✅ TIẾP NHẬN XỬ LÝ]
         showHeadsUpNotification(
             title: title,
             message: message,
@@ -517,7 +546,6 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             actionType: "ACK_DISPATCH"
         )
 
-        // 2. Vòng lặp chuông + rung + giọng nói liên tục đến khi KTV bấm tiếp nhận
         startRepeatingAlert(
             ticketId: ticketId,
             speechText: text,
@@ -527,14 +555,15 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         )
     }
 
-    // MARK: - 3. KHÁCH HÀNG ĐÁNH GIÁ (SAO & PHẢN HỒI)
+    // MARK: - 3. KHÁCH HÀNG ĐÁNH GIÁ (ĐỒNG BỘ 1:1 DESKTOP & WEB & ANDROID)
     public func notifyTicketRated(ticketId: String, rating: Int, feedback: String, donViName: String) {
         let dv = cleanDonViName(donViName)
-        let text = "Khách hàng vừa đánh giá \(rating) sao cho sự cố tại đơn vị \(dv)"
+        let text = "Đơn vị \(dv) vừa đánh giá \(rating) sao"
         
+        let fbSnippet = feedback.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "" : "\nÝ kiến: \(feedback.prefix(50))"
         showHeadsUpNotification(
             title: "⭐ ĐÁNH GIÁ MỚI: \(rating)/5★",
-            message: "📍 \(dv) - \(feedback)",
+            message: "📍 \(dv)\(fbSnippet)\n(Đã nghiệm thu đóng phiếu)",
             ticketId: ticketId,
             actionTitle: "🔍 XEM CHI TIẾT",
             actionType: "VIEW_TICKET"
@@ -543,17 +572,24 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         enqueueNotification(ticketId: ticketId, speechText: text, fallbackBundledName: "voice_rating_received", type: "TICKET_RATED")
     }
 
-    // MARK: - 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ / NGƯỜI YÊU CẦU TỰ XỬ LÝ
-    public func notifyTicketResolved(ticketId: String, donViName: String, subject: String, techName: String, resolvedReason: String = "") {
+    // MARK: - 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ / NGƯỜI YÊU CẦU TỰ XỬ LÝ (ĐỒNG BỘ 1:1 DESKTOP & WEB & ANDROID)
+    public func notifyTicketResolved(ticketId: String, donViName: String, subject: String = "", techName: String, resolvedReason: String = "", isSpecialist: Bool = false) {
         let dv = cleanDonViName(donViName)
         let isSelfResolved = resolvedReason.uppercased() == "SELF_RESOLVED"
-        let name = techName.isEmpty ? "Kỹ thuật viên" : techName
+        let rawTech = techName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let sanitizedTech = rawTech
+            .replacingOccurrences(of: "(?i)^(KTV|Kỹ thuật viên|Chuyên viên|CV)\\s*[:-]?\\s*", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let rolePrefix = isSpecialist ? "Chuyên viên" : "Kỹ thuật viên"
+        let displayName = (!sanitizedTech.isEmpty && !["ktv", "kỹ thuật viên", "chuyên viên"].contains(sanitizedTech.lowercased()))
+            ? "\(rolePrefix) \(sanitizedTech)"
+            : rolePrefix
 
-        let title = isSelfResolved ? "💡 NGƯỜI YÊU CẦU ĐÃ TỰ XỬ LÝ" : "🛠️ ĐÃ XỬ LÝ XONG SỰ CỐ"
-        let message = isSelfResolved ? "📍 \(dv) - Người yêu cầu đã tự xử lý xong sự cố • Dừng KTV" : "📍 \(dv) - \(name) đã hoàn tất"
+        let title = isSelfResolved ? "💡 NGƯỜI YÊU CẦU ĐÃ TỰ XỬ LÝ" : (isSpecialist ? "💻 CHUYÊN VIÊN ĐÃ XỬ LÝ XONG" : "🛠️ ĐÃ XỬ LÝ XONG SỰ CỐ")
+        let message = isSelfResolved ? "📍 \(dv) - Người yêu cầu đã tự xử lý xong sự cố • Dừng KTV" : "📍 \(dv) - \(displayName) đã xử lý xong\n(Bấm để kiểm tra và nghiệm thu)"
         let text = isSelfResolved
             ? "Người yêu cầu tại \(dv) đã tự xử lý xong sự cố."
-            : "Kỹ thuật viên \(name) báo đã xử lý xong sự cố cho đơn vị \(dv)"
+            : "\(displayName) đã xử lý xong sự cố tại \(dv), mời bạn đánh giá và nghiệm thu."
 
         showHeadsUpNotification(
             title: title,
@@ -689,7 +725,15 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 let isFreshResolved = resolvedTimestamp > lastSeenRes && (resolvedTimestamp >= appStartTime || resolvedTimestamp >= fiveMinutesAgo)
                 if isFreshResolved {
                     seenResolved[t.id] = resolvedTimestamp
-                    notifyTicketResolved(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, techName: t.resolvedByName, resolvedReason: t.resolvedReason)
+                    let isSpecialist = t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST"
+                    notifyTicketResolved(
+                        ticketId: t.id,
+                        donViName: effectiveDonVi,
+                        subject: t.subject,
+                        techName: t.resolvedByName,
+                        resolvedReason: t.resolvedReason,
+                        isSpecialist: isSpecialist
+                    )
                 } else if lastSeenRes == 0 {
                     seenResolved[t.id] = resolvedTimestamp
                 }
