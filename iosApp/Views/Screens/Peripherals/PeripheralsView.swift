@@ -348,8 +348,7 @@ public struct PeripheralsView: View {
                                         Text("Dò tìm thiết bị Bluetooth")
                                     }
                                 }
-                                .font(.caption)
-                                .fontWeight(.bold)
+                                .font(.caption.bold())
                                 .foregroundColor(.white)
                                 .padding()
                                 .frame(maxWidth: .infinity)
