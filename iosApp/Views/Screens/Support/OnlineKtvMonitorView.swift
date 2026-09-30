@@ -91,7 +91,7 @@ class KtvMapAnnotation: NSObject, MKAnnotation {
     var subtitle: String? {
         let status = ktv.isOnline ? "🟢 Trực tuyến" : "⚪ Ngoại tuyến"
         let role = ktv.isSpecialist ? "Chuyên viên" : "KTV"
-        let unit = ktv.donVi.isEmpty ? "IT TẬP TRUNG" : ktv.donVi
+        let unit = ktv.unitName.isEmpty ? "IT TẬP TRUNG" : ktv.unitName
         let phone = ktv.phone.isEmpty ? "" : " • 📞 \(ktv.phone)"
         return "\(role) • \(unit) • \(status)\(phone)"
     }
