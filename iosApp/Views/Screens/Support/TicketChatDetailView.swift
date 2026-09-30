@@ -2,6 +2,35 @@ import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
 
+// MARK: - ENUM ĐIỀU PHỐI SHEET ĐƠN LẺ TRÁNH XUNG ĐỘT TRÊN SWIFTUI
+public enum ActiveChatSheet: Identifiable {
+    case techResolve
+    case rating
+    case reopen
+    case assignKtv
+    case handover
+    case liveTracking
+    case rejectReason
+    case selfResolved
+    case imagePicker
+    case documentPicker
+
+    public var id: String {
+        switch self {
+        case .techResolve: return "techResolve"
+        case .rating: return "rating"
+        case .reopen: return "reopen"
+        case .assignKtv: return "assignKtv"
+        case .handover: return "handover"
+        case .liveTracking: return "liveTracking"
+        case .rejectReason: return "rejectReason"
+        case .selfResolved: return "selfResolved"
+        case .imagePicker: return "imagePicker"
+        case .documentPicker: return "documentPicker"
+        }
+    }
+}
+
 // MARK: - MÀN HÌNH CHI TIẾT TICKET & CHAT TRỰC TIẾP (ĐỒNG BỘ 1:1 VỚI ADMINSUPPORTCHATSCREEN.KT)
 public struct TicketChatDetailView: View {
     @ObservedObject var viewModel: SupportViewModel
@@ -11,21 +40,14 @@ public struct TicketChatDetailView: View {
     @State private var inputText: String = ""
     @State private var showCloseTicketAlert: Bool = false
     @State private var showSelfResolvedAlert: Bool = false
-    @State private var showSelfResolvedSheet: Bool = false
+    @State private var activeSheet: ActiveChatSheet? = nil
+    @State private var showCallView: Bool = false
     @State private var selfResolvedReason: String = ""
     @State private var selectedPreviewImageUrl: String? = nil
-    @State private var showTechResolveSheet: Bool = false
     @State private var techResolutionNote: String = ""
-    @State private var showReopenSheet: Bool = false
     @State private var reopenReason: String = ""
-    @State private var showRatingSheet: Bool = false
     @State private var selectedRating: Int = 5
     @State private var ratingComment: String = ""
-    @State private var showLiveTrackingModal: Bool = false
-    @State private var showAssignKtvSheet: Bool = false
-    @State private var showHandoverSheet: Bool = false
-    @State private var showCallView: Bool = false
-    @State private var showRejectReasonSheet: Bool = false
     @State private var rejectReasonText: String = ""
 
     // SLA countdown timer
@@ -36,8 +58,6 @@ public struct TicketChatDetailView: View {
     // MARK: - File Attachment State (đồng bộ Android AndroidPendingAttachment)
     /// Tối đa 5 tệp, mỗi tệp tối đa 10MB
     @State private var pendingAttachments: [ChatPendingAttachment] = []
-    @State private var showImagePicker: Bool = false
-    @State private var showDocumentPicker: Bool = false
     @State private var isUploadingAttachments: Bool = false
     @State private var attachmentAlertMessage: String? = nil
 
@@ -104,7 +124,7 @@ public struct TicketChatDetailView: View {
 
                 VStack(spacing: 0) {
                     // ── 1. TOP BAR ──────────────────────────────────────
-                    topBar(safeAreaTop: SafeAreaHelper.top(geometry))
+                    topBar(safeAreaTop: max(0, geometry.safeAreaInsets.top))
 
                     // ── 2. TICKET SUMMARY CARD (ĐỒNG BỘ 1:1 VỚI ANDROID) ─
                     ticketSummaryCard
@@ -134,6 +154,21 @@ public struct TicketChatDetailView: View {
                 if let previewUrl = selectedPreviewImageUrl {
                     fullscreenImageOverlay(previewUrl)
                 }
+
+                // Overlay Cuộc gọi đến khi đang ở màn hình Ticket
+                if let incomingCall = IncomingCallManager.shared.activeIncomingCall {
+                    IncomingCallBannerView(
+                        call: incomingCall,
+                        onAccept: {
+                            IncomingCallManager.shared.acceptCall()
+                            showCallView = true
+                        },
+                        onReject: {
+                            IncomingCallManager.shared.rejectCall()
+                        }
+                    )
+                    .zIndex(99)
+                }
             }
             .ignoresSafeArea(edges: .top)
         }
@@ -146,80 +181,75 @@ public struct TicketChatDetailView: View {
             slaTimer?.invalidate()
             slaTimer = nil
         }
-        // Sheet Báo cáo Hoàn tất của KTV
-        .sheet(isPresented: $showTechResolveSheet) {
-            techResolveSheetView
-        }
-        // Sheet Đánh giá Nghiệm thu của Người tạo
-        .sheet(isPresented: $showRatingSheet) {
-            ratingSheetView
-        }
-        // Sheet Mở lại Phiếu
-        .sheet(isPresented: $showReopenSheet) {
-            reopenSheetView
-        }
-        // Sheet Điều phối KTV (DispatchTicketSheet đồng bộ 1:1 Android)
-        .sheet(isPresented: $showAssignKtvSheet) {
-            DispatchTicketSheet(ticket: currentTicket, viewModel: viewModel, onDismiss: {
-                showAssignKtvSheet = false
-            })
-        }
-        // Sheet Bàn giao ca / Chuyển ticket (HandoverTicketSheetView đồng bộ 1:1 Android)
-        .sheet(isPresented: $showHandoverSheet) {
-            HandoverTicketSheetView(ticket: currentTicket, viewModel: viewModel)
-        }
-        // Sheet Bản đồ lộ trình KTV (LiveTrackingMapView đồng bộ 1:1 Android)
-        .sheet(isPresented: $showLiveTrackingModal) {
-            LiveTrackingMapView(
-                ticket: currentTicket,
-                viewModel: viewModel,
-                onDismiss: { showLiveTrackingModal = false },
-                onSelfResolved: {
-                    showLiveTrackingModal = false
-                    showSelfResolvedSheet = true
-                },
-                onTechResolve: {
-                    showLiveTrackingModal = false
-                    showTechResolveSheet = true
+        // ĐIỀU PHỐI SHEET ĐƠN LẺ CHÍNH THỨC TRÊN SWIFTUI (TRÁNH XUNG ĐỘT)
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .techResolve:
+                techResolveSheetView
+            case .rating:
+                ratingSheetView
+            case .reopen:
+                reopenSheetView
+            case .assignKtv:
+                DispatchTicketSheet(ticket: currentTicket, viewModel: viewModel, onDismiss: {
+                    activeSheet = nil
+                })
+            case .handover:
+                HandoverTicketSheetView(ticket: currentTicket, viewModel: viewModel)
+            case .liveTracking:
+                LiveTrackingMapView(
+                    ticket: currentTicket,
+                    viewModel: viewModel,
+                    onDismiss: { activeSheet = nil },
+                    onSelfResolved: { activeSheet = .selfResolved },
+                    onTechResolve: { activeSheet = .techResolve }
+                )
+            case .rejectReason:
+                rejectTicketSheetView
+            case .selfResolved:
+                selfResolvedSheetView
+            case .imagePicker:
+                ChatImagePicker(maxSelection: max(1, 5 - pendingAttachments.count)) { images in
+                    for img in images {
+                        if let data = img.jpegData(compressionQuality: 0.8) {
+                            let fileName = "img_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(4)).jpg"
+                            let attachment = ChatPendingAttachment(
+                                data: data,
+                                fileName: fileName,
+                                fileSize: Int64(data.count),
+                                type: "image"
+                            )
+                            if pendingAttachments.count < 5 && !pendingAttachments.contains(where: { $0.fileName == attachment.fileName }) {
+                                pendingAttachments.append(attachment)
+                            }
+                        }
+                    }
                 }
-            )
-        }
-        // Sheet Từ chối phiếu (Admin/HelpDesk)
-        .sheet(isPresented: $showRejectReasonSheet) {
-            rejectTicketSheetView
-        }
-        // Sheet Tự xử lý xong (Đồng bộ 1:1 Android SelfResolvedConfirmDialog)
-        .sheet(isPresented: $showSelfResolvedSheet) {
-            selfResolvedSheetView
-        }
-        // Sheet Image Picker cho ảnh từ thư viện (PHPickerViewController iOS 14+)
-        .sheet(isPresented: $showImagePicker) {
-            ChatImagePicker(maxSelection: max(1, 5 - pendingAttachments.count)) { images in
-                for img in images {
-                    if let data = img.jpegData(compressionQuality: 0.8) {
-                        let fileName = "img_\(Int(Date().timeIntervalSince1970))_\(UUID().uuidString.prefix(4)).jpg"
-                        let attachment = ChatPendingAttachment(
-                            data: data,
-                            fileName: fileName,
-                            fileSize: Int64(data.count),
-                            type: "image"
-                        )
-                        if pendingAttachments.count < 5 && !pendingAttachments.contains(where: { $0.fileName == attachment.fileName }) {
-                            pendingAttachments.append(attachment)
+            case .documentPicker:
+                ChatDocumentPicker { urls in
+                    Task {
+                        for url in urls {
+                            await addAttachmentFromUrl(url)
                         }
                     }
                 }
             }
         }
-        // Sheet Document Picker cho tệp tài liệu
-        .sheet(isPresented: $showDocumentPicker) {
-            ChatDocumentPicker { urls in
-                Task {
-                    for url in urls {
-                        await addAttachmentFromUrl(url)
-                    }
-                }
-            }
+        .fullScreenCover(isPresented: $showCallView) {
+            CallView()
+        }
+        .alert(isPresented: $showCloseTicketAlert) {
+            Alert(
+                title: Text("Nghiệm thu & Đóng yêu cầu"),
+                message: Text("Kỹ thuật viên đã xử lý xong. Xác nhận nghiệm thu và hoàn tất đóng phiếu hỗ trợ này?"),
+                primaryButton: .default(Text("Nghiệm thu & Đóng")) {
+                    viewModel.closeTicket(ticketId: ticket.id, rating: 5, feedback: "Admin/HelpDesk nghiệm thu & đóng phiếu") { _ in }
+                },
+                secondaryButton: .cancel(Text("Hủy"))
+            )
+        }
+        .onReceive(WebRtcCallManager.shared.$isCallPresented) { presented in
+            showCallView = presented
         }
     }
 
@@ -234,6 +264,7 @@ public struct TicketChatDetailView: View {
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(.white)
                         .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
                 }
 
                 // Tiêu đề ngắn gọn chuẩn Android: "Đang hỗ trợ #TK-XXXX"
@@ -242,27 +273,30 @@ public struct TicketChatDetailView: View {
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(.white)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
 
                 Spacer(minLength: 2)
 
                 // 1. Nút Đánh giá (nếu là người tạo & đã xử lý xong hoặc đã đóng)
                 if isCreator && (isResolved || isClosed) {
-                    Button(action: { showRatingSheet = true }) {
+                    Button(action: { activeSheet = .rating }) {
                         Image(systemName: "star.fill")
                             .font(.system(size: 14))
                             .foregroundColor(Color(hex: "#F59E0B"))
                             .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
                     }
                 }
 
                 // 2. Nút Bản đồ lộ trình KTV (Live Tracking Map)
-                Button(action: { showLiveTrackingModal = true }) {
+                Button(action: { activeSheet = .liveTracking }) {
                     Image(systemName: "bicycle")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white)
                         .frame(width: 30, height: 30)
                         .background(Color(hex: "#002A8F"))
                         .clipShape(Circle())
+                        .contentShape(Rectangle())
                 }
 
                 // 3. Nút Gọi thoại trực tiếp giữa Người tạo <-> KTV (P2P In-App)
@@ -273,11 +307,14 @@ public struct TicketChatDetailView: View {
 
                 if !callTargetEmail.isEmpty && !isClosed {
                     Button(action: {
+                        WebRtcCallManager.shared.companyId = viewModel.companyId
+                        WebRtcCallManager.shared.idToken = viewModel.idToken
                         WebRtcCallManager.shared.startCall(
                             targetEmail: callTargetEmail,
                             targetName: callTargetName,
                             callerName: viewModel.user.fullName,
-                            callerEmail: viewModel.user.email
+                            callerEmail: viewModel.user.email,
+                            callerRole: viewModel.user.role
                         )
                         showCallView = true
                     }) {
@@ -287,17 +324,21 @@ public struct TicketChatDetailView: View {
                             .frame(width: 30, height: 30)
                             .background(Color(hex: "#38BDF8"))
                             .clipShape(Circle())
+                            .contentShape(Rectangle())
                     }
                 }
 
                 // 4. Nút Gọi thoại Hàng đợi Trực ban HelpDesk
                 if !isClosed {
                     Button(action: {
-                        WebRtcCallManager.shared.startCall(
-                            targetEmail: "helpdesk",
-                            targetName: "Trực ban HelpDesk",
+                        WebRtcCallManager.shared.companyId = viewModel.companyId
+                        WebRtcCallManager.shared.idToken = viewModel.idToken
+                        WebRtcCallManager.shared.startSmartQueueCall(
+                            companyId: viewModel.companyId,
+                            callerEmail: viewModel.user.email,
                             callerName: viewModel.user.fullName,
-                            callerEmail: viewModel.user.email
+                            callerRole: viewModel.user.role,
+                            ticketId: ticket.id
                         )
                         showCallView = true
                     }) {
@@ -307,6 +348,7 @@ public struct TicketChatDetailView: View {
                             .frame(width: 30, height: 30)
                             .background(Color(hex: "#FBBF24"))
                             .clipShape(Circle())
+                            .contentShape(Rectangle())
                     }
                 }
 
@@ -314,7 +356,7 @@ public struct TicketChatDetailView: View {
                 if isAssignedTech && !isClosed && !isResolved {
                     Button(action: {
                         viewModel.fetchKtvTechnicians()
-                        showHandoverSheet = true
+                        activeSheet = .handover
                     }) {
                         Image(systemName: "arrow.left.arrow.right")
                             .font(.system(size: 12, weight: .bold))
@@ -322,6 +364,7 @@ public struct TicketChatDetailView: View {
                             .frame(width: 30, height: 30)
                             .background(Color(hex: "#6366F1"))
                             .clipShape(Circle())
+                            .contentShape(Rectangle())
                     }
                 }
 
@@ -329,7 +372,7 @@ public struct TicketChatDetailView: View {
                 if isOpen && isAdminOrHelpDesk {
                     Button(action: {
                         viewModel.fetchKtvTechnicians()
-                        showAssignKtvSheet = true
+                        activeSheet = .assignKtv
                     }) {
                         let isAssigned = !ticket.assignedToEmail.isEmpty || !ticket.assignedToName.isEmpty || !ticket.assignedCluster.isEmpty
                         let techDisplay = !ticket.assignedToName.isEmpty ? ticket.assignedToName : (!ticket.assignedToEmail.isEmpty ? ticket.assignedToEmail.components(separatedBy: "@").first ?? "" : "Điều phối")
@@ -351,6 +394,7 @@ public struct TicketChatDetailView: View {
                                 .stroke(isAssigned ? Color(hex: "#86EFAC") : Color(hex: "#FCA5A5"), lineWidth: 1)
                         )
                         .cornerRadius(6)
+                        .contentShape(Rectangle())
                     }
                 }
 
@@ -365,22 +409,13 @@ public struct TicketChatDetailView: View {
                                 .frame(width: 30, height: 30)
                                 .background(Color.white.opacity(0.15))
                                 .clipShape(Circle())
-                        }
-                        .alert(isPresented: $showCloseTicketAlert) {
-                            Alert(
-                                title: Text("Nghiệm thu & Đóng yêu cầu"),
-                                message: Text("Kỹ thuật viên đã xử lý xong. Xác nhận nghiệm thu và hoàn tất đóng phiếu hỗ trợ này?"),
-                                primaryButton: .default(Text("Nghiệm thu & Đóng")) {
-                                    viewModel.closeTicket(ticketId: ticket.id, rating: 5, feedback: "Admin/HelpDesk nghiệm thu & đóng phiếu") { _ in }
-                                },
-                                secondaryButton: .cancel(Text("Hủy"))
-                            )
+                                .contentShape(Rectangle())
                         }
                     } else {
                         // Chưa giải quyết -> Nút Từ chối / Đóng yêu cầu
                         Button(action: {
                             rejectReasonText = ""
-                            showRejectReasonSheet = true
+                            activeSheet = .rejectReason
                         }) {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 15, weight: .bold))
@@ -388,17 +423,19 @@ public struct TicketChatDetailView: View {
                                 .frame(width: 30, height: 30)
                                 .background(Color.white.opacity(0.15))
                                 .clipShape(Circle())
+                                .contentShape(Rectangle())
                         }
                     }
                 }
 
                 // 8. Nút Mở lại phiếu (nếu đủ điều kiện)
                 if canReopen {
-                    Button(action: { showReopenSheet = true }) {
+                    Button(action: { activeSheet = .reopen }) {
                         Image(systemName: "arrow.counterclockwise.circle.fill")
                             .font(.system(size: 16))
                             .foregroundColor(Color(hex: "#FBBF24"))
                             .frame(width: 30, height: 30)
+                            .contentShape(Rectangle())
                     }
                 }
             }
@@ -588,7 +625,7 @@ public struct TicketChatDetailView: View {
 
             // ── Banner 1: Live Tracking KTV (cho Người tạo ticket khi KTV đang di chuyển / đã đến) ──
             if isCreator && isOpen && !isResolved, let tr = ticket.tracking, tr.status == "EN_ROUTE" || tr.status == "ARRIVED" {
-                Button(action: { showLiveTrackingModal = true }) {
+                Button(action: { activeSheet = .liveTracking }) {
                     HStack(spacing: 8) {
                         Image(systemName: tr.status == "ARRIVED" ? "checkmark.circle.fill" : "bicycle")
                             .font(.system(size: 16))
@@ -625,7 +662,7 @@ public struct TicketChatDetailView: View {
 
             // ── Banner 2: Thẻ "Tôi đã tự xử lý xong" (cho User tạo phiếu, ẩn với Admin/KTV/HelpDesk) ──
             if isCreator && isOpen && !isResolved && !isAdminOrHelpDesk && !isAssignedTech {
-                Button(action: { showSelfResolvedSheet = true }) {
+                Button(action: { activeSheet = .selfResolved }) {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 16))
@@ -695,7 +732,7 @@ public struct TicketChatDetailView: View {
 
                     // Nút KTV Báo cáo đã xử lý xong
                     Button("🛠️ Báo cáo xong") {
-                        showTechResolveSheet = true
+                        activeSheet = .techResolve
                     }
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(Color.white)
@@ -729,7 +766,7 @@ public struct TicketChatDetailView: View {
                                 .foregroundColor(Color.gray)
                             Spacer()
                             Button("⭐ Đánh giá & Đóng") {
-                                showRatingSheet = true
+                                activeSheet = .rating
                             }
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.white)
@@ -759,7 +796,7 @@ public struct TicketChatDetailView: View {
                     }
                     Spacer()
                     Button("🔄 Mở lại phiếu") {
-                        showReopenSheet = true
+                        activeSheet = .reopen
                     }
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(Color.white)
@@ -1239,10 +1276,10 @@ public struct TicketChatDetailView: View {
             HStack(spacing: 8) {
                 // Nút đính kèm — mở menu ảnh hoặc tài liệu
                 Menu {
-                    Button(action: { showImagePicker = true }) {
+                    Button(action: { activeSheet = .imagePicker }) {
                         Label("Chọn ảnh từ thư viện", systemImage: "photo.on.rectangle")
                     }
-                    Button(action: { showDocumentPicker = true }) {
+                    Button(action: { activeSheet = .documentPicker }) {
                         Label("Chọn tài liệu", systemImage: "doc.badge.plus")
                     }
                 } label: {
@@ -1463,7 +1500,7 @@ public struct TicketChatDetailView: View {
                         }
 
                         Button(action: {
-                            showRatingSheet = true
+                            activeSheet = .rating
                         }) {
                             HStack(spacing: 6) {
                                 Image(systemName: "star.fill")
@@ -1543,7 +1580,7 @@ public struct TicketChatDetailView: View {
                 Button(action: {
                     let reason = rejectReasonText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Yêu cầu không phù hợp" : rejectReasonText
                     viewModel.rejectTicket(ticketId: ticket.id, reason: reason) { _ in }
-                    showRejectReasonSheet = false
+                    activeSheet = nil
                 }) {
                     HStack {
                         Image(systemName: "xmark.circle.fill")
@@ -1562,7 +1599,7 @@ public struct TicketChatDetailView: View {
             .padding(16)
             .navigationTitle("Từ chối phiếu")
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(leading: Button("Hủy") { showRejectReasonSheet = false })
+            .navigationBarItems(leading: Button("Hủy") { activeSheet = nil })
         }
     }
 
@@ -1582,10 +1619,10 @@ public struct TicketChatDetailView: View {
             .navigationTitle("Báo cáo đã xử lý xong")
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(
-                leading: Button("Hủy") { showTechResolveSheet = false },
+                leading: Button("Hủy") { activeSheet = nil },
                 trailing: Button("Xác nhận") {
                     viewModel.markTicketResolved(ticketId: ticket.id, note: techResolutionNote) { success in
-                        if success { showTechResolveSheet = false }
+                        if success { activeSheet = nil }
                     }
                 }
                 .font(.system(size: 14, weight: .bold))
@@ -1623,7 +1660,7 @@ public struct TicketChatDetailView: View {
 
                 Button(action: {
                     viewModel.rateTicket(ticketId: ticket.id, rating: selectedRating, feedback: ratingComment) { success in
-                        if success { showRatingSheet = false }
+                        if success { activeSheet = nil }
                     }
                 }) {
                     Text("Nghiệm thu & Đóng phiếu")
@@ -1639,7 +1676,7 @@ public struct TicketChatDetailView: View {
                 Spacer()
             }
             .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(leading: Button("Đóng") { showRatingSheet = false })
+            .navigationBarItems(leading: Button("Đóng") { activeSheet = nil })
         }
     }
 
@@ -1659,11 +1696,11 @@ public struct TicketChatDetailView: View {
             .navigationTitle("Mở lại phiếu hỗ trợ")
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(
-                leading: Button("Hủy") { showReopenSheet = false },
+                leading: Button("Hủy") { activeSheet = nil },
                 trailing: Button(action: {
                     if !reopenReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         viewModel.reopenTicket(ticketId: ticket.id, reason: reopenReason) { success in
-                            if success { showReopenSheet = false }
+                            if success { activeSheet = nil }
                         }
                     }
                 }) {
@@ -1793,16 +1830,6 @@ public struct TicketChatDetailView: View {
                         .background(Color(hex: "#16A34A"))
                         .cornerRadius(8)
                     }
-                    .alert(isPresented: $showCloseTicketAlert) {
-                        Alert(
-                            title: Text("Nghiệm thu & Đóng yêu cầu"),
-                            message: Text("Kỹ thuật viên đã xử lý xong. Xác nhận nghiệm thu và hoàn tất đóng phiếu hỗ trợ này?"),
-                            primaryButton: .default(Text("Nghiệm thu & Đóng")) {
-                                viewModel.closeTicket(ticketId: ticket.id, rating: 5, feedback: "Admin/HelpDesk nghiệm thu & đóng phiếu") { _ in }
-                            },
-                            secondaryButton: .cancel(Text("Hủy"))
-                        )
-                    }
                     .padding(.top, 4)
                 }
             }
@@ -1918,16 +1945,16 @@ public struct TicketChatDetailView: View {
             .navigationTitle("Tự khắc phục sự cố")
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarItems(
-                leading: Button("Hủy") { showSelfResolvedSheet = false },
+                leading: Button("Hủy") { activeSheet = nil },
                 trailing: Button("Xác nhận Đóng") {
                     let reasonToSubmit = selfResolvedReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                         ? "Đã cắm lại dây nguồn / dây mạng / cáp kết nối"
                         : selfResolvedReason
                     viewModel.selfResolveTicket(ticketId: ticket.id, reason: reasonToSubmit) { success in
                         if success {
-                            showSelfResolvedSheet = false
+                            activeSheet = nil
                             if currentTicket.rating == 0 {
-                                showRatingSheet = true
+                                activeSheet = .rating
                             }
                         }
                     }

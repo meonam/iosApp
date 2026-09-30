@@ -21,6 +21,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     @Published public var remoteUserName: String = ""
     @Published public var remoteUserEmail: String = ""
     @Published public var currentCallId: String? = nil
+    @Published public var isCallPresented: Bool = false
     
     private var peerConnectionFactory: RTCPeerConnectionFactory!
     private var peerConnection: RTCPeerConnection?
@@ -177,13 +178,52 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     }
     
     // MARK: - OUTBOUND CALL
-    public func startCall(targetEmail: String, targetName: String, callerName: String, callerEmail: String) {
+    public func startCall(
+        targetEmail: String,
+        targetName: String,
+        callerName: String,
+        callerEmail: String,
+        callerRole: String = "KTV"
+    ) {
+        let cleanCallerEmail = callerEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanTargetEmail = targetEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        
+        AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                guard granted else {
+                    print("[WebRtcCallManager] Microphone permission denied")
+                    self.callState = .ended
+                    self.isCallPresented = false
+                    IncomingCallManager.shared.isCallPresented = false
+                    return
+                }
+                self.performStartCall(
+                    targetEmail: cleanTargetEmail,
+                    targetName: targetName,
+                    callerName: callerName,
+                    callerEmail: cleanCallerEmail,
+                    callerRole: callerRole
+                )
+            }
+        }
+    }
+    
+    private func performStartCall(
+        targetEmail: String,
+        targetName: String,
+        callerName: String,
+        callerEmail: String,
+        callerRole: String
+    ) {
         self.remoteUserEmail = targetEmail
         self.remoteUserName = targetName
         self.isCaller = true
         self.callState = .calling
         self.currentCallId = UUID().uuidString.lowercased()
         self.processedCandidateIds.removeAll()
+        self.isCallPresented = true
+        IncomingCallManager.shared.isCallPresented = true
         
         self.peerConnection = createPeerConnection()
         
@@ -205,14 +245,131 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                     print("[WebRtcCallManager] Error setting local description (offer): \(error)")
                     return
                 }
-                self.createCallDocument(sdp: sdp, targetEmail: targetEmail, callerName: callerName, callerEmail: callerEmail)
+                self.createCallDocument(
+                    sdp: sdp,
+                    targetEmail: targetEmail,
+                    targetName: targetName,
+                    callerName: callerName,
+                    callerEmail: callerEmail,
+                    callerRole: callerRole
+                )
                 self.startSignalingPolling()
             }
         }
     }
     
+    // MARK: - SMART QUEUE CALL (ĐỒNG BỘ 1:1 ANDROID startSmartQueueCall)
+    public func startSmartQueueCall(
+        companyId: String,
+        callerEmail: String,
+        callerName: String,
+        callerRole: String = "KTV",
+        ticketId: String = ""
+    ) {
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let safeComp = cleanComp.isEmpty ? "SGCOOP" : cleanComp
+        let cleanCallerEmail = callerEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        
+        self.companyId = safeComp
+        
+        let urlStr = "\(firestoreBaseUrl)/companies/\(safeComp):runQuery"
+        guard let url = URL(string: urlStr) else {
+            self.startCall(targetEmail: "helpdesk", targetName: "Trực ban HelpDesk", callerName: callerName, callerEmail: cleanCallerEmail, callerRole: callerRole)
+            return
+        }
+        
+        let queryPayload: [String: Any] = [
+            "structuredQuery": [
+                "from": [["collectionId": "helpdesk_presence"]],
+                "where": [
+                    "fieldFilter": [
+                        "field": ["fieldPath": "status"],
+                        "op": "EQUAL",
+                        "value": ["stringValue": "AVAILABLE"]
+                    ]
+                ],
+                "limit": 10
+            ]
+        ]
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !idToken.isEmpty {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = try? JSONSerialization.data(withJSONObject: queryPayload)
+        request.timeoutInterval = 3.5
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
+            guard let self = self else { return }
+            var targetAgentEmail = "helpdesk"
+            var targetAgentName = "Trực ban HelpDesk"
+            
+            if let data = data,
+               let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                let now = Int64(Date().timeIntervalSince1970 * 1000)
+                var availableAgents: [(email: String, name: String, lastFinished: Int64)] = []
+                
+                for item in jsonArray {
+                    guard let doc = item["document"] as? [String: Any],
+                          let fields = doc["fields"] as? [String: Any] else { continue }
+                    
+                    var lastHb: Int64 = 0
+                    if let hbObj = fields["lastHeartbeat"] as? [String: Any] {
+                        if let s = hbObj["integerValue"] as? String, let v = Int64(s) { lastHb = v }
+                        else if let d = hbObj["doubleValue"] as? Double { lastHb = Int64(d) }
+                    }
+                    
+                    if now - lastHb < 65_000 {
+                        let email = (fields["email"] as? [String: Any])?["stringValue"] as? String ?? ""
+                        let name = (fields["name"] as? [String: Any])?["stringValue"] as? String ?? email
+                        var lastFinished: Int64 = 0
+                        if let finObj = fields["lastCallFinishedAt"] as? [String: Any] {
+                            if let s = finObj["integerValue"] as? String, let v = Int64(s) { lastFinished = v }
+                        }
+                        if !email.isEmpty {
+                            availableAgents.append((email: email, name: name, lastFinished: lastFinished))
+                        }
+                    }
+                }
+                
+                if let bestAgent = availableAgents.sorted(by: { $0.lastFinished < $1.lastFinished }).first {
+                    targetAgentEmail = bestAgent.email
+                    targetAgentName = bestAgent.name
+                }
+            }
+            
+            DispatchQueue.main.async {
+                self.startCall(
+                    targetEmail: targetAgentEmail,
+                    targetName: targetAgentName,
+                    callerName: callerName,
+                    callerEmail: cleanCallerEmail,
+                    callerRole: callerRole
+                )
+            }
+        }.resume()
+    }
+    
     // MARK: - ANSWER INBOUND CALL
     public func answerCall(callId: String, callerName: String, callerEmail: String, offerSdp: String? = nil) {
+        AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                guard granted else {
+                    print("[WebRtcCallManager] Microphone permission denied")
+                    self.callState = .ended
+                    self.isCallPresented = false
+                    IncomingCallManager.shared.isCallPresented = false
+                    return
+                }
+                self.performAnswerCall(callId: callId, callerName: callerName, callerEmail: callerEmail, offerSdp: offerSdp)
+            }
+        }
+    }
+    
+    private func performAnswerCall(callId: String, callerName: String, callerEmail: String, offerSdp: String? = nil) {
         IncomingCallManager.shared.stopRinging()
         self.currentCallId = callId
         self.remoteUserName = callerName
@@ -220,6 +377,8 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         self.isCaller = false
         self.callState = .connected
         self.processedCandidateIds.removeAll()
+        self.isCallPresented = true
+        IncomingCallManager.shared.isCallPresented = true
         
         self.peerConnection = createPeerConnection()
         
@@ -299,6 +458,8 @@ public class WebRtcCallManager: NSObject, ObservableObject {
             self.currentCallId = nil
             self.isMuted = false
             self.isSpeakerOn = true
+            self.isCallPresented = false
+            IncomingCallManager.shared.isCallPresented = false
         }
     }
     
@@ -324,7 +485,14 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     }
     
     // MARK: - FIRESTORE REST API OPERATIONS
-    private func createCallDocument(sdp: RTCSessionDescription, targetEmail: String, callerName: String, callerEmail: String) {
+    private func createCallDocument(
+        sdp: RTCSessionDescription,
+        targetEmail: String,
+        targetName: String,
+        callerName: String,
+        callerEmail: String,
+        callerRole: String
+    ) {
         guard let callId = currentCallId else { return }
         
         let urlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls?documentId=\(callId)"
@@ -335,9 +503,10 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                 "id": ["stringValue": callId],
                 "callerEmail": ["stringValue": callerEmail],
                 "callerName": ["stringValue": callerName],
-                "callerRole": ["stringValue": "KTV"],
+                "callerRole": ["stringValue": callerRole],
                 "calleeEmail": ["stringValue": targetEmail],
                 "targetEmail": ["stringValue": targetEmail],
+                "targetName": ["stringValue": targetName],
                 "companyId": ["stringValue": companyId],
                 "offer": [
                     "mapValue": [

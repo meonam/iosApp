@@ -107,6 +107,7 @@ public struct CallView: View {
                     VStack(spacing: 8) {
                         Button(action: {
                             callManager.endCall()
+                            callManager.isCallPresented = false
                             IncomingCallManager.shared.isCallPresented = false
                             presentationMode.wrappedValue.dismiss()
                         }) {
@@ -118,7 +119,7 @@ public struct CallView: View {
                                     Image(systemName: "phone.down.fill")
                                         .font(.title)
                                         .foregroundColor(.white)
-                                )
+                                        )
                         }
                         Text("Kết thúc")
                             .font(.system(size: 13, weight: .bold))
@@ -166,6 +167,7 @@ public struct CallView: View {
                 IncomingCallManager.shared.stopRinging()
                 timerSubscription?.invalidate()
                 timerSubscription = nil
+                callManager.isCallPresented = false
                 IncomingCallManager.shared.isCallPresented = false
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     presentationMode.wrappedValue.dismiss()

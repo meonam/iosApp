@@ -431,6 +431,7 @@ public struct LiveTrackingMapView: View {
 
     @State private var showCancelConfirmDialog: Bool = false
     @State private var showDistanceWarningDialog: Bool = false
+    @State private var showCallView: Bool = false
 
     @StateObject private var locationProvider = DeviceLocationProvider()
 
@@ -748,6 +749,12 @@ public struct LiveTrackingMapView: View {
                 secondaryButton: .cancel(Text("Quay lại"))
             )
         }
+        .fullScreenCover(isPresented: $showCallView) {
+            CallView()
+        }
+        .onReceive(WebRtcCallManager.shared.$isCallPresented) { presented in
+            showCallView = presented
+        }
     }
 
     // MARK: - MAP AUTO POLLING (CẬP NHẬT TỌA ĐỘ VÀ TRẠNG THÁI REALTIME)
@@ -1043,12 +1050,16 @@ public struct LiveTrackingMapView: View {
                 let callTargetEmail = isAssignedTech ? ticket.creatorEmail : (ticket.assignedToEmail.isEmpty ? tracking.technicianEmail : ticket.assignedToEmail)
                 if !callTargetEmail.isEmpty {
                     Button(action: {
+                        WebRtcCallManager.shared.companyId = viewModel.companyId
+                        WebRtcCallManager.shared.idToken = viewModel.idToken
                         WebRtcCallManager.shared.startCall(
                             targetEmail: callTargetEmail,
                             targetName: displayName,
                             callerName: viewModel.user.fullName,
-                            callerEmail: viewModel.user.email
+                            callerEmail: viewModel.user.email,
+                            callerRole: viewModel.user.role
                         )
+                        showCallView = true
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "phone.fill")
@@ -1148,12 +1159,16 @@ public struct LiveTrackingMapView: View {
 
                             if !co.email.isEmpty {
                                 Button(action: {
+                                    WebRtcCallManager.shared.companyId = viewModel.companyId
+                                    WebRtcCallManager.shared.idToken = viewModel.idToken
                                     WebRtcCallManager.shared.startCall(
                                         targetEmail: co.email,
                                         targetName: co.name.isEmpty ? co.email : co.name,
                                         callerName: viewModel.user.fullName,
-                                        callerEmail: viewModel.user.email
+                                        callerEmail: viewModel.user.email,
+                                        callerRole: viewModel.user.role
                                     )
+                                    showCallView = true
                                 }) {
                                     Image(systemName: "phone.fill")
                                         .font(.system(size: 10))
