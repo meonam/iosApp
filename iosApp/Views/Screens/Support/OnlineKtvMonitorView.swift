@@ -79,6 +79,233 @@ public struct KtvOnlineLocation: Identifiable {
     }
 }
 
+// MARK: - KTV MAP ANNOTATION WITH DETAILED CALLOUT
+class KtvMapAnnotation: NSObject, MKAnnotation {
+    let ktv: KtvOnlineLocation
+    var coordinate: CLLocationCoordinate2D {
+        ktv.coordinate
+    }
+    var title: String? {
+        "\(ktv.isSpecialist ? "⭐" : "🛵") \(ktv.name)"
+    }
+    var subtitle: String? {
+        let status = ktv.isOnline ? "🟢 Trực tuyến" : "⚪ Ngoại tuyến"
+        let role = ktv.isSpecialist ? "Chuyên viên" : "KTV"
+        let unit = ktv.donVi.isEmpty ? "IT TẬP TRUNG" : ktv.donVi
+        let phone = ktv.phone.isEmpty ? "" : " • 📞 \(ktv.phone)"
+        return "\(role) • \(unit) • \(status)\(phone)"
+    }
+
+    init(ktv: KtvOnlineLocation) {
+        self.ktv = ktv
+        super.init()
+    }
+
+    func renderMarkerImage(isSelected: Bool) -> UIImage {
+        let size: CGFloat = isSelected ? 42 : 36
+        let pillHeight: CGFloat = 20
+        let totalHeight: CGFloat = size + pillHeight + 4
+        let totalWidth: CGFloat = 110
+
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: totalWidth, height: totalHeight))
+        return renderer.image { ctx in
+            let cgCtx = ctx.cgContext
+            let cx = totalWidth / 2.0
+            let cy = size / 2.0
+
+            let colorHex: String
+            if ktv.isScheduledOff && ktv.isOnline {
+                colorHex = "#F59E0B"
+            } else if ktv.isScheduledOff {
+                colorHex = "#94A3B8"
+            } else if ktv.isOnline {
+                colorHex = "#10B981"
+            } else if !ktv.todayShiftCode.isEmpty {
+                colorHex = "#EF4444"
+            } else {
+                colorHex = "#64748B"
+            }
+            let uiColor = UIColor(hex: colorHex)
+
+            // 1. Drop shadow
+            cgCtx.setFillColor(UIColor.black.withAlphaComponent(0.25).cgColor)
+            cgCtx.fillEllipse(in: CGRect(x: cx - size/2.0 + 2, y: cy - size/2.0 + 3, width: size - 4, height: size - 4))
+
+            // 2. Pulse / outer ring if online
+            if ktv.isOnline {
+                cgCtx.setFillColor(uiColor.withAlphaComponent(0.28).cgColor)
+                cgCtx.fillEllipse(in: CGRect(x: cx - size/2.0, y: cy - size/2.0, width: size, height: size))
+            }
+
+            // 3. Colored badge circle
+            let badgeSize: CGFloat = isSelected ? 30 : 26
+            let badgeRect = CGRect(x: cx - badgeSize/2.0, y: cy - badgeSize/2.0, width: badgeSize, height: badgeSize)
+            cgCtx.setFillColor(uiColor.cgColor)
+            cgCtx.fillEllipse(in: badgeRect)
+
+            // 4. White border
+            cgCtx.setStrokeColor(UIColor.white.cgColor)
+            cgCtx.setLineWidth(2.5)
+            cgCtx.strokeEllipse(in: badgeRect)
+
+            // 5. Draw Icon Emoji (⭐ or 🛵)
+            let emoji = ktv.isSpecialist ? "⭐" : "🛵"
+            let emojiFont = UIFont.systemFont(ofSize: isSelected ? 15 : 13)
+            let emojiAttrs: [NSAttributedString.Key: Any] = [
+                .font: emojiFont
+            ]
+            let emojiSize = emoji.size(withAttributes: emojiAttrs)
+            let emojiRect = CGRect(
+                x: cx - emojiSize.width / 2.0,
+                y: cy - emojiSize.height / 2.0,
+                width: emojiSize.width,
+                height: emojiSize.height
+            )
+            emoji.draw(in: emojiRect, withAttributes: emojiAttrs)
+
+            // 6. Name pill below
+            let rawName = ktv.name
+            let displayName = rawName.count > 12 ? String(rawName.prefix(10)) + "…" : rawName
+            let font = UIFont.systemFont(ofSize: 9.5, weight: isSelected ? .heavy : .bold)
+            let textAttrs: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: UIColor(hex: "#0F172A")
+            ]
+            let textSize = displayName.size(withAttributes: textAttrs)
+            let padX: CGFloat = 8
+            let pillWidth = min(totalWidth - 4, textSize.width + padX * 2)
+            let pillRect = CGRect(x: cx - pillWidth / 2.0, y: size + 2, width: pillWidth, height: pillHeight)
+
+            // Pill shadow & background
+            let path = UIBezierPath(roundedRect: pillRect, cornerRadius: 5)
+            cgCtx.setFillColor(UIColor.white.withAlphaComponent(0.95).cgColor)
+            path.fill()
+
+            // Pill border
+            cgCtx.setStrokeColor(isSelected ? UIColor(hex: "#002A8F").cgColor : uiColor.cgColor)
+            cgCtx.setLineWidth(isSelected ? 1.5 : 0.8)
+            path.stroke()
+
+            // Pill text
+            let textRect = CGRect(
+                x: cx - textSize.width / 2.0,
+                y: pillRect.midY - textSize.height / 2.0,
+                width: textSize.width,
+                height: textSize.height
+            )
+            displayName.draw(in: textRect, withAttributes: textAttrs)
+        }
+    }
+}
+
+// MARK: - GOOGLE MAPS KTV MONITOR VIEW (UIVIEWREPRESENTABLE)
+struct KtvGoogleMapView: UIViewRepresentable {
+    var ktvs: [KtvOnlineLocation]
+    var selectedTech: KtvOnlineLocation?
+    var onSelectTech: (KtvOnlineLocation) -> Void
+    var fitBoundsTrigger: Int
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIView(context: Context) -> MKMapView {
+        let mapView = MKMapView()
+        mapView.delegate = context.coordinator
+        mapView.showsUserLocation = false
+        mapView.mapType = .standard
+
+        let googleTileOverlay = GoogleMapsTileOverlay()
+        mapView.addOverlay(googleTileOverlay, level: .aboveRoads)
+
+        mapView.setRegion(MKCoordinateRegion(
+            center: CLLocationCoordinate2D(latitude: 10.7769, longitude: 106.7009),
+            span: MKCoordinateSpan(latitudeDelta: 0.12, longitudeDelta: 0.12)
+        ), animated: false)
+
+        return mapView
+    }
+
+    func updateUIView(_ uiView: MKMapView, context: Context) {
+        context.coordinator.parent = self
+
+        if !uiView.overlays.contains(where: { $0 is MKTileOverlay }) {
+            let googleTileOverlay = GoogleMapsTileOverlay()
+            uiView.addOverlay(googleTileOverlay, level: .aboveRoads)
+        }
+
+        uiView.removeAnnotations(uiView.annotations)
+        var annotationsToAdd: [KtvMapAnnotation] = []
+        for ktv in ktvs {
+            if ktv.latitude != 0 && ktv.longitude != 0 {
+                annotationsToAdd.append(KtvMapAnnotation(ktv: ktv))
+            }
+        }
+        uiView.addAnnotations(annotationsToAdd)
+
+        if context.coordinator.lastFitBoundsTrigger != fitBoundsTrigger {
+            context.coordinator.lastFitBoundsTrigger = fitBoundsTrigger
+            if !annotationsToAdd.isEmpty {
+                uiView.showAnnotations(annotationsToAdd, animated: true)
+            }
+        }
+
+        if let tech = selectedTech, tech.latitude != 0, tech.longitude != 0 {
+            if context.coordinator.lastSelectedTechId != tech.id {
+                context.coordinator.lastSelectedTechId = tech.id
+                let region = MKCoordinateRegion(
+                    center: tech.coordinate,
+                    span: MKCoordinateSpan(latitudeDelta: 0.025, longitudeDelta: 0.025)
+                )
+                uiView.setRegion(region, animated: true)
+                if let targetAnnotation = annotationsToAdd.first(where: { $0.ktv.id == tech.id }) {
+                    uiView.selectAnnotation(targetAnnotation, animated: true)
+                }
+            }
+        }
+    }
+
+    class Coordinator: NSObject, MKMapViewDelegate {
+        var parent: KtvGoogleMapView
+        var lastFitBoundsTrigger: Int = 0
+        var lastSelectedTechId: String? = nil
+
+        init(_ parent: KtvGoogleMapView) {
+            self.parent = parent
+        }
+
+        func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            if let tileOverlay = overlay as? MKTileOverlay {
+                return MKTileOverlayRenderer(tileOverlay: tileOverlay)
+            }
+            return MKOverlayRenderer(overlay: overlay)
+        }
+
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            guard let ktvAnnotation = annotation as? KtvMapAnnotation else { return nil }
+            let identifier = "KtvGoogleMapPin"
+            var view = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
+            if view == nil {
+                view = MKAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+                view?.canShowCallout = true
+            } else {
+                view?.annotation = annotation
+            }
+
+            let isSelected = ktvAnnotation.ktv.id == parent.selectedTech?.id
+            view?.image = ktvAnnotation.renderMarkerImage(isSelected: isSelected)
+            view?.centerOffset = CGPoint(x: 0, y: -(view?.image?.size.height ?? 36) / 2.0 + 10)
+            return view
+        }
+
+        func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            if let ktvAnnotation = view.annotation as? KtvMapAnnotation {
+                parent.onSelectTech(ktvAnnotation.ktv)
+            }
+        }
+    }
+}
+
 // MARK: - MÀN HÌNH GIÁM SÁT KTV TRỰC TUYẾN (ĐỒNG BỘ 1:1 VỚI ANDROID ONLINEKTVMONITORSCREEN.KT)
 public struct OnlineKtvMonitorView: View {
     @ObservedObject var supportVM: SupportViewModel
@@ -89,6 +316,7 @@ public struct OnlineKtvMonitorView: View {
         span: MKCoordinateSpan(latitudeDelta: 0.08, longitudeDelta: 0.08)
     )
     @State private var hasCenteredMapInitially = false
+    @State private var fitBoundsTrigger: Int = 0
 
     // Real-time polling 30s
     let timer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
@@ -231,46 +459,54 @@ public struct OnlineKtvMonitorView: View {
                     }
                     .background(Color.appTopBarColor)
 
-                    // 2. BẢN ĐỒ ĐỊNH VỊ TỌA ĐỘ KTV / CHUYÊN VIÊN
+                    // 2. BẢN ĐỒ ĐỊNH VỊ TỌA ĐỘ KTV / CHUYÊN VIÊN (GOOGLE MAPS 100%)
                     if isMapVisible && selectedTab == 0 {
-                        ZStack(alignment: .bottomTrailing) {
-                            if ktvsWithLocation.isEmpty {
-                                Map(coordinateRegion: $region)
-                                    .frame(height: 230)
-                                    .overlay(
-                                        VStack(spacing: 6) {
-                                            Image(systemName: "location.slash")
-                                                .font(.system(size: 26))
-                                                .foregroundColor(Color.gray)
-                                            Text("Chưa có tọa độ KTV hiển thị")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(Color.gray)
+                        ZStack(alignment: .topLeading) {
+                            KtvGoogleMapView(
+                                ktvs: ktvsWithLocation,
+                                selectedTech: selectedTechForMap,
+                                onSelectTech: { ktv in
+                                    selectedTechForMap = ktv
+                                    selectedKtv = ktv
+                                },
+                                fitBoundsTrigger: fitBoundsTrigger
+                            )
+                            .frame(height: 230)
+
+                            // Overlay: Tag định vị KTV góc trên bên trái
+                            HStack(spacing: 5) {
+                                Circle()
+                                    .fill(Color(hex: "#10B981"))
+                                    .frame(width: 8, height: 8)
+                                Text("Định vị: \(ktvsWithLocation.count)/\(totalCount) KTV")
+                                    .font(.system(size: 11.5, weight: .bold))
+                                    .foregroundColor(Color(hex: "#002A8F"))
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.white.opacity(0.92))
+                            .cornerRadius(20)
+                            .shadow(color: Color.black.opacity(0.12), radius: 3)
+                            .padding(8)
+
+                            // Nút zoom fit all KTVs góc trên bên phải
+                            VStack {
+                                HStack {
+                                    Spacer()
+                                    if !ktvsWithLocation.isEmpty {
+                                        Button(action: fitAllTechnicians) {
+                                            Image(systemName: "dot.scope")
+                                                .font(.system(size: 16, weight: .bold))
+                                                .foregroundColor(Color(hex: "#002A8F"))
+                                                .padding(8)
+                                                .background(Color.white.opacity(0.92))
+                                                .clipShape(Circle())
+                                                .shadow(color: Color.black.opacity(0.18), radius: 3)
                                         }
-                                        .padding(12)
-                                        .background(Color.white.opacity(0.85))
-                                        .cornerRadius(8)
-                                    )
-                            } else {
-                                Map(coordinateRegion: $region, annotationItems: ktvsWithLocation) { ktv in
-                                    MapAnnotation(coordinate: ktv.coordinate) {
-                                        annotationView(for: ktv)
                                     }
                                 }
-                                .frame(height: 230)
-                            }
-
-                            // Nút zoom fit all KTVs
-                            if !ktvsWithLocation.isEmpty {
-                                Button(action: fitAllTechnicians) {
-                                    Image(systemName: "dot.scope")
-                                        .font(.system(size: 16, weight: .bold))
-                                        .foregroundColor(Color(hex: "#002A8F"))
-                                        .padding(8)
-                                        .background(Color.white)
-                                        .clipShape(Circle())
-                                        .shadow(color: Color.black.opacity(0.2), radius: 3)
-                                }
-                                .padding(10)
+                                .padding(8)
+                                Spacer()
                             }
                         }
                         .transition(.move(edge: .top).combined(with: .opacity))
@@ -425,6 +661,7 @@ public struct OnlineKtvMonitorView: View {
     }
 
     private func fitAllTechnicians() {
+        fitBoundsTrigger += 1
         let valid = ktvsWithLocation
         guard !valid.isEmpty else { return }
 

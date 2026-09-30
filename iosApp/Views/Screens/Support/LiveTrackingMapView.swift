@@ -57,6 +57,22 @@ class DeviceLocationProvider: NSObject, ObservableObject, CLLocationManagerDeleg
     }
 }
 
+// MARK: - GOOGLE MAPS TILE OVERLAY CHO TOÀN BỘ IOS (TIẾNG VIỆT & GOOGLE MAPS 100%)
+public class GoogleMapsTileOverlay: MKTileOverlay {
+    public init() {
+        super.init(urlTemplate: nil)
+        self.canReplaceMapContent = true
+    }
+
+    public override func url(forTilePath path: MKTileOverlayPath) -> URL {
+        let sub = abs(path.x + path.y) % 4
+        let scale = Int(path.contentScaleFactor)
+        let scaleParam = scale > 1 ? "&scale=\(scale)" : ""
+        let urlString = "https://mt\(sub).google.com/vt/lyrs=m&hl=vi&gl=VN&x=\(path.x)&y=\(path.y)&z=\(path.z)\(scaleParam)"
+        return URL(string: urlString) ?? URL(string: "https://mt0.google.com/vt/lyrs=m&hl=vi&gl=VN&x=0&y=0&z=0")!
+    }
+}
+
 // MARK: - NATIVE MAPKIT VIEW WITH ROUTE & CUSTOM PINS (ĐỒNG BỘ 1:1 ANDROID LIVETRACKINGMAP)
 struct LiveTrackingMKMapView: UIViewRepresentable {
     var techCoord: CLLocationCoordinate2D?
@@ -83,6 +99,9 @@ struct LiveTrackingMKMapView: UIViewRepresentable {
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = false
         mapView.mapType = .standard
+
+        let googleTileOverlay = GoogleMapsTileOverlay()
+        mapView.addOverlay(googleTileOverlay, level: .aboveRoads)
         return mapView
     }
 
@@ -146,7 +165,12 @@ struct LiveTrackingMKMapView: UIViewRepresentable {
         uiView.addAnnotations(annotationsToAdd)
 
         // 2. Cập nhật Overlays (Bán kính đến nơi + Tuyến đường thực tế OSRM)
-        uiView.removeOverlays(uiView.overlays)
+        if !uiView.overlays.contains(where: { $0 is MKTileOverlay }) {
+            let googleTileOverlay = GoogleMapsTileOverlay()
+            uiView.addOverlay(googleTileOverlay, level: .aboveRoads)
+        }
+        let nonTileOverlays = uiView.overlays.filter { !($0 is MKTileOverlay) }
+        uiView.removeOverlays(nonTileOverlays)
 
         // Vùng tròn bán kính xác nhận đến nơi
         if let dest = destCoord, dest.latitude != 0, dest.longitude != 0 {
@@ -392,6 +416,9 @@ struct LiveTrackingMKMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
+            if let tileOverlay = overlay as? MKTileOverlay {
+                return MKTileOverlayRenderer(tileOverlay: tileOverlay)
+            }
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
                 if polyline.title == "CoTechRoute" {
