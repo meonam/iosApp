@@ -1072,8 +1072,9 @@ public class SupportViewModel: ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             let f: [String: Any] = ["category": ["stringValue": newCategory]]
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-            let ok = await FirestoreHelper.executeSafeRequest(request)
-            DispatchQueue.main.async { completion?(ok) }
+            let resp = await FirestoreHelper.executeSafeRequest(request)
+            let isSuccess = resp != nil && (resp!.1.statusCode >= 200 && resp!.1.statusCode < 300)
+            DispatchQueue.main.async { completion?(isSuccess) }
         }
     }
 
