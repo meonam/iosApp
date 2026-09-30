@@ -7,19 +7,22 @@ public struct TicketItemView: View {
     let onClick: () -> Void
     let onToggleHide: () -> Void
     let onDelete: (() -> Void)?
+    let onOpenTracking: (() -> Void)?
 
     public init(
         ticket: SupportTicket,
         isHidden: Bool = false,
         onClick: @escaping () -> Void,
         onToggleHide: @escaping () -> Void = {},
-        onDelete: (() -> Void)? = nil
+        onDelete: (() -> Void)? = nil,
+        onOpenTracking: (() -> Void)? = nil
     ) {
         self.ticket = ticket
         self.isHidden = isHidden
         self.onClick = onClick
         self.onToggleHide = onToggleHide
         self.onDelete = onDelete
+        self.onOpenTracking = onOpenTracking
     }
 
     private var isClosed: Bool {
@@ -227,6 +230,72 @@ public struct TicketItemView: View {
                             bgColor: isClosed ? Color(hex: "#F1F5F9") : Color(hex: "#DCFCE7"),
                             textColor: isClosed ? Color(hex: "#64748B") : Color(hex: "#16A34A")
                         )
+
+                        // Tracking badge (Đồng bộ 1:1 Android: KTV đang di chuyển hoặc đã đến nơi)
+                        if let tracking = ticket.tracking, tracking.status == "EN_ROUTE" {
+                            let dist = tracking.distanceKm
+                            let eta = tracking.etaMinutes
+                            let textDisplay: String = {
+                                if dist > 0.05 && eta > 0 {
+                                    return "🛵 Đang đến (\(String(format: "%.1f", dist))km • ~\(eta)p)"
+                                } else if dist > 0.05 {
+                                    return "🛵 Đang đến (\(String(format: "%.1f", dist))km)"
+                                } else if eta > 0 {
+                                    return "🛵 Đang đến (~\(eta)p)"
+                                } else {
+                                    return "🛵 Đang di chuyển"
+                                }
+                            }()
+                            if let openTrack = onOpenTracking {
+                                Button(action: openTrack) {
+                                    HStack(spacing: 3) {
+                                        Text(textDisplay)
+                                            .font(.system(size: 10, weight: .bold))
+                                        Image(systemName: "map.fill")
+                                            .font(.system(size: 8.5))
+                                    }
+                                    .foregroundColor(Color(hex: "#047857"))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2.5)
+                                    .background(Color(hex: "#DCFCE7"))
+                                    .cornerRadius(4)
+                                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(hex: "#10B981"), lineWidth: 0.8))
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            } else {
+                                badgeItem(
+                                    text: textDisplay,
+                                    bgColor: Color(hex: "#DCFCE7"),
+                                    textColor: Color(hex: "#047857"),
+                                    borderColor: Color(hex: "#10B981")
+                                )
+                            }
+                        } else if let tracking = ticket.tracking, tracking.status == "ARRIVED" {
+                            if let openTrack = onOpenTracking {
+                                Button(action: openTrack) {
+                                    HStack(spacing: 3) {
+                                        Text("📍 Đã đến nơi")
+                                            .font(.system(size: 10, weight: .bold))
+                                        Image(systemName: "map.fill")
+                                            .font(.system(size: 8.5))
+                                    }
+                                    .foregroundColor(Color(hex: "#0369A1"))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2.5)
+                                    .background(Color(hex: "#E0F2FE"))
+                                    .cornerRadius(4)
+                                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(hex: "#0284C7"), lineWidth: 0.8))
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            } else {
+                                badgeItem(
+                                    text: "📍 Đã đến nơi",
+                                    bgColor: Color(hex: "#E0F2FE"),
+                                    textColor: Color(hex: "#0369A1"),
+                                    borderColor: Color(hex: "#0284C7")
+                                )
+                            }
+                        }
 
                         Spacer()
                     }

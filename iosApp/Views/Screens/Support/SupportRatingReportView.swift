@@ -60,60 +60,86 @@ public struct SupportRatingReportView: View {
                     }
                     .background(Color.appTopBarColor)
 
-                    // Filters
-                    HStack(spacing: 12) {
-                        HStack {
-                            Image(systemName: "calendar")
-                                .foregroundColor(.appPrimary)
-                            Text(formatMonth(selectedMonth))
-                                .font(.system(size: 14, weight: .semibold))
-                        }
-                        .padding(10)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
-                        .onTapGesture {
-                            // Mock month picker change logic - previous month
-                            if let newDate = Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth) {
-                                selectedMonth = newDate
-                                calculateStats()
+                    if viewModel.user.isStaff {
+                        VStack(spacing: 16) {
+                            Spacer()
+                            Image(systemName: "lock.shield.fill")
+                                .font(.system(size: 54))
+                                .foregroundColor(Color(hex: "#F59E0B"))
+                            Text("Giới hạn quyền truy cập")
+                                .font(.system(size: 17, weight: .bold))
+                                .foregroundColor(Color(hex: "#1E293B"))
+                            Text("Báo cáo SLA & Đánh giá KTV toàn diện chỉ dành cho Ban Quản trị, Helpdesk và Kỹ thuật viên phụ trách.")
+                                .font(.system(size: 13.5))
+                                .foregroundColor(Color(hex: "#64748B"))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 32)
+                            Button(action: onBack) {
+                                Text("Quay lại")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 10)
+                                    .background(Color.appPrimaryPink)
+                                    .cornerRadius(8)
                             }
+                            Spacer()
                         }
-                        
-                        Spacer()
-                        
-                        Menu {
-                            ForEach(ktvList, id: \.self) { ktv in
-                                Button(ktv) {
-                                    selectedKtv = ktv
-                                    calculateStats()
-                                }
-                            }
-                        } label: {
+                    } else {
+                        // Filters
+                        HStack(spacing: 12) {
                             HStack {
-                                Image(systemName: "person.fill")
+                                Image(systemName: "calendar")
                                     .foregroundColor(.appPrimary)
-                                Text(selectedKtv)
+                                Text(formatMonth(selectedMonth))
                                     .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.black)
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.gray)
                             }
                             .padding(10)
                             .background(Color.white)
                             .cornerRadius(8)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
+                            .onTapGesture {
+                                // Mock month picker change logic - previous month
+                                if let newDate = Calendar.current.date(byAdding: .month, value: -1, to: selectedMonth) {
+                                    selectedMonth = newDate
+                                    calculateStats()
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            Menu {
+                                ForEach(ktvList, id: \.self) { ktv in
+                                    Button(ktv) {
+                                        selectedKtv = ktv
+                                        calculateStats()
+                                    }
+                                }
+                            } label: {
+                                HStack {
+                                    Image(systemName: "person.fill")
+                                        .foregroundColor(.appPrimary)
+                                    Text(selectedKtv)
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.black)
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.gray)
+                                }
+                                .padding(10)
+                                .background(Color.white)
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
+                            }
                         }
-                    }
-                    .padding(14)
-                    .background(Color.white)
-                    
-                    if isLoading {
-                        Spacer()
-                        ProgressView("Đang tải dữ liệu...")
-                        Spacer()
-                    } else {
+                        .padding(14)
+                        .background(Color.white)
+                        
+                        if isLoading {
+                            Spacer()
+                            ProgressView("Đang tải dữ liệu...")
+                            Spacer()
+                        } else {
                         ScrollView {
                             VStack(spacing: 14) {
                                 // Tổng quan
@@ -177,12 +203,17 @@ public struct SupportRatingReportView: View {
                             .padding(14)
                         }
                     }
+                    }
                 }
             }
             .ignoresSafeArea(edges: .top)
             .onAppear {
-                Task {
-                    await fetchTickets()
+                if !viewModel.user.isStaff {
+                    Task {
+                        await fetchTickets()
+                    }
+                } else {
+                    isLoading = false
                 }
             }
         }

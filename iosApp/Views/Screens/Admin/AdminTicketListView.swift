@@ -11,6 +11,7 @@ public struct AdminTicketListView: View {
     @State private var searchQuery: String = ""
     @State private var collapsedGroups: Set<String> = []
     @State private var showConfirmCleanClosed: Bool = false
+    @State private var selectedTrackingTicket: SupportTicket? = nil
     @State private var deletedTicketIds: Set<String> = {
         let saved = UserDefaults.standard.stringArray(forKey: "support_deleted_ticket_ids") ?? []
         return Set(saved)
@@ -142,6 +143,21 @@ public struct AdminTicketListView: View {
                     cleanClosedTickets()
                 },
                 secondaryButton: .cancel(Text("Hủy"))
+            )
+        }
+        .sheet(item: $selectedTrackingTicket) { ticket in
+            LiveTrackingMapView(
+                ticket: ticket,
+                viewModel: viewModel,
+                onDismiss: { selectedTrackingTicket = nil },
+                onSelfResolved: {
+                    selectedTrackingTicket = nil
+                    viewModel.fetchTickets()
+                },
+                onTechResolve: {
+                    selectedTrackingTicket = nil
+                    viewModel.fetchTickets()
+                }
             )
         }
     }
@@ -300,7 +316,10 @@ public struct AdminTicketListView: View {
                                     },
                                     onToggleHide: {
                                         toggleHideTicket(ticket.id)
-                                    }
+                                    },
+                                    onOpenTracking: (ticket.tracking?.status == "EN_ROUTE" || ticket.tracking?.status == "ARRIVED") ? {
+                                        selectedTrackingTicket = ticket
+                                    } : nil
                                 )
                             }
                         }

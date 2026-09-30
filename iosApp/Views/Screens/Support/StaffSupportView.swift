@@ -14,6 +14,7 @@ public struct StaffSupportView: View {
     @State private var showingCreateSheet: Bool = false
     @State private var showConfirmCleanClosed: Bool = false
     @State private var selectedTicketForChat: SupportTicket? = nil
+    @State private var selectedTrackingTicket: SupportTicket? = nil
     @State private var deletedTicketIds: Set<String> = {
         let saved = UserDefaults.standard.stringArray(forKey: "support_staff_deleted_ids") ?? []
         return Set(saved)
@@ -202,6 +203,21 @@ public struct StaffSupportView: View {
                 onBack: { selectedTicketForChat = nil }
             )
         }
+        .sheet(item: $selectedTrackingTicket) { ticket in
+            LiveTrackingMapView(
+                ticket: ticket,
+                viewModel: supportVM,
+                onDismiss: { selectedTrackingTicket = nil },
+                onSelfResolved: {
+                    selectedTrackingTicket = nil
+                    supportVM.fetchTickets()
+                },
+                onTechResolve: {
+                    selectedTrackingTicket = nil
+                    supportVM.fetchTickets()
+                }
+            )
+        }
         .alert(isPresented: $showConfirmCleanClosed) {
             Alert(
                 title: Text("Dọn dẹp các yêu cầu đã đóng?"),
@@ -234,6 +250,18 @@ public struct StaffSupportView: View {
                     .lineLimit(1)
 
                 Spacer()
+
+                // Nút Giám sát lộ trình KTV đang di chuyển (Đồng bộ 1:1 Android StaffSupportScreen)
+                let movingTicket = myScopedTickets.first(where: { $0.tracking?.status == "EN_ROUTE" })
+                if let moving = movingTicket {
+                    Button(action: { selectedTrackingTicket = moving }) {
+                        Image(systemName: "bicycle")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(Color(hex: "#10B981"))
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
+                    }
+                }
 
                 // Nút Dọn dẹp ticket đã đóng
                 if !closedTicketsToClean.isEmpty {
@@ -409,7 +437,10 @@ public struct StaffSupportView: View {
                                     },
                                     onToggleHide: {
                                         toggleHideTicket(ticket.id)
-                                    }
+                                    },
+                                    onOpenTracking: (ticket.tracking?.status == "EN_ROUTE" || ticket.tracking?.status == "ARRIVED") ? {
+                                        selectedTrackingTicket = ticket
+                                    } : nil
                                 )
                             }
                         }

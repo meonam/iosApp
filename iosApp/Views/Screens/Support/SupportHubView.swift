@@ -1,5 +1,20 @@
 import SwiftUI
 
+// MARK: - ENUM SHEET QUẢN LÝ TẬP TRUNG (TRÁNH XUNG ĐỘT SHEET TRÊN IOS)
+enum SupportHubActiveSheet: Identifiable {
+    case createTicket
+    case ktvMonitor
+    case liveTracking(SupportTicket)
+
+    var id: String {
+        switch self {
+        case .createTicket: return "createTicket"
+        case .ktvMonitor: return "ktvMonitor"
+        case .liveTracking(let t): return "liveTracking_\(t.id)"
+        }
+    }
+}
+
 // MARK: - MÀN HÌNH DANH SÁCH PHIẾU HỖ TRỢ TRỰC TUYẾN & XỬ LÝ SỰ CỐ (ĐỒNG BỘ 1:1 VỚI DESKTOP SUPPORT TICKET LIST)
 public struct SupportHubView: View {
     @ObservedObject var viewModel: SupportViewModel
@@ -9,10 +24,9 @@ public struct SupportHubView: View {
     var onOpenRatingReport: () -> Void
 
     // Dialog & Sheet States
-    @State private var showingCreateTicketSheet: Bool = false
+    @State private var activeSheet: SupportHubActiveSheet? = nil
     @State private var showConfirmCleanClosed: Bool = false
     @State private var showGuideAlert: Bool = false
-    @State private var showKtvMonitorSheet: Bool = false
     @State private var manuallyExpandedGroups: Set<String> = []
     @State private var manuallyCollapsedGroups: Set<String> = []
     @State private var ticketToDelete: SupportTicket? = nil
@@ -119,24 +133,40 @@ public struct SupportHubView: View {
         .refreshable {
             viewModel.fetchTickets()
         }
-        // Sheet mở Online KTV Monitor
-        .sheet(isPresented: $showKtvMonitorSheet) {
-            OnlineKtvMonitorView(supportVM: viewModel, onBack: {
-                showKtvMonitorSheet = false
-            })
-        }
-        // Sheet Tạo yêu cầu hỗ trợ mới (Dành cho mọi role)
-        .sheet(isPresented: $showingCreateTicketSheet) {
-            if let authVM = authViewModel {
-                CreateTicketSheetView(
-                    supportVM: viewModel,
-                    authViewModel: authVM,
-                    onSuccess: {
-                        showingCreateTicketSheet = false
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .createTicket:
+                if let authVM = authViewModel {
+                    CreateTicketSheetView(
+                        supportVM: viewModel,
+                        authViewModel: authVM,
+                        onSuccess: {
+                            activeSheet = nil
+                            viewModel.fetchTickets()
+                        },
+                        onCancel: {
+                            activeSheet = nil
+                        }
+                    )
+                }
+            case .ktvMonitor:
+                OnlineKtvMonitorView(supportVM: viewModel, onBack: {
+                    activeSheet = nil
+                })
+            case .liveTracking(let t):
+                LiveTrackingMapView(
+                    ticket: t,
+                    viewModel: viewModel,
+                    onDismiss: {
+                        activeSheet = nil
+                    },
+                    onSelfResolved: {
+                        activeSheet = nil
                         viewModel.fetchTickets()
                     },
-                    onCancel: {
-                        showingCreateTicketSheet = false
+                    onTechResolve: {
+                        activeSheet = nil
+                        viewModel.fetchTickets()
                     }
                 )
             }
@@ -465,7 +495,7 @@ public struct SupportHubView: View {
 
                 // Nút Tạo yêu cầu hỗ trợ mới (Đồng nhất cho mọi người dùng)
                 if authViewModel != nil {
-                    Button(action: { showingCreateTicketSheet = true }) {
+                    Button(action: { activeSheet = .createTicket }) {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 19, weight: .bold))
                             .foregroundColor(.white)
@@ -483,22 +513,38 @@ public struct SupportHubView: View {
                         .contentShape(Rectangle())
                 }
 
-                // Nút 2: Giám sát lộ trình KTV
-                Button(action: { showKtvMonitorSheet = true }) {
-                    Image(systemName: "figure.walk.motion")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(viewModel.rawTickets.contains { $0.isOpen } ? Color(hex: "#10B981") : .white)
-                        .frame(width: 40, height: 40)
-                        .contentShape(Rectangle())
+                // Nút 2: Giám sát lộ trình KTV (Đồng bộ 1:1 Android StaffSupportScreen / AdminTicketListScreen)
+                let movingTicket = viewModel.scopedTickets.first(where: { $0.tracking?.status == "EN_ROUTE" })
+                let isManagerOrAdmin = viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk || viewModel.user.isManager
+                if let moving = movingTicket {
+                    Button(action: { activeSheet = .liveTracking(moving) }) {
+                        Image(systemName: "bicycle")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(Color(hex: "#10B981"))
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
+                    }
+                } else if isManagerOrAdmin {
+                    Button(action: { activeSheet = .ktvMonitor }) {
+                        Image(systemName: "map.fill")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
+                    }
                 }
 
-                // Nút 3: Báo cáo SLA / Đánh giá
-                Button(action: onOpenRatingReport) {
-                    Image(systemName: "chart.bar.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(.white)
-                        .frame(width: 40, height: 40)
-                        .contentShape(Rectangle())
+                // Nút 3: Báo cáo SLA / Đánh giá (Chỉ dành cho Admin, HelpDesk, Quản lý, KTV / Chuyên viên)
+                // Người gửi yêu cầu (isStaff) KHÔNG được xem
+                let canViewRatingReport = viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk || viewModel.user.isManager || viewModel.user.isTechnician || viewModel.user.isSpecialist
+                if canViewRatingReport {
+                    Button(action: onOpenRatingReport) {
+                        Image(systemName: "chart.bar.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.white)
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
+                    }
                 }
 
                 // Nút 4: Làm mới
@@ -569,6 +615,9 @@ public struct SupportHubView: View {
                                         onDelete: (viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isManager) ? {
                                             ticketToDelete = ticket
                                             showDeleteSingleConfirm = true
+                                        } : nil,
+                                        onOpenTracking: (ticket.tracking?.status == "EN_ROUTE" || ticket.tracking?.status == "ARRIVED") ? {
+                                            activeSheet = .liveTracking(ticket)
                                         } : nil
                                     )
                                 }
