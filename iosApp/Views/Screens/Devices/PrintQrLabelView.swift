@@ -200,7 +200,7 @@ public struct PrintQrLabelView: View {
 
     // MARK: - FILTERED LIST OF DEVICES
     private var baseDevices: [ThietBi] {
-        viewModel.filteredDevices.isEmpty ? viewModel.devices : viewModel.filteredDevices
+        viewModel.filteredDevices.isEmpty ? viewModel.rawDevices : viewModel.filteredDevices
     }
 
     private var availableDonVis: [String] {
@@ -564,7 +564,7 @@ public struct PrintQrLabelView: View {
                         let isSel = labelLayoutMode == mode
                         Button(action: { labelLayoutMode = mode }) {
                             Text(mode.rawValue)
-                                .font(.system(size: 10, weight: isSel ? .bold : .normal))
+                                .font(.system(size: 10, weight: isSel ? .bold : .regular))
                                 .foregroundColor(isSel ? Color.appPrimaryPink : Color.appTextPrimary)
                                 .lineLimit(1)
                                 .frame(maxWidth: .infinity)
@@ -664,7 +664,7 @@ public struct PrintQrLabelView: View {
                         let isCur = abs(labelFontSizeScale - val) < 0.01
                         Button(action: { labelFontSizeScale = val }) {
                             Text("\(lbl) \(sub)")
-                                .font(.system(size: 11, weight: isCur ? .bold : .normal))
+                                .font(.system(size: 11, weight: isCur ? .bold : .regular))
                                 .foregroundColor(isCur ? .white : Color.appTextPrimary)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 8)
@@ -761,8 +761,8 @@ public struct PrintQrLabelView: View {
             id: "TB-2026-001",
             ten: "Máy tính xách tay Dell Latitude 5420",
             tenDonVi: "Tổng công ty Điện lực",
-            phongBan: "Phòng Kỹ thuật CNTT",
-            trangThai: "HOAT_DONG"
+            trangThai: "HOAT_DONG",
+            phongBan: "Phòng Kỹ thuật CNTT"
         )
 
         return VStack(spacing: 4) {
@@ -1100,7 +1100,7 @@ public struct PrintQrLabelView: View {
                                 Image(systemName: isSel ? "largecircle.fill.circle" : "circle")
                                     .foregroundColor(isSel ? Color.appPrimaryPink : .gray)
                                 Text(fmt)
-                                    .font(.system(size: 13, weight: isSel ? .bold : .normal))
+                                    .font(.system(size: 13, weight: isSel ? .bold : .regular))
                                     .foregroundColor(Color.appTextPrimary)
                                 Spacer()
                             }
@@ -1122,7 +1122,7 @@ public struct PrintQrLabelView: View {
                                 Image(systemName: isSel ? "largecircle.fill.circle" : "circle")
                                     .foregroundColor(isSel ? Color.appPrimaryPink : .gray)
                                 Text(opt)
-                                    .font(.system(size: 13, weight: isSel ? .bold : .normal))
+                                    .font(.system(size: 13, weight: isSel ? .bold : .regular))
                                     .foregroundColor(Color.appTextPrimary)
                                 Spacer()
                             }
@@ -1189,7 +1189,7 @@ public struct PrintQrLabelView: View {
                                 Image(systemName: isSel ? "largecircle.fill.circle" : "circle")
                                     .foregroundColor(isSel ? Color.appPrimaryPink : .gray)
                                 Text(method)
-                                    .font(.system(size: 13, weight: isSel ? .bold : .normal))
+                                    .font(.system(size: 13, weight: isSel ? .bold : .regular))
                                     .foregroundColor(Color.appTextPrimary)
                                 Spacer()
                             }
