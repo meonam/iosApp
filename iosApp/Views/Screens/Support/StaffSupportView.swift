@@ -219,11 +219,13 @@ public struct StaffSupportView: View {
         VStack(spacing: 0) {
             Color.clear.frame(height: safeAreaTop)
 
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 17, weight: .bold))
                         .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
                 }
 
                 Text("Hỗ trợ Kỹ thuật (\(visibleTickets.count))")
@@ -239,6 +241,8 @@ public struct StaffSupportView: View {
                         Image(systemName: "trash.circle.fill")
                             .font(.system(size: 19))
                             .foregroundColor(.white)
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
                     }
                 }
 
@@ -257,8 +261,8 @@ public struct StaffSupportView: View {
                     .cornerRadius(8)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
         }
         .background(Color.appTopBarColor)
     }

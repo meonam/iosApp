@@ -105,12 +105,14 @@ public extension Color {
 // MARK: - SAFE AREA HELPER (ĐẢM BẢO TOPBAR TRÊN MỌI THIẾT BỊ KHÔNG BỊ TRÙNG CỘT SÓNG / TAI THỎ / DYNAMIC ISLAND)
 public struct SafeAreaHelper {
     public static var topInset: CGFloat {
-        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
-           let window = windowScene.windows.first(where: { $0.isKeyWindow }) {
-            let top = window.safeAreaInsets.top
-            if top > 0 { return top }
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        for scene in scenes {
+            if let window = scene.windows.first(where: { $0.isKeyWindow }) ?? scene.windows.first {
+                let top = window.safeAreaInsets.top
+                if top > 0 { return top }
+            }
         }
-        if let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) {
+        if let window = UIApplication.shared.windows.first {
             let top = window.safeAreaInsets.top
             if top > 0 { return top }
         }
@@ -123,12 +125,14 @@ public struct SafeAreaHelper {
     }
 
     public static var bottomInset: CGFloat {
-        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
-           let window = windowScene.windows.first(where: { $0.isKeyWindow }) {
-            let bottom = window.safeAreaInsets.bottom
-            if bottom > 0 { return bottom }
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        for scene in scenes {
+            if let window = scene.windows.first(where: { $0.isKeyWindow }) ?? scene.windows.first {
+                let bottom = window.safeAreaInsets.bottom
+                if bottom > 0 { return bottom }
+            }
         }
-        if let window = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) {
+        if let window = UIApplication.shared.windows.first {
             let bottom = window.safeAreaInsets.bottom
             if bottom > 0 { return bottom }
         }

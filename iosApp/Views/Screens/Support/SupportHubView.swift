@@ -448,11 +448,13 @@ public struct SupportHubView: View {
         VStack(spacing: 0) {
             Color.clear.frame(height: safeAreaTop)
 
-            HStack(spacing: 10) {
+            HStack(spacing: 4) {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 17, weight: .bold))
                         .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
                 }
 
                 Text("Hỗ trợ trực tuyến")
@@ -467,6 +469,8 @@ public struct SupportHubView: View {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 19, weight: .bold))
                             .foregroundColor(.white)
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
                     }
                 }
 
@@ -475,6 +479,8 @@ public struct SupportHubView: View {
                     Image(systemName: "lightbulb.fill")
                         .font(.system(size: 16))
                         .foregroundColor(Color(hex: "#FBBF24"))
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
                 }
 
                 // Nút 2: Giám sát lộ trình KTV
@@ -482,6 +488,8 @@ public struct SupportHubView: View {
                     Image(systemName: "figure.walk.motion")
                         .font(.system(size: 16, weight: .bold))
                         .foregroundColor(viewModel.rawTickets.contains { $0.isOpen } ? Color(hex: "#10B981") : .white)
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
                 }
 
                 // Nút 3: Báo cáo SLA / Đánh giá
@@ -489,6 +497,8 @@ public struct SupportHubView: View {
                     Image(systemName: "chart.bar.fill")
                         .font(.system(size: 16))
                         .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
                 }
 
                 // Nút 4: Làm mới
@@ -496,10 +506,12 @@ public struct SupportHubView: View {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 15, weight: .bold))
                         .foregroundColor(.white)
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
         }
         .background(Color.appTopBarColor)
     }

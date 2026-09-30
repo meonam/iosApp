@@ -62,11 +62,13 @@ public struct DeviceListView: View {
                     VStack(spacing: 0) {
                         Color.clear.frame(height: SafeAreaHelper.top(geometry))
 
-                        HStack(spacing: 12) {
+                        HStack(spacing: 4) {
                             Button(action: onBack) {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 18, weight: .bold))
                                     .foregroundColor(.white)
+                                    .frame(width: 40, height: 40)
+                                    .contentShape(Rectangle())
                             }
 
                             Text("Danh sách thiết bị")
@@ -100,6 +102,8 @@ public struct DeviceListView: View {
                                             .offset(x: 8, y: -8)
                                     }
                                 }
+                                .frame(width: 40, height: 40)
+                                .contentShape(Rectangle())
                             }
 
                             // Action 2: In tem QR
@@ -107,6 +111,8 @@ public struct DeviceListView: View {
                                 Image(systemName: "printer.fill")
                                     .font(.system(size: 17))
                                     .foregroundColor(.white)
+                                    .frame(width: 40, height: 40)
+                                    .contentShape(Rectangle())
                             }
 
                             // Action 3: Thêm mới
@@ -114,6 +120,8 @@ public struct DeviceListView: View {
                                 Image(systemName: "plus")
                                     .font(.system(size: 18, weight: .bold))
                                     .foregroundColor(.white)
+                                    .frame(width: 40, height: 40)
+                                    .contentShape(Rectangle())
                             }
 
                             // Action 4: Hướng dẫn
@@ -121,10 +129,12 @@ public struct DeviceListView: View {
                                 Image(systemName: "lightbulb.fill")
                                     .font(.system(size: 17))
                                     .foregroundColor(Color(hex: "#FBBF24"))
+                                    .frame(width: 40, height: 40)
+                                    .contentShape(Rectangle())
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
 
                         // Company Banner Ticker directly under TopBar
                         CompanyBannerTickerView()

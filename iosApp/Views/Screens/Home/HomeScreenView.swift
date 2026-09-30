@@ -9,34 +9,53 @@ public struct HomeScreenView: View {
     var onLogout: () -> Void
 
     // Dialog & Modal States
-    @State private var showEditNameDialog: Bool = false
     @State private var editNameInput: String = ""
     @State private var isSavingName: Bool = false
     @State private var nameError: String? = nil
 
-    @State private var showEditPhoneDialog: Bool = false
     @State private var editPhoneInput: String = ""
     @State private var isSavingPhone: Bool = false
     @State private var phoneError: String? = nil
 
-    @State private var showGuideDialog: Bool = false
-    @State private var showNotificationsSheet: Bool = false
     @State private var showAboutDialog: Bool = false
     @State private var showLogoutConfirmDialog: Bool = false
     @State private var accessRestrictedMessage: String? = nil
 
     // Image Picker for Avatar
-    @State private var showImagePicker: Bool = false
     @State private var selectedAvatarImage: UIImage? = nil
 
-    // Quick Action Sheets
-    @State private var showQRScannerSheet: Bool = false
-    @State private var showDetailSheet: Bool = false
-    @State private var selectedDetailDeviceId: String = ""
-    @State private var showAddDeviceSheet: Bool = false
-    @State private var addInitialDeviceId: String = ""
-    @State private var showPrintQrSheet: Bool = false
-    @State private var showStatisticsSheet: Bool = false
+    // Single Active Sheet Manager (giải quyết triệt để lỗi nuốt sheet trong SwiftUI)
+    enum HomeActiveSheet: Identifiable {
+        case imagePicker
+        case editName
+        case editPhone
+        case guide
+        case notifications
+        case changePassword
+        case qrScanner
+        case detail(deviceId: String)
+        case addDevice(initialId: String)
+        case printQr
+        case statistics
+
+        var id: String {
+            switch self {
+            case .imagePicker: return "imagePicker"
+            case .editName: return "editName"
+            case .editPhone: return "editPhone"
+            case .guide: return "guide"
+            case .notifications: return "notifications"
+            case .changePassword: return "changePassword"
+            case .qrScanner: return "qrScanner"
+            case .detail(let id): return "detail_\(id)"
+            case .addDevice(let id): return "addDevice_\(id)"
+            case .printQr: return "printQr"
+            case .statistics: return "statistics"
+            }
+        }
+    }
+
+    @State private var activeSheet: HomeActiveSheet? = nil
 
     public init(
         viewModel: HomeViewModel,
@@ -60,12 +79,14 @@ public struct HomeScreenView: View {
                     VStack(spacing: 0) {
                         Color.clear.frame(height: SafeAreaHelper.top(geometry))
 
-                        HStack(spacing: 12) {
+                        HStack(spacing: 4) {
                             // Nút Hamburger mở Drawer
                             Button(action: onOpenDrawer) {
                                 Image(systemName: "line.3.horizontal")
                                     .font(.system(size: 20, weight: .bold))
                                     .foregroundColor(.white)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
                             }
 
                             // Logo & Tiêu đề "Trang chủ"
@@ -85,14 +106,16 @@ public struct HomeScreenView: View {
                             Spacer()
 
                             // Nút 1: Bóng đèn Hướng dẫn (Màu vàng #FBBF24, 20dp)
-                            Button(action: { showGuideDialog = true }) {
+                            Button(action: { activeSheet = .guide }) {
                                 Image(systemName: "lightbulb.fill")
                                     .font(.system(size: 20))
                                     .foregroundColor(Color(hex: "#FBBF24"))
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
                             }
 
                             // Nút 2: Chuông thông báo (Kèm Badge số lượng màu hồng #F40266)
-                            Button(action: { showNotificationsSheet = true }) {
+                            Button(action: { activeSheet = .notifications }) {
                                 ZStack(alignment: .topTrailing) {
                                     Image(systemName: "bell.fill")
                                         .font(.system(size: 20))
@@ -109,6 +132,8 @@ public struct HomeScreenView: View {
                                             .offset(x: 8, y: -6)
                                     }
                                 }
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                             }
 
                             // Nút 3: Menu mở rộng 3 chấm (Overflow Menu)
@@ -119,7 +144,7 @@ public struct HomeScreenView: View {
                                     }
                                 }
 
-                                Button(action: { viewModel.showChangePasswordModal = true }) {
+                                Button(action: { activeSheet = .changePassword }) {
                                     Label("Đổi mật khẩu tài khoản", systemImage: "lock.fill")
                                 }
 
@@ -141,10 +166,12 @@ public struct HomeScreenView: View {
                                     .rotationEffect(.degrees(90))
                                     .font(.system(size: 20, weight: .bold))
                                     .foregroundColor(.white)
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
 
                         // Dòng chữ chạy thông báo doanh nghiệp gắn liền ngay dưới TopBar (chỉ hiển thị khi Admin bật)
                         if viewModel.isCompanyBannerActive && !viewModel.companyBannerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -183,26 +210,9 @@ public struct HomeScreenView: View {
                         .zIndex(50)
                 }
             }
-            .ignoresSafeArea(edges: .top)
         }
         .onAppear {
             viewModel.loadDashboardData()
-        }
-        // Chọn ảnh đại diện từ Photo Library
-        .sheet(isPresented: $showImagePicker) {
-            ImagePickerView(selectedImage: $selectedAvatarImage) { image in
-                Task {
-                    try? await viewModel.uploadAvatarImage(image)
-                }
-            }
-        }
-        // Sheet Đổi tên hiển thị
-        .sheet(isPresented: $showEditNameDialog) {
-            editNameSheetView
-        }
-        // Sheet Đổi số điện thoại
-        .sheet(isPresented: $showEditPhoneDialog) {
-            editPhoneSheetView
         }
         // Sheet Thông tin ứng dụng
         .alert("Thông tin ứng dụng", isPresented: $showAboutDialog) {
@@ -219,105 +229,100 @@ public struct HomeScreenView: View {
         } message: {
             Text("Bạn có chắc chắn muốn đăng xuất khỏi tài khoản này?")
         }
-        // Sheet Hướng dẫn
-        .sheet(isPresented: $showGuideDialog) {
-            guideModalView
-        }
-        // Sheet Thông báo hệ thống
-        .sheet(isPresented: $showNotificationsSheet) {
-            SystemNotificationsView(
-                companyId: viewModel.companyId,
-                idToken: viewModel.idToken,
-                userEmail: viewModel.user.email,
-                onBack: { showNotificationsSheet = false }
-            )
-        }
-        // Modal Đổi mật khẩu tài khoản
-        .sheet(isPresented: $viewModel.showChangePasswordModal) {
-            ChangePasswordModalView(
-                viewModel: viewModel,
-                onDismiss: { viewModel.showChangePasswordModal = false }
-            )
-        }
-        // Sheet Quét QR (Tự động tra cứu thiết bị và điều hướng 1:1 Android)
-        .sheet(isPresented: $showQRScannerSheet) {
-            QRScannerView(
-                viewModel: DeviceViewModel(
-                    user: viewModel.user,
-                    companyId: viewModel.companyId,
-                    idToken: viewModel.idToken
-                ),
-                onScanResult: { _ in },
-                onDismiss: { showQRScannerSheet = false },
-                onNavigateToDetail: { devId in
-                    showQRScannerSheet = false
-                    selectedDetailDeviceId = devId
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        showDetailSheet = true
-                    }
-                },
-                onNavigateToAdd: { newCode in
-                    showQRScannerSheet = false
-                    addInitialDeviceId = newCode
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        showAddDeviceSheet = true
+        // SINGLE SHEET PRESENTER - Đảm bảo 100% modal/sheet hoạt động mượt mà không bị nuốt
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .imagePicker:
+                ImagePickerView(selectedImage: $selectedAvatarImage) { image in
+                    Task {
+                        try? await viewModel.uploadAvatarImage(image)
                     }
                 }
-            )
-        }
-        // Sheet Chi tiết thiết bị (khi quét QR tìm thấy mã thiết bị)
-        .sheet(isPresented: $showDetailSheet) {
-            DeviceDetailView(
-                viewModel: DeviceViewModel(
-                    user: viewModel.user,
+            case .editName:
+                editNameSheetView
+            case .editPhone:
+                editPhoneSheetView
+            case .guide:
+                guideModalView
+            case .notifications:
+                SystemNotificationsView(
                     companyId: viewModel.companyId,
-                    idToken: viewModel.idToken
-                ),
-                deviceId: selectedDetailDeviceId,
-                onBack: { showDetailSheet = false }
-            )
-        }
-        // Sheet Thêm thiết bị (khi bấm Thêm TB hoặc Quét QR không tìm thấy)
-        .sheet(isPresented: $showAddDeviceSheet) {
-            AddDeviceView(
-                viewModel: DeviceViewModel(
-                    user: viewModel.user,
-                    companyId: viewModel.companyId,
-                    idToken: viewModel.idToken
-                ),
-                initialDeviceId: addInitialDeviceId,
-                onBack: {
-                    showAddDeviceSheet = false
-                    addInitialDeviceId = ""
-                },
-                onSuccess: { _ in
-                    showAddDeviceSheet = false
-                    addInitialDeviceId = ""
-                    viewModel.loadDashboardData()
-                }
-            )
-        }
-        // Sheet In tem QR
-        .sheet(isPresented: $showPrintQrSheet) {
-            PrintQrLabelView(
-                viewModel: DeviceViewModel(
-                    user: viewModel.user,
-                    companyId: viewModel.companyId,
-                    idToken: viewModel.idToken
-                ),
-                onBack: { showPrintQrSheet = false }
-            )
-        }
-        // Sheet Thống kê
-        .sheet(isPresented: $showStatisticsSheet) {
-            AssetStatisticsView(
-                viewModel: viewModel,
-                onBack: { showStatisticsSheet = false },
-                onNavigateToPrint: {
-                    showStatisticsSheet = false
-                    showPrintQrSheet = true
-                }
-            )
+                    idToken: viewModel.idToken,
+                    userEmail: viewModel.user.email,
+                    onBack: { activeSheet = nil }
+                )
+            case .changePassword:
+                ChangePasswordModalView(
+                    viewModel: viewModel,
+                    onDismiss: { activeSheet = nil }
+                )
+            case .qrScanner:
+                QRScannerView(
+                    viewModel: DeviceViewModel(
+                        user: viewModel.user,
+                        companyId: viewModel.companyId,
+                        idToken: viewModel.idToken
+                    ),
+                    onScanResult: { _ in },
+                    onDismiss: { activeSheet = nil },
+                    onNavigateToDetail: { devId in
+                        activeSheet = nil
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            activeSheet = .detail(deviceId: devId)
+                        }
+                    },
+                    onNavigateToAdd: { newCode in
+                        activeSheet = nil
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            activeSheet = .addDevice(initialId: newCode)
+                        }
+                    }
+                )
+            case .detail(let devId):
+                DeviceDetailView(
+                    viewModel: DeviceViewModel(
+                        user: viewModel.user,
+                        companyId: viewModel.companyId,
+                        idToken: viewModel.idToken
+                    ),
+                    deviceId: devId,
+                    onBack: { activeSheet = nil }
+                )
+            case .addDevice(let initId):
+                AddDeviceView(
+                    viewModel: DeviceViewModel(
+                        user: viewModel.user,
+                        companyId: viewModel.companyId,
+                        idToken: viewModel.idToken
+                    ),
+                    initialDeviceId: initId,
+                    onBack: { activeSheet = nil },
+                    onSuccess: { _ in
+                        activeSheet = nil
+                        viewModel.loadDashboardData()
+                    }
+                )
+            case .printQr:
+                PrintQrLabelView(
+                    viewModel: DeviceViewModel(
+                        user: viewModel.user,
+                        companyId: viewModel.companyId,
+                        idToken: viewModel.idToken
+                    ),
+                    onBack: { activeSheet = nil }
+                )
+            case .statistics:
+                AssetStatisticsView(
+                    viewModel: viewModel,
+                    onBack: { activeSheet = nil },
+                    onNavigateToPrint: {
+                        activeSheet = nil
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            activeSheet = .printQr
+                        }
+                    }
+                )
+            }
         }
     }
 
@@ -325,7 +330,7 @@ public struct HomeScreenView: View {
     private var userProfileCard: some View {
         HStack(alignment: .center, spacing: 14) {
             // Avatar tròn 68dp với viền hồng, camera badge và hiển thị ảnh Cloudinary
-            Button(action: { showImagePicker = true }) {
+            Button(action: { activeSheet = .imagePicker }) {
                 ZStack(alignment: .bottomTrailing) {
                     ZStack {
                         Circle()
@@ -392,11 +397,13 @@ public struct HomeScreenView: View {
                     Button(action: {
                         editNameInput = displayName
                         nameError = nil
-                        showEditNameDialog = true
+                        activeSheet = .editName
                     }) {
                         Image(systemName: "pencil")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(Color.appPrimaryPink)
+                            .frame(width: 28, height: 28)
+                            .contentShape(Rectangle())
                     }
 
                     // Badge Role Pill chuẩn Android với 6 phân quyền
@@ -423,18 +430,20 @@ public struct HomeScreenView: View {
                         Button(action: {
                             editPhoneInput = viewModel.user.phone
                             phoneError = nil
-                            showEditPhoneDialog = true
+                            activeSheet = .editPhone
                         }) {
                             Image(systemName: "pencil")
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundColor(Color.appPrimaryPink)
+                                .frame(width: 28, height: 28)
+                                .contentShape(Rectangle())
                         }
                     }
 
                     Spacer()
 
                     // Nút Đổi mật khẩu Pill
-                    Button(action: { viewModel.showChangePasswordModal = true }) {
+                    Button(action: { activeSheet = .changePassword }) {
                         HStack(spacing: 3) {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 10))
@@ -634,7 +643,7 @@ public struct HomeScreenView: View {
                     iconColor: Color(hex: "#E11D48"),
                     bgColor: Color(hex: "#FFE4E6")
                 ) {
-                    showQRScannerSheet = true
+                    activeSheet = .qrScanner
                 }
 
                 quickAccessCard(
@@ -643,7 +652,7 @@ public struct HomeScreenView: View {
                     iconColor: Color(hex: "#2563EB"),
                     bgColor: Color(hex: "#DBEAFE")
                 ) {
-                    showAddDeviceSheet = true
+                    activeSheet = .addDevice(initialId: "")
                 }
 
                 quickAccessCard(
@@ -702,7 +711,7 @@ public struct HomeScreenView: View {
                     iconColor: Color(hex: "#D97706"),
                     bgColor: Color(hex: "#FEF3C7")
                 ) {
-                    showStatisticsSheet = true
+                    activeSheet = .statistics
                 }
 
                 // Thẻ thứ 4: Nếu có nhân viên chờ duyệt -> Hiện Duyệt NV; ngược lại hiện In tem QR
@@ -724,7 +733,7 @@ public struct HomeScreenView: View {
                         iconColor: Color(hex: "#4F46E5"),
                         bgColor: Color(hex: "#E0E7FF")
                     ) {
-                        showPrintQrSheet = true
+                        activeSheet = .printQr
                     }
                 }
             }
@@ -848,7 +857,7 @@ public struct HomeScreenView: View {
                         do {
                             try await viewModel.updateUserName(newName: clean)
                             isSavingName = false
-                            showEditNameDialog = false
+                            activeSheet = nil
                         } catch {
                             isSavingName = false
                             nameError = error.localizedDescription
@@ -876,7 +885,7 @@ public struct HomeScreenView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Hủy") { showEditNameDialog = false }
+                    Button("Hủy") { activeSheet = nil }
                 }
             }
         }
@@ -918,7 +927,7 @@ public struct HomeScreenView: View {
                         do {
                             try await viewModel.updateUserPhone(newPhone: editPhoneInput)
                             isSavingPhone = false
-                            showEditPhoneDialog = false
+                            activeSheet = nil
                         } catch {
                             isSavingPhone = false
                             phoneError = error.localizedDescription
@@ -946,7 +955,7 @@ public struct HomeScreenView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Hủy") { showEditPhoneDialog = false }
+                    Button("Hủy") { activeSheet = nil }
                 }
             }
         }
@@ -987,7 +996,7 @@ public struct HomeScreenView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Đóng") { showGuideDialog = false }
+                    Button("Đóng") { activeSheet = nil }
                 }
             }
         }
