@@ -161,87 +161,68 @@ class PaywallLicenseViewModel: ObservableObject {
         }
     }
     
-    func purchaseGooglePlay(planId: String) {
-        Task {
-            try? await Task.sleep(nanoseconds: 1_000_000_000)
-            self.licenseInfo = LicenseInfo(tier: .PRO_PERSONAL, companyName: "Cá nhân", maxDevices: 100, maxAssets: 1000)
-            self.successMessage = "Thanh toán Apple App Store thành công!"
-        }
     }
 }
 
-// MARK: - MÀN HÌNH BẢN QUYỀN HỆ THỐNG DOANH NGHIỆP (ĐỒNG BỘ 1:1 THEO ANDROID PAYWALL/LICENSE)
+// MARK: - MÀN HÌNH BẢN QUYỀN HỆ THỐNG DOANH NGHIỆP (KHÔNG PAYWALL STORE)
 public struct PaywallLicenseView: View {
     let companyId: String
     let token: String
     var onBack: () -> Void
-    
+
     @StateObject private var viewModel: PaywallLicenseViewModel
-    
-    @State private var selectedTab: Int = 1 // 1: Mã Doanh nghiệp, 0: Gói Cá Nhân
     @State private var companyCodeInput: String = ""
-    @State private var selectedPlanId: String = "pro_1_year"
-    
-    let tiers = [
-        TierConfig(id: "BASIC", name: "Gói Cơ bản (20 máy / 200 tài sản)", maxDevices: 20, maxAssets: 200, monthlyPrice: 499000, iconName: "person.fill"),
-        TierConfig(id: "PRO", name: "Gói Nâng cao (100 máy / 1.000 tài sản)", maxDevices: 100, maxAssets: 1000, monthlyPrice: 1490000, iconName: "cart.fill"),
-        TierConfig(id: "PROFESSIONAL", name: "Gói Chuyên nghiệp (200 máy / 5.000 tài sản)", maxDevices: 200, maxAssets: 5000, monthlyPrice: 2990000, iconName: "building.2.fill"),
-        TierConfig(id: "ENTERPRISE", name: "Enterprise 👑 Không giới hạn", maxDevices: 999999, maxAssets: 999999, monthlyPrice: 4990000, iconName: "globe.asia.australia.fill")
-    ]
-    @State private var selectedTier: TierConfig
-    
-    public init(companyId: String, token: String, onBack: @escaping () -> Void) {
+
+    public init(companyId: String, token: String, onBack: @escaping () -> Void = {}) {
         self.companyId = companyId
         self.token = token
         self.onBack = onBack
         self._viewModel = StateObject(wrappedValue: PaywallLicenseViewModel(companyId: companyId, token: token))
-        self._selectedTier = State(initialValue: TierConfig(id: "BASIC", name: "Gói Cơ bản (20 máy / 200 tài sản)", maxDevices: 20, maxAssets: 200, monthlyPrice: 499000, iconName: "person.fill"))
     }
-    
+
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
                 Color.appBackground.ignoresSafeArea()
-                
+
                 VStack(spacing: 0) {
-                    // 1. TOP BAR TRÀN TAI THỎ VỚI SAFE AREA
+                    // 1. TOP BAR
                     VStack(spacing: 0) {
                         Color.clear.frame(height: SafeAreaHelper.top(geometry))
-                        
+
                         HStack(spacing: 12) {
                             Button(action: onBack) {
                                 Image(systemName: "chevron.left")
                                     .font(.system(size: 18, weight: .bold))
                                     .foregroundColor(.white)
                             }
-                            
-                            Text("Bản quyền & Gói dịch vụ")
+
+                            Text("Kích hoạt Bản quyền Doanh nghiệp")
                                 .font(.system(size: 17, weight: .bold))
                                 .foregroundColor(.white)
-                            
+
                             Spacer()
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
                     }
                     .background(Color.appTopBarColor)
-                    
+
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 16) {
-                            
                             // HERO CARD
                             VStack(spacing: 8) {
-                                Image(systemName: "crown.fill")
+                                Image(systemName: "checkmark.seal.fill")
                                     .font(.system(size: 40))
                                     .foregroundColor(Color.appPrimaryPink)
-                                
-                                Text("Mở khóa toàn bộ tính năng")
+
+                                Text("Bản quyền Hệ thống IT & Tài sản")
                                     .font(.system(size: 16, weight: .bold))
                                     .foregroundColor(Color.appSecondaryDarkBlue)
-                                
-                                Text("Nâng cấp để quản lý tài sản chuyên nghiệp và tối ưu hiệu suất công việc")
+
+                                Text("Quản lý thiết bị, hạ tầng kỹ thuật và điều phối hỗ trợ nội bộ cho Doanh nghiệp")
                                     .font(.system(size: 13))
-                                    .foregroundColor(Color.gray)
+                                    .foregroundColor(.gray)
                                     .multilineTextAlignment(.center)
                             }
                             .padding()
@@ -249,39 +230,108 @@ public struct PaywallLicenseView: View {
                             .background(Color.appPrimaryPink.opacity(0.06))
                             .cornerRadius(14)
                             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appPrimaryPink.opacity(0.2), lineWidth: 1))
-                            
-                            // TAB SELECTOR
-                            HStack(spacing: 4) {
-                                tabButton(title: "Cá nhân (App Store)", index: 0)
-                                tabButton(title: "Mã Doanh nghiệp", index: 1)
-                            }
-                            .padding(4)
-                            .background(Color.appSurfaceVariant.opacity(0.5))
-                            .cornerRadius(12)
-                            
-                            // NỘI DUNG THEO TAB
-                            if selectedTab == 0 {
-                                personalTabContent
-                            } else {
-                                enterpriseTabContent
-                            }
-                            
-                            // CURRENT PLAN CARD
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("GÓI HIỆN TẠI ĐANG DÙNG")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.gray)
-                                
-                                Text(viewModel.licenseInfo.tier.displayName)
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(statusColor(for: viewModel.licenseInfo.tier))
+
+                            // THẺ THÔNG TIN BẢN QUYỀN HIỆN TẠI
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    Text("TRẠNG THÁI HIỆN TẠI")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(.gray)
+                                    Spacer()
+                                    Text(viewModel.licenseInfo.tier.displayName)
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(statusColor(for: viewModel.licenseInfo.tier))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 4)
+                                        .background(statusColor(for: viewModel.licenseInfo.tier).opacity(0.1))
+                                        .cornerRadius(6)
+                                }
+
+                                Divider().background(Color.appCardBorder)
+
+                                infoRow(title: "Doanh nghiệp", value: viewModel.licenseInfo.companyName.isEmpty ? companyId.uppercased() : viewModel.licenseInfo.companyName)
+                                infoRow(title: "Mã kích hoạt", value: viewModel.licenseInfo.activationCode.isEmpty ? "QLTB-ENT-F8CF2F" : viewModel.licenseInfo.activationCode)
+
+                                let expText: String = {
+                                    if viewModel.licenseInfo.expiresAt > 0 {
+                                        let df = DateFormatter()
+                                        df.dateFormat = "dd/MM/yyyy"
+                                        return df.string(from: Date(timeIntervalSince1970: Double(viewModel.licenseInfo.expiresAt) / 1000.0))
+                                    }
+                                    return viewModel.licenseInfo.tier == .ENTERPRISE ? "Vĩnh viễn theo hợp đồng" : "Không giới hạn ngày"
+                                }()
+                                infoRow(title: "Thời hạn", value: expText, valueColor: Color.appSuccess)
+
+                                let devText = viewModel.licenseInfo.tier == .ENTERPRISE ? "Không giới hạn" : "\(viewModel.licenseInfo.maxDevices) máy"
+                                infoRow(title: "Hạn mức thiết bị", value: devText)
                             }
                             .padding(14)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(Color.appSurface)
                             .cornerRadius(14)
                             .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
-                            
+
+                            // THẺ NHẬP KEY KÍCH HOẠT
+                            VStack(alignment: .leading, spacing: 14) {
+                                Text("Kích hoạt mã License Key")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+
+                                Text("Nhập mã bản quyền được cung cấp bởi Quản trị viên cấp cao (Super Admin).")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.gray)
+
+                                HStack {
+                                    Image(systemName: "key.fill")
+                                        .foregroundColor(Color.appPrimaryPink)
+                                    TextField("Nhập mã Key (VD: QLTB-ENT-...)", text: $companyCodeInput)
+                                        .autocapitalization(.allCharacters)
+                                        .disableAutocorrection(true)
+                                }
+                                .padding()
+                                .background(Color.appSurfaceVariant.opacity(0.5))
+                                .cornerRadius(10)
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appPrimaryPink.opacity(0.5), lineWidth: 1))
+
+                                Button(action: {
+                                    viewModel.activateEnterpriseCode(code: companyCodeInput)
+                                }) {
+                                    HStack {
+                                        if viewModel.isActivating {
+                                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                        } else {
+                                            Image(systemName: "checkmark.circle.fill")
+                                            Text("Xác nhận kích hoạt")
+                                                .fontWeight(.bold)
+                                        }
+                                    }
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(viewModel.isActivating ? Color.gray : Color.appDarkButtonBackground)
+                                    .cornerRadius(10)
+                                }
+                                .disabled(viewModel.isActivating || companyCodeInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            }
+                            .padding(14)
+                            .background(Color.appSurface)
+                            .cornerRadius(14)
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
+
+                            // THẺ LIÊN HỆ & HỢP ĐỒNG B2B
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("🏢 Hợp đồng & Triển khai giải pháp")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                Text("• Hệ thống vận hành nội bộ theo chính sách bảo mật doanh nghiệp.\n• Đầy đủ tính năng: Điều phối KTV, Chấm công GPS, HelpDesk, Báo cáo công tác phí.\n• Liên hệ Quản trị viên để cấp thêm mã kích hoạt cho chi nhánh mới.")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.gray)
+                            }
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.appSurfaceVariant.opacity(0.3))
+                            .cornerRadius(10)
+
                             Spacer().frame(height: 16)
                         }
                         .padding(14)
@@ -304,254 +354,30 @@ public struct PaywallLicenseView: View {
             )
         }
     }
-    
-    private func tabButton(title: String, index: Int) -> some View {
-        Button(action: { selectedTab = index }) {
-            Text(title)
-                .font(.system(size: 13, weight: selectedTab == index ? .bold : .medium))
-                .foregroundColor(selectedTab == index ? .white : Color.appSecondaryDarkBlue)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-                .background(selectedTab == index ? Color.appPrimaryPink : Color.clear)
-                .cornerRadius(10)
-        }
-    }
-    
-    private var personalTabContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Mua trực tiếp qua App Store (Apple)")
-                .font(.system(size: 13))
-                .foregroundColor(.gray)
-            
-            // 1. CHỌN SỐ LƯỢNG
-            Text("1. Chọn số lượng tài sản")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(Color.appSecondaryDarkBlue)
-            
-            VStack(spacing: 8) {
-                ForEach(tiers, id: \.id) { tier in
-                    let isSelected = selectedTier.id == tier.id
-                    Button(action: { selectedTier = tier }) {
-                        HStack {
-                            Image(systemName: tier.iconName)
-                                .foregroundColor(isSelected ? Color.appSecondaryDarkBlue : .gray)
-                                .frame(width: 24)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(tier.name)
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                Text("Tối đa \(tier.maxDevices) máy cài • \(tier.maxAssets) tài sản")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.gray)
-                            }
-                            
-                            Spacer()
-                            
-                            Text("\(formatCurrency(tier.monthlyPrice))đ")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(isSelected ? Color.appSecondaryDarkBlue : .gray)
-                        }
-                        .padding(12)
-                        .background(isSelected ? Color.appSecondaryDarkBlue.opacity(0.05) : Color.clear)
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(isSelected ? Color.appSecondaryDarkBlue : Color.appCardBorder, lineWidth: isSelected ? 2 : 1))
-                    }
-                }
-            }
-            
-            // 2. CHỌN THỜI HẠN
-            Text("2. Chọn thời hạn thanh toán")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(Color.appSecondaryDarkBlue)
-            
-            VStack(spacing: 8) {
-                let price1Year = Int64(Double(selectedTier.monthlyPrice * 12) * 0.65)
-                planCard(id: "pro_1_year", title: "Gói 1 năm", price: "\(formatCurrency(price1Year))đ", subText: "Giảm 35% 🔥", isBestValue: true)
-                
-                let price6Months = Int64(Double(selectedTier.monthlyPrice * 6) * 0.8)
-                planCard(id: "pro_6_month", title: "Gói 6 tháng", price: "\(formatCurrency(price6Months))đ", subText: "Giảm 20%")
-            }
-            
-            Divider()
-            
-            featureRow("Quản lý tối đa \(selectedTier.maxAssets) tài sản")
-            featureRow("Hỗ trợ kỹ thuật HelpDesk")
-            featureRow("Báo cáo xuất dữ liệu Excel/PDF")
-            
-            Button(action: {
-                viewModel.purchaseGooglePlay(planId: selectedPlanId)
-            }) {
-                HStack {
-                    Image(systemName: "bag.fill")
-                    Text("Mua qua App Store")
-                        .fontWeight(.bold)
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(Color.appPrimaryPink)
-                .cornerRadius(10)
-            }
-            
-            Button(action: {
-                // Restore purchase logic
-            }) {
-                Text("Khôi phục thanh toán cũ")
-                    .font(.system(size: 13))
-                    .foregroundColor(.gray)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .padding(14)
-        .background(Color.appSurface)
-        .cornerRadius(14)
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
-    }
-    
-    private func planCard(id: String, title: String, price: String, subText: String, isBestValue: Bool = false) -> some View {
-        let isSelected = selectedPlanId == id
-        return Button(action: { selectedPlanId = id }) {
-            ZStack(alignment: .topTrailing) {
-                HStack {
-                    Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
-                        .foregroundColor(isSelected ? Color.appPrimaryPink : .gray)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(title)
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
-                        Text(subText)
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                    }
-                    
-                    Spacer()
-                    
-                    Text(price)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(isSelected ? Color.appPrimaryPink : Color.appSecondaryDarkBlue)
-                }
-                .padding(12)
-                .background(isSelected ? Color.appPrimaryPink.opacity(0.08) : Color.clear)
-                .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(isSelected ? Color.appPrimaryPink : Color.appCardBorder, lineWidth: isSelected ? 2 : 1))
-                
-                if isBestValue {
-                    Text("TIẾT KIỆM 35%")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(Color.orange)
-                        .cornerRadius(4, corners: [.bottomLeft, .topRight])
-                }
-            }
-        }
-    }
-    
-    private var enterpriseTabContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Kích hoạt Gói Doanh nghiệp")
-                .font(.system(size: 15, weight: .bold))
-                .foregroundColor(Color.appSecondaryDarkBlue)
-            
-            Text("Nhập mã kích hoạt được cấp bởi Super Admin hoặc đại lý uỷ quyền.")
-                .font(.system(size: 13))
-                .foregroundColor(.gray)
-            
-            HStack {
-                Image(systemName: "key.fill")
-                    .foregroundColor(Color.appPrimaryPink)
-                TextField("Nhập Key bản quyền...", text: $companyCodeInput)
-                    .autocapitalization(.allCharacters)
-            }
-            .padding()
-            .background(Color.appSurfaceVariant.opacity(0.5))
-            .cornerRadius(10)
-            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appPrimaryPink.opacity(0.5), lineWidth: 1))
-            
-            Button(action: {
-                viewModel.activateEnterpriseCode(code: companyCodeInput)
-            }) {
-                HStack {
-                    if viewModel.isActivating {
-                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    } else {
-                        Image(systemName: "checkmark.circle.fill")
-                        Text("Kích hoạt Key bản quyền")
-                            .fontWeight(.bold)
-                    }
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(viewModel.isActivating ? Color.gray : Color.appDarkButtonBackground)
-                .cornerRadius(10)
-            }
-            .disabled(viewModel.isActivating)
-            
-            VStack(alignment: .leading, spacing: 6) {
-                Text("💼 Giải pháp cho doanh nghiệp / Chi nhánh")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(Color.appSecondaryDarkBlue)
-                Text("• Phân định rõ số máy cài đặt & số tài sản quản lý.\n• Gói Pro / Enterprise hỗ trợ chấm công GPS.\n• Hỗ trợ xuất hóa đơn VAT đỏ.")
-                    .font(.system(size: 12))
-                    .foregroundColor(.gray)
-            }
-            .padding(12)
-            .background(Color.appSurfaceVariant.opacity(0.3))
-            .cornerRadius(8)
-            
-            Button(action: {
-                // Contact logic
-            }) {
-                HStack {
-                    Image(systemName: "phone.fill")
-                    Text("Liên hệ báo giá số lượng lớn")
-                }
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .background(Color.appDarkButtonBackground)
-                .cornerRadius(8)
-            }
-        }
-        .padding(14)
-        .background(Color.appSurface)
-        .cornerRadius(14)
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.appCardBorder, lineWidth: 1))
-    }
-    
-    private func featureRow(_ text: String) -> some View {
+
+    private func infoRow(title: String, value: String, valueColor: Color = Color.appTextPrimary) -> some View {
         HStack {
-            Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(Color.appSuccess)
-            Text(text)
+            Text(title)
                 .font(.system(size: 13))
-                .foregroundColor(Color.appTextPrimary)
+                .foregroundColor(.gray)
             Spacer()
+            Text(value)
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(valueColor)
         }
     }
-    
+
     private func statusColor(for tier: LicenseTier) -> Color {
         switch tier {
         case .TRIAL, .FREE: return .gray
         case .TRIAL_VIP: return .orange
         case .BASIC: return .blue
-        case .PRO, .PRO_PERSONAL: return .orange
+        case .PRO, .PRO_PERSONAL: return .blue
         case .PROFESSIONAL: return .purple
         case .ENTERPRISE: return .green
         }
     }
-    
-    private func formatCurrency(_ value: Int64) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.groupingSeparator = "."
-        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
-    }
+}
 }
 
 // Helper for corner radius
