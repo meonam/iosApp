@@ -363,6 +363,7 @@ public struct DispatchTicketSheet: View {
     private var specialistSectionView: some View {
         let tealColor = colorScheme == .dark ? Color(hex: "#2DD4BF") : Color(hex: "#0D9488")
         let activeChipBg = colorScheme == .dark ? Color(hex: "#134E4A") : Color(hex: "#CCFBF1")
+        let teams = viewModel.specialistTeams.isEmpty ? SpecialistTeamDefaults.TEAMS : viewModel.specialistTeams
 
         return VStack(alignment: .leading, spacing: 14) {
             // Tổ Chuyên Môn Phụ Trách
@@ -371,7 +372,6 @@ public struct DispatchTicketSheet: View {
                     .font(.system(size: 13.5, weight: .semibold))
                     .foregroundColor(Color.appTextPrimary)
 
-                let teams = viewModel.specialistTeams.isEmpty ? SpecialistTeamDefaults.TEAMS : viewModel.specialistTeams
                 VStack(spacing: 8) {
                     ForEach(teams) { team in
                         let isSelected = selectedSpecialistTeamId.caseInsensitiveCompare(team.id) == .orderedSame

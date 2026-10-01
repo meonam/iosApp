@@ -721,7 +721,7 @@ public struct TicketChatDetailView: View {
             if isAssignedOrAckTech && !isAdminOrHelpDesk && isOpen && !isResolved {
                 let currentMethod = currentTicket.handlingMethod.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
                 let isSpecTicket = currentTicket.isSpecialistAssigned
-                let isAcknowledgedByUser = currentTicket.isAcknowledged || currentTicket.acknowledged
+                let isAcknowledgedByUser = currentTicket.isAcknowledged
                 let needsSelection = !isAcknowledgedByUser || (currentMethod.isEmpty && !isSpecTicket)
 
                 if needsSelection {
