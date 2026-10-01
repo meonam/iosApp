@@ -32,11 +32,22 @@ public class BackgroundKeepAliveService: NSObject, AVAudioPlayerDelegate {
               let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
         if type == .ended {
-            try? AVAudioSession.sharedInstance().setActive(true)
-            if isRunning && silentPlayer?.isPlaying != true {
+            resumeKeepAliveIfRunning()
+        }
+    }
+
+    public func resumeKeepAliveIfRunning() {
+        guard isRunning else { return }
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try? session.setActive(true)
+            if silentPlayer?.isPlaying != true {
                 silentPlayer?.play()
                 print("[BackgroundKeepAlive] 🟢 Khôi phục âm thanh keep-alive sau gián đoạn")
             }
+        } catch {
+            print("[BackgroundKeepAlive] ❌ Lỗi khôi phục silent player: \(error)")
         }
     }
 
@@ -55,7 +66,7 @@ public class BackgroundKeepAliveService: NSObject, AVAudioPlayerDelegate {
 
         do {
             let session = AVAudioSession.sharedInstance()
-            try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try? session.setActive(true)
 
             if silentPlayer == nil {
@@ -68,7 +79,7 @@ public class BackgroundKeepAliveService: NSObject, AVAudioPlayerDelegate {
             }
             let ok = silentPlayer?.play() ?? false
             isRunning = ok
-            print("[BackgroundKeepAlive] 🟢 Bắt đầu duy trì tiến trình chạy nền 24/7 (Audio Keep-Alive): \(ok)")
+            print("[BackgroundKeepAlive] 🟢 Bắt đầu duy trì tiến trình chạy nền 24/7 (Audio Keep-Alive - MixWithOthers): \(ok)")
         } catch {
             print("[BackgroundKeepAlive] ❌ Lỗi khởi động silent player: \(error)")
         }

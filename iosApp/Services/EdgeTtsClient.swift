@@ -50,6 +50,7 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
         audioPlayer = nil
         playerLock.unlock()
         cont?.resume()
+        restoreNormalAudioSession()
     }
 
     public func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
@@ -59,6 +60,17 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
         audioPlayer = nil
         playerLock.unlock()
         cont?.resume()
+        restoreNormalAudioSession()
+    }
+
+    // Khôi phục AudioSession cho các app nền khác (YouTube, Spotify...) ngay khi dứt giọng đọc
+    public func restoreNormalAudioSession() {
+        DispatchQueue.main.async {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try? session.setActive(false, options: .notifyOthersOnDeactivation)
+            BackgroundKeepAliveService.shared.resumeKeepAliveIfRunning()
+        }
     }
 
     // MARK: - GENERATE SEC-MS-GEC SIGNATURE (CHÍNH XÁC 1:1 THEO ANDROID & PYTHON edge-tts)
@@ -445,5 +457,6 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
         if fallbackSynthesizer?.isSpeaking == true {
             fallbackSynthesizer?.stopSpeaking(at: .immediate)
         }
+        restoreNormalAudioSession()
     }
 }

@@ -79,9 +79,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
     private func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .defaultToSpeaker])
-            try session.overrideOutputAudioPort(.speaker)
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
         } catch {
             print("[VoiceNotificationHelper] Configure audio session error: \(error)")
         }

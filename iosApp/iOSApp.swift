@@ -18,11 +18,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil
     ) -> Bool {
-        // 1. Cấu hình AudioSession tối ưu cho giọng đọc âm lượng lớn, không bị ngắt quãng
+        // 1. Cấu hình AudioSession với tuỳ chọn mixWithOthers để không làm nhỏ tiếng YouTube/Nhạc của người dùng khi mở app
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-            try session.setActive(true)
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
         } catch {
             print("[AppDelegate] AudioSession setup error: \(error)")
         }
