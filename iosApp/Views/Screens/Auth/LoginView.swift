@@ -74,7 +74,7 @@ public struct LoginView: View {
                                         .font(.system(size: 13, weight: .medium))
                                         .foregroundColor(Color.appTextSecondary)
 
-                                    Text("Phiên bản v1.2.0 (Build 120)")
+                                    Text("Phiên bản v1.2.2 (Build 122)")
                                         .font(.system(size: 11, weight: .semibold))
                                         .foregroundColor(Color.appTextSecondary)
                                         .padding(.horizontal, 10)

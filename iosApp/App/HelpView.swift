@@ -177,7 +177,7 @@ public struct HelpView: View {
                                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
                                     }
 
-                                    Text("Phiên bản ứng dụng v1.2.0 (Build 120)")
+                                    Text("Phiên bản ứng dụng v1.2.2 (Build 122)")
                                         .font(.system(size: 11.5))
                                         .foregroundColor(Color.appTextSecondary)
                                         .padding(.top, 4)
