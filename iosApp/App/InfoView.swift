@@ -11,6 +11,7 @@ public struct InfoView: View {
     @State private var showShareSheet = false
     @State private var showLicenseSheet = false
     @State private var logShareItems: [Any] = []
+    @State private var companyLicense = LicenseInfo(tier: .ENTERPRISE, companyName: "Saigon Co.op", activationCode: "QLTB-ENT-F8CF2F", expiresAt: 0, maxDevices: 999999, maxAssets: 999999)
 
     private let appVersion = "v1.2.0 (Build 120)"
     private var deviceId: String {
@@ -100,8 +101,11 @@ public struct InfoView: View {
         .sheet(isPresented: $showShareSheet) {
             ActivityViewController(activityItems: logShareItems)
         }
-        .sheet(isPresented: $showLicenseSheet) {
-            licenseDetailSheet
+        .sheet(isPresented: $showLicenseSheet, onDismiss: { loadCompanyLicense() }) {
+            PaywallLicenseView(companyId: authViewModel.currentCompanyId, token: authViewModel.currentIdToken)
+        }
+        .onAppear {
+            loadCompanyLicense()
         }
     }
 
@@ -177,9 +181,9 @@ public struct InfoView: View {
                 Spacer()
             }
 
-            // Enterprise Badge
+            // Enterprise / Tier Badge
             HStack {
-                Text("DOANH NGHIỆP (ENTERPRISE)")
+                Text(companyLicense.tier.displayName.uppercased())
                     .font(.system(size: 13, weight: .black))
                     .foregroundColor(Color.dynamic(light: "#B45309", dark: "#FCD34D"))
                     .padding(.horizontal, 14)
@@ -190,13 +194,23 @@ public struct InfoView: View {
             }
 
             VStack(spacing: 8) {
-                licenseRow(title: "Doanh nghiệp", value: authViewModel.currentUser?.companyId ?? "Saigon Co.op")
+                let dispCompany = (companyLicense.companyName.isEmpty || companyLicense.companyName == "SGCOOP") ? (authViewModel.currentUser?.companyId ?? "Saigon Co.op") : companyLicense.companyName
+                licenseRow(title: "Doanh nghiệp", value: dispCompany)
                 Divider().background(Color.appCardBorder)
-                licenseRow(title: "Mã kích hoạt", value: "SGCOOP-ENT-2026-UNLIMITED")
+                let dispCode = companyLicense.activationCode.isEmpty ? (companyLicense.tier == .ENTERPRISE ? "QLTB-ENT-F8CF2F" : "QLTB-TRIAL-ONLINE") : companyLicense.activationCode
+                licenseRow(title: "Mã kích hoạt", value: dispCode)
                 Divider().background(Color.appCardBorder)
-                licenseRow(title: "Hạn bản quyền", value: "Vĩnh viễn", valueColor: Color.dynamic(light: "#15803D", dark: "#4ADE80"))
+                let expFormatted: String = {
+                    if companyLicense.expiresAt > 0 {
+                        let df = DateFormatter()
+                        df.dateFormat = "dd/MM/yyyy"
+                        return df.string(from: Date(timeIntervalSince1970: Double(companyLicense.expiresAt) / 1000.0))
+                    }
+                    return companyLicense.tier == .ENTERPRISE ? "Vĩnh viễn theo hợp đồng" : "Không giới hạn ngày"
+                }()
+                licenseRow(title: "Hạn bản quyền", value: expFormatted, valueColor: Color.dynamic(light: "#15803D", dark: "#4ADE80"))
                 Divider().background(Color.appCardBorder)
-                licenseRow(title: "Số máy cài đặt", value: "Không giới hạn")
+                licenseRow(title: "Số máy cài đặt", value: companyLicense.maxDevices >= 999999 ? "Không giới hạn" : "\(companyLicense.maxDevices) máy")
             }
             .padding(12)
             .background(Color.appSurfaceVariant)
@@ -530,6 +544,47 @@ public struct InfoView: View {
             .background(Color.appBackground)
             .navigationTitle("Bản quyền ứng dụng")
             .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private func loadCompanyLicense() {
+        let compId = authViewModel.currentCompanyId.isEmpty ? "SGCOOP" : authViewModel.currentCompanyId
+        Task {
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(compId)"
+            guard let url = URL(string: urlStr) else { return }
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            if !authViewModel.currentIdToken.isEmpty {
+                request.addValue("Bearer \(authViewModel.currentIdToken)", forHTTPHeaderField: "Authorization")
+            }
+            if let (data, response) = try? await URLSession.shared.data(for: request),
+               let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let fields = json["fields"] as? [String: Any] {
+
+                let tierStr = FirestoreHelper.getString(fields["licenseTier"] as? [String: Any])
+                let tierEnum = LicenseTier(rawValue: tierStr.uppercased()) ?? (tierStr.uppercased().contains("ENT") ? .ENTERPRISE : .TRIAL)
+                let code = FirestoreHelper.getString(fields["licenseCode"] as? [String: Any])
+                let rawCode = code.isEmpty ? FirestoreHelper.getString(fields["activationCode"] as? [String: Any]) : code
+                let exp1 = FirestoreHelper.getInt64(fields["licenseExpiresAt"] as? [String: Any])
+                let exp2 = FirestoreHelper.getInt64(fields["expiresAt"] as? [String: Any])
+                let effectiveExpiresAt = exp1 > 0 ? exp1 : exp2
+                let compName = FirestoreHelper.getString(fields["companyName"] as? [String: Any])
+                let maxDev = FirestoreHelper.getInt(fields["maxDevices"] as? [String: Any])
+                let maxAss = FirestoreHelper.getInt(fields["maxAssets"] as? [String: Any])
+
+                await MainActor.run {
+                    self.companyLicense = LicenseInfo(
+                        tier: tierEnum,
+                        companyName: compName.isEmpty ? compId.uppercased() : compName,
+                        activationCode: rawCode.isEmpty ? (tierEnum == .ENTERPRISE ? "QLTB-ENT-F8CF2F" : "") : rawCode,
+                        activatedAt: FirestoreHelper.getInt64(fields["activatedAt"] as? [String: Any]),
+                        expiresAt: effectiveExpiresAt,
+                        maxDevices: tierEnum == .ENTERPRISE ? 999999 : (maxDev > 0 ? maxDev : 50),
+                        maxAssets: tierEnum == .ENTERPRISE ? 999999 : (maxAss > 0 ? maxAss : 500)
+                    )
+                }
+            }
         }
     }
 }

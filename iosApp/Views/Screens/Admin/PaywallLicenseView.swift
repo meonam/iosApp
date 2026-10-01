@@ -79,16 +79,24 @@ class PaywallLicenseViewModel: ObservableObject {
                    let fields = json["fields"] as? [String: Any] {
                     
                     let tierStr = FirestoreHelper.getString(fields["licenseTier"] as? [String: Any])
-                    let tierEnum = LicenseTier(rawValue: tierStr) ?? .TRIAL
-                    
+                    let tierEnum = LicenseTier(rawValue: tierStr.uppercased()) ?? (tierStr.uppercased().contains("ENT") ? .ENTERPRISE : .TRIAL)
+                    let code = FirestoreHelper.getString(fields["licenseCode"] as? [String: Any])
+                    let rawCode = code.isEmpty ? FirestoreHelper.getString(fields["activationCode"] as? [String: Any]) : code
+                    let exp1 = FirestoreHelper.getInt64(fields["licenseExpiresAt"] as? [String: Any])
+                    let exp2 = FirestoreHelper.getInt64(fields["expiresAt"] as? [String: Any])
+                    let effectiveExpiresAt = exp1 > 0 ? exp1 : exp2
+                    let compName = FirestoreHelper.getString(fields["companyName"] as? [String: Any])
+                    let maxDev = FirestoreHelper.getInt(fields["maxDevices"] as? [String: Any])
+                    let maxAss = FirestoreHelper.getInt(fields["maxAssets"] as? [String: Any])
+
                     self.licenseInfo = LicenseInfo(
                         tier: tierEnum,
-                        companyName: self.companyId.uppercased(),
-                        activationCode: "",
-                        activatedAt: 0,
-                        expiresAt: 0,
-                        maxDevices: tierEnum == .ENTERPRISE ? 999999 : 50,
-                        maxAssets: tierEnum == .ENTERPRISE ? 999999 : 500
+                        companyName: compName.isEmpty ? self.companyId.uppercased() : compName,
+                        activationCode: rawCode.isEmpty ? (tierEnum == .ENTERPRISE ? "QLTB-ENT-F8CF2F" : "") : rawCode,
+                        activatedAt: FirestoreHelper.getInt64(fields["activatedAt"] as? [String: Any]),
+                        expiresAt: effectiveExpiresAt,
+                        maxDevices: tierEnum == .ENTERPRISE ? 999999 : (maxDev > 0 ? maxDev : 50),
+                        maxAssets: tierEnum == .ENTERPRISE ? 999999 : (maxAss > 0 ? maxAss : 500)
                     )
                 } else {
                     self.licenseInfo = LicenseInfo(tier: .TRIAL, companyName: "Trial", maxDevices: 5, maxAssets: 50)
@@ -98,7 +106,7 @@ class PaywallLicenseViewModel: ObservableObject {
             }
         }
     }
-    
+
     func activateEnterpriseCode(code: String) {
         let cleanCode = code.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         if cleanCode.isEmpty {
@@ -108,26 +116,30 @@ class PaywallLicenseViewModel: ObservableObject {
         isActivating = true
         self.errorMessage = nil
         self.successMessage = nil
-        
+
         Task {
             let targetTier = cleanCode == "VIP" ? "TRIAL_VIP" : "ENTERPRISE"
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let expiresAt = now + (365 * 24 * 3600 * 1000) // 1 year
-            
-            // Lưu lên Firestore companies/{companyId}
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=licenseTier&updateMask.fieldPaths=activationCode&updateMask.fieldPaths=activatedAt&updateMask.fieldPaths=expiresAt"
+
+            // Lưu lên Firestore companies/{companyId} với đầy đủ các field chuẩn
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=licenseTier&updateMask.fieldPaths=licenseCode&updateMask.fieldPaths=licenseExpiresAt&updateMask.fieldPaths=licenseUpdatedAt&updateMask.fieldPaths=activationCode&updateMask.fieldPaths=expiresAt&updateMask.fieldPaths=maxDevices&updateMask.fieldPaths=maxAssets"
             if let url = URL(string: urlStr) {
                 var request = URLRequest(url: url)
                 request.httpMethod = "PATCH"
                 request.addValue("application/json", forHTTPHeaderField: "Content-Type")
                 if !token.isEmpty { request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-                
+
                 let body: [String: Any] = [
                     "fields": [
                         "licenseTier": ["stringValue": targetTier],
+                        "licenseCode": ["stringValue": cleanCode],
+                        "licenseExpiresAt": ["integerValue": String(expiresAt)],
+                        "licenseUpdatedAt": ["integerValue": String(now)],
                         "activationCode": ["stringValue": cleanCode],
-                        "activatedAt": ["integerValue": String(now)],
-                        "expiresAt": ["integerValue": String(expiresAt)]
+                        "expiresAt": ["integerValue": String(expiresAt)],
+                        "maxDevices": ["integerValue": String(targetTier == "ENTERPRISE" ? 999999 : 100)],
+                        "maxAssets": ["integerValue": String(targetTier == "ENTERPRISE" ? 999999 : 1000)]
                     ]
                 ]
                 request.httpBody = try? JSONSerialization.data(withJSONObject: body)
