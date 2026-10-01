@@ -213,7 +213,7 @@ public class AuthService {
                 let fallbackPw = savedPw.isEmpty ? FirestoreHelper.getString(fields["pass"] as? [String: Any]) : savedPw
                 let newPw = FirestoreHelper.getString(fields["newPassword"] as? [String: Any])
 
-                if (!fallbackPw.isEmpty && fallbackPw == password) || (!newPw.isEmpty && newPw == password) || isSuperAdmin {
+                if (!fallbackPw.isEmpty && fallbackPw == password) || (!newPw.isEmpty && newPw == password) {
                     return AuthSession(
                         idToken: "token_\(UUID().uuidString)",
                         refreshToken: "refresh_\(UUID().uuidString)",
@@ -225,15 +225,29 @@ public class AuthService {
             }
         }
 
-        // C. SuperAdmin bypass
-        if isSuperAdmin {
-            return AuthSession(
-                idToken: "token_superadmin_\(UUID().uuidString)",
-                refreshToken: "refresh_superadmin_\(UUID().uuidString)",
-                localId: resolvedEmail,
-                email: resolvedEmail,
-                user: nil
-            )
+        // B2. Fallback Root Firestore (cho tài khoản Quản trị toàn hệ thống / Central Command)
+        let rootDocUrl = "\(FirebaseConfig.firestoreBaseUrl)/users/\(resolvedEmail)"
+        if let rUrl = URL(string: rootDocUrl) {
+            let req = URLRequest(url: rUrl)
+            if let (data, resp) = try? await URLSession.shared.data(for: req),
+               let http = resp as? HTTPURLResponse, http.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let fields = json["fields"] as? [String: Any] {
+                let savedPw = FirestoreHelper.getString(fields["password"] as? [String: Any])
+                    .isEmpty ? FirestoreHelper.getString(fields["matKhau"] as? [String: Any]) : FirestoreHelper.getString(fields["password"] as? [String: Any])
+                let fallbackPw = savedPw.isEmpty ? FirestoreHelper.getString(fields["pass"] as? [String: Any]) : savedPw
+                let newPw = FirestoreHelper.getString(fields["newPassword"] as? [String: Any])
+
+                if (!fallbackPw.isEmpty && fallbackPw == password) || (!newPw.isEmpty && newPw == password) {
+                    return AuthSession(
+                        idToken: "token_\(UUID().uuidString)",
+                        refreshToken: "refresh_\(UUID().uuidString)",
+                        localId: resolvedEmail,
+                        email: resolvedEmail,
+                        user: nil
+                    )
+                }
+            }
         }
 
         if let err = firebaseAuthError {
