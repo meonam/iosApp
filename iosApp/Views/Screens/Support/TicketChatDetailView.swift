@@ -36,6 +36,7 @@ public struct TicketChatDetailView: View {
     @ObservedObject var viewModel: SupportViewModel
     var ticket: SupportTicket
     var onBack: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var inputText: String = ""
     @State private var showCloseTicketAlert: Bool = false
