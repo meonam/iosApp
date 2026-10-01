@@ -312,9 +312,17 @@ public class AuthService {
 
         let resolvedDept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
             .ifEmpty(FirestoreHelper.getString(fields["phongBan"] as? [String: Any]))
-        let resolvedDonVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
-            .ifEmpty(FirestoreHelper.getString(fields["unitId"] as? [String: Any]))
+        let rawDonVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
             .ifEmpty(FirestoreHelper.getString(fields["tenDonVi"] as? [String: Any]))
+        let rawUnitId = FirestoreHelper.getString(fields["unitId"] as? [String: Any])
+        var resolvedDonVi = rawDonVi
+        if !rawUnitId.isEmpty && !resolvedDonVi.isEmpty && resolvedDonVi != rawUnitId {
+            if !resolvedDonVi.contains(" - ") && !resolvedDonVi.hasPrefix(rawUnitId) {
+                resolvedDonVi = "\(rawUnitId) - \(resolvedDonVi)"
+            }
+        } else if !rawUnitId.isEmpty && resolvedDonVi.isEmpty {
+            resolvedDonVi = rawUnitId
+        }
         let resolvedCompanyId = FirestoreHelper.getString(fields["companyId"] as? [String: Any])
             .ifEmpty("SGCOOP")
         let resolvedKhuVuc = FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any])

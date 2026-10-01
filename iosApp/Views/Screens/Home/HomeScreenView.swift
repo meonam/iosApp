@@ -480,20 +480,31 @@ public struct HomeScreenView: View {
                     }
                 }
 
-                // Tầng 5: Đơn vị sở hữu & Phòng ban (cho phép 2 dòng)
-                if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
-                    Text("🏢 \(viewModel.user.donVi.isEmpty ? "Toàn hệ thống Doanh nghiệp" : viewModel.user.donVi)")
-                        .font(.system(size: 11.5, weight: .medium))
-                        .foregroundColor(Color.secondary)
-                        .lineLimit(2)
-                } else {
-                    let deptStr = !viewModel.user.departmentId.isEmpty ? "🏛️ Phòng: \(viewModel.user.departmentId)\n" : ""
-                    let donViStr = "🏬 Đơn vị: \(viewModel.user.donVi.isEmpty ? "Chưa gán" : viewModel.user.donVi)"
-                    Text(deptStr + donViStr)
-                        .font(.system(size: 11.5, weight: .medium))
-                        .foregroundColor(Color.secondary)
-                        .lineLimit(2)
-                }
+                // Tầng 5: Đơn vị sở hữu (Bỏ phòng ban, chuẩn dạng: 🏢 Đơn vị: [Mã đơn vị] - [Tên siêu thị/chi nhánh])
+                let donViText: String = {
+                    if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
+                        return "🏢 Đơn vị: \(viewModel.user.donVi.isEmpty ? "Toàn hệ thống Doanh nghiệp" : viewModel.user.donVi)"
+                    }
+                    let dv = viewModel.user.donVi.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if dv.isEmpty || dv.lowercased() == "chưa gán" {
+                        return "🏢 Đơn vị: Chưa gán"
+                    }
+                    var clean = dv
+                    if clean.hasPrefix("🏢") {
+                        clean = clean.replacingOccurrences(of: "🏢", with: "").trimmingCharacters(in: .whitespaces)
+                    }
+                    if clean.hasPrefix("🏬") {
+                        clean = clean.replacingOccurrences(of: "🏬", with: "").trimmingCharacters(in: .whitespaces)
+                    }
+                    if clean.hasPrefix("Đơn vị:") {
+                        clean = clean.replacingOccurrences(of: "Đơn vị:", with: "").trimmingCharacters(in: .whitespaces)
+                    }
+                    return "🏢 Đơn vị: \(clean)"
+                }()
+                Text(donViText)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundColor(Color.secondary)
+                    .lineLimit(2)
             }
         }
         .padding(16)

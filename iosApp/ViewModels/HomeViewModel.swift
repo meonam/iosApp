@@ -155,8 +155,16 @@ public class HomeViewModel: ObservableObject {
 
         let newDonVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
         let altDonVi = FirestoreHelper.getString(fields["tenDonVi"] as? [String: Any])
-        if !newDonVi.isEmpty { self.user.donVi = newDonVi }
-        else if !altDonVi.isEmpty { self.user.donVi = altDonVi }
+        let unitId = FirestoreHelper.getString(fields["unitId"] as? [String: Any])
+        var donViVal = !newDonVi.isEmpty ? newDonVi : altDonVi
+        if !unitId.isEmpty && !donViVal.isEmpty && donViVal != unitId {
+            if !donViVal.contains(" - ") && !donViVal.hasPrefix(unitId) {
+                donViVal = "\(unitId) - \(donViVal)"
+            }
+        } else if !unitId.isEmpty && donViVal.isEmpty {
+            donViVal = unitId
+        }
+        if !donViVal.isEmpty { self.user.donVi = donViVal }
 
         let newAvatar = FirestoreHelper.getString(fields["profileImageUrl"] as? [String: Any])
         let altAvatar = FirestoreHelper.getString(fields["avatarUrl"] as? [String: Any])
