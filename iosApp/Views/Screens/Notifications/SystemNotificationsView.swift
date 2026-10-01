@@ -899,7 +899,7 @@ public struct BroadcastNotificationSheetView: View {
         return opts
     }
 
-    var body: some View {
+    public var body: some View {
         NavigationView {
             VStack(spacing: 0) {
                 // Segmented Tab Picker (Chỉ Admin mới có Tab Banner TopBar)
