@@ -143,22 +143,25 @@ struct CustomTextField: View {
     var placeholder: String
     @Binding var text: String
     var isSecure: Bool = false
+    @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
         HStack {
             Image(systemName: icon)
-                .foregroundColor(.gray)
+                .foregroundColor(Color.appPrimaryPink)
                 .frame(width: 24, height: 24)
             
             if isSecure {
                 SecureField(placeholder, text: $text)
+                    .foregroundColor(Color.appTextPrimary)
             } else {
                 TextField(placeholder, text: $text)
+                    .foregroundColor(Color.appTextPrimary)
             }
         }
         .padding()
-        .background(Color.white)
+        .background(colorScheme == .dark ? Color(hex: "#161F2E") : Color.white)
         .cornerRadius(8)
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(colorScheme == .dark ? Color(hex: "#334155") : Color.appCardBorder, lineWidth: 1))
     }
 }
