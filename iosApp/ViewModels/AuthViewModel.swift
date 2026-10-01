@@ -147,9 +147,10 @@ public class AuthViewModel: ObservableObject {
         self.currentRefreshToken = ""
         if !rememberPassword {
             self.password = ""
+            KeychainHelper.delete(key: "saved_auth_password")
             UserDefaults.standard.removeObject(forKey: "saved_auth_password")
         } else {
-            if let savedPass = UserDefaults.standard.string(forKey: "saved_auth_password") {
+            if let savedPass = KeychainHelper.load(key: "saved_auth_password") {
                 self.password = savedPass
             }
         }
@@ -165,10 +166,12 @@ public class AuthViewModel: ObservableObject {
         UserDefaults.standard.set(currentIdToken, forKey: "saved_auth_token")
         UserDefaults.standard.set(currentRefreshToken, forKey: "saved_auth_refresh_token")
         if rememberPassword {
-            UserDefaults.standard.set(password, forKey: "saved_auth_password")
+            KeychainHelper.save(key: "saved_auth_password", data: password)
         } else {
-            UserDefaults.standard.removeObject(forKey: "saved_auth_password")
+            KeychainHelper.delete(key: "saved_auth_password")
         }
+        // Luôn loại bỏ mật khẩu thô khỏi UserDefaults để đảm bảo không lưu dạng plain-text
+        UserDefaults.standard.removeObject(forKey: "saved_auth_password")
         if let u = currentUser, let data = try? JSONEncoder().encode(u) {
             UserDefaults.standard.set(data, forKey: "saved_auth_user_data")
         }
@@ -186,8 +189,14 @@ public class AuthViewModel: ObservableObject {
             self.currentRefreshToken = UserDefaults.standard.string(forKey: "saved_auth_refresh_token") ?? ""
 
             if isRemember {
-                if let savedPass = UserDefaults.standard.string(forKey: "saved_auth_password"), !savedPass.isEmpty {
-                    self.password = savedPass
+                // 1. Đọc mật khẩu bảo vệ từ Secure Keychain
+                if let securePass = KeychainHelper.load(key: "saved_auth_password"), !securePass.isEmpty {
+                    self.password = securePass
+                } else if let legacyPass = UserDefaults.standard.string(forKey: "saved_auth_password"), !legacyPass.isEmpty {
+                    // Tự động chuyển đổi bảo mật (Migration) từ UserDefaults sang Keychain
+                    self.password = legacyPass
+                    KeychainHelper.save(key: "saved_auth_password", data: legacyPass)
+                    UserDefaults.standard.removeObject(forKey: "saved_auth_password")
                 }
             }
             

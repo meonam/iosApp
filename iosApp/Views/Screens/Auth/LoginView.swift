@@ -189,6 +189,7 @@ public struct LoginView: View {
                                         viewModel.rememberPassword.toggle()
                                         if !viewModel.rememberPassword {
                                             UserDefaults.standard.set(false, forKey: "saved_remember_password")
+                                            KeychainHelper.delete(key: "saved_auth_password")
                                             UserDefaults.standard.removeObject(forKey: "saved_auth_password")
                                         } else {
                                             UserDefaults.standard.set(true, forKey: "saved_remember_password")
