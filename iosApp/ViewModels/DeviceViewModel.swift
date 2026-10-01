@@ -781,6 +781,8 @@ public class DeviceViewModel: ObservableObject {
             "trangThai": ["stringValue": effectiveStatus],
             "companyId": ["stringValue": effectiveCompId],
             "createdAt": ["integerValue": "\(now)"],
+            "updatedAt": ["integerValue": "\(now)"],
+            "ngayCapNhat": ["integerValue": "\(now)"],
             "createdBy": ["stringValue": user.email]
         ]
 
@@ -970,11 +972,13 @@ public class DeviceViewModel: ObservableObject {
             }
 
             // 3. Update Device Document
-            var updateMasks: [String] = ["trangThai", "moTa", "createdAt"]
+            var updateMasks: [String] = ["trangThai", "moTa", "createdAt", "updatedAt", "ngayCapNhat"]
             var devFields: [String: Any] = [
                 "trangThai": ["stringValue": newStatus],
                 "moTa": ["stringValue": finalMoTa],
-                "createdAt": ["integerValue": "\(now)"]
+                "createdAt": ["integerValue": "\(now)"],
+                "updatedAt": ["integerValue": "\(now)"],
+                "ngayCapNhat": ["integerValue": "\(now)"]
             ]
 
             if isLoanAction {
@@ -1027,14 +1031,19 @@ public class DeviceViewModel: ObservableObject {
 
         isLoading = true
         Task {
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
             if cleanOldId == cleanNewId {
-                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(cleanOldId)?updateMask.fieldPaths=ten"
+                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(cleanOldId)?updateMask.fieldPaths=ten&updateMask.fieldPaths=updatedAt&updateMask.fieldPaths=ngayCapNhat"
                 if let url = URL(string: urlStr) {
                     var req = URLRequest(url: url)
                     req.httpMethod = "PATCH"
                     req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
                     req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    let body = ["fields": ["ten": ["stringValue": cleanTen]]]
+                    let body = ["fields": [
+                        "ten": ["stringValue": cleanTen],
+                        "updatedAt": ["integerValue": "\(now)"],
+                        "ngayCapNhat": ["integerValue": "\(now)"]
+                    ]]
                     req.httpBody = try? JSONSerialization.data(withJSONObject: body)
                     _ = await FirestoreHelper.executeSafeRequest(req)
                 }
@@ -1054,6 +1063,8 @@ public class DeviceViewModel: ObservableObject {
                             "tenDonVi": ["stringValue": oldDev.tenDonVi],
                             "trangThai": ["stringValue": oldDev.trangThai],
                             "createdAt": ["integerValue": "\(oldDev.createdAt)"],
+                            "updatedAt": ["integerValue": "\(now)"],
+                            "ngayCapNhat": ["integerValue": "\(now)"],
                             "companyId": ["stringValue": companyId]
                         ]
                         if let pb = oldDev.phongBan { fields["phongBan"] = ["stringValue": pb] }
