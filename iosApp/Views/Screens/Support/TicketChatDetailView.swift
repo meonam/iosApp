@@ -88,6 +88,59 @@ public struct TicketChatDetailView: View {
         return currentTicket.isUserAssigned(email: myEmail)
     }
 
+    private var isAssignedDept: Bool {
+        if isCreator { return false }
+        let deptId = currentTicket.assignedDepartmentId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let deptName = currentTicket.assignedDepartmentName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if deptId.isEmpty && deptName.isEmpty { return false }
+
+        let uDeptId = viewModel.user.departmentId.trimmingCharacters(in: .whitespacesAndNewlines)
+        let uDonVi = viewModel.user.donVi.trimmingCharacters(in: .whitespacesAndNewlines)
+        let uTeam = viewModel.user.toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines)
+        let uKv = viewModel.user.maKhuVuc.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if !deptId.isEmpty {
+            if deptId.caseInsensitiveCompare(uDeptId) == .orderedSame ||
+               deptId.caseInsensitiveCompare(uTeam) == .orderedSame ||
+               deptId.caseInsensitiveCompare(uKv) == .orderedSame {
+                return true
+            }
+        }
+        if !deptName.isEmpty {
+            if deptName.caseInsensitiveCompare(uDeptId) == .orderedSame ||
+               deptName.caseInsensitiveCompare(uDonVi) == .orderedSame ||
+               deptName.caseInsensitiveCompare(uTeam) == .orderedSame ||
+               deptName.localizedCaseInsensitiveContains(uTeam) ||
+               (!uTeam.isEmpty && uTeam.localizedCaseInsensitiveContains(deptName)) {
+                return true
+            }
+        }
+        if (viewModel.user.isSpecialist || viewModel.user.role.localizedCaseInsensitiveContains("specialist") || viewModel.user.role.localizedCaseInsensitiveContains("chuyenvien")) && currentTicket.isSpecialistAssigned {
+            if uTeam.isEmpty || deptId.isEmpty || uTeam.caseInsensitiveCompare(deptId) == .orderedSame {
+                return true
+            }
+        }
+        return false
+    }
+
+    private var isAssignedOrAckTech: Bool {
+        if isCreator { return false }
+        if isAssignedTech { return true }
+        let hasExplicitAssignedTech = !currentTicket.assignedToEmail.isEmpty || !currentTicket.assignedTo.isEmpty
+        if !hasExplicitAssignedTech {
+            if isAssignedDept { return true }
+            if !currentTicket.acknowledgedBy.isEmpty {
+                let ack = currentTicket.acknowledgedBy.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let ackUser = ack.components(separatedBy: "@").first ?? ack
+                let myUser = myEmail.components(separatedBy: "@").first ?? myEmail
+                if ack == myEmail || (!ackUser.isEmpty && ackUser == myUser) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
     private var isAdminOrHelpDesk: Bool {
         viewModel.user.isAdmin || viewModel.user.isHelpDesk
     }
@@ -337,8 +390,8 @@ public struct TicketChatDetailView: View {
                     }
                 }
 
-                // 4. Nút Bàn giao ca / Chuyển ticket (dành cho KTV được phân công)
-                if isAssignedTech && !isClosed && !isResolved {
+                // 4. Nút Bàn giao ca / Chuyển ticket (dành cho KTV / Chuyên viên được phân công)
+                if isAssignedOrAckTech && !isClosed && !isResolved {
                     Button(action: {
                         viewModel.fetchKtvTechnicians()
                         activeSheet = .handover
@@ -627,8 +680,8 @@ public struct TicketChatDetailView: View {
                 .buttonStyle(PlainButtonStyle())
             }
 
-            // ── Banner 2: Thẻ "Tôi đã tự xử lý xong" (cho User tạo phiếu, ẩn với Admin/KTV/HelpDesk) ──
-            if isCreator && isOpen && !isResolved && !isAdminOrHelpDesk && !isAssignedTech {
+            // ── Banner 2: Thẻ "Tôi đã tự xử lý xong" (cho User tạo phiếu, ẩn với Admin/KTV/HelpDesk/Chuyên viên) ──
+            if isCreator && isOpen && !isResolved && !isAdminOrHelpDesk && !isAssignedOrAckTech {
                 Button(action: { activeSheet = .selfResolved }) {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
@@ -664,54 +717,202 @@ public struct TicketChatDetailView: View {
                 .buttonStyle(PlainButtonStyle())
             }
 
-            // ── Banner 3: Chọn phương thức xử lý (CHỈ cho KTV được phân công, ẩn với HelpDesk & Admin) ──
-            if isAssignedTech && !isAdminOrHelpDesk && isOpen && !isResolved {
-                HStack(spacing: 8) {
-                    Text("Phương thức:")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Color.appSecondaryDarkBlue)
+            // ── Banner 3: Tiếp nhận ca & Chọn phương thức xử lý (ĐỒNG BỘ 1:1 VỚI ANDROID AdminSupportChatScreen.kt:1018-1309) ──
+            if isAssignedOrAckTech && !isAdminOrHelpDesk && isOpen && !isResolved {
+                let currentMethod = currentTicket.handlingMethod.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                let isSpecTicket = currentTicket.isSpecialistAssigned
+                let isAcknowledgedByUser = currentTicket.isAcknowledged || currentTicket.acknowledged
+                let needsSelection = !isAcknowledgedByUser || (currentMethod.isEmpty && !isSpecTicket)
 
-                    Button(action: {
-                        viewModel.selectHandlingMethod(ticketId: ticket.id, method: "REMOTE") { _ in }
-                    }) {
-                        Text("💻 Từ xa")
-                            .font(.system(size: 10.5, weight: ticket.handlingMethod == "REMOTE" ? .bold : .medium))
-                            .foregroundColor(ticket.handlingMethod == "REMOTE" ? Color.white : Color(hex: "#1D4ED8"))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(ticket.handlingMethod == "REMOTE" ? Color(hex: "#1D4ED8") : Color(hex: "#EFF6FF"))
-                            .cornerRadius(6)
+                if needsSelection {
+                    // Thẻ Tiếp nhận ca (Dành cho KTV hoặc Chuyên viên nhận phiếu)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(Color(hex: "#15803D"))
+                            Text(isSpecTicket ? "🎯 Chuyên viên tiếp nhận xử lý sự cố:" : "🎯 Chọn phương án tiếp nhận xử lý:")
+                                .font(.system(size: 12.5, weight: .bold))
+                                .foregroundColor(colorScheme == .dark ? Color(hex: "#86EFAC") : Color(hex: "#166534"))
+                        }
+
+                        Text("Vui lòng chọn phương án để hệ thống tự động thông báo vào khung chat:")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color.appTextSecondary)
+
+                        HStack(spacing: 8) {
+                            Button(action: {
+                                viewModel.selectHandlingMethod(ticketId: ticket.id, method: "REMOTE") { _ in }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Text("💻")
+                                    Text("Xử lý từ xa")
+                                        .font(.system(size: 12, weight: .bold))
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 38)
+                                .background(Color(hex: "#2563EB"))
+                                .cornerRadius(8)
+                            }
+
+                            Button(action: {
+                                viewModel.selectHandlingMethod(ticketId: ticket.id, method: "ONSITE") { _ in }
+                                activeSheet = .liveTracking
+                            }) {
+                                HStack(spacing: 4) {
+                                    Text("🛵")
+                                    Text("Đến đơn vị")
+                                        .font(.system(size: 12, weight: .bold))
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 38)
+                                .background(Color(hex: "#002A8F"))
+                                .cornerRadius(8)
+                            }
+                        }
+
+                        Button(action: {
+                            viewModel.fetchKtvTechnicians()
+                            activeSheet = .handover
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.left.arrow.right")
+                                    .font(.system(size: 11))
+                                Text("🔄 Không thể nhận ca? Bàn giao / Chuyển HelpDesk")
+                                    .font(.system(size: 11.5, weight: .semibold))
+                            }
+                            .foregroundColor(colorScheme == .dark ? Color(hex: "#A5B4FC") : Color(hex: "#4F46E5"))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 34)
+                            .background(colorScheme == .dark ? Color(hex: "#312E81").opacity(0.3) : Color(hex: "#EEF2FF"))
+                            .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#C7D2FE").opacity(colorScheme == .dark ? 0.3 : 1), lineWidth: 1))
+                        }
                     }
+                    .padding(10)
+                    .background(colorScheme == .dark ? Color(hex: "#064E3B").opacity(0.25) : Color(hex: "#F0FDF4"))
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(colorScheme == .dark ? Color(hex: "#059669").opacity(0.4) : Color(hex: "#86EFAC"), lineWidth: 1))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                } else {
+                    // Đã tiếp nhận -> Thẻ trạng thái phương thức xử lý & các nút Báo xong / Bàn giao
+                    VStack(spacing: 6) {
+                        if currentMethod == "REMOTE" || (currentMethod.isEmpty && isSpecTicket && isAcknowledgedByUser) {
+                            HStack {
+                                Text("💻 Phương án: Xử lý từ xa (UltraViewer/ĐT)")
+                                    .font(.system(size: 11.5, weight: .bold))
+                                    .foregroundColor(colorScheme == .dark ? Color(hex: "#93C5FD") : Color(hex: "#1E40AF"))
+                                    .lineLimit(1)
 
-                    Button(action: {
-                        viewModel.selectHandlingMethod(ticketId: ticket.id, method: "ONSITE") { _ in }
-                    }) {
-                        Text("🛵 Đến nơi")
-                            .font(.system(size: 10.5, weight: ticket.handlingMethod == "ONSITE" ? .bold : .medium))
-                            .foregroundColor(ticket.handlingMethod == "ONSITE" ? Color.white : Color(hex: "#B45309"))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(ticket.handlingMethod == "ONSITE" ? Color(hex: "#B45309") : Color(hex: "#FEF3C7"))
-                            .cornerRadius(6)
+                                Spacer()
+
+                                Button(action: {
+                                    viewModel.selectHandlingMethod(ticketId: ticket.id, method: "ONSITE") { _ in }
+                                    activeSheet = .liveTracking
+                                }) {
+                                    Text("Đổi sang di chuyển 🛵")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(Color(hex: "#2563EB"))
+                                }
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(colorScheme == .dark ? Color(hex: "#1E3A8A").opacity(0.25) : Color(hex: "#EFF6FF"))
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(colorScheme == .dark ? Color(hex: "#3B82F6").opacity(0.3) : Color(hex: "#BFDBFE"), lineWidth: 1))
+                            .padding(.horizontal, 12)
+                        } else if currentMethod == "ONSITE" {
+                            HStack {
+                                HStack(spacing: 4) {
+                                    Text("🛵")
+                                    Text("Phương án: Di chuyển đến đơn vị")
+                                        .font(.system(size: 11.5, weight: .bold))
+                                        .foregroundColor(colorScheme == .dark ? Color(hex: "#FCD34D") : Color(hex: "#92400E"))
+                                        .lineLimit(1)
+                                }
+
+                                Spacer()
+
+                                HStack(spacing: 8) {
+                                    Button(action: { activeSheet = .liveTracking }) {
+                                        Text("Bản đồ 🧭")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(Color(hex: "#002A8F"))
+                                    }
+
+                                    Button(action: {
+                                        viewModel.selectHandlingMethod(ticketId: ticket.id, method: "REMOTE") { _ in }
+                                    }) {
+                                        Text("Đổi sang từ xa 💻")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(Color(hex: "#2563EB"))
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(colorScheme == .dark ? Color(hex: "#78350F").opacity(0.25) : Color(hex: "#FFFBEB"))
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(colorScheme == .dark ? Color(hex: "#D97706").opacity(0.3) : Color(hex: "#FDE68A"), lineWidth: 1))
+                            .padding(.horizontal, 12)
+                        }
+
+                        // Hai thẻ hành động: Báo đã xong & Bàn giao ca
+                        HStack(spacing: 8) {
+                            Button(action: { activeSheet = .techResolve }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(Color(hex: "#16A34A"))
+                                        .font(.system(size: 14))
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text("🛠️ Báo đã xong")
+                                            .font(.system(size: 11.5, weight: .bold))
+                                            .foregroundColor(colorScheme == .dark ? Color(hex: "#4ADE80") : Color(hex: "#15803D"))
+                                        Text("Báo cáo hoàn thành")
+                                            .font(.system(size: 9.5))
+                                            .foregroundColor(colorScheme == .dark ? Color(hex: "#86EFAC") : Color(hex: "#166534"))
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 7)
+                                .background(colorScheme == .dark ? Color(hex: "#064E3B").opacity(0.3) : Color(hex: "#F0FDF4"))
+                                .cornerRadius(10)
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(colorScheme == .dark ? Color(hex: "#059669").opacity(0.3) : Color(hex: "#BBF7D0"), lineWidth: 1))
+                            }
+
+                            Button(action: {
+                                viewModel.fetchKtvTechnicians()
+                                activeSheet = .handover
+                            }) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "arrow.left.arrow.right")
+                                        .foregroundColor(Color(hex: "#4F46E5"))
+                                        .font(.system(size: 14))
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text("🔄 Bàn giao ca")
+                                            .font(.system(size: 11.5, weight: .bold))
+                                            .foregroundColor(colorScheme == .dark ? Color(hex: "#A5B4FC") : Color(hex: "#4338CA"))
+                                        Text("Chuyển KTV / HelpDesk")
+                                            .font(.system(size: 9.5))
+                                            .foregroundColor(colorScheme == .dark ? Color(hex: "#C7D2FE") : Color(hex: "#4F46E5"))
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 7)
+                                .background(colorScheme == .dark ? Color(hex: "#312E81").opacity(0.3) : Color(hex: "#EEF2FF"))
+                                .cornerRadius(10)
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(colorScheme == .dark ? Color(hex: "#6366F1").opacity(0.3) : Color(hex: "#C7D2FE"), lineWidth: 1))
+                            }
+                        }
+                        .padding(.horizontal, 12)
                     }
-
-                    Spacer()
-
-                    // Nút KTV Báo cáo đã xử lý xong
-                    Button("🛠️ Báo cáo xong") {
-                        activeSheet = .techResolve
-                    }
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(Color.white)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(Color(hex: "#10B981"))
-                    .cornerRadius(6)
+                    .padding(.vertical, 4)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.appSurface)
-                .overlay(Rectangle().frame(height: 1).foregroundColor(Color.appCardBorder), alignment: .bottom)
             }
 
             // ── Banner 4: Nghiệm thu & Đánh giá 5 sao (cho Người tạo khi RESOLVED) ──
@@ -1356,10 +1557,10 @@ public struct TicketChatDetailView: View {
             }
             .padding(.horizontal, 12)
             .padding(.top, 8)
-            .padding(.bottom, (isAdminOrHelpDesk || isAssignedTech) ? 4 : 8)
+            .padding(.bottom, (isAdminOrHelpDesk || isAssignedOrAckTech) ? 4 : 8)
 
             // Checkbox Ghi chú nội bộ (ĐỒNG BỘ 1:1 VỚI ANDROID Image 2)
-            if isAdminOrHelpDesk || isAssignedTech {
+            if isAdminOrHelpDesk || isAssignedOrAckTech {
                 HStack(spacing: 6) {
                     Button(action: { isInternalNote.toggle() }) {
                         Image(systemName: isInternalNote ? "checkmark.square.fill" : "square")

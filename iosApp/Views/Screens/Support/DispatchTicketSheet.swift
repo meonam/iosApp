@@ -1,45 +1,7 @@
 import SwiftUI
 
 // MARK: - SPECIALIST TEAM DEFINITIONS (ĐỒNG BỘ 1:1 VỚI ANDROID SPECIALISTTEAMDEFAULTS)
-public struct SpecialistTeamInfo: Identifiable, Hashable {
-    public var id: String
-    public var name: String
-    public var applications: [String]
-
-    public init(id: String, name: String, applications: [String]) {
-        self.id = id
-        self.name = name
-        self.applications = applications
-    }
-}
-
-public let DEFAULT_SPECIALIST_TEAMS: [SpecialistTeamInfo] = [
-    SpecialistTeamInfo(
-        id: "TO_HA_TANG_BAO_MAT",
-        name: "Tổ Hạ Tầng Mạng & Bảo Mật",
-        applications: ["HẠ TẦNG & MẠNG", "AN NINH BẢO MẬT"]
-    ),
-    SpecialistTeamInfo(
-        id: "TO_KY_THUAT_UNG_DUNG",
-        name: "Tổ Kỹ Thuật Ứng Dụng",
-        applications: ["MMS (Kỹ thuật)", "ORACLE", "Văn phòng điện tử", "KHTV", "TOPOS"]
-    ),
-    SpecialistTeamInfo(
-        id: "TO_PHAN_TICH_NGHIEP_VU",
-        name: "Tổ Phân Tích Nghiệp Vụ",
-        applications: ["MMS (Nghiệp vụ)", "OMNI", "Nhập liệu tự động", "ERP MCS/Bách Hóa"]
-    ),
-    SpecialistTeamInfo(
-        id: "TO_NEN_TANG_DU_LIEU",
-        name: "Tổ Nền Tảng Dữ Liệu",
-        applications: ["TOOLS NỘI BỘ", "REPORT TOOL"]
-    ),
-    SpecialistTeamInfo(
-        id: "TO_RND_CONG_NGHE",
-        name: "Tổ Nghiên Cứu & Phát Triển Công Nghệ",
-        applications: ["CHƯƠNG TRÌNH ĐẶT HÀNG OMS", "CHƯƠNG TRÌNH ĐẶT HÀNG D&F", "APP CHÀO HÀNG ONLINE"]
-    )
-]
+public let DEFAULT_SPECIALIST_TEAMS: [SpecialistTeamInfo] = SpecialistTeamDefaults.TEAMS
 
 // MARK: - DISPATCH TICKET SHEET (ĐỒNG BỘ 1:1 VỚI ANDROID)
 public struct DispatchTicketSheet: View {
@@ -97,7 +59,55 @@ public struct DispatchTicketSheet: View {
     }
 
     private var currentSpecialistTeam: SpecialistTeamInfo {
-        DEFAULT_SPECIALIST_TEAMS.first { $0.id == selectedSpecialistTeamId } ?? DEFAULT_SPECIALIST_TEAMS[0]
+        let teams = viewModel.specialistTeams.isEmpty ? SpecialistTeamDefaults.TEAMS : viewModel.specialistTeams
+        return teams.first { $0.id.caseInsensitiveCompare(selectedSpecialistTeamId) == .orderedSame } ?? teams[0]
+    }
+
+    private var specialistsInTeam: [User] {
+        let teamName = currentSpecialistTeam.name
+        let allStaff = viewModel.allStaffList
+        let matched = allStaff.filter { u in
+            let uEmail = u.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let isValidEmail = uEmail.contains("@") && !uEmail.hasPrefix("device_")
+            if !isValidEmail { return false }
+            let uDept = u.departmentId.trimmingCharacters(in: .whitespacesAndNewlines)
+            let uDonVi = u.donVi.trimmingCharacters(in: .whitespacesAndNewlines)
+            let uKv = u.maKhuVuc.trimmingCharacters(in: .whitespacesAndNewlines)
+            let uTeam = u.toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines)
+            let r = u.role.lowercased()
+            let isSpec = r == "chuyenvien" || r == "specialist"
+
+            return uTeam.caseInsensitiveCompare(selectedSpecialistTeamId) == .orderedSame ||
+                   uKv.caseInsensitiveCompare(selectedSpecialistTeamId) == .orderedSame ||
+                   uDept.caseInsensitiveCompare(selectedSpecialistTeamId) == .orderedSame ||
+                   (!teamName.isEmpty && (
+                       uDept.localizedCaseInsensitiveContains(teamName) ||
+                       teamName.localizedCaseInsensitiveContains(uDept) ||
+                       uDonVi.localizedCaseInsensitiveContains(teamName) ||
+                       uKv.localizedCaseInsensitiveContains(teamName)
+                   )) ||
+                   (isSpec && selectedSpecialistTeamId.isEmpty)
+        }
+
+        if !matched.isEmpty { return matched }
+
+        return allStaff.filter { u in
+            let uEmail = u.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let isValidEmail = uEmail.contains("@") && !uEmail.hasPrefix("device_")
+            if !isValidEmail { return false }
+            let uDept = u.departmentId.trimmingCharacters(in: .whitespacesAndNewlines)
+            let uDonVi = u.donVi.trimmingCharacters(in: .whitespacesAndNewlines)
+            let r = u.role.uppercased()
+
+            return uDept.localizedCaseInsensitiveContains("CNTT") ||
+                   uDept.localizedCaseInsensitiveContains("PCNTT") ||
+                   uDonVi.localizedCaseInsensitiveContains("CNTT") ||
+                   uDonVi.localizedCaseInsensitiveContains("PCNTT") ||
+                   r.contains("ADMIN") ||
+                   r.contains("CHUYENVIEN") ||
+                   r.contains("SPECIALIST") ||
+                   r.contains("STAFF")
+        }
     }
 
     private var filteredTechs: [KtvOnlineLocation] {
@@ -158,6 +168,7 @@ public struct DispatchTicketSheet: View {
             }
             .onAppear {
                 viewModel.fetchKtvTechnicians()
+                viewModel.fetchStaffAndSpecialistTeams()
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
@@ -360,14 +371,15 @@ public struct DispatchTicketSheet: View {
                     .font(.system(size: 13.5, weight: .semibold))
                     .foregroundColor(Color.appTextPrimary)
 
+                let teams = viewModel.specialistTeams.isEmpty ? SpecialistTeamDefaults.TEAMS : viewModel.specialistTeams
                 VStack(spacing: 8) {
-                    ForEach(DEFAULT_SPECIALIST_TEAMS) { team in
-                        let isSelected = selectedSpecialistTeamId == team.id
+                    ForEach(teams) { team in
+                        let isSelected = selectedSpecialistTeamId.caseInsensitiveCompare(team.id) == .orderedSame
                         Button(action: {
                             selectedSpecialistTeamId = team.id
                             selectedSpecialistEmail = ""
                             selectedSpecialistName = ""
-                            if !team.applications.contains(selectedApp) {
+                            if !selectedApp.isEmpty && !team.applications.contains(where: { $0.caseInsensitiveCompare(selectedApp) == .orderedSame }) {
                                 selectedApp = ""
                             }
                         }) {
@@ -426,8 +438,22 @@ public struct DispatchTicketSheet: View {
                         }
 
                         ForEach(currentSpecialistTeam.applications, id: \.self) { app in
-                            let isSel = selectedApp == app
-                            Button(action: { selectedApp = isSel ? "" : app }) {
+                            let isSel = selectedApp.caseInsensitiveCompare(app) == .orderedSame
+                            Button(action: {
+                                if isSel {
+                                    selectedApp = ""
+                                } else {
+                                    selectedApp = app
+                                    let matchedTeam = teams.first { team in
+                                        team.applications.contains { $0.caseInsensitiveCompare(app) == .orderedSame }
+                                    }
+                                    if let matched = matchedTeam, matched.id.caseInsensitiveCompare(selectedSpecialistTeamId) != .orderedSame {
+                                        selectedSpecialistTeamId = matched.id
+                                        selectedSpecialistEmail = ""
+                                        selectedSpecialistName = ""
+                                    }
+                                }
+                            }) {
                                 Text(app)
                                     .font(.system(size: 12, weight: isSel ? .bold : .medium))
                                     .foregroundColor(isSel ? tealColor : Color.appTextSecondary)
@@ -465,7 +491,7 @@ public struct DispatchTicketSheet: View {
                                 Circle()
                                     .fill(tealColor)
                                     .frame(width: 10, height: 10)
-                                }
+                            }
                         }
                         Text("👥 Phân công chung cho cả Tổ")
                             .font(.system(size: 13, weight: .semibold))
@@ -476,60 +502,76 @@ public struct DispatchTicketSheet: View {
                 }
                 .buttonStyle(PlainButtonStyle())
 
-                // List specialists
-                ForEach(viewModel.ktvTechnicians) { spec in
-                    let isSelected = selectedSpecialistEmail == spec.email
-                    let workload = viewModel.getActiveTicketCount(email: spec.email)
-
-                    Button(action: {
-                        selectedSpecialistEmail = spec.email
-                        selectedSpecialistName = spec.name
-                    }) {
-                        HStack(spacing: 12) {
-                            ZStack {
-                                Circle()
-                                    .stroke(isSelected ? tealColor : Color.gray.opacity(0.5), lineWidth: 2)
-                                    .frame(width: 20, height: 20)
-                                if isSelected {
-                                    Circle()
-                                        .fill(tealColor)
-                                        .frame(width: 10, height: 10)
-                                }
-                            }
-
-                            VStack(alignment: .leading, spacing: 3) {
-                                HStack(spacing: 6) {
-                                    Text(spec.name)
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(Color.appTextPrimary)
-
-                                    Circle()
-                                        .fill(spec.isOnline ? Color(hex: "#10B981") : Color.gray)
-                                        .frame(width: 7, height: 7)
-
-                                    Text(spec.isOnline ? "Online" : "Offline")
-                                        .font(.system(size: 11.5))
-                                        .foregroundColor(spec.isOnline ? Color(hex: "#10B981") : Color.gray)
-                                }
-
-                                let statusText = spec.isOnline
-                                    ? (workload == 0 ? "🟢 Đang rảnh (0 việc)" : "🔴 Bận (\(workload) việc)")
-                                    : (workload == 0 ? "⚪ Ngoại tuyến" : "⚪ Ngoại tuyến (\(workload) việc)")
-                                let statusColor = spec.isOnline
-                                    ? (workload == 0 ? Color(hex: "#10B981") : Color(hex: "#EF4444"))
-                                    : Color.gray
-
-                                Text(statusText)
-                                    .font(.system(size: 11.5))
-                                    .foregroundColor(statusColor)
-                            }
-
-                            Spacer()
-                        }
-                        .padding(.vertical, 6)
-                        .padding(.horizontal, 4)
+                if viewModel.isLoadingStaff {
+                    HStack {
+                        Spacer()
+                        ProgressView("Đang tải danh sách chuyên viên...")
+                            .font(.system(size: 12))
+                        Spacer()
                     }
-                    .buttonStyle(PlainButtonStyle())
+                    .padding(.vertical, 12)
+                } else if specialistsInTeam.isEmpty {
+                    Text("Không có chuyên viên phù hợp với tổ này")
+                        .font(.system(size: 12.5))
+                        .foregroundColor(Color.appTextSecondary)
+                        .italic()
+                        .padding(.vertical, 6)
+                } else {
+                    ForEach(specialistsInTeam, id: \.email) { spec in
+                        let isSelected = selectedSpecialistEmail.caseInsensitiveCompare(spec.email) == .orderedSame
+                        let isOnline = spec.isOnline || (spec.lastActiveAt > 0 && (Int64(Date().timeIntervalSince1970 * 1000) - spec.lastActiveAt < 15 * 60 * 1000))
+                        let workload = viewModel.getActiveTicketCount(email: spec.email)
+
+                        Button(action: {
+                            selectedSpecialistEmail = spec.email
+                            selectedSpecialistName = spec.fullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? spec.email : spec.fullName
+                        }) {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .stroke(isSelected ? tealColor : Color.gray.opacity(0.5), lineWidth: 2)
+                                        .frame(width: 20, height: 20)
+                                    if isSelected {
+                                        Circle()
+                                            .fill(tealColor)
+                                            .frame(width: 10, height: 10)
+                                    }
+                                }
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack(spacing: 6) {
+                                        Text(spec.fullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? spec.email : spec.fullName)
+                                            .font(.system(size: 13.5, weight: .semibold))
+                                            .foregroundColor(Color.appTextPrimary)
+
+                                        Circle()
+                                            .fill(isOnline ? Color(hex: "#10B981") : Color.gray)
+                                            .frame(width: 7, height: 7)
+
+                                        Text(isOnline ? "Online" : "Offline")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(isOnline ? Color(hex: "#10B981") : Color.gray)
+                                    }
+
+                                    let statusText = isOnline
+                                        ? (workload == 0 ? "🟢 Đang rảnh (0 việc)" : "🔴 Bận (\(workload) việc)")
+                                        : (workload == 0 ? "⚪ Ngoại tuyến" : "⚪ Ngoại tuyến (dở dang \(workload) việc)")
+                                    let statusColor = isOnline
+                                        ? (workload == 0 ? Color(hex: "#10B981") : Color(hex: "#EF4444"))
+                                        : Color.gray
+
+                                    Text(statusText)
+                                        .font(.system(size: 11.5))
+                                        .foregroundColor(statusColor)
+                                }
+
+                                Spacer()
+                            }
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 4)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
                 }
             }
         }
@@ -558,13 +600,13 @@ public struct DispatchTicketSheet: View {
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             .scaleEffect(0.8)
                     }
-                    Text(targetRole == "SPECIALIST" ? "Điều phối" : "Điều phối")
+                    Text(targetRole == "SPECIALIST" ? "⚡ Điều phối Chuyên viên" : "Điều phối")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white)
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
-                .background(Color.appPrimaryPink)
+                .background(targetRole == "SPECIALIST" ? Color(hex: "#0D9488") : Color.appPrimaryPink)
                 .clipShape(Capsule())
             }
             .disabled(isSubmitting)
@@ -576,11 +618,33 @@ public struct DispatchTicketSheet: View {
     private func handleDispatch() {
         isSubmitting = true
         if targetRole == "SPECIALIST" {
-            let specName = selectedSpecialistName.isEmpty ? (selectedSpecialistEmail.isEmpty ? "" : selectedSpecialistEmail) : selectedSpecialistName
+            let specUser = viewModel.allStaffList.first { $0.email.caseInsensitiveCompare(selectedSpecialistEmail) == .orderedSame }
+            let specName: String
+            if let user = specUser, !user.fullName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               user.fullName.lowercased() != "admin", user.fullName.lowercased() != "user" {
+                specName = user.fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if !selectedSpecialistEmail.isEmpty {
+                specName = selectedSpecialistEmail.components(separatedBy: "@").first ?? selectedSpecialistEmail
+            } else {
+                specName = ""
+            }
+
+            let effectiveTeamId: String
+            if let userTeam = specUser?.toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines), !userTeam.isEmpty {
+                effectiveTeamId = userTeam
+            } else {
+                effectiveTeamId = selectedSpecialistTeamId
+            }
+
+            let teams = viewModel.specialistTeams.isEmpty ? SpecialistTeamDefaults.TEAMS : viewModel.specialistTeams
+            let effectiveTeamObj = teams.first { $0.id.caseInsensitiveCompare(effectiveTeamId) == .orderedSame } ?? currentSpecialistTeam
+            let resolvedName = SpecialistTeamDefaults.resolveTeamDisplayName(effectiveTeamId)
+            let effectiveTeamName = resolvedName.isEmpty ? effectiveTeamObj.name : resolvedName
+
             viewModel.assignTicket(
                 ticketId: ticket.id,
-                deptId: selectedSpecialistTeamId,
-                deptName: currentSpecialistTeam.name,
+                deptId: effectiveTeamId,
+                deptName: effectiveTeamName,
                 techEmail: selectedSpecialistEmail,
                 techName: specName,
                 note: note.trimmingCharacters(in: .whitespacesAndNewlines),

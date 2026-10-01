@@ -34,6 +34,11 @@ public class SupportViewModel: ObservableObject {
     @Published public var ktvTechnicians: [KtvOnlineLocation] = []
     @Published public var isLoadingKtvs: Bool = false
 
+    // Staff & Specialist Teams (đồng bộ Android AndroidDispatchDialog)
+    @Published public var allStaffList: [User] = []
+    @Published public var specialistTeams: [SpecialistTeamInfo] = SpecialistTeamDefaults.TEAMS
+    @Published public var isLoadingStaff: Bool = false
+
     // MARK: - Rating Report KPIs
     @Published public var ktvStats: [KtvStat] = []
     @Published public var recentFeedbacks: [SupportTicket] = []
@@ -211,11 +216,18 @@ public class SupportViewModel: ObservableObject {
                 }
             }
 
-            // 5. Chuyên viên tổ nghiệp vụ
-            if user.isSpecialist && !ticket.toNghiepVu.isEmpty {
-                if ticket.isSpecialistAssigned && ticket.assignedToEmail.isEmpty {
+            // 5. Chuyên viên tổ nghiệp vụ (Specialist): thấy ticket được giao tới tổ nghiệp vụ của mình (chưa chỉ định cá nhân)
+            let myToNghiepVu = user.toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if user.isSpecialist && !myToNghiepVu.isEmpty {
+                let tToNghiepVu = ticket.toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let noIndividualAssigned = ticket.assignedToEmail.isEmpty && ticket.assignedTo.isEmpty
+                if ticket.isSpecialistAssigned && noIndividualAssigned && !tToNghiepVu.isEmpty &&
+                    (tToNghiepVu == myToNghiepVu || tToNghiepVu.contains(myToNghiepVu) || myToNghiepVu.contains(tToNghiepVu)) {
                     return true
                 }
+            } else if user.isSpecialist && ticket.isSpecialistAssigned && ticket.assignedToEmail.isEmpty && ticket.assignedTo.isEmpty {
+                // Fallback nếu specialist chưa có toNghiepVu cụ thể
+                return true
             }
 
             return false
@@ -1150,12 +1162,22 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
-    // MARK: - KTV TIẾP NHẬN / PHƯƠNG ÁN XỬ LÝ
+    // MARK: - KTV / SPECIALIST TIẾP NHẬN / PHƯƠNG ÁN XỬ LÝ (ĐỒNG BỘ 1:1 ANDROID)
     public func acknowledgeTicket(ticketId: String) {
         VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=isAcknowledged&updateMask.fieldPaths=acknowledgedAt&updateMask.fieldPaths=acknowledgedBy&updateMask.fieldPaths=acknowledgedByName"
+            let ticket = rawTickets.first { $0.id == ticketId }
+            let isClaiming = (ticket?.assignedToEmail ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+            var maskFields = [
+                "isAcknowledged", "acknowledged", "acknowledgedAt", "acknowledgedBy", "acknowledgedByName"
+            ]
+            if isClaiming {
+                maskFields.append(contentsOf: ["assignedTo", "assignedToEmail", "assignedToName", "assignedRole"])
+            }
+            let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -1163,16 +1185,28 @@ public class SupportViewModel: ObservableObject {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            let body: [String: Any] = [
-                "fields": [
-                    "isAcknowledged": ["booleanValue": true],
-                    "acknowledgedAt": ["integerValue": String(now)],
-                    "acknowledgedBy": ["stringValue": user.email],
-                    "acknowledgedByName": ["stringValue": user.fullName]
-                ]
+            var f: [String: Any] = [
+                "isAcknowledged": ["booleanValue": true],
+                "acknowledged": ["booleanValue": true],
+                "acknowledgedAt": ["integerValue": String(now)],
+                "acknowledgedBy": ["stringValue": user.email],
+                "acknowledgedByName": ["stringValue": user.fullName]
             ]
+            if isClaiming {
+                f["assignedTo"] = ["stringValue": user.email]
+                f["assignedToEmail"] = ["stringValue": user.email]
+                f["assignedToName"] = ["stringValue": user.fullName]
+                f["assignedRole"] = ["stringValue": (ticket?.isSpecialistAssigned == true || user.isSpecialist) ? "SPECIALIST" : "TECH"]
+            }
+
+            let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
             _ = await FirestoreHelper.executeSafeRequest(request)
+
+            let isSpecialist = ticket?.isSpecialistAssigned == true || (ticket?.assignedRole.uppercased() == "SPECIALIST") || (user.isSpecialist && ticket?.assignedRole.uppercased() != "TECH")
+            let rolePrefix = isSpecialist ? "Chuyên viên" : "KTV"
+            let ackMsg = "🎯 [Tiếp nhận ca] \(rolePrefix) \(user.fullName) đã tiếp nhận xử lý sự cố."
+            sendMessage(ticketId: ticketId, text: ackMsg, isSystemMessage: true)
             self.fetchTickets()
         }
     }
@@ -1181,7 +1215,19 @@ public class SupportViewModel: ObservableObject {
         VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=handlingMethod&updateMask.fieldPaths=handlingMethodUpdatedAt&updateMask.fieldPaths=isAcknowledged&updateMask.fieldPaths=acknowledgedAt&updateMask.fieldPaths=acknowledgedBy&updateMask.fieldPaths=acknowledgedByName"
+            let ticket = rawTickets.first { $0.id == ticketId }
+            let isClaiming = (ticket?.assignedToEmail ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+            var maskFields = [
+                "handlingMethod", "handlingMethodUpdatedAt",
+                "isAcknowledged", "acknowledged", "acknowledgedAt",
+                "acknowledgedBy", "acknowledgedByName"
+            ]
+            if isClaiming {
+                maskFields.append(contentsOf: ["assignedTo", "assignedToEmail", "assignedToName", "assignedRole"])
+            }
+            let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -1189,26 +1235,33 @@ public class SupportViewModel: ObservableObject {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            let body: [String: Any] = [
-                "fields": [
-                    "handlingMethod": ["stringValue": method],
-                    "handlingMethodUpdatedAt": ["integerValue": String(now)],
-                    "isAcknowledged": ["booleanValue": true],
-                    "acknowledgedAt": ["integerValue": String(now)],
-                    "acknowledgedBy": ["stringValue": user.email],
-                    "acknowledgedByName": ["stringValue": user.fullName]
-                ]
+            var f: [String: Any] = [
+                "handlingMethod": ["stringValue": method],
+                "handlingMethodUpdatedAt": ["integerValue": String(now)],
+                "isAcknowledged": ["booleanValue": true],
+                "acknowledged": ["booleanValue": true],
+                "acknowledgedAt": ["integerValue": String(now)],
+                "acknowledgedBy": ["stringValue": user.email],
+                "acknowledgedByName": ["stringValue": user.fullName]
             ]
+            if isClaiming {
+                f["assignedTo"] = ["stringValue": user.email]
+                f["assignedToEmail"] = ["stringValue": user.email]
+                f["assignedToName"] = ["stringValue": user.fullName]
+                f["assignedRole"] = ["stringValue": (ticket?.isSpecialistAssigned == true || user.isSpecialist) ? "SPECIALIST" : "TECH"]
+            }
+
+            let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
             _ = await FirestoreHelper.executeSafeRequest(request)
 
-            let ticket = rawTickets.first { $0.id == ticketId }
             let isSpecialist = ticket?.isSpecialistAssigned == true || (ticket?.assignedRole.uppercased() == "SPECIALIST") || (user.isSpecialist && ticket?.assignedRole.uppercased() != "TECH")
             let rolePrefix = isSpecialist ? "Chuyên viên" : "KTV"
-            let msg = method == "REMOTE"
-                ? "💻 \(rolePrefix) \(user.fullName) đã tiếp nhận và chọn phương án Xử lý từ xa (UltraViewer / ĐT)"
-                : "🛵 \(rolePrefix) \(user.fullName) đã tiếp nhận và đang di chuyển tới đơn vị"
-            sendMessage(ticketId: ticketId, text: msg)
+            let donViText = !(ticket?.donVi ?? "").isEmpty ? " (\(ticket!.donVi))" : ""
+            let modeText = method == "REMOTE" ? "XỬ LÝ TỪ XA (UltraViewer / ĐT)" : "DI CHUYỂN ĐẾN ĐƠN VỊ\(donViText)"
+            let icon = method == "REMOTE" ? "💻" : "🛵"
+            let msg = "\(icon) [Tiếp nhận ca] \(rolePrefix) \(user.fullName) đã chọn phương án: \(modeText)."
+            sendMessage(ticketId: ticketId, text: msg, isSystemMessage: true)
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
         }
@@ -1478,16 +1531,93 @@ public class SupportViewModel: ObservableObject {
     ) {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let isSpecialist = assignedRole.uppercased() == "SPECIALIST" || deptId.hasPrefix("TO_")
+            let isSpecialist = assignedRole.uppercased() == "SPECIALIST" ||
+                               deptId.hasPrefix("TO_") ||
+                               SpecialistTeamDefaults.TEAMS.contains { $0.id.caseInsensitiveCompare(deptId) == .orderedSame }
             let rolePrefix = isSpecialist ? "Chuyên viên" : "KTV"
-            let finalDeptName = deptName.isEmpty ? "IT TẬP TRUNG" : deptName
+            let effectiveCluster = isSpecialist ? "" : assignedCluster
+            let effectiveRegion = isSpecialist ? "" : assignedRegion
+
+            let clusterRegionDetail: String
+            if isSpecialist {
+                clusterRegionDetail = ""
+            } else if !effectiveCluster.isEmpty && !effectiveRegion.isEmpty && effectiveCluster.caseInsensitiveCompare(effectiveRegion) != .orderedSame {
+                clusterRegionDetail = "thuộc Cụm \(effectiveCluster), Khu vực \(effectiveRegion)"
+            } else if !effectiveCluster.isEmpty {
+                clusterRegionDetail = "thuộc Cụm \(effectiveCluster)"
+            } else if !effectiveRegion.isEmpty {
+                clusterRegionDetail = "thuộc Khu vực \(effectiveRegion)"
+            } else {
+                clusterRegionDetail = ""
+            }
+
+            let rawTeamName: String
+            if isSpecialist {
+                let r1 = SpecialistTeamDefaults.resolveTeamDisplayName(deptId)
+                let r2 = r1.isEmpty ? SpecialistTeamDefaults.resolveTeamDisplayName(deptName) : r1
+                rawTeamName = r2.isEmpty ? deptName : r2
+            } else {
+                rawTeamName = deptName
+            }
+
+            let cleanTeam: String
+            if isSpecialist && !rawTeamName.isEmpty {
+                if rawTeamName.lowercased().hasPrefix("tổ ") || rawTeamName.lowercased().hasPrefix("khối ") {
+                    cleanTeam = rawTeamName
+                } else {
+                    cleanTeam = "Tổ \(rawTeamName)"
+                }
+            } else {
+                cleanTeam = ""
+            }
+
+            let teamDetail = !cleanTeam.isEmpty ? " (\(cleanTeam))" : ""
+            let finalDeptName = (isSpecialist && !cleanTeam.isEmpty) ? cleanTeam : (deptName.isEmpty ? "IT TẬP TRUNG" : deptName)
+
+            let techInfo: String
+            if !techName.isEmpty {
+                if isSpecialist && !teamDetail.isEmpty {
+                    techInfo = " (\(rolePrefix): \(techName)\(teamDetail))"
+                } else if !clusterRegionDetail.isEmpty {
+                    techInfo = " (\(rolePrefix): \(techName) \(clusterRegionDetail))"
+                } else {
+                    techInfo = " (\(rolePrefix): \(techName))"
+                }
+            } else if !clusterRegionDetail.isEmpty {
+                techInfo = " (\(clusterRegionDetail))"
+            } else {
+                techInfo = ""
+            }
+
+            let appInfo = !assignedApplication.isEmpty ? " • Ứng dụng: \(assignedApplication)" : ""
+            let noteInfo = !note.isEmpty ? " • Ghi chú: \(note)" : ""
+            let dispatchMsg = "🔄 [Điều phối] HelpDesk đã chuyển giao yêu cầu cho \(finalDeptName)\(techInfo)\(appInfo)\(noteInfo)"
+
+            // Lấy ticket hiện tại để cập nhật coTechnicians và assignedTechnicianEmails
+            let currentTicket = self.rawTickets.first { $0.id == ticketId }
+            let existingCoTechs = (currentTicket?.coTechnicians ?? []).filter {
+                $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != techEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            }
+            let existingCoTechEmails = existingCoTechs.map { $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+
+            var allAssignedEmails: [String] = []
+            let cleanTech = techEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !cleanTech.isEmpty {
+                allAssignedEmails.append(cleanTech)
+            }
+            for e in existingCoTechEmails {
+                if !e.isEmpty && !allAssignedEmails.contains(e) {
+                    allAssignedEmails.append(e)
+                }
+            }
 
             let maskFields = [
                 "assignedDepartmentId", "assignedDepartmentName", "toNghiepVu",
                 "assignedToEmail", "assignedToName", "assignedCluster", "assignedRegion",
                 "assignedApplication", "assignedRole", "scope", "isSpecialistAssigned",
                 "assignedByEmail", "assignedAt", "dispatchNote", "lastMessage", "lastMessageAt",
-                "isAcknowledged"
+                "isAcknowledged", "acknowledged", "acknowledgedAt", "acknowledgedBy", "acknowledgedByName",
+                "tracking", "coTechnicians", "assignedTechnicianEmails"
             ]
             let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
@@ -1498,14 +1628,35 @@ public class SupportViewModel: ObservableObject {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
+            let coTechsValues: [[String: Any]] = existingCoTechs.map { co in
+                return [
+                    "mapValue": [
+                        "fields": [
+                            "email": ["stringValue": co.email],
+                            "name": ["stringValue": co.name],
+                            "phone": ["stringValue": co.phone],
+                            "role": ["stringValue": co.role],
+                            "assignedAt": ["integerValue": String(co.assignedAt)],
+                            "assignedBy": ["stringValue": co.assignedBy],
+                            "isAcknowledged": ["booleanValue": co.isAcknowledged],
+                            "acknowledgedAt": ["integerValue": String(co.acknowledgedAt)]
+                        ]
+                    ]
+                ]
+            }
+
+            let assignedEmailsValues: [[String: Any]] = allAssignedEmails.map { email in
+                return ["stringValue": email]
+            }
+
             var f: [String: Any] = [
                 "assignedDepartmentId": ["stringValue": deptId],
                 "assignedDepartmentName": ["stringValue": finalDeptName],
                 "toNghiepVu": ["stringValue": isSpecialist ? deptId : ""],
                 "assignedToEmail": ["stringValue": techEmail],
                 "assignedToName": ["stringValue": techName],
-                "assignedCluster": ["stringValue": isSpecialist ? "" : assignedCluster],
-                "assignedRegion": ["stringValue": isSpecialist ? "" : assignedRegion],
+                "assignedCluster": ["stringValue": effectiveCluster],
+                "assignedRegion": ["stringValue": effectiveRegion],
                 "assignedApplication": ["stringValue": assignedApplication],
                 "assignedRole": ["stringValue": isSpecialist ? "SPECIALIST" : "TECH"],
                 "scope": ["stringValue": isSpecialist ? "DEPARTMENT" : "UNIT"],
@@ -1513,22 +1664,26 @@ public class SupportViewModel: ObservableObject {
                 "assignedByEmail": ["stringValue": user.email],
                 "assignedAt": ["integerValue": String(now)],
                 "dispatchNote": ["stringValue": note],
-                "isAcknowledged": ["booleanValue": false]
+                "isAcknowledged": ["booleanValue": false],
+                "acknowledged": ["booleanValue": false],
+                "acknowledgedAt": ["integerValue": "0"],
+                "acknowledgedBy": ["stringValue": ""],
+                "acknowledgedByName": ["stringValue": ""],
+                "tracking": ["nullValue": NSNull()],
+                "coTechnicians": ["arrayValue": ["values": coTechsValues]],
+                "assignedTechnicianEmails": ["arrayValue": ["values": assignedEmailsValues]],
+                "lastMessage": ["stringValue": dispatchMsg],
+                "lastMessageAt": ["integerValue": String(now)]
             ]
-
-            let techInfo = techName.isEmpty ? "" : " (\(rolePrefix): \(techName))"
-            let appInfo = assignedApplication.isEmpty ? "" : " • Ứng dụng: \(assignedApplication)"
-            let noteInfo = note.isEmpty ? "" : " • Ghi chú: \(note)"
-            let dispatchMsg = "🔄 [Điều phối] HelpDesk đã chuyển giao yêu cầu cho \(finalDeptName)\(techInfo)\(appInfo)\(noteInfo)"
-
-            f["lastMessage"] = ["stringValue": dispatchMsg]
-            f["lastMessageAt"] = ["integerValue": String(now)]
 
             let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
             _ = await FirestoreHelper.executeSafeRequest(request)
 
-            sendMessage(ticketId: ticketId, text: dispatchMsg)
+            let rawAssignerName = user.fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+            let assignerName = (!rawAssignerName.isEmpty && rawAssignerName.lowercased() != "admin" && rawAssignerName.lowercased() != "user") ? rawAssignerName : "Bộ phận HelpDesk"
+
+            sendMessage(ticketId: ticketId, text: dispatchMsg, customSenderName: assignerName, isSystemMessage: true)
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
         }
@@ -2050,6 +2205,128 @@ public class SupportViewModel: ObservableObject {
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
+        }
+    }
+
+    // MARK: - STAFF & SPECIALIST TEAMS FETCH (Đồng bộ 1:1 Android AndroidDispatchDialog)
+    public func fetchStaffAndSpecialistTeams() {
+        isLoadingStaff = true
+        Task {
+            let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
+            let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+
+            // 1. Fetch Users từ /companies/{comp}/users (và fallback nếu rỗng)
+            var loadedStaff: [User] = []
+            let usersUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/users?pageSize=200"
+            if let uUrl = URL(string: usersUrlStr) {
+                var uReq = URLRequest(url: uUrl)
+                if !idToken.isEmpty { uReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                if let (uData, uResp) = await FirestoreHelper.executeSafeRequest(uReq),
+                   uResp.statusCode == 200,
+                   let uJson = try? JSONSerialization.jsonObject(with: uData) as? [String: Any],
+                   let uDocs = uJson["documents"] as? [[String: Any]], !uDocs.isEmpty {
+                    loadedStaff = parseStaffUsers(from: uDocs, companyId: comp, nowMs: nowMs)
+                }
+            }
+
+            if loadedStaff.isEmpty {
+                let rootUsersUrl = "\(FirebaseConfig.firestoreBaseUrl)/users?pageSize=200"
+                if let rUrl = URL(string: rootUsersUrl) {
+                    var rReq = URLRequest(url: rUrl)
+                    if !idToken.isEmpty { rReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                    if let (rData, rResp) = await FirestoreHelper.executeSafeRequest(rReq),
+                       rResp.statusCode == 200,
+                       let rJson = try? JSONSerialization.jsonObject(with: rData) as? [String: Any],
+                       let rDocs = rJson["documents"] as? [[String: Any]] {
+                        loadedStaff = parseStaffUsers(from: rDocs, companyId: comp, nowMs: nowMs)
+                    }
+                }
+            }
+
+            if !loadedStaff.isEmpty {
+                self.allStaffList = loadedStaff
+            }
+
+            // 2. Fetch Specialist Teams từ Firestore /companies/{comp}/specialist_teams
+            let specUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/specialist_teams?pageSize=50"
+            if let sUrl = URL(string: specUrlStr) {
+                var sReq = URLRequest(url: sUrl)
+                if !idToken.isEmpty { sReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                if let (sData, sResp) = await FirestoreHelper.executeSafeRequest(sReq),
+                   sResp.statusCode == 200,
+                   let sJson = try? JSONSerialization.jsonObject(with: sData) as? [String: Any],
+                   let sDocs = sJson["documents"] as? [[String: Any]], !sDocs.isEmpty {
+                    let dynamicTeams = sDocs.compactMap { doc -> SpecialistTeamInfo? in
+                        guard let docName = doc["name"] as? String,
+                              let fields = doc["fields"] as? [String: Any] else { return nil }
+                        let id = docName.components(separatedBy: "/").last ?? ""
+                        let teamId = FirestoreHelper.getString(fields["teamId"] as? [String: Any]).isEmpty ? id : FirestoreHelper.getString(fields["teamId"] as? [String: Any])
+                        let teamName = FirestoreHelper.getString(fields["teamName"] as? [String: Any]).isEmpty ? (FirestoreHelper.getString(fields["name"] as? [String: Any]).isEmpty ? teamId : FirestoreHelper.getString(fields["name"] as? [String: Any])) : FirestoreHelper.getString(fields["teamName"] as? [String: Any])
+                        let apps = FirestoreHelper.getStringArray(fields["applications"] as? [String: Any])
+                        let desc = FirestoreHelper.getString(fields["description"] as? [String: Any])
+                        return SpecialistTeamInfo(teamId: teamId, teamName: teamName, applications: apps, description: desc)
+                    }.sorted { $0.teamName.localizedCaseInsensitiveCompare($1.teamName) == .orderedAscending }
+
+                    if !dynamicTeams.isEmpty {
+                        self.specialistTeams = dynamicTeams
+                    }
+                }
+            }
+
+            self.isLoadingStaff = false
+        }
+    }
+
+    private func parseStaffUsers(from docs: [[String: Any]], companyId: String, nowMs: Int64) -> [User] {
+        return docs.compactMap { doc -> User? in
+            guard let docName = doc["name"] as? String,
+                  let fields = doc["fields"] as? [String: Any] else { return nil }
+            let rawEmail = FirestoreHelper.getString(fields["email"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let email = !rawEmail.isEmpty && rawEmail.contains("@") ? rawEmail : (docName.components(separatedBy: "/").last?.lowercased() ?? "")
+            guard email.contains("@") && !email.hasPrefix("device_") else { return nil }
+
+            let rawDept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
+            let rawPb = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
+            let finalDept = rawDept.isEmpty ? rawPb : rawDept
+            let name = FirestoreHelper.getString(fields["fullName"] as? [String: Any]).isEmpty
+                ? (FirestoreHelper.getString(fields["name"] as? [String: Any]).isEmpty
+                    ? (FirestoreHelper.getString(fields["displayName"] as? [String: Any]).isEmpty
+                        ? FirestoreHelper.getString(fields["hoTen"] as? [String: Any])
+                        : FirestoreHelper.getString(fields["displayName"] as? [String: Any]))
+                    : FirestoreHelper.getString(fields["name"] as? [String: Any]))
+                : FirestoreHelper.getString(fields["fullName"] as? [String: Any])
+            let maKhuVuc = FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any]).isEmpty
+                ? FirestoreHelper.getString(fields["khuVuc"] as? [String: Any])
+                : FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any])
+            var toNghiepVu = FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if toNghiepVu.isEmpty && maKhuVuc.hasPrefix("TO_") {
+                toNghiepVu = maKhuVuc
+            }
+
+            let lastActiveAt = FirestoreHelper.getInt64(fields["lastActiveAt"] as? [String: Any])
+            let rawOnline = FirestoreHelper.getBool(fields["isOnline"] as? [String: Any]) || FirestoreHelper.getBool(fields["online"] as? [String: Any])
+            let isOnline = rawOnline || (lastActiveAt > 0 && (nowMs - lastActiveAt < 15 * 60 * 1000))
+
+            return User(
+                maNhanVien: FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
+                email: email,
+                role: FirestoreHelper.getString(fields["role"] as? [String: Any]).isEmpty ? "STAFF" : FirestoreHelper.getString(fields["role"] as? [String: Any]),
+                fullName: name.isEmpty ? (email.components(separatedBy: "@").first ?? "") : name,
+                phone: FirestoreHelper.getString(fields["phone"] as? [String: Any]),
+                donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
+                companyId: companyId,
+                departmentId: finalDept,
+                status: FirestoreHelper.getString(fields["status"] as? [String: Any]).isEmpty ? "ACTIVE" : FirestoreHelper.getString(fields["status"] as? [String: Any]),
+                avatarUrl: FirestoreHelper.getString(fields["avatarUrl"] as? [String: Any]),
+                createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
+                mustChangePassword: FirestoreHelper.getBool(fields["mustChangePassword"] as? [String: Any]),
+                maKhuVuc: maKhuVuc,
+                toNghiepVu: toNghiepVu,
+                lastActiveAt: lastActiveAt,
+                isOnline: isOnline,
+                permissions: FirestoreHelper.getStringArray(fields["permissions"] as? [String: Any]),
+                disabledReason: FirestoreHelper.getString(fields["disabledReason"] as? [String: Any])
+            )
         }
     }
 
