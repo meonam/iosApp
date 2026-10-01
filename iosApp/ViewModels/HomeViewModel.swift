@@ -73,6 +73,48 @@ public class HomeViewModel: ObservableObject {
         self.companyBannerType = type.isEmpty ? "INFO" : type
     }
 
+    // MARK: - CẬP NHẬT BANNER DOANH NGHIỆP
+    public func updateCompanyBanner(text: String, type: String = "INFO", isActive: Bool = true) async throws {
+        let comp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !comp.isEmpty else { return }
+
+        let cleanText = text.replacingOccurrences(of: "\r\n", with: "  •  ")
+            .replacingOccurrences(of: "\n", with: "  •  ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)?updateMask.fieldPaths=bannerText&updateMask.fieldPaths=bannerType&updateMask.fieldPaths=isBannerActive&updateMask.fieldPaths=bannerUpdatedAt"
+        guard let url = URL(string: urlStr) else { return }
+
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let body: [String: Any] = [
+            "fields": [
+                "bannerText": ["stringValue": cleanText],
+                "bannerType": ["stringValue": type],
+                "isBannerActive": ["booleanValue": isActive],
+                "bannerUpdatedAt": ["integerValue": String(now)]
+            ]
+        ]
+
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: body) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !idToken.isEmpty {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = jsonData
+
+        if let (_, response) = await FirestoreHelper.executeSafeRequest(request),
+           (200...299).contains(response.statusCode) {
+            await MainActor.run {
+                self.companyBannerText = cleanText
+                self.companyBannerType = type
+                self.isCompanyBannerActive = isActive
+            }
+        }
+    }
+
     // MARK: - 1. TẢI HỒ SƠ NGƯỜI DÙNG MỚI NHẤT TỪ FIRESTORE
     public func fetchUserProfileRealtime() async {
         let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -319,7 +361,7 @@ public class HomeViewModel: ObservableObject {
     }
 
     // MARK: - 5. TẢI THÔNG BÁO CHƯA ĐỌC
-    private func fetchUnreadNotifications() async {
+    public func fetchUnreadNotifications() async {
         let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/notifications?pageSize=30"
         guard let url = URL(string: urlStr) else { return }
 
@@ -346,7 +388,44 @@ public class HomeViewModel: ObservableObject {
             let readByList = FirestoreHelper.getStringArray(fields["readBy"] as? [String: Any]).map { $0.lowercased() }
             if readByList.contains(myEmail) { return false }
 
-            return true
+            // Lọc quyền xem thông báo chuẩn xác theo vai trò & phòng ban
+            let tg = FirestoreHelper.getString(fields["targetGroup"] as? [String: Any]).uppercased()
+            let tp = FirestoreHelper.getString(fields["type"] as? [String: Any]).uppercased()
+            let title = FirestoreHelper.getString(fields["title"] as? [String: Any]).lowercased()
+            let msg = FirestoreHelper.getString(fields["message"] as? [String: Any]).isEmpty
+                ? FirestoreHelper.getString(fields["body"] as? [String: Any]).lowercased()
+                : FirestoreHelper.getString(fields["message"] as? [String: Any]).lowercased()
+
+            let isJoinRequest = tg == "ADMIN" || tp == "JOIN_REQUEST" ||
+                title.contains("yêu cầu gia nhập") || title.contains("xin gia nhập") ||
+                title.contains("xin vào") || title.contains("chờ duyệt") ||
+                msg.contains("yêu cầu gia nhập") || msg.contains("xin gia nhập")
+
+            if isJoinRequest {
+                return self.user.isAdmin
+            }
+
+            if self.user.isAdmin || self.user.isHelpDesk {
+                return true
+            }
+
+            let cleanDept = (self.user.departmentId.isEmpty ? self.user.donVi : self.user.departmentId).trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+
+            if tg.isEmpty || tg == "ALL" { return true }
+            if tg == "MANAGEMENT" && self.user.isManager { return true }
+            if tg == "TECHNICIAN" && self.user.isTechnician { return true }
+            if tg == "STAFF" && self.user.isStaff { return true }
+            if tg.hasPrefix("DEPT:") {
+                let deptPart = String(tg.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
+                if deptPart.caseInsensitiveCompare(cleanDept) == .orderedSame { return true }
+            }
+            if tg.caseInsensitiveCompare(cleanDept) == .orderedSame { return true }
+
+            let senderEmail = FirestoreHelper.getString(fields["senderEmail"] as? [String: Any]).lowercased()
+            if !myEmail.isEmpty && senderEmail == myEmail { return true }
+            if !myEmail.isEmpty && msg.contains(myEmail) { return true }
+
+            return false
         }.count
 
         self.unreadNotificationCount = unread

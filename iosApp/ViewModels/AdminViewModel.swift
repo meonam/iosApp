@@ -1153,11 +1153,17 @@ public class AdminViewModel: ObservableObject {
                       let fields = doc["fields"] as? [String: Any] else { return nil }
                 let id = name.components(separatedBy: "/").last ?? ""
                 let title = FirestoreHelper.getString(fields["title"] as? [String: Any])
-                let body = FirestoreHelper.getString(fields["body"] as? [String: Any])
-                let targetRole = FirestoreHelper.getString(fields["targetRole"] as? [String: Any])
-                let createdAt = FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
-                let createdByEmail = FirestoreHelper.getString(fields["createdByEmail"] as? [String: Any])
-                return AppNotification(id: id, title: title, body: body, targetRole: targetRole, createdAt: Date(timeIntervalSince1970: TimeInterval(createdAt) / 1000.0), createdByEmail: createdByEmail)
+                let msg = FirestoreHelper.getString(fields["message"] as? [String: Any])
+                let body = msg.isEmpty ? FirestoreHelper.getString(fields["body"] as? [String: Any]) : msg
+                let targetRole = FirestoreHelper.getString(fields["targetGroup"] as? [String: Any]).isEmpty
+                    ? FirestoreHelper.getString(fields["targetRole"] as? [String: Any])
+                    : FirestoreHelper.getString(fields["targetGroup"] as? [String: Any])
+                let rawTs = FirestoreHelper.getInt64(fields["timestamp"] as? [String: Any])
+                let createdAt = rawTs > 0 ? rawTs : FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
+                let sender = FirestoreHelper.getString(fields["senderEmail"] as? [String: Any]).isEmpty
+                    ? FirestoreHelper.getString(fields["createdByEmail"] as? [String: Any])
+                    : FirestoreHelper.getString(fields["senderEmail"] as? [String: Any])
+                return AppNotification(id: id, title: title, body: body, targetRole: targetRole.isEmpty ? "ALL" : targetRole, createdAt: Date(timeIntervalSince1970: TimeInterval(createdAt) / 1000.0), createdByEmail: sender)
             }
             // Sort by date descending
             self.notifications.sort { $0.createdAt > $1.createdAt }
@@ -1165,7 +1171,7 @@ public class AdminViewModel: ObservableObject {
         self.isLoadingNotifications = false
     }
 
-    public func sendNotification(title: String, body: String, targetRole: String?) async {
+    public func sendNotification(title: String, body: String, targetRole: String?, type: String = "INFO") async {
         isLoadingNotifications = true
         let comp = self.companyId.isEmpty ? "SGCOOP" : self.companyId
         let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/notifications"
@@ -1177,13 +1183,23 @@ public class AdminViewModel: ObservableObject {
         if !idToken.isEmpty { request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
         
         let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let effectiveTarget = targetRole ?? "ALL"
         let docBody: [String: Any] = [
             "fields": [
                 "title": ["stringValue": title],
+                "message": ["stringValue": body],
                 "body": ["stringValue": body],
-                "targetRole": ["stringValue": targetRole ?? "ALL"],
+                "senderEmail": ["stringValue": self.currentUser.email],
+                "createdByEmail": ["stringValue": self.currentUser.email],
+                "senderName": ["stringValue": self.currentUser.fullName.isEmpty ? self.currentUser.email : self.currentUser.fullName],
+                "senderRole": ["stringValue": self.currentUser.role],
+                "companyId": ["stringValue": comp],
+                "targetGroup": ["stringValue": effectiveTarget],
+                "targetRole": ["stringValue": effectiveTarget],
+                "timestamp": ["integerValue": String(now)],
                 "createdAt": ["integerValue": String(now)],
-                "createdByEmail": ["stringValue": self.currentUser.email]
+                "type": ["stringValue": type],
+                "readBy": ["arrayValue": ["values": []]]
             ]
         ]
         
@@ -1193,7 +1209,7 @@ public class AdminViewModel: ObservableObject {
            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let name = json["name"] as? String {
             let id = name.components(separatedBy: "/").last ?? ""
-            let newNotif = AppNotification(id: id, title: title, body: body, targetRole: targetRole ?? "ALL", createdAt: Date(), createdByEmail: self.currentUser.email)
+            let newNotif = AppNotification(id: id, title: title, body: body, targetRole: effectiveTarget, createdAt: Date(), createdByEmail: self.currentUser.email)
             self.notifications.insert(newNotif, at: 0)
             self.successMessage = "Đã gửi thông báo"
         }

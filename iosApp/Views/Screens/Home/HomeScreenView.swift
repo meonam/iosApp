@@ -249,7 +249,24 @@ public struct HomeScreenView: View {
                     companyId: viewModel.companyId,
                     idToken: viewModel.idToken,
                     userEmail: viewModel.user.email,
-                    onBack: { activeSheet = nil }
+                    userRole: viewModel.user.role,
+                    userDept: viewModel.user.departmentId.isEmpty ? viewModel.user.donVi : viewModel.user.departmentId,
+                    userFullName: viewModel.user.fullName,
+                    isAdmin: viewModel.user.isAdmin,
+                    isHelpDesk: viewModel.user.isHelpDesk,
+                    isManager: viewModel.user.isManager,
+                    companyBannerText: viewModel.companyBannerText,
+                    companyBannerType: viewModel.companyBannerType,
+                    isCompanyBannerActive: viewModel.isCompanyBannerActive,
+                    onBannerUpdated: { text, type, active in
+                        viewModel.companyBannerText = text
+                        viewModel.companyBannerType = type
+                        viewModel.isCompanyBannerActive = active
+                    },
+                    onBack: {
+                        activeSheet = nil
+                        Task { await viewModel.fetchUnreadNotifications() }
+                    }
                 )
             case .changePassword:
                 ChangePasswordModalView(
