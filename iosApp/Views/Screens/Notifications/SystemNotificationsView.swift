@@ -7,6 +7,7 @@ public struct SystemNotificationsView: View {
     public var userEmail: String
     public var userRole: String
     public var userDept: String
+    public var userTeam: String
     public var userFullName: String
     public var isAdmin: Bool
     public var isHelpDesk: Bool
@@ -57,6 +58,7 @@ public struct SystemNotificationsView: View {
         userEmail: String = "",
         userRole: String = "STAFF",
         userDept: String = "",
+        userTeam: String = "",
         userFullName: String = "",
         isAdmin: Bool = false,
         isHelpDesk: Bool = false,
@@ -72,6 +74,7 @@ public struct SystemNotificationsView: View {
         self.userEmail = userEmail
         self.userRole = userRole
         self.userDept = userDept
+        self.userTeam = userTeam
         self.userFullName = userFullName
         self.isAdmin = isAdmin
         self.isHelpDesk = isHelpDesk
@@ -91,6 +94,7 @@ public struct SystemNotificationsView: View {
         self.userEmail = u?.email ?? ""
         self.userRole = u?.role ?? "STAFF"
         self.userDept = u?.departmentId ?? ""
+        self.userTeam = u?.toNghiepVu ?? ""
         self.userFullName = u?.fullName ?? ""
         self.isAdmin = u?.isAdmin ?? false
         self.isHelpDesk = u?.isHelpDesk ?? false
@@ -108,6 +112,7 @@ public struct SystemNotificationsView: View {
         self.userEmail = ""
         self.userRole = "STAFF"
         self.userDept = ""
+        self.userTeam = ""
         self.userFullName = ""
         self.isAdmin = false
         self.isHelpDesk = false
@@ -157,6 +162,13 @@ public struct SystemNotificationsView: View {
         if tg == "MANAGEMENT" && managerUser { return true }
         if tg == "TECHNICIAN" && techUser { return true }
         if tg == "STAFF" && staffUser { return true }
+        if tg.hasPrefix("TEAM:") {
+            let teamPart = String(tg.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
+            let cleanTeam = userTeam.trimmingCharacters(in: .whitespacesAndNewlines)
+            if cleanTeam.caseInsensitiveCompare(teamPart) == .orderedSame || cleanTeam.localizedCaseInsensitiveContains(teamPart) {
+                return true
+            }
+        }
         if tg.hasPrefix("DEPT:") {
             let deptPart = String(tg.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
             if deptPart.caseInsensitiveCompare(cleanDept) == .orderedSame { return true }
@@ -751,6 +763,7 @@ struct BroadcastNotificationSheetView: View {
     @State private var message: String = ""
     @State private var announceType: String = "INFO"
     @State private var targetGroup: String = "ALL"
+    @State private var departmentsList: [String] = []
     @State private var isSending: Bool = false
     @State private var sendErrorMessage: String? = nil
 
@@ -798,19 +811,35 @@ struct BroadcastNotificationSheetView: View {
     }
 
     private var targetOptions: [(String, String)] {
-        if isAdmin || isHelpDesk {
+        if !isAdmin && !isHelpDesk && isManager {
             return [
-                ("ALL", "Toàn bộ nhân sự (ALL)"),
-                ("MANAGEMENT", "Khối Quản lý (MANAGEMENT)"),
-                ("TECHNICIAN", "Kỹ thuật viên IT (TECHNICIAN)"),
-                ("STAFF", "Nhân viên thông thường (STAFF)"),
-                ("DEPT:" + userDept, "Phòng ban: " + (userDept.isEmpty ? "Mặc định" : userDept))
-            ]
-        } else {
-            return [
-                ("DEPT:" + userDept, "Phòng ban của tôi (" + (userDept.isEmpty ? "Chưa rõ" : userDept) + ")")
+                ("DEPT:" + userDept, "🏢 Phòng ban của tôi (" + (userDept.isEmpty ? "Chưa rõ" : userDept) + ")")
             ]
         }
+        var opts: [(String, String)] = [
+            // 1. Khối chung
+            ("ALL", "🌐 Toàn bộ nhân sự (Toàn công ty)"),
+            ("MANAGEMENT", "👔 Khối Quản lý (Admin, Trưởng/Phó phòng)"),
+            ("TECHNICIAN", "🔧 Khối Kỹ thuật & KTV (KTV / HelpDesk)"),
+            ("STAFF", "👤 Khối Cơ sở / Cửa hàng (Nhân viên)"),
+            // 2. Tổ chuyên môn
+            ("TEAM:TO_HA_TANG_BAO_MAT", "⚡ Tổ Hạ tầng mạng & Bảo mật"),
+            ("TEAM:TO_KY_THUAT_UNG_DUNG", "⚡ Tổ Kỹ thuật ứng dụng & Phần mềm"),
+            ("TEAM:TO_PHAN_TICH_NGHIEP_VU", "⚡ Tổ Phân tích nghiệp vụ (MMS/OMNI/ERP)"),
+            ("TEAM:TO_NEN_TANG_DU_LIEU", "⚡ Tổ Nền tảng dữ liệu & Báo cáo"),
+            ("TEAM:TO_RND_CONG_NGHE", "⚡ Tổ R&D Công nghệ")
+        ]
+        // 3. Cơ cấu phòng ban
+        for dept in departmentsList {
+            let dName = dept.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !dName.isEmpty {
+                opts.append(("DEPT:\(dName)", "🏢 Phòng ban: \(dName)"))
+            }
+        }
+        if departmentsList.isEmpty && !userDept.isEmpty {
+            opts.append(("DEPT:\(userDept)", "🏢 Phòng ban: \(userDept)"))
+        }
+        return opts
     }
 
     var body: some View {
@@ -846,8 +875,30 @@ struct BroadcastNotificationSheetView: View {
                 }
             }
             .onAppear {
-                if !isAdmin && !userDept.isEmpty {
+                if !isAdmin && !isHelpDesk && !userDept.isEmpty {
                     targetGroup = "DEPT:\(userDept)"
+                }
+                Task {
+                    let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                    guard !cleanComp.isEmpty else { return }
+                    let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/departments?pageSize=100"
+                    guard let url = URL(string: urlStr) else { return }
+                    var req = URLRequest(url: url)
+                    if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                    guard let (data, resp) = await FirestoreHelper.executeSafeRequest(req),
+                          resp.statusCode == 200,
+                          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                          let docs = json["documents"] as? [[String: Any]] else { return }
+                    let depts = docs.compactMap { doc -> String? in
+                        guard let fields = doc["fields"] as? [String: Any] else { return nil }
+                        let name = FirestoreHelper.getString(fields["name"] as? [String: Any])
+                        let alt = FirestoreHelper.getString(fields["departmentName"] as? [String: Any])
+                        let val = !name.isEmpty ? name : alt
+                        return val.isEmpty ? nil : val
+                    }
+                    await MainActor.run {
+                        self.departmentsList = Array(Set(depts)).sorted()
+                    }
                 }
             }
         }

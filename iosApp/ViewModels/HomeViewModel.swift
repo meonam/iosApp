@@ -415,6 +415,13 @@ public class HomeViewModel: ObservableObject {
             if tg == "MANAGEMENT" && self.user.isManager { return true }
             if tg == "TECHNICIAN" && self.user.isTechnician { return true }
             if tg == "STAFF" && self.user.isStaff { return true }
+            if tg.hasPrefix("TEAM:") {
+                let teamPart = String(tg.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
+                let cleanTeam = self.user.toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines)
+                if cleanTeam.caseInsensitiveCompare(teamPart) == .orderedSame || cleanTeam.localizedCaseInsensitiveContains(teamPart) {
+                    return true
+                }
+            }
             if tg.hasPrefix("DEPT:") {
                 let deptPart = String(tg.dropFirst(5)).trimmingCharacters(in: .whitespacesAndNewlines)
                 if deptPart.caseInsensitiveCompare(cleanDept) == .orderedSame { return true }

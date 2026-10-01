@@ -34,7 +34,10 @@ public struct FirestoreHelper {
     }
 
     public static func getBool(_ field: [String: Any]?, defaultValue: Bool = false) -> Bool {
-        return field?["booleanValue"] as? Bool ?? defaultValue
+        if let b = field?["booleanValue"] as? Bool { return b }
+        if let s = field?["stringValue"] as? String { return s.lowercased() == "true" || s == "1" }
+        if let i = field?["integerValue"] as? String { return i == "1" }
+        return defaultValue
     }
 
     public static func getArray(_ field: [String: Any]?) -> [[String: Any]] {
