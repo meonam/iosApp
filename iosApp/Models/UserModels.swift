@@ -3,12 +3,9 @@ import Foundation
 // MARK: - SUPER ADMIN CONFIG (ĐỒNG BỘ 1:1 VỚI SUPERADMINCONFIG TRÊN ANDROID)
 public struct SuperAdminConfig {
     public static let superAdminEmails: Set<String> = [
-        "nammeo0101@gmail.com",
-        "devicemanagement0101@gmail.com",
-        "huyenhan@gmail.com",
-        "developer@qltb.com",
         "superadmin@qltb.com",
         "admin@qltb.com",
+        "developer@qltb.com",
         "dev@qltb.com"
     ]
 
