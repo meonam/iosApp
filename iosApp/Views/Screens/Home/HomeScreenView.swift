@@ -218,7 +218,7 @@ public struct HomeScreenView: View {
         .alert("Thông tin ứng dụng", isPresented: $showAboutDialog) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("IT Service & Assets\nPhiên bản: v1.2.0 (Build 120)\nSaigon Co.op - Bản quyền thuộc Trung tâm CNTT")
+            Text("IT Service & Assets\nPhiên bản: v1.2.2 (Build 122)\nSaigon Co.op - Bản quyền thuộc Trung tâm CNTT")
         }
         // Alert Xác nhận đăng xuất
         .alert("Đăng xuất", isPresented: $showLogoutConfirmDialog) {
