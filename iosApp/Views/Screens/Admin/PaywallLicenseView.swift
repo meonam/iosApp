@@ -160,8 +160,6 @@ class PaywallLicenseViewModel: ObservableObject {
             self.isActivating = false
         }
     }
-    
-    }
 }
 
 // MARK: - MÀN HÌNH BẢN QUYỀN HỆ THỐNG DOANH NGHIỆP (KHÔNG PAYWALL STORE)
@@ -377,7 +375,6 @@ public struct PaywallLicenseView: View {
         case .ENTERPRISE: return .green
         }
     }
-}
 }
 
 // Helper for corner radius
