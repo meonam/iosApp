@@ -530,9 +530,7 @@ public struct SystemNotificationsView: View {
                 .stroke(notif.isRead ? Color.appCardBorder : Color.appPrimaryPink.opacity(0.35), lineWidth: notif.isRead ? 1 : 1.5)
         )
         .onTapGesture {
-            if !notif.isRead {
-                markAsRead(notif.id)
-            }
+            markAsRead(notif.id)
             selectedDetailNotif = notif
         }
     }
@@ -581,10 +579,12 @@ public struct SystemNotificationsView: View {
 
     private func saveReadPreferences() {
         UserDefaults.standard.set(Array(readIds), forKey: "notification_read_ids")
+        UserDefaults.standard.synchronize()
     }
 
     private func saveDeletedPreferences() {
         UserDefaults.standard.set(Array(deletedIds), forKey: "notification_deleted_ids")
+        UserDefaults.standard.synchronize()
     }
 
     // MARK: - TẢI CẤU HÌNH BANNER
@@ -658,8 +658,7 @@ public struct SystemNotificationsView: View {
             let finalTs = rawTs > 0 ? rawTs : FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
 
             let readByList = FirestoreHelper.getStringArray(fields["readBy"] as? [String: Any]).map { $0.lowercased() }
-            let isReadRemote = readByList.contains(myEmail) || FirestoreHelper.getBool(fields["isRead"] as? [String: Any])
-            let isReadFinal = isReadRemote || readIds.contains(id)
+            let isReadFinal = readByList.contains(myEmail) || readIds.contains(id)
 
             let targetGroup = FirestoreHelper.getString(fields["targetGroup"] as? [String: Any]).isEmpty
                 ? FirestoreHelper.getString(fields["targetRole"] as? [String: Any])
@@ -736,11 +735,10 @@ public struct SystemNotificationsView: View {
 
     // MARK: - ĐÁNH DẤU ĐÃ ĐỌC TẤT CẢ
     private func markAllAsRead() {
-        let unreadItems = visibleNotifications.filter { !$0.isRead }
-        guard !unreadItems.isEmpty else { return }
+        guard !visibleNotifications.isEmpty else { return }
 
         let myEmail = userEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        for item in unreadItems {
+        for item in visibleNotifications {
             readIds.insert(item.id)
             if let idx = notifications.firstIndex(where: { $0.id == item.id }) {
                 notifications[idx].isRead = true
@@ -755,15 +753,15 @@ public struct SystemNotificationsView: View {
         let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard !cleanComp.isEmpty else { return }
 
+        let targetItems = visibleNotifications
         Task {
-            for item in unreadItems {
+            for item in targetItems {
                 let newReadBy = notifications.first(where: { $0.id == item.id })?.readBy ?? (myEmail.isEmpty ? [] : [myEmail])
-                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/notifications/\(item.id)?updateMask.fieldPaths=readBy&updateMask.fieldPaths=isRead"
+                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/notifications/\(item.id)?updateMask.fieldPaths=readBy"
                 guard let url = URL(string: urlStr) else { continue }
                 let body: [String: Any] = [
                     "fields": [
-                        "readBy": FirestoreHelper.valueToFirestore(newReadBy),
-                        "isRead": ["booleanValue": true]
+                        "readBy": FirestoreHelper.valueToFirestore(newReadBy)
                     ]
                 ]
                 if let jsonData = try? JSONSerialization.data(withJSONObject: body) {

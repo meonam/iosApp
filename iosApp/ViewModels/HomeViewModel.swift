@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UserNotifications
 
 // MARK: - HOME VIEW MODEL (ĐỒNG BỘ 1:1 VỚI HOMESCREEN.KT TRÊN ANDROID)
 @MainActor
@@ -372,6 +373,10 @@ public class HomeViewModel: ObservableObject {
     @MainActor
     public func clearUnreadNotifications() {
         self.unreadNotificationCount = 0
+        if #available(iOS 16.0, *) {
+            UNUserNotificationCenter.current().setBadgeCount(0) { _ in }
+        }
+        UIApplication.shared.applicationIconBadgeNumber = 0
     }
 
     @MainActor
@@ -450,6 +455,10 @@ public class HomeViewModel: ObservableObject {
         }.count
 
         self.unreadNotificationCount = unread
+        if #available(iOS 16.0, *) {
+            UNUserNotificationCenter.current().setBadgeCount(unread) { _ in }
+        }
+        UIApplication.shared.applicationIconBadgeNumber = unread
     }
 
     // MARK: - 6. KIỂM TRA SỐ ĐIỆN THOẠI TRÙNG LẶP (isPhoneAlreadyUsed)

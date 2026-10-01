@@ -264,12 +264,14 @@ public struct HomeScreenView: View {
                         viewModel.isCompanyBannerActive = active
                     },
                     onNotificationsRead: {
+                        viewModel.clearUnreadNotifications()
                         Task { @MainActor in
                             await viewModel.fetchUnreadNotifications()
                         }
                     },
                     onBack: {
                         activeSheet = nil
+                        viewModel.clearUnreadNotifications()
                         Task { @MainActor in
                             await viewModel.fetchUnreadNotifications()
                         }
