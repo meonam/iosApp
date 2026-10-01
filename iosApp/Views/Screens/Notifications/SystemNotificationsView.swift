@@ -16,6 +16,7 @@ public struct SystemNotificationsView: View {
     @State public var companyBannerType: String
     @State public var isCompanyBannerActive: Bool
     public var onBannerUpdated: ((String, String, Bool) -> Void)?
+    public var onNotificationsRead: (() -> Void)?
     public var onBack: () -> Void
 
     @State private var notifications: [SysNotification] = []
@@ -23,6 +24,7 @@ public struct SystemNotificationsView: View {
     @State private var selectedFilter: NotifFilter = .all
     @State private var showBroadcastSheet: Bool = false
     @State private var showDeleteAllAlert: Bool = false
+    @State private var selectedDetailNotif: SysNotification? = nil
 
     // Local cached read and deleted IDs
     @State private var readIds: Set<String> = []
@@ -67,6 +69,7 @@ public struct SystemNotificationsView: View {
         companyBannerType: String = "INFO",
         isCompanyBannerActive: Bool = false,
         onBannerUpdated: ((String, String, Bool) -> Void)? = nil,
+        onNotificationsRead: (() -> Void)? = nil,
         onBack: @escaping () -> Void = {}
     ) {
         self.companyId = companyId
@@ -83,11 +86,12 @@ public struct SystemNotificationsView: View {
         self._companyBannerType = State(initialValue: companyBannerType)
         self._isCompanyBannerActive = State(initialValue: isCompanyBannerActive)
         self.onBannerUpdated = onBannerUpdated
+        self.onNotificationsRead = onNotificationsRead
         self.onBack = onBack
     }
 
     @MainActor
-    public init(authViewModel: AuthViewModel, onBack: @escaping () -> Void = {}) {
+    public init(authViewModel: AuthViewModel, onNotificationsRead: (() -> Void)? = nil, onBack: @escaping () -> Void = {}) {
         let u = authViewModel.currentUser
         self.companyId = u?.companyId ?? ""
         self.idToken = authViewModel.currentIdToken
@@ -103,10 +107,11 @@ public struct SystemNotificationsView: View {
         self._companyBannerType = State(initialValue: "INFO")
         self._isCompanyBannerActive = State(initialValue: false)
         self.onBannerUpdated = nil
+        self.onNotificationsRead = onNotificationsRead
         self.onBack = onBack
     }
 
-    public init(onBack: @escaping () -> Void = {}) {
+    public init(onNotificationsRead: (() -> Void)? = nil, onBack: @escaping () -> Void = {}) {
         self.companyId = ""
         self.idToken = ""
         self.userEmail = ""
@@ -121,6 +126,7 @@ public struct SystemNotificationsView: View {
         self._companyBannerType = State(initialValue: "INFO")
         self._isCompanyBannerActive = State(initialValue: false)
         self.onBannerUpdated = nil
+        self.onNotificationsRead = onNotificationsRead
         self.onBack = onBack
     }
 
@@ -292,6 +298,23 @@ public struct SystemNotificationsView: View {
                                 }
                             }
 
+                            // Nút Đánh dấu đã đọc tất cả nhanh
+                            if unreadCount > 0 {
+                                Button(action: markAllAsRead) {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 13, weight: .bold))
+                                        Text("Đã đọc tất cả")
+                                            .font(.system(size: 11, weight: .bold))
+                                    }
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 6)
+                                    .background(Color.white.opacity(0.22))
+                                    .cornerRadius(16)
+                                }
+                            }
+
                             Menu {
                                 Button(action: markAllAsRead) {
                                     Label("Đánh dấu đã đọc tất cả", systemImage: "checkmark.circle.fill")
@@ -430,6 +453,16 @@ public struct SystemNotificationsView: View {
                     await fetchCompanyBannerConfig()
                 }
             }
+            .onDisappear {
+                markAllAsRead()
+            }
+            .alert(item: $selectedDetailNotif) { notif in
+                Alert(
+                    title: Text(notif.title),
+                    message: Text("\(notif.message)\n\n📌 Phân loại: \(notif.type)\n👤 Người gửi: \(notif.senderName.isEmpty ? notif.senderEmail : notif.senderName)\n🕒 Thời gian: \(formatTime(notif.timestamp))"),
+                    dismissButton: .default(Text("Đã hiểu"))
+                )
+            }
         }
     }
 
@@ -500,6 +533,7 @@ public struct SystemNotificationsView: View {
             if !notif.isRead {
                 markAsRead(notif.id)
             }
+            selectedDetailNotif = notif
         }
     }
 
@@ -665,6 +699,7 @@ public struct SystemNotificationsView: View {
     private func markAsRead(_ id: String) {
         readIds.insert(id)
         saveReadPreferences()
+        onNotificationsRead?()
 
         if let idx = notifications.firstIndex(where: { $0.id == id }) {
             notifications[idx].isRead = true
@@ -702,8 +737,44 @@ public struct SystemNotificationsView: View {
     // MARK: - ĐÁNH DẤU ĐÃ ĐỌC TẤT CẢ
     private func markAllAsRead() {
         let unreadItems = visibleNotifications.filter { !$0.isRead }
+        guard !unreadItems.isEmpty else { return }
+
+        let myEmail = userEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         for item in unreadItems {
-            markAsRead(item.id)
+            readIds.insert(item.id)
+            if let idx = notifications.firstIndex(where: { $0.id == item.id }) {
+                notifications[idx].isRead = true
+                if !myEmail.isEmpty && !notifications[idx].readBy.contains(myEmail) {
+                    notifications[idx].readBy.append(myEmail)
+                }
+            }
+        }
+        saveReadPreferences()
+        onNotificationsRead?()
+
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanComp.isEmpty else { return }
+
+        Task {
+            for item in unreadItems {
+                let newReadBy = notifications.first(where: { $0.id == item.id })?.readBy ?? (myEmail.isEmpty ? [] : [myEmail])
+                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/notifications/\(item.id)?updateMask.fieldPaths=readBy&updateMask.fieldPaths=isRead"
+                guard let url = URL(string: urlStr) else { continue }
+                let body: [String: Any] = [
+                    "fields": [
+                        "readBy": FirestoreHelper.valueToFirestore(newReadBy),
+                        "isRead": ["booleanValue": true]
+                    ]
+                ]
+                if let jsonData = try? JSONSerialization.data(withJSONObject: body) {
+                    var req = URLRequest(url: url)
+                    req.httpMethod = "PATCH"
+                    req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                    req.httpBody = jsonData
+                    _ = await FirestoreHelper.executeSafeRequest(req)
+                }
+            }
         }
     }
 

@@ -369,6 +369,12 @@ public class HomeViewModel: ObservableObject {
     }
 
     // MARK: - 5. TẢI THÔNG BÁO CHƯA ĐỌC
+    @MainActor
+    public func clearUnreadNotifications() {
+        self.unreadNotificationCount = 0
+    }
+
+    @MainActor
     public func fetchUnreadNotifications() async {
         let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/notifications?pageSize=30"
         guard let url = URL(string: urlStr) else { return }

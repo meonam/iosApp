@@ -25,7 +25,7 @@ public struct HomeScreenView: View {
     @State private var selectedAvatarImage: UIImage? = nil
 
     // Single Active Sheet Manager (giải quyết triệt để lỗi nuốt sheet trong SwiftUI)
-    enum HomeActiveSheet: Identifiable {
+    enum HomeActiveSheet: Identifiable, Equatable {
         case imagePicker
         case editName
         case editPhone
@@ -263,9 +263,16 @@ public struct HomeScreenView: View {
                         viewModel.companyBannerType = type
                         viewModel.isCompanyBannerActive = active
                     },
+                    onNotificationsRead: {
+                        Task { @MainActor in
+                            await viewModel.fetchUnreadNotifications()
+                        }
+                    },
                     onBack: {
                         activeSheet = nil
-                        Task { await viewModel.fetchUnreadNotifications() }
+                        Task { @MainActor in
+                            await viewModel.fetchUnreadNotifications()
+                        }
                     }
                 )
             case .changePassword:
@@ -339,6 +346,13 @@ public struct HomeScreenView: View {
                         }
                     }
                 )
+            }
+        }
+        .onChange(of: activeSheet) { sheet in
+            if sheet == nil {
+                Task { @MainActor in
+                    await viewModel.fetchUnreadNotifications()
+                }
             }
         }
     }
