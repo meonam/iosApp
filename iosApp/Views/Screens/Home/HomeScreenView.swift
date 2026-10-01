@@ -345,14 +345,14 @@ public struct HomeScreenView: View {
 
     // MARK: - 1. THẺ HỒ SƠ NGƯỜI DÙNG (PROFILE CARD)
     private var userProfileCard: some View {
-        HStack(alignment: .center, spacing: 14) {
-            // Avatar tròn 68dp với viền hồng, camera badge và hiển thị ảnh Cloudinary
+        HStack(alignment: .top, spacing: 14) {
+            // Avatar tròn 64dp với viền hồng, camera badge và hiển thị ảnh Cloudinary
             Button(action: { activeSheet = .imagePicker }) {
                 ZStack(alignment: .bottomTrailing) {
                     ZStack {
                         Circle()
                             .stroke(Color.appPrimaryPink.opacity(0.4), lineWidth: 2)
-                            .frame(width: 68, height: 68)
+                            .frame(width: 64, height: 64)
 
                         if !viewModel.user.avatarUrl.isEmpty, let url = URL(string: viewModel.user.avatarUrl) {
                             AsyncImage(url: url) { phase in
@@ -360,28 +360,28 @@ public struct HomeScreenView: View {
                                 case .success(let image):
                                     image.resizable()
                                         .scaledToFill()
-                                        .frame(width: 60, height: 60)
+                                        .frame(width: 56, height: 56)
                                         .clipShape(Circle())
                                 case .failure, .empty:
                                     Image("logo_app")
                                         .resizable()
                                         .scaledToFit()
-                                        .frame(width: 60, height: 60)
+                                        .frame(width: 56, height: 56)
                                         .clipShape(Circle())
                                 @unknown default:
-                                    ProgressView().frame(width: 60, height: 60)
+                                    ProgressView().frame(width: 56, height: 56)
                                 }
                             }
                         } else {
                             Image("logo_app")
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 60, height: 60)
+                                .frame(width: 56, height: 56)
                                 .clipShape(Circle())
                         }
 
                         if viewModel.isUploadingAvatar {
-                            Circle().fill(Color.black.opacity(0.45)).frame(width: 60, height: 60)
+                            Circle().fill(Color.black.opacity(0.45)).frame(width: 56, height: 56)
                             ProgressView().colorInvert()
                         }
                     }
@@ -390,26 +390,30 @@ public struct HomeScreenView: View {
                     ZStack {
                         Circle()
                             .fill(Color.appPrimaryPink)
-                            .frame(width: 22, height: 22)
+                            .frame(width: 20, height: 20)
                             .overlay(Circle().stroke(Color.white, lineWidth: 1.5))
 
                         Image(systemName: "camera.fill")
-                            .font(.system(size: 10))
+                            .font(.system(size: 9))
                             .foregroundColor(.white)
                     }
                     .offset(x: 2, y: 2)
                 }
             }
 
-            // Thông tin cá nhân
-            VStack(alignment: .leading, spacing: 3) {
-                // Dòng 1: Tên + Bút chì đổi tên + Pill Badge Role
-                HStack(spacing: 6) {
+            // Thông tin cá nhân theo Bố cục Phân tầng (Tiered Hierarchy)
+            VStack(alignment: .leading, spacing: 4) {
+                // Tầng 1: Huy hiệu vai trò (Role Badge)
+                roleBadgeView
+
+                // Tầng 2: Họ và tên người dùng (Chiếm trọn bề ngang, tối đa 2 dòng không bao giờ mất chữ) + Bút chì đổi tên
+                HStack(alignment: .center, spacing: 4) {
                     let displayName = !viewModel.user.fullName.isEmpty ? viewModel.user.fullName : (viewModel.user.email.components(separatedBy: "@").first ?? "Người dùng")
                     Text(displayName)
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(Color.appSecondaryDarkBlue)
-                        .lineLimit(1)
+                        .font(.system(size: 16.5, weight: .bold))
+                        .foregroundColor(Color.primary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Button(action: {
                         editNameInput = displayName
@@ -417,24 +421,23 @@ public struct HomeScreenView: View {
                         activeSheet = .editName
                     }) {
                         Image(systemName: "pencil")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color.appPrimaryPink)
-                            .frame(width: 28, height: 28)
+                            .frame(width: 24, height: 24)
                             .contentShape(Rectangle())
                     }
 
-                    // Badge Role Pill chuẩn Android với 6 phân quyền
-                    roleBadgeView
+                    Spacer(minLength: 0)
                 }
 
-                // Dòng 2: Email
+                // Tầng 3: Email
                 Text(viewModel.user.email)
                     .font(.system(size: 11.5))
-                    .foregroundColor(Color.appTextSecondary)
+                    .foregroundColor(Color.secondary)
                     .lineLimit(1)
 
-                // Dòng 3: SĐT + Bút chì & Nút Đổi mật khẩu
-                HStack(spacing: 8) {
+                // Tầng 4: SĐT + Bút chì & Nút Đổi mật khẩu
+                HStack(spacing: 6) {
                     HStack(spacing: 3) {
                         Image(systemName: "phone.fill")
                             .font(.system(size: 10))
@@ -442,7 +445,7 @@ public struct HomeScreenView: View {
 
                         Text(!viewModel.user.phone.isEmpty ? viewModel.user.phone : "Chưa có SĐT")
                             .font(.system(size: 11))
-                            .foregroundColor(!viewModel.user.phone.isEmpty ? Color.appSecondaryDarkBlue : Color.appTextSecondary)
+                            .foregroundColor(!viewModel.user.phone.isEmpty ? Color.primary : Color.secondary)
 
                         Button(action: {
                             editPhoneInput = viewModel.user.phone
@@ -450,50 +453,46 @@ public struct HomeScreenView: View {
                             activeSheet = .editPhone
                         }) {
                             Image(systemName: "pencil")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(.system(size: 10, weight: .bold))
                                 .foregroundColor(Color.appPrimaryPink)
-                                .frame(width: 28, height: 28)
+                                .frame(width: 22, height: 22)
                                 .contentShape(Rectangle())
                         }
                     }
 
                     Spacer()
 
-                    // Nút Đổi mật khẩu Pill
+                    // Nút Đổi mật khẩu Pill (Theme adaptive)
                     Button(action: { activeSheet = .changePassword }) {
                         HStack(spacing: 3) {
                             Image(systemName: "lock.fill")
-                                .font(.system(size: 10))
-                                .foregroundColor(Color(hex: "#2563EB"))
+                                .font(.system(size: 9.5))
+                                .foregroundColor(Color.appPrimaryPink)
                             Text("Đổi mật khẩu")
                                 .font(.system(size: 10.5, weight: .bold))
-                                .foregroundColor(Color(hex: "#1D4ED8"))
+                                .foregroundColor(Color.appPrimaryPink)
                         }
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3)
-                        .background(Color(hex: "#EFF6FF"))
+                        .background(Color.appPrimaryPink.opacity(0.1))
                         .cornerRadius(6)
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#BFDBFE"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appPrimaryPink.opacity(0.3), lineWidth: 1))
                     }
                 }
 
-                // Dòng 4: Đơn vị sở hữu & Phòng ban
+                // Tầng 5: Đơn vị sở hữu & Phòng ban (cho phép 2 dòng)
                 if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
                     Text("🏢 \(viewModel.user.donVi.isEmpty ? "Toàn hệ thống Doanh nghiệp" : viewModel.user.donVi)")
                         .font(.system(size: 11.5, weight: .medium))
-                        .foregroundColor(Color(hex: "#334155"))
-                        .lineLimit(1)
+                        .foregroundColor(Color.secondary)
+                        .lineLimit(2)
                 } else {
-                    if !viewModel.user.departmentId.isEmpty {
-                        Text("🏛️ Phòng: \(viewModel.user.departmentId)")
-                            .font(.system(size: 11.5, weight: .medium))
-                            .foregroundColor(Color(hex: "#334155"))
-                            .lineLimit(1)
-                    }
-                    Text("🏬 Đơn vị: \(viewModel.user.donVi.isEmpty ? "Chưa gán" : viewModel.user.donVi)")
+                    let deptStr = !viewModel.user.departmentId.isEmpty ? "🏛️ Phòng: \(viewModel.user.departmentId)\n" : ""
+                    let donViStr = "🏬 Đơn vị: \(viewModel.user.donVi.isEmpty ? "Chưa gán" : viewModel.user.donVi)"
+                    Text(deptStr + donViStr)
                         .font(.system(size: 11.5, weight: .medium))
-                        .foregroundColor(Color.appTextSecondary)
-                        .lineLimit(1)
+                        .foregroundColor(Color.secondary)
+                        .lineLimit(2)
                 }
             }
         }
@@ -508,25 +507,25 @@ public struct HomeScreenView: View {
     private var roleBadgeView: some View {
         let (title, bg, textCol) = { () -> (String, Color, Color) in
             if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
-                return ("Quản trị viên (Admin)", Color.appPrimaryPink.opacity(0.12), Color.appPrimaryPink)
+                return ("👑 Quản trị viên (Admin)", Color.appPrimaryPink.opacity(0.15), Color.appPrimaryPink)
             } else if viewModel.user.isHelpDesk {
-                return ("Phòng Helpdesk", Color(hex: "#0284C7").opacity(0.15), Color(hex: "#0284C7"))
+                return ("🎧 Phòng Helpdesk", Color(hex: "#0284C7").opacity(0.15), Color(hex: "#0284C7"))
             } else if viewModel.user.isSpecialist {
-                return ("Chuyên viên", Color(hex: "#7E22CE").opacity(0.12), Color(hex: "#7E22CE"))
+                return ("⚡ Chuyên viên", Color(hex: "#7E22CE").opacity(0.15), Color(hex: "#7E22CE"))
             } else if viewModel.user.isTechnician {
-                return ("KTV", Color(hex: "#16A34A").opacity(0.15), Color(hex: "#16A34A"))
+                return ("🔧 Kỹ thuật viên", Color(hex: "#16A34A").opacity(0.15), Color(hex: "#16A34A"))
             } else if viewModel.user.isManager {
-                return ("Quản lý phòng ban", Color.appSecondaryDarkBlue.opacity(0.12), Color.appSecondaryDarkBlue)
+                return ("👔 Quản lý phòng ban", Color(hex: "#2563EB").opacity(0.15), Color(hex: "#2563EB"))
             } else {
-                return ("Nhân viên", Color(hex: "#F0F2F5"), Color(hex: "#4B5563"))
+                return ("👤 Nhân viên", Color.gray.opacity(0.15), Color.secondary)
             }
         }()
 
         return Text(title)
-            .font(.system(size: 9.5, weight: .bold))
+            .font(.system(size: 10, weight: .bold))
             .foregroundColor(textCol)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2.5)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
             .background(bg)
             .cornerRadius(6)
     }
