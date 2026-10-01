@@ -122,8 +122,12 @@ class PaywallLicenseViewModel: ObservableObject {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let expiresAt = now + (365 * 24 * 3600 * 1000) // 1 year
 
-            // Lưu lên Firestore companies/{companyId} với đầy đủ các field chuẩn
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=licenseTier&updateMask.fieldPaths=licenseCode&updateMask.fieldPaths=licenseExpiresAt&updateMask.fieldPaths=licenseUpdatedAt&updateMask.fieldPaths=activationCode&updateMask.fieldPaths=expiresAt&updateMask.fieldPaths=maxDevices&updateMask.fieldPaths=maxAssets"
+            let rawUuid = UIDevice.current.identifierForVendor?.uuidString.replacingOccurrences(of: "-", with: "") ?? UUID().uuidString.replacingOccurrences(of: "-", with: "")
+            let deviceId = "ios_" + String(rawUuid.prefix(12)).lowercased()
+            let deviceName = UIDevice.current.name.isEmpty ? "Thiết bị Apple iOS" : UIDevice.current.name
+
+            // 1. Lưu lên Firestore companies/{companyId} kèm theo thông tin thiết bị
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=licenseTier&updateMask.fieldPaths=licenseCode&updateMask.fieldPaths=licenseExpiresAt&updateMask.fieldPaths=licenseUpdatedAt&updateMask.fieldPaths=activationCode&updateMask.fieldPaths=expiresAt&updateMask.fieldPaths=maxDevices&updateMask.fieldPaths=maxAssets&updateMask.fieldPaths=devicesDetail.\(deviceId).name&updateMask.fieldPaths=devicesDetail.\(deviceId).activatedAt&updateMask.fieldPaths=devicesDetail.\(deviceId).lastActive&updateMask.fieldPaths=devicesDetail.\(deviceId).isRevoked"
             if let url = URL(string: urlStr) {
                 var request = URLRequest(url: url)
                 request.httpMethod = "PATCH"
@@ -139,11 +143,62 @@ class PaywallLicenseViewModel: ObservableObject {
                         "activationCode": ["stringValue": cleanCode],
                         "expiresAt": ["integerValue": String(expiresAt)],
                         "maxDevices": ["integerValue": String(targetTier == "ENTERPRISE" ? 999999 : 100)],
-                        "maxAssets": ["integerValue": String(targetTier == "ENTERPRISE" ? 999999 : 1000)]
+                        "maxAssets": ["integerValue": String(targetTier == "ENTERPRISE" ? 999999 : 1000)],
+                        "devicesDetail": [
+                            "mapValue": [
+                                "fields": [
+                                    deviceId: [
+                                        "mapValue": [
+                                            "fields": [
+                                                "name": ["stringValue": deviceName],
+                                                "activatedAt": ["integerValue": String(now)],
+                                                "lastActive": ["integerValue": String(now)],
+                                                "isRevoked": ["booleanValue": false]
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
                     ]
                 ]
                 request.httpBody = try? JSONSerialization.data(withJSONObject: body)
                 _ = try? await URLSession.shared.data(for: request)
+            }
+
+            // 2. Ghi nhận thiết bị vào license_codes/{cleanCode} nếu là key bản quyền
+            if cleanCode.hasPrefix("QLTB-") {
+                let licUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/license_codes/\(cleanCode)?updateMask.fieldPaths=devicesDetail.\(deviceId).name&updateMask.fieldPaths=devicesDetail.\(deviceId).activatedAt&updateMask.fieldPaths=devicesDetail.\(deviceId).lastActive&updateMask.fieldPaths=devicesDetail.\(deviceId).isRevoked&updateMask.fieldPaths=lastActive"
+                if let licUrl = URL(string: licUrlStr) {
+                    var licReq = URLRequest(url: licUrl)
+                    licReq.httpMethod = "PATCH"
+                    licReq.addValue("application/json", forHTTPHeaderField: "Content-Type")
+                    if !token.isEmpty { licReq.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+
+                    let licBody: [String: Any] = [
+                        "fields": [
+                            "lastActive": ["integerValue": String(now)],
+                            "devicesDetail": [
+                                "mapValue": [
+                                    "fields": [
+                                        deviceId: [
+                                            "mapValue": [
+                                                "fields": [
+                                                    "name": ["stringValue": deviceName],
+                                                    "activatedAt": ["integerValue": String(now)],
+                                                    "lastActive": ["integerValue": String(now)],
+                                                    "isRevoked": ["booleanValue": false]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                    licReq.httpBody = try? JSONSerialization.data(withJSONObject: licBody)
+                    _ = try? await URLSession.shared.data(for: licReq)
+                }
             }
             
             let tierEnum = LicenseTier(rawValue: targetTier) ?? .ENTERPRISE
