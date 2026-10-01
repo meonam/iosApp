@@ -53,22 +53,22 @@ jobs:
           # Sao chép file .app được tạo ra trong thư mục Applications vào thư mục Payload
           cp -r build/QLTB.xcarchive/Products/Applications/*.app build/Payload/
           cd build
-          zip -r "IT-Service-and-Assets_iOS_v1.2.1.ipa" Payload
-          ls -lh IT-Service-and-Assets_iOS_v1.2.1.ipa
+          zip -r "IT-Service-and-Assets_iOS_v1.2.2.ipa" Payload
+          ls -lh IT-Service-and-Assets_iOS_v1.2.2.ipa
 
       - name: 6. Xuất bản tệp cài đặt IPA lên GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: IT-Service-and-Assets-iOS-IPA
-          path: build/IT-Service-and-Assets_iOS_v1.2.1.ipa
+          path: build/IT-Service-and-Assets_iOS_v1.2.2.ipa
           retention-days: 30
 
       - name: 7. Tạo GitHub Release đính kèm tệp IPA
         uses: softprops/action-gh-release@v2
         continue-on-error: true
         with:
-          files: build/IT-Service-and-Assets_iOS_v1.2.1.ipa
-          name: IT Service & Assets iOS v1.2.1 (Build 121)
+          files: build/IT-Service-and-Assets_iOS_v1.2.2.ipa
+          name: IT Service & Assets iOS v1.2.2 (Build 122)
           tag_name: latest
           draft: false
           prerelease: false
