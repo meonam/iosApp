@@ -5,6 +5,7 @@ public struct HandoverTicketSheetView: View {
     let ticket: SupportTicket
     @ObservedObject var viewModel: SupportViewModel
     @Environment(\.presentationMode) var presentationMode
+    @Environment(\.colorScheme) var colorScheme
 
     @State private var selectedTab: Int = 0 // 0: KTV, 1: HelpDesk
     @State private var selectedTechEmail: String? = nil
@@ -103,14 +104,14 @@ public struct HandoverTicketSheetView: View {
                             Text("Bàn giao KTV khác")
                                 .font(.system(size: 12, weight: selectedTab == 0 ? .bold : .medium))
                         }
-                        .foregroundColor(selectedTab == 0 ? Color(hex: "#4F46E5") : Color(hex: "#64748B"))
+                        .foregroundColor(selectedTab == 0 ? (colorScheme == .dark ? Color(hex: "#818CF8") : Color(hex: "#4F46E5")) : Color.appTextSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .background(selectedTab == 0 ? Color.white : Color.clear)
+                        .background(selectedTab == 0 ? Color.appSurface : Color.clear)
                         .cornerRadius(8)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(selectedTab == 0 ? Color(hex: "#CBD5E1") : Color.clear, lineWidth: 1)
+                                .stroke(selectedTab == 0 ? (colorScheme == .dark ? Color(hex: "#6366F1") : Color(hex: "#CBD5E1")) : Color.clear, lineWidth: 1)
                         )
                     }
 
@@ -125,19 +126,19 @@ public struct HandoverTicketSheetView: View {
                             Text("Chuyển về HelpDesk")
                                 .font(.system(size: 12, weight: selectedTab == 1 ? .bold : .medium))
                         }
-                        .foregroundColor(selectedTab == 1 ? Color(hex: "#DC2626") : Color(hex: "#64748B"))
+                        .foregroundColor(selectedTab == 1 ? (colorScheme == .dark ? Color(hex: "#F87171") : Color(hex: "#DC2626")) : Color.appTextSecondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .background(selectedTab == 1 ? Color.white : Color.clear)
+                        .background(selectedTab == 1 ? Color.appSurface : Color.clear)
                         .cornerRadius(8)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(selectedTab == 1 ? Color(hex: "#CBD5E1") : Color.clear, lineWidth: 1)
+                                .stroke(selectedTab == 1 ? (colorScheme == .dark ? Color(hex: "#EF4444") : Color(hex: "#CBD5E1")) : Color.clear, lineWidth: 1)
                         )
                     }
                 }
                 .padding(3)
-                .background(Color(hex: "#F1F5F9"))
+                .background(Color.appSurfaceVariant)
                 .cornerRadius(10)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
@@ -150,15 +151,15 @@ public struct HandoverTicketSheetView: View {
                             .foregroundColor(Color(hex: "#DC2626"))
                         Text(errorMessage)
                             .font(.system(size: 11.5))
-                            .foregroundColor(Color(hex: "#B91C1C"))
+                            .foregroundColor(colorScheme == .dark ? Color(hex: "#FCA5A5") : Color(hex: "#B91C1C"))
                         Spacer()
                     }
                     .padding(8)
-                    .background(Color(hex: "#FEF2F2"))
+                    .background(colorScheme == .dark ? Color(hex: "#7F1D1D").opacity(0.5) : Color(hex: "#FEF2F2"))
                     .cornerRadius(8)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color(hex: "#FECACA"), lineWidth: 1)
+                            .stroke(colorScheme == .dark ? Color(hex: "#991B1B") : Color(hex: "#FECACA"), lineWidth: 1)
                     )
                     .padding(.horizontal, 14)
                     .padding(.bottom, 4)
@@ -170,7 +171,7 @@ public struct HandoverTicketSheetView: View {
                         if selectedTab == 0 {
                             Text("Chọn Kỹ thuật viên tiếp nhận: *")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(Color(hex: "#334155"))
+                                .foregroundColor(Color.appTextPrimary)
 
                             // Search bar
                             HStack(spacing: 8) {
@@ -179,6 +180,7 @@ public struct HandoverTicketSheetView: View {
                                     .font(.system(size: 14))
                                 TextField("Tìm theo tên, email, cụm...", text: $searchQuery)
                                     .font(.system(size: 12))
+                                    .foregroundColor(Color.appTextPrimary)
                                 if !searchQuery.isEmpty {
                                     Button(action: { searchQuery = "" }) {
                                         Image(systemName: "xmark.circle.fill")
@@ -189,11 +191,11 @@ public struct HandoverTicketSheetView: View {
                             }
                             .padding(.horizontal, 10)
                             .padding(.vertical, 7)
-                            .background(Color(hex: "#F8FAFC"))
+                            .background(Color.appSurfaceVariant)
                             .cornerRadius(8)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(hex: "#CBD5E1"), lineWidth: 1)
+                                    .stroke(Color.appCardBorder, lineWidth: 1)
                             )
 
                             if viewModel.isLoadingKtvs {
@@ -208,7 +210,7 @@ public struct HandoverTicketSheetView: View {
                                     Spacer()
                                     Text("Không tìm thấy KTV nào khả dụng")
                                         .font(.system(size: 12))
-                                        .foregroundColor(Color(hex: "#94A3B8"))
+                                        .foregroundColor(Color.appTextSecondary)
                                         .padding(.vertical, 20)
                                     Spacer()
                                 }
@@ -224,18 +226,18 @@ public struct HandoverTicketSheetView: View {
                                                 // Avatar Initial
                                                 ZStack {
                                                     Circle()
-                                                        .fill(isSelected ? Color(hex: "#4F46E5") : Color(hex: "#E2E8F0"))
+                                                        .fill(isSelected ? Color(hex: "#4F46E5") : Color.appSurfaceVariant)
                                                         .frame(width: 32, height: 32)
                                                     Text(tech.name.prefix(1).uppercased())
                                                         .font(.system(size: 13, weight: .bold))
-                                                        .foregroundColor(isSelected ? .white : Color(hex: "#475569"))
+                                                        .foregroundColor(isSelected ? .white : Color.appTextSecondary)
                                                 }
 
                                                 VStack(alignment: .leading, spacing: 2) {
                                                     HStack(spacing: 6) {
                                                         Text(tech.name)
                                                             .font(.system(size: 12.5, weight: .bold))
-                                                            .foregroundColor(isSelected ? Color(hex: "#312E81") : Color(hex: "#1E293B"))
+                                                            .foregroundColor(isSelected ? (colorScheme == .dark ? Color(hex: "#A5B4FC") : Color(hex: "#312E81")) : Color.appTextPrimary)
 
                                                         if tech.isOnline {
                                                             Circle()
@@ -247,23 +249,23 @@ public struct HandoverTicketSheetView: View {
                                                     HStack(spacing: 6) {
                                                         Text(tech.email)
                                                             .font(.system(size: 11))
-                                                            .foregroundColor(Color(hex: "#64748B"))
+                                                            .foregroundColor(Color.appTextSecondary)
 
                                                         if tech.isSpecialist {
                                                             Text("Chuyên viên")
                                                                 .font(.system(size: 9.5, weight: .semibold))
-                                                                .foregroundColor(Color(hex: "#7E22CE"))
+                                                                .foregroundColor(colorScheme == .dark ? Color(hex: "#D8B4FE") : Color(hex: "#7E22CE"))
                                                                 .padding(.horizontal, 6)
                                                                 .padding(.vertical, 1.5)
-                                                                .background(Color(hex: "#F3E8FF"))
+                                                                .background(colorScheme == .dark ? Color(hex: "#3B0764") : Color(hex: "#F3E8FF"))
                                                                 .cornerRadius(4)
                                                         } else {
                                                             Text(tech.maKhuVuc.isEmpty ? "Kỹ thuật viên" : "KTV • Cụm \(tech.maKhuVuc)")
                                                                 .font(.system(size: 9.5, weight: .semibold))
-                                                                .foregroundColor(Color(hex: "#3730A3"))
+                                                                .foregroundColor(colorScheme == .dark ? Color(hex: "#A5B4FC") : Color(hex: "#3730A3"))
                                                                 .padding(.horizontal, 6)
                                                                 .padding(.vertical, 1.5)
-                                                                .background(Color(hex: "#E0E7FF"))
+                                                                .background(colorScheme == .dark ? Color(hex: "#1E1B4B") : Color(hex: "#E0E7FF"))
                                                                 .cornerRadius(4)
                                                         }
                                                     }
@@ -278,11 +280,11 @@ public struct HandoverTicketSheetView: View {
                                                 }
                                             }
                                             .padding(10)
-                                            .background(isSelected ? Color(hex: "#EEF2FF") : Color.white)
+                                            .background(isSelected ? (colorScheme == .dark ? Color(hex: "#312E81").opacity(0.4) : Color(hex: "#EEF2FF")) : Color.appSurface)
                                             .cornerRadius(8)
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(isSelected ? Color(hex: "#818CF8") : Color(hex: "#E2E8F0"), lineWidth: 1)
+                                                    .stroke(isSelected ? (colorScheme == .dark ? Color(hex: "#6366F1") : Color(hex: "#818CF8")) : Color.appCardBorder, lineWidth: 1)
                                             )
                                         }
                                         .buttonStyle(PlainButtonStyle())
@@ -295,23 +297,23 @@ public struct HandoverTicketSheetView: View {
                                 HStack(spacing: 6) {
                                     Image(systemName: "headphones")
                                         .font(.system(size: 16))
-                                        .foregroundColor(Color(hex: "#D97706"))
+                                        .foregroundColor(colorScheme == .dark ? Color(hex: "#FBBF24") : Color(hex: "#D97706"))
                                     Text("Chuyển trả yêu cầu về HelpDesk")
                                         .font(.system(size: 13, weight: .bold))
-                                        .foregroundColor(Color(hex: "#92400E"))
+                                        .foregroundColor(colorScheme == .dark ? Color(hex: "#FDE68A") : Color(hex: "#92400E"))
                                 }
 
                                 Text("Yêu cầu sẽ được đưa về trạng thái chờ điều phối (OPEN) và hủy gán KTV hiện tại. HelpDesk sẽ nhận được thông báo để tiếp nhận lại và phân công người xử lý phù hợp.")
                                     .font(.system(size: 11.5))
-                                    .foregroundColor(Color(hex: "#78350F"))
+                                    .foregroundColor(colorScheme == .dark ? Color(hex: "#FEF3C7") : Color(hex: "#78350F"))
                                     .lineSpacing(3)
                             }
                             .padding(12)
-                            .background(Color(hex: "#FFFBEB"))
+                            .background(colorScheme == .dark ? Color(hex: "#451A03").opacity(0.6) : Color(hex: "#FFFBEB"))
                             .cornerRadius(10)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(Color(hex: "#FDE68A"), lineWidth: 1)
+                                    .stroke(colorScheme == .dark ? Color(hex: "#78350F") : Color(hex: "#FDE68A"), lineWidth: 1)
                             )
                         }
 
@@ -319,7 +321,7 @@ public struct HandoverTicketSheetView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Lý do bàn giao (* Bắt buộc - KTV tự nhập):")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(Color(hex: "#334155"))
+                                .foregroundColor(Color.appTextPrimary)
 
                             TextField(
                                 selectedTab == 0
@@ -328,17 +330,18 @@ public struct HandoverTicketSheetView: View {
                                 text: $reasonText
                             )
                             .font(.system(size: 12))
+                            .foregroundColor(Color.appTextPrimary)
                             .padding(10)
-                            .background(Color(hex: "#F8FAFC"))
+                            .background(Color.appSurfaceVariant)
                             .cornerRadius(8)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(hex: "#CBD5E1"), lineWidth: 1)
+                                    .stroke(Color.appCardBorder, lineWidth: 1)
                             )
 
                             Text("* Lý do sẽ được thông báo ngay trong ô chat sự cố và lưu vào lịch sử bàn giao.")
                                 .font(.system(size: 10))
-                                .foregroundColor(Color(hex: "#64748B"))
+                                .foregroundColor(Color.appTextSecondary)
                         }
                         .padding(.top, 4)
                     }
@@ -353,14 +356,14 @@ public struct HandoverTicketSheetView: View {
                     }) {
                         Text("Hủy")
                             .font(.system(size: 12.5, weight: .medium))
-                            .foregroundColor(Color(hex: "#475569"))
+                            .foregroundColor(Color.appTextPrimary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
-                            .background(Color.white)
+                            .background(Color.appSurfaceVariant)
                             .cornerRadius(8)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(hex: "#CBD5E1"), lineWidth: 1)
+                                    .stroke(Color.appCardBorder, lineWidth: 1)
                             )
                     }
                     .disabled(isSubmitting)
@@ -417,9 +420,10 @@ public struct HandoverTicketSheetView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(Color.white)
-                .overlay(Rectangle().frame(height: 1).foregroundColor(Color(hex: "#E2E8F0")), alignment: .top)
+                .background(Color.appSurface)
+                .overlay(Rectangle().frame(height: 1).foregroundColor(Color.appCardBorder), alignment: .top)
             }
+            .background(Color.appBackground.ignoresSafeArea())
             .navigationBarHidden(true)
         }
         .onAppear {

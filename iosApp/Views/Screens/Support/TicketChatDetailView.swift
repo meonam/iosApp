@@ -960,7 +960,7 @@ public struct TicketChatDetailView: View {
                                     .font(.system(size: 13))
                                 Text(att.name)
                                     .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(Color(hex: "#1E293B"))
+                                    .foregroundColor(Color.appTextPrimary)
                                     .lineLimit(1)
                                 Spacer()
                                 if att.size > 0 {
@@ -1506,14 +1506,14 @@ public struct TicketChatDetailView: View {
                             Text("💬 Nhận xét: \"\(effectiveFb)\"")
                                 .font(.system(size: 11.5, weight: .medium))
                                 .italic()
-                                .foregroundColor(Color(hex: "#1E293B"))
+                                .foregroundColor(Color.appTextPrimary)
                                 .padding(8)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.white.opacity(0.85))
+                                .background(Color.appSurfaceVariant)
                                 .cornerRadius(8)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Color(hex: "#E2E8F0"), lineWidth: 1)
+                                        .stroke(Color.appCardBorder, lineWidth: 1)
                                 )
                         }
                     }
@@ -1548,7 +1548,7 @@ public struct TicketChatDetailView: View {
                                 .font(.system(size: 16))
                             Text("Yêu cầu đã được đóng. Mời bạn đánh giá dịch vụ hỗ trợ:")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(Color(hex: "#1E293B"))
+                                .foregroundColor(Color.appTextPrimary)
                         }
 
                         Button(action: {
@@ -1568,9 +1568,9 @@ public struct TicketChatDetailView: View {
                         }
                     }
                     .padding(12)
-                    .background(Color(hex: "#F8FAFC"))
+                    .background(Color.appSurface)
                     .overlay(
-                        Rectangle().frame(height: 1).foregroundColor(Color(hex: "#E2E8F0")),
+                        Rectangle().frame(height: 1).foregroundColor(Color.appCardBorder),
                         alignment: .top
                     )
                 } else {
@@ -1584,7 +1584,7 @@ public struct TicketChatDetailView: View {
                     }
                     .padding(12)
                     .frame(maxWidth: .infinity)
-                    .background(Color(hex: "#F1F5F9"))
+                    .background(Color.appSurfaceVariant)
                 }
             }
         }
@@ -1600,7 +1600,7 @@ public struct TicketChatDetailView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(hex: "#FEE2E2"))
+        .background(Color.dynamic(light: "#FEE2E2", dark: "#7F1D1D"))
     }
 
     // MARK: - SHEET: TỪ CHỐI PHIẾU
@@ -1609,24 +1609,24 @@ public struct TicketChatDetailView: View {
             VStack(alignment: .leading, spacing: 14) {
                 Text("Lý do từ chối yêu cầu (không phù hợp / ngoài phạm vi):")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Color(hex: "#1E293B"))
+                    .foregroundColor(Color.appTextPrimary)
 
                 TextEditor(text: $rejectReasonText)
                     .frame(height: 110)
                     .padding(8)
-                    .background(Color(hex: "#F8FAFC"))
+                    .background(Color.appSurfaceVariant)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
 
                 HStack(spacing: 8) {
                     Image(systemName: "info.circle.fill")
                         .foregroundColor(Color(hex: "#D97706"))
                     Text("Phiếu sẽ chuyển ngay vào tab 'Đã ẩn'. Hệ thống KHÔNG tự động tính 5★ sau 24h và miễn trừ khỏi KPI.")
                         .font(.system(size: 11))
-                        .foregroundColor(Color(hex: "#92400E"))
+                        .foregroundColor(Color.dynamic(light: "#92400E", dark: "#FDE68A"))
                 }
                 .padding(10)
-                .background(Color(hex: "#FEF3C7"))
+                .background(Color.dynamic(light: "#FEF3C7", dark: "#3B2504"))
                 .cornerRadius(8)
 
                 Button(action: {
@@ -1867,12 +1867,12 @@ public struct TicketChatDetailView: View {
                     Text("💬 Nhận xét: \"\(effectiveFb)\"")
                         .font(.system(size: 12))
                         .italic()
-                        .foregroundColor(Color(hex: "#1E293B"))
+                        .foregroundColor(Color.appTextPrimary)
                         .padding(8)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white.opacity(0.85))
+                        .background(Color.appSurfaceVariant)
                         .cornerRadius(6)
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
                 }
 
                 HStack(spacing: 4) {
@@ -1901,9 +1901,9 @@ public struct TicketChatDetailView: View {
                 }
             }
             .padding(12)
-            .background(ticketRating >= 3 ? Color(hex: "#F0FDF4") : Color(hex: "#FEF2F2"))
+            .background(ticketRating >= 3 ? Color.dynamic(light: "#F0FDF4", dark: "#064E3B") : Color.dynamic(light: "#FEF2F2", dark: "#7F1D1D"))
             .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(ticketRating >= 3 ? Color(hex: "#BBF7D0") : Color(hex: "#FECACA"), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(ticketRating >= 3 ? Color.dynamic(light: "#BBF7D0", dark: "#059669") : Color.dynamic(light: "#FECACA", dark: "#991B1B"), lineWidth: 1))
         } else if isCreator {
             // Người tạo xem phiếu khi KTV đã xử lý xong và chưa đánh giá -> Hiển thị form đánh giá nhanh
             VStack(alignment: .leading, spacing: 10) {
@@ -1964,7 +1964,7 @@ public struct TicketChatDetailView: View {
             }
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .center)
-            .background(Color(hex: "#F8FAFC"))
+            .background(Color.appSurfaceVariant)
             .cornerRadius(8)
         }
     }
@@ -1976,7 +1976,7 @@ public struct TicketChatDetailView: View {
                 Section(header: Text("Xác nhận sự cố")) {
                     Text("Sự cố của bạn đã hoạt động bình thường? Thao tác này sẽ đóng yêu cầu hỗ trợ và dừng chuyến đi của Kỹ thuật viên an toàn.")
                         .font(.system(size: 13))
-                        .foregroundColor(Color(hex: "#334155"))
+                        .foregroundColor(Color.appTextPrimary)
                 }
 
                 Section(header: Text("Chọn lý do để lưu nhật ký báo cáo *")) {
@@ -1995,7 +1995,7 @@ public struct TicketChatDetailView: View {
                                     .foregroundColor(selfResolvedReason == r ? Color(hex: "#10B981") : Color.gray)
                                 Text(r)
                                     .font(.system(size: 13))
-                                    .foregroundColor(Color(hex: "#1E293B"))
+                                    .foregroundColor(Color.appTextPrimary)
                                 Spacer()
                             }
                         }

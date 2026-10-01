@@ -446,6 +446,7 @@ struct LiveTrackingMKMapView: UIViewRepresentable {
 
 // MARK: - LIVE TRACKING MAP VIEW (ĐỒNG BỘ 1:1 VỚI ANDROID LIVETRACKINGMAPDIALOG)
 public struct LiveTrackingMapView: View {
+    @Environment(\.colorScheme) private var colorScheme
     public var ticket: SupportTicket
     @ObservedObject public var viewModel: SupportViewModel
     public var onDismiss: () -> Void
@@ -944,13 +945,13 @@ public struct LiveTrackingMapView: View {
 
             Text("⚠️ CẢNH BÁO: \(rolePrefix) đã tắt GPS trên thiết bị! Đã ghi nhận nhật ký.")
                 .font(.system(size: 11.5, weight: .bold))
-                .foregroundColor(Color(hex: "#B91C1C"))
+                .foregroundColor(colorScheme == .dark ? Color(hex: "#FCA5A5") : Color(hex: "#B91C1C"))
 
             Spacer()
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Color(hex: "#FEE2E2"))
+        .background(colorScheme == .dark ? Color(hex: "#7F1D1D").opacity(0.5) : Color(hex: "#FEE2E2"))
         .overlay(Rectangle().frame(height: 1).foregroundColor(Color(hex: "#EF4444")), alignment: .bottom)
     }
 
@@ -963,13 +964,14 @@ public struct LiveTrackingMapView: View {
 
             Text(statusMessage)
                 .font(.system(size: 12.5, weight: .semibold))
-                .foregroundColor(Color(hex: "#0F172A"))
+                .foregroundColor(Color.appTextPrimary)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(20)
         .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 2)
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     private var statusMessage: String {
@@ -1004,7 +1006,7 @@ public struct LiveTrackingMapView: View {
             Button(action: { zoomTrigger += 1 }) {
                 Image(systemName: "plus")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(Color(hex: "#334155"))
+                    .foregroundColor(Color.appTextPrimary)
                     .frame(width: 36, height: 36)
             }
 
@@ -1014,7 +1016,7 @@ public struct LiveTrackingMapView: View {
             Button(action: { zoomTrigger -= 1 }) {
                 Image(systemName: "minus")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(Color(hex: "#334155"))
+                    .foregroundColor(Color.appTextPrimary)
                     .frame(width: 36, height: 36)
             }
 
@@ -1024,18 +1026,24 @@ public struct LiveTrackingMapView: View {
             Button(action: { fitBoundsTrigger += 1 }) {
                 Image(systemName: "viewfinder")
                     .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(isSpecialist ? Color(hex: "#7C3AED") : Color(hex: "#002A8F"))
+                    .foregroundColor(isSpecialist ? (colorScheme == .dark ? Color(hex: "#A78BFA") : Color(hex: "#7C3AED")) : (colorScheme == .dark ? Color(hex: "#60A5FA") : Color(hex: "#002A8F")))
                     .frame(width: 36, height: 36)
             }
         }
-        .background(Color.white.opacity(0.95))
+        .background(Color.appSurface.opacity(0.95))
         .cornerRadius(10)
         .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 2)
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     // MARK: - 4. BOTTOM INFO CARD & ACTIONS
     private var bottomInfoCard: some View {
-        VStack(spacing: 12) {
+        let coTechBg = colorScheme == .dark ? Color(hex: "#2E1065").opacity(0.5) : Color(hex: "#FAF5FF")
+        let coTechBorder = colorScheme == .dark ? Color(hex: "#581C87") : Color(hex: "#E9D5FF")
+        let coTechTitle = colorScheme == .dark ? Color(hex: "#C084FC") : Color(hex: "#6B21A8")
+        let coTechText = colorScheme == .dark ? Color(hex: "#DDD6FE") : Color(hex: "#4C1D95")
+
+        return VStack(spacing: 12) {
             // ROW 1: Avatar + Thông tin
             HStack(spacing: 12) {
                 ZStack {
@@ -1051,18 +1059,18 @@ public struct LiveTrackingMapView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(displayName)
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(hex: "#0F172A"))
+                        .foregroundColor(Color.appTextPrimary)
                         .lineLimit(1)
 
                     Text(displaySub)
                         .font(.system(size: 12))
-                        .foregroundColor(Color.gray)
+                        .foregroundColor(Color.appTextSecondary)
                         .lineLimit(1)
 
                     if !targetPhone.isEmpty {
                         Text("📞 \(targetPhone)")
                             .font(.system(size: 11.5, weight: .medium))
-                            .foregroundColor(Color(hex: "#0284C7"))
+                            .foregroundColor(colorScheme == .dark ? Color(hex: "#38BDF8") : Color(hex: "#0284C7"))
                     }
                 }
 
@@ -1142,11 +1150,12 @@ public struct LiveTrackingMapView: View {
                         Text("Dẫn đường")
                             .font(.system(size: 12, weight: .bold))
                     }
-                    .foregroundColor(Color(hex: "#334155"))
+                    .foregroundColor(Color.appTextPrimary)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
-                    .background(Color(hex: "#F1F5F9"))
+                    .background(Color.appSurfaceVariant)
                     .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                 }
             }
 
@@ -1156,10 +1165,10 @@ public struct LiveTrackingMapView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "person.2.fill")
                             .font(.system(size: 13))
-                            .foregroundColor(Color(hex: "#7C3AED"))
+                            .foregroundColor(colorScheme == .dark ? Color(hex: "#C084FC") : Color(hex: "#7C3AED"))
                         Text("KTV / Chuyên Viên Phối Hợp (\(currentTicket.coTechnicians.count)):")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color(hex: "#6B21A8"))
+                            .foregroundColor(coTechTitle)
                     }
 
                     ForEach(currentTicket.coTechnicians) { co in
@@ -1178,7 +1187,7 @@ public struct LiveTrackingMapView: View {
                         HStack(spacing: 6) {
                             Text("• \(co.name.isEmpty ? co.email : co.name) [\(co.role.isEmpty ? "Phối hợp" : co.role)] • \(statusText)")
                                 .font(.system(size: 11.5))
-                                .foregroundColor(Color(hex: "#4C1D95"))
+                                .foregroundColor(coTechText)
                                 .lineLimit(1)
                                 .truncationMode(.tail)
 
@@ -1223,9 +1232,9 @@ public struct LiveTrackingMapView: View {
                     }
                 }
                 .padding(10)
-                .background(Color(hex: "#FAF5FF"))
+                .background(coTechBg)
                 .cornerRadius(8)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#E9D5FF"), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(coTechBorder, lineWidth: 1))
             }
 
             Divider()
@@ -1240,8 +1249,9 @@ public struct LiveTrackingMapView: View {
             }
         }
         .padding(16)
-        .background(Color.white)
-        .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: -2)
+        .background(Color.appSurface)
+        .overlay(Rectangle().frame(height: 1).foregroundColor(Color.appCardBorder), alignment: .top)
+        .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: -2)
     }
 
     // MARK: - KTV / SPECIALIST ACTIONS
@@ -1291,12 +1301,12 @@ public struct LiveTrackingMapView: View {
                         Text("💻 Xử lý từ xa (Không cần di chuyển)")
                             .font(.system(size: 12.5, weight: .bold))
                     }
-                    .foregroundColor(Color(hex: "#1D4ED8"))
+                    .foregroundColor(colorScheme == .dark ? Color(hex: "#60A5FA") : Color(hex: "#1D4ED8"))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(10)
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#93C5FD"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(colorScheme == .dark ? Color(hex: "#1E40AF") : Color(hex: "#93C5FD"), lineWidth: 1))
                 }
             } else if isEnRoute {
                 // Nút Mở Google Maps / Apple Maps Dẫn đường có giọng nói
@@ -1352,12 +1362,12 @@ public struct LiveTrackingMapView: View {
                 }) {
                     Text("💻 Dừng di chuyển & Đổi sang xử lý từ xa")
                         .font(.system(size: 12.5, weight: .bold))
-                        .foregroundColor(Color(hex: "#1D4ED8"))
+                        .foregroundColor(colorScheme == .dark ? Color(hex: "#60A5FA") : Color(hex: "#1D4ED8"))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#93C5FD"), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(colorScheme == .dark ? Color(hex: "#1E40AF") : Color(hex: "#93C5FD"), lineWidth: 1))
                 }
 
                 if let techResolve = onTechResolve {
@@ -1367,12 +1377,12 @@ public struct LiveTrackingMapView: View {
                     }) {
                         Text("✓ Báo cáo xử lý xong sự cố")
                             .font(.system(size: 12.5, weight: .bold))
-                            .foregroundColor(Color(hex: "#15803D"))
+                            .foregroundColor(colorScheme == .dark ? Color(hex: "#4ADE80") : Color(hex: "#15803D"))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 10)
-                            .background(Color.white)
+                            .background(Color.appSurface)
                             .cornerRadius(10)
-                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#86EFAC"), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(colorScheme == .dark ? Color(hex: "#166534") : Color(hex: "#86EFAC"), lineWidth: 1))
                     }
                 }
             } else if isArrived {
@@ -1381,13 +1391,13 @@ public struct LiveTrackingMapView: View {
                         .foregroundColor(Color(hex: "#16A34A"))
                     Text("Đã xác thực vị trí đến nơi thành công")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(Color(hex: "#16A34A"))
+                        .foregroundColor(colorScheme == .dark ? Color(hex: "#4ADE80") : Color(hex: "#16A34A"))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(Color(hex: "#DCFCE7"))
+                .background(colorScheme == .dark ? Color(hex: "#064E3B").opacity(0.6) : Color(hex: "#DCFCE7"))
                 .cornerRadius(8)
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#10B981"), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(colorScheme == .dark ? Color(hex: "#059669") : Color(hex: "#10B981"), lineWidth: 1))
 
                 if let techResolve = onTechResolve {
                     Button(action: {
@@ -1420,12 +1430,12 @@ public struct LiveTrackingMapView: View {
                         Text("🛑 Hủy chuyến đi của \(rolePrefix) \(displayName)")
                             .font(.system(size: 12.5, weight: .bold))
                     }
-                    .foregroundColor(Color(hex: "#DC2626"))
+                    .foregroundColor(colorScheme == .dark ? Color(hex: "#F87171") : Color(hex: "#DC2626"))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#FCA5A5"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(colorScheme == .dark ? Color(hex: "#991B1B") : Color(hex: "#FCA5A5"), lineWidth: 1))
                 }
             }
         }
@@ -1436,7 +1446,7 @@ public struct LiveTrackingMapView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("📍 Điểm đến hỗ trợ: \(effectiveDestName) (Bán kính \(Int(arrivalRadiusMeters))m)")
                 .font(.system(size: 12))
-                .foregroundColor(Color(hex: "#64748B"))
+                .foregroundColor(Color.appTextSecondary)
 
             if (isEnRoute || isArrived), let selfResolve = onSelfResolved, isCreator {
                 Button(action: {
@@ -1448,12 +1458,12 @@ public struct LiveTrackingMapView: View {
                         Text("💡 Tôi đã tự xử lý xong (Đóng phiếu & Dừng \(rolePrefix))")
                             .font(.system(size: 12, weight: .bold))
                     }
-                    .foregroundColor(Color(hex: "#B45309"))
+                    .foregroundColor(colorScheme == .dark ? Color(hex: "#FBBF24") : Color(hex: "#B45309"))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#FDE68A"), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(colorScheme == .dark ? Color(hex: "#92400E") : Color(hex: "#FDE68A"), lineWidth: 1))
                 }
             }
         }

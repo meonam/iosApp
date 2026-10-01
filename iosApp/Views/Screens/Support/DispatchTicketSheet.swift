@@ -47,6 +47,7 @@ public struct DispatchTicketSheet: View {
     public var ticket: SupportTicket
     @ObservedObject public var viewModel: SupportViewModel
     public var onDismiss: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var targetRole: String = "TECH" // "TECH" or "SPECIALIST"
     @State private var selectedDeptId: String = "IT_TAP_TRUNG"
@@ -109,50 +110,57 @@ public struct DispatchTicketSheet: View {
 
     public var body: some View {
         NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    // 1. TABS SWITCHER: KTV Địa bàn vs Chuyên viên
-                    switcherTabs
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
 
-                    if targetRole == "TECH" {
-                        ktvSectionView
-                    } else {
-                        specialistSectionView
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // 1. TABS SWITCHER: KTV Địa bàn vs Chuyên viên
+                        switcherTabs
+
+                        if targetRole == "TECH" {
+                            ktvSectionView
+                        } else {
+                            specialistSectionView
+                        }
+
+                        // Ghi chú điều phối
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(targetRole == "SPECIALIST" ? "Ghi chú cho Chuyên viên (tùy chọn):" : "Ghi chú điều phối (tùy chọn):")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+
+                            TextEditor(text: $note)
+                                .font(.system(size: 13.5))
+                                .foregroundColor(Color.appTextPrimary)
+                                .frame(height: 70)
+                                .padding(6)
+                                .background(colorScheme == .dark ? Color(hex: "#161F2E") : Color(hex: "#F8FAFC"))
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
+                        }
+
+                        Spacer(minLength: 20)
+
+                        // Bottom Action Buttons
+                        bottomActionButtons
                     }
-
-                    // Ghi chú điều phối
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(targetRole == "SPECIALIST" ? "Ghi chú cho Chuyên viên (tùy chọn):" : "Ghi chú điều phối (tùy chọn):")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(Color(hex: "#334155"))
-
-                        TextEditor(text: $note)
-                            .frame(height: 70)
-                            .padding(6)
-                            .background(Color(hex: "#F8FAFC"))
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3), lineWidth: 1))
-                    }
-
-                    Spacer(minLength: 20)
-
-                    // Bottom Action Buttons (Đồng bộ nút Hủy và Điều phối Hồng #E11D48)
-                    bottomActionButtons
+                    .padding(16)
                 }
-                .padding(16)
             }
             .navigationTitle("Điều phối Ticket")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Đóng") { onDismiss() }
-                        .foregroundColor(Color.gray)
+                        .foregroundColor(Color.appPrimaryPink)
                 }
             }
             .onAppear {
                 viewModel.fetchKtvTechnicians()
             }
         }
+        .navigationViewStyle(StackNavigationViewStyle())
     }
 
     // MARK: - 1. SWITCHER TABS (KTV ĐỊA BÀN vs CHUYÊN VIÊN)
@@ -165,17 +173,17 @@ public struct DispatchTicketSheet: View {
                     Text("🛵")
                     Text("KTV Địa bàn")
                         .font(.system(size: 13, weight: targetRole == "TECH" ? .bold : .medium))
-                        .foregroundColor(targetRole == "TECH" ? Color(hex: "#1D4ED8") : Color(hex: "#64748B"))
+                        .foregroundColor(targetRole == "TECH" ? Color.appSecondaryDarkBlue : Color.appTextSecondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
-                .background(targetRole == "TECH" ? Color.white : Color.clear)
+                .background(targetRole == "TECH" ? Color.appSurface : Color.clear)
                 .cornerRadius(6)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
-                        .stroke(targetRole == "TECH" ? Color(hex: "#93C5FD") : Color.clear, lineWidth: 1)
+                        .stroke(targetRole == "TECH" ? Color.appSecondaryDarkBlue : Color.clear, lineWidth: 1)
                 )
-                .shadow(color: targetRole == "TECH" ? Color.black.opacity(0.05) : Color.clear, radius: 2)
+                .shadow(color: targetRole == "TECH" ? Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05) : Color.clear, radius: 2)
             }
 
             Button(action: {
@@ -185,21 +193,21 @@ public struct DispatchTicketSheet: View {
                     Text("💻")
                     Text("Chuyên viên")
                         .font(.system(size: 13, weight: targetRole == "SPECIALIST" ? .bold : .medium))
-                        .foregroundColor(targetRole == "SPECIALIST" ? Color(hex: "#0D9488") : Color(hex: "#64748B"))
+                        .foregroundColor(targetRole == "SPECIALIST" ? (colorScheme == .dark ? Color(hex: "#2DD4BF") : Color(hex: "#0D9488")) : Color.appTextSecondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
-                .background(targetRole == "SPECIALIST" ? Color.white : Color.clear)
+                .background(targetRole == "SPECIALIST" ? Color.appSurface : Color.clear)
                 .cornerRadius(6)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
-                        .stroke(targetRole == "SPECIALIST" ? Color(hex: "#99F6E4") : Color.clear, lineWidth: 1)
+                        .stroke(targetRole == "SPECIALIST" ? (colorScheme == .dark ? Color(hex: "#14B8A6") : Color(hex: "#99F6E4")) : Color.clear, lineWidth: 1)
                 )
-                .shadow(color: targetRole == "SPECIALIST" ? Color.black.opacity(0.05) : Color.clear, radius: 2)
+                .shadow(color: targetRole == "SPECIALIST" ? Color.black.opacity(colorScheme == .dark ? 0.2 : 0.05) : Color.clear, radius: 2)
             }
         }
         .padding(3)
-        .background(Color(hex: "#F1F5F9"))
+        .background(Color.appSurfaceVariant)
         .cornerRadius(8)
     }
 
@@ -210,20 +218,20 @@ public struct DispatchTicketSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Phòng ban xử lý:")
                     .font(.system(size: 13.5, weight: .semibold))
-                    .foregroundColor(Color(hex: "#1E293B"))
+                    .foregroundColor(Color.appTextPrimary)
 
                 HStack(spacing: 12) {
                     ZStack {
                         Circle()
-                            .stroke(Color(hex: "#E11D48"), lineWidth: 2)
+                            .stroke(Color.appPrimaryPink, lineWidth: 2)
                             .frame(width: 20, height: 20)
                         Circle()
-                            .fill(Color(hex: "#E11D48"))
+                            .fill(Color.appPrimaryPink)
                             .frame(width: 10, height: 10)
                     }
                     Text("IT TẬP TRUNG")
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color(hex: "#1E293B"))
+                        .foregroundColor(Color.appTextPrimary)
                 }
                 .padding(.vertical, 4)
             }
@@ -232,7 +240,7 @@ public struct DispatchTicketSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Lọc kỹ thuật viên theo cụm/khu vực:")
                     .font(.system(size: 13.5, weight: .semibold))
-                    .foregroundColor(Color(hex: "#1E293B"))
+                    .foregroundColor(Color.appTextPrimary)
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -243,14 +251,14 @@ public struct DispatchTicketSheet: View {
                             }) {
                                 Text(cl)
                                     .font(.system(size: 12.5, weight: isSel ? .bold : .medium))
-                                    .foregroundColor(isSel ? Color(hex: "#1D4ED8") : Color(hex: "#475569"))
+                                    .foregroundColor(isSel ? (colorScheme == .dark ? Color(hex: "#60A5FA") : Color(hex: "#1D4ED8")) : Color.appTextSecondary)
                                     .padding(.horizontal, 14)
                                     .padding(.vertical, 7)
-                                    .background(isSel ? Color(hex: "#EFF6FF") : Color.white)
+                                    .background(isSel ? (colorScheme == .dark ? Color(hex: "#1E3A8A").opacity(0.4) : Color(hex: "#EFF6FF")) : Color.appSurface)
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .stroke(isSel ? Color(hex: "#3B82F6") : Color(hex: "#E2E8F0"), lineWidth: 1)
+                                            .stroke(isSel ? Color.appSecondaryDarkBlue : Color.appCardBorder, lineWidth: 1)
                                     )
                             }
                         }
@@ -262,7 +270,7 @@ public struct DispatchTicketSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Kỹ thuật viên:")
                     .font(.system(size: 13.5, weight: .semibold))
-                    .foregroundColor(Color(hex: "#1E293B"))
+                    .foregroundColor(Color.appTextPrimary)
 
                 if viewModel.isLoadingKtvs {
                     HStack {
@@ -274,7 +282,7 @@ public struct DispatchTicketSheet: View {
                 } else if filteredTechs.isEmpty {
                     Text("Không có KTV phù hợp với cụm đã chọn")
                         .font(.system(size: 13))
-                        .foregroundColor(Color.gray)
+                        .foregroundColor(Color.appTextSecondary)
                         .italic()
                         .padding(.vertical, 8)
                 } else {
@@ -291,11 +299,11 @@ public struct DispatchTicketSheet: View {
                                     // Custom Radio
                                     ZStack {
                                         Circle()
-                                            .stroke(isSelected ? Color(hex: "#E11D48") : Color.gray.opacity(0.5), lineWidth: 2)
+                                            .stroke(isSelected ? Color.appPrimaryPink : Color.gray.opacity(0.5), lineWidth: 2)
                                             .frame(width: 20, height: 20)
                                         if isSelected {
                                             Circle()
-                                                .fill(Color(hex: "#E11D48"))
+                                                .fill(Color.appPrimaryPink)
                                                 .frame(width: 10, height: 10)
                                         }
                                     }
@@ -304,7 +312,7 @@ public struct DispatchTicketSheet: View {
                                         HStack(spacing: 6) {
                                             Text(tech.name)
                                                 .font(.system(size: 14, weight: .semibold))
-                                                .foregroundColor(Color(hex: "#0F172A"))
+                                                .foregroundColor(Color.appTextPrimary)
 
                                             Circle()
                                                 .fill(tech.isOnline ? Color(hex: "#10B981") : Color.gray)
@@ -342,12 +350,15 @@ public struct DispatchTicketSheet: View {
 
     // MARK: - 3. SPECIALIST SECTION
     private var specialistSectionView: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        let tealColor = colorScheme == .dark ? Color(hex: "#2DD4BF") : Color(hex: "#0D9488")
+        let activeChipBg = colorScheme == .dark ? Color(hex: "#134E4A") : Color(hex: "#CCFBF1")
+
+        return VStack(alignment: .leading, spacing: 14) {
             // Tổ Chuyên Môn Phụ Trách
             VStack(alignment: .leading, spacing: 8) {
                 Text("Tổ Chuyên Môn Phụ Trách (*):")
                     .font(.system(size: 13.5, weight: .semibold))
-                    .foregroundColor(Color(hex: "#1E293B"))
+                    .foregroundColor(Color.appTextPrimary)
 
                 VStack(spacing: 8) {
                     ForEach(DEFAULT_SPECIALIST_TEAMS) { team in
@@ -363,11 +374,11 @@ public struct DispatchTicketSheet: View {
                             HStack(alignment: .top, spacing: 12) {
                                 ZStack {
                                     Circle()
-                                        .stroke(isSelected ? Color(hex: "#0D9488") : Color.gray.opacity(0.5), lineWidth: 2)
+                                        .stroke(isSelected ? tealColor : Color.gray.opacity(0.5), lineWidth: 2)
                                         .frame(width: 20, height: 20)
                                     if isSelected {
                                         Circle()
-                                            .fill(Color(hex: "#0D9488"))
+                                            .fill(tealColor)
                                             .frame(width: 10, height: 10)
                                     }
                                 }
@@ -376,11 +387,11 @@ public struct DispatchTicketSheet: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(team.name)
                                         .font(.system(size: 13.5, weight: .bold))
-                                        .foregroundColor(isSelected ? Color(hex: "#0D9488") : Color(hex: "#0F172A"))
+                                        .foregroundColor(isSelected ? tealColor : Color.appTextPrimary)
 
                                     Text(team.applications.joined(separator: ", "))
                                         .font(.system(size: 11))
-                                        .foregroundColor(Color.gray)
+                                        .foregroundColor(Color.appTextSecondary)
                                 }
 
                                 Spacer()
@@ -396,22 +407,22 @@ public struct DispatchTicketSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Ứng Dụng Nghiệp Vụ / Hệ Thống:")
                     .font(.system(size: 13.5, weight: .semibold))
-                    .foregroundColor(Color(hex: "#1E293B"))
+                    .foregroundColor(Color.appTextPrimary)
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         Button(action: { selectedApp = "" }) {
                             Text("Tất cả ứng dụng")
                                 .font(.system(size: 12, weight: selectedApp.isEmpty ? .bold : .medium))
-                                .foregroundColor(selectedApp.isEmpty ? Color(hex: "#0D9488") : Color(hex: "#475569"))
+                                .foregroundColor(selectedApp.isEmpty ? tealColor : Color.appTextSecondary)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
-                                .background(selectedApp.isEmpty ? Color(hex: "#CCFBF1") : Color.white)
+                                .background(selectedApp.isEmpty ? activeChipBg : Color.appSurface)
                                 .cornerRadius(8)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .stroke(selectedApp.isEmpty ? Color(hex: "#0D9488") : Color(hex: "#E2E8F0"), lineWidth: 1)
-                                )
+                                        .stroke(selectedApp.isEmpty ? tealColor : Color.appCardBorder, lineWidth: 1)
+                                    )
                         }
 
                         ForEach(currentSpecialistTeam.applications, id: \.self) { app in
@@ -419,14 +430,14 @@ public struct DispatchTicketSheet: View {
                             Button(action: { selectedApp = isSel ? "" : app }) {
                                 Text(app)
                                     .font(.system(size: 12, weight: isSel ? .bold : .medium))
-                                    .foregroundColor(isSel ? Color(hex: "#0D9488") : Color(hex: "#475569"))
+                                    .foregroundColor(isSel ? tealColor : Color.appTextSecondary)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
-                                    .background(isSel ? Color(hex: "#CCFBF1") : Color.white)
+                                    .background(isSel ? activeChipBg : Color.appSurface)
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .stroke(isSel ? Color(hex: "#0D9488") : Color(hex: "#E2E8F0"), lineWidth: 1)
+                                            .stroke(isSel ? tealColor : Color.appCardBorder, lineWidth: 1)
                                     )
                             }
                         }
@@ -438,7 +449,7 @@ public struct DispatchTicketSheet: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Chuyên Viên Phụ Trách:")
                     .font(.system(size: 13.5, weight: .semibold))
-                    .foregroundColor(Color(hex: "#1E293B"))
+                    .foregroundColor(Color.appTextPrimary)
 
                 // Phân công chung cho cả Tổ
                 Button(action: {
@@ -448,17 +459,17 @@ public struct DispatchTicketSheet: View {
                     HStack(spacing: 12) {
                         ZStack {
                             Circle()
-                                .stroke(selectedSpecialistEmail.isEmpty ? Color(hex: "#0D9488") : Color.gray.opacity(0.5), lineWidth: 2)
+                                .stroke(selectedSpecialistEmail.isEmpty ? tealColor : Color.gray.opacity(0.5), lineWidth: 2)
                                 .frame(width: 20, height: 20)
                             if selectedSpecialistEmail.isEmpty {
                                 Circle()
-                                    .fill(Color(hex: "#0D9488"))
+                                    .fill(tealColor)
                                     .frame(width: 10, height: 10)
-                            }
+                                }
                         }
                         Text("👥 Phân công chung cho cả Tổ")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(Color(hex: "#0D9488"))
+                            .foregroundColor(tealColor)
                         Spacer()
                     }
                     .padding(.vertical, 6)
@@ -477,11 +488,11 @@ public struct DispatchTicketSheet: View {
                         HStack(spacing: 12) {
                             ZStack {
                                 Circle()
-                                    .stroke(isSelected ? Color(hex: "#0D9488") : Color.gray.opacity(0.5), lineWidth: 2)
+                                    .stroke(isSelected ? tealColor : Color.gray.opacity(0.5), lineWidth: 2)
                                     .frame(width: 20, height: 20)
                                 if isSelected {
                                     Circle()
-                                        .fill(Color(hex: "#0D9488"))
+                                        .fill(tealColor)
                                         .frame(width: 10, height: 10)
                                 }
                             }
@@ -490,7 +501,7 @@ public struct DispatchTicketSheet: View {
                                 HStack(spacing: 6) {
                                     Text(spec.name)
                                         .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(Color(hex: "#0F172A"))
+                                        .foregroundColor(Color.appTextPrimary)
 
                                     Circle()
                                         .fill(spec.isOnline ? Color(hex: "#10B981") : Color.gray)
@@ -529,17 +540,17 @@ public struct DispatchTicketSheet: View {
         HStack(spacing: 16) {
             Spacer()
 
-            // Nút Hủy (Chữ hồng #E11D48)
+            // Nút Hủy
             Button(action: onDismiss) {
                 Text("Hủy")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color(hex: "#E11D48"))
+                    .foregroundColor(Color.appPrimaryPink)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
             }
             .disabled(isSubmitting)
 
-            // Nút Điều phối (Pill button hồng đậm #E11D48)
+            // Nút Điều phối
             Button(action: handleDispatch) {
                 HStack(spacing: 6) {
                     if isSubmitting {
@@ -553,7 +564,7 @@ public struct DispatchTicketSheet: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
-                .background(Color(hex: "#E11D48"))
+                .background(Color.appPrimaryPink)
                 .clipShape(Capsule())
             }
             .disabled(isSubmitting)
