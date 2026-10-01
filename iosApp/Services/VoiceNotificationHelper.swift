@@ -79,8 +79,9 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
     private func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-            try session.setActive(true)
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .defaultToSpeaker])
+            try session.overrideOutputAudioPort(.speaker)
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
         } catch {
             print("[VoiceNotificationHelper] Configure audio session error: \(error)")
         }
@@ -350,13 +351,13 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                             try? await Task.sleep(nanoseconds: 400_000_000)
                         }
 
-                        // CÂU 2 (TÊN ĐƠN VỊ CẦN HỖ TRỢ): "[Đơn vị] cần hỗ trợ" qua giọng Hoài My Neural
-                        await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
+                        // CÂU 2 (TÊN ĐƠN VỊ CẦN HỖ TRỢ): "[Đơn vị] cần hỗ trợ" qua giọng Hoài My Neural (dự phòng fallback nếu offline)
+                        await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: item.fallbackBundledName)
 
                         // Nếu cấu hình REPEAT: Nghỉ 800ms rồi lặp lại CÂU 2 (tên đơn vị) - KHÔNG lặp lại Câu 1 intro để tránh vấp
                         if mode == "REPEAT" {
                             try? await Task.sleep(nanoseconds: 800_000_000)
-                            await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
+                            await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: item.fallbackBundledName)
                         }
                     }
                 } else if item.type == "TICKET_RATED" {

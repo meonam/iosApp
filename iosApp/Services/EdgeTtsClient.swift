@@ -77,17 +77,28 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
         let cleanName = name.replacingOccurrences(of: ".mp3", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanName.isEmpty else { return nil }
 
-        let audioFolderUrl = Bundle.main.bundleURL.appendingPathComponent("Audio/\(cleanName).mp3")
-        if FileManager.default.fileExists(atPath: audioFolderUrl.path) {
-            return audioFolderUrl
-        } else if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3", subdirectory: "Audio") {
+        if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3", subdirectory: "Audio") {
             return url
-        } else if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3") {
+        }
+        if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3", subdirectory: "Resources/Audio") {
             return url
-        } else {
-            let rootUrl = Bundle.main.bundleURL.appendingPathComponent("\(cleanName).mp3")
-            if FileManager.default.fileExists(atPath: rootUrl.path) {
-                return rootUrl
+        }
+        if let url = Bundle.main.url(forResource: cleanName, withExtension: "mp3") {
+            return url
+        }
+        let candidates = [
+            Bundle.main.bundleURL.appendingPathComponent("Audio/\(cleanName).mp3"),
+            Bundle.main.bundleURL.appendingPathComponent("Resources/Audio/\(cleanName).mp3"),
+            Bundle.main.bundleURL.appendingPathComponent("\(cleanName).mp3")
+        ]
+        for c in candidates {
+            if FileManager.default.fileExists(atPath: c.path) {
+                return c
+            }
+        }
+        if let allMp3s = Bundle.main.urls(forResourcesWithExtension: "mp3", subdirectory: nil) {
+            if let matched = allMp3s.first(where: { $0.deletingPathExtension().lastPathComponent == cleanName }) {
+                return matched
             }
         }
         return nil
@@ -113,8 +124,9 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
 
         do {
             let session = AVAudioSession.sharedInstance()
-            try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-            try? session.setActive(true)
+            try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .defaultToSpeaker])
+            try? session.overrideOutputAudioPort(.speaker)
+            try? session.setActive(true, options: .notifyOthersOnDeactivation)
 
             audioPlayer?.stop()
             audioPlayer = nil
@@ -280,8 +292,9 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
 
                 do {
                     let session = AVAudioSession.sharedInstance()
-                    try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
-                    try? session.setActive(true)
+                    try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .defaultToSpeaker])
+                    try? session.overrideOutputAudioPort(.speaker)
+                    try? session.setActive(true, options: .notifyOthersOnDeactivation)
 
                     self.audioPlayer?.stop()
                     self.audioPlayer = nil

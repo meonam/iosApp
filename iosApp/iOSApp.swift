@@ -176,10 +176,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        // Đồng bộ Android (setSound(null)): Khi đang mở app, không réo chuông hệ thống ding để giọng đọc TTS phát to rõ ra loa ngoài
         if #available(iOS 14.0, *) {
-            completionHandler([.banner, .sound, .badge, .list])
+            completionHandler([.banner, .badge, .list])
         } else {
-            completionHandler([.alert, .sound, .badge])
+            completionHandler([.alert, .badge])
         }
     }
 
