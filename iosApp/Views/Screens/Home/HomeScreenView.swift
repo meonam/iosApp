@@ -37,6 +37,7 @@ public struct HomeScreenView: View {
         case addDevice(initialId: String)
         case printQr
         case statistics
+        case broadcastBanner
 
         var id: String {
             switch self {
@@ -51,6 +52,7 @@ public struct HomeScreenView: View {
             case .addDevice(let id): return "addDevice_\(id)"
             case .printQr: return "printQr"
             case .statistics: return "statistics"
+            case .broadcastBanner: return "broadcastBanner"
             }
         }
     }
@@ -144,6 +146,12 @@ public struct HomeScreenView: View {
                                     }
                                 }
 
+                                if viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk || viewModel.user.isManager {
+                                    Button(action: { activeSheet = .broadcastBanner }) {
+                                        Label("Phát thông báo & Banner TopBar", systemImage: "megaphone.fill")
+                                    }
+                                }
+
                                 Button(action: { activeSheet = .changePassword }) {
                                     Label("Đổi mật khẩu tài khoản", systemImage: "lock.fill")
                                 }
@@ -177,7 +185,7 @@ public struct HomeScreenView: View {
                         if viewModel.isCompanyBannerActive && !viewModel.companyBannerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             CompanyBannerTickerView(
                                 text: viewModel.companyBannerText,
-                                type: CompanyBannerTickerView.BannerType(rawValue: viewModel.companyBannerType) ?? .info,
+                                type: CompanyBannerTickerView.BannerType(rawValue: viewModel.companyBannerType.uppercased()) ?? .info,
                                 isActive: viewModel.isCompanyBannerActive
                             )
                         }
@@ -264,17 +272,42 @@ public struct HomeScreenView: View {
                         viewModel.isCompanyBannerActive = active
                     },
                     onNotificationsRead: {
-                        viewModel.clearUnreadNotifications()
                         Task { @MainActor in
                             await viewModel.fetchUnreadNotifications()
                         }
                     },
                     onBack: {
                         activeSheet = nil
-                        viewModel.clearUnreadNotifications()
                         Task { @MainActor in
                             await viewModel.fetchUnreadNotifications()
                         }
+                    }
+                )
+            case .broadcastBanner:
+                BroadcastNotificationSheetView(
+                    companyId: viewModel.companyId,
+                    idToken: viewModel.idToken,
+                    userEmail: viewModel.user.email,
+                    userRole: viewModel.user.role,
+                    userDept: viewModel.user.departmentId.isEmpty ? viewModel.user.donVi : viewModel.user.departmentId,
+                    userFullName: viewModel.user.fullName,
+                    isAdmin: viewModel.user.isAdmin,
+                    isHelpDesk: viewModel.user.isHelpDesk,
+                    isManager: viewModel.user.isManager,
+                    currentBannerText: viewModel.companyBannerText,
+                    currentBannerType: viewModel.companyBannerType,
+                    currentBannerIsActive: viewModel.isCompanyBannerActive,
+                    onSuccess: {
+                        activeSheet = nil
+                        Task { @MainActor in
+                            await viewModel.fetchUnreadNotifications()
+                            await viewModel.fetchCompanyBanner()
+                        }
+                    },
+                    onBannerSaved: { text, type, active in
+                        viewModel.companyBannerText = text
+                        viewModel.companyBannerType = type
+                        viewModel.isCompanyBannerActive = active
                     }
                 )
             case .changePassword:

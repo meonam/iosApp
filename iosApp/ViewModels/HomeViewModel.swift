@@ -26,10 +26,32 @@ public class HomeViewModel: ObservableObject {
     @Published public var showChangePasswordModal: Bool = false
     @Published public var showOverflowMenu: Bool = false
 
+    private var syncTimer: Timer? = nil
+
     public init(user: User, companyId: String, idToken: String) {
         self.user = user
         self.companyId = companyId.isEmpty ? "SGCOOP" : companyId
         self.idToken = idToken
+    }
+
+    deinit {
+        syncTimer?.invalidate()
+    }
+
+    public func startRealtimeSync() {
+        stopRealtimeSync()
+        syncTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                await self.fetchUnreadNotifications()
+                await self.fetchCompanyBanner()
+            }
+        }
+    }
+
+    public func stopRealtimeSync() {
+        syncTimer?.invalidate()
+        syncTimer = nil
     }
 
     // MARK: - TẢI TOÀN BỘ DỮ LIỆU DASHBOARD TRANG CHỦ
@@ -43,6 +65,7 @@ public class HomeViewModel: ObservableObject {
             await fetchPendingStaff()
             await fetchUnreadNotifications()
             self.isLoading = false
+            self.startRealtimeSync()
         }
     }
 

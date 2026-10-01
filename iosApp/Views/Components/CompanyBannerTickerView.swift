@@ -120,6 +120,7 @@ public struct CompanyBannerTickerView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(backgroundColor)
             .overlay(
                 Rectangle()

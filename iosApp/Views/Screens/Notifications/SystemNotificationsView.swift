@@ -333,15 +333,6 @@ public struct SystemNotificationsView: View {
                         }
                         .padding(.horizontal, 8)
                         .padding(.vertical, 8)
-
-                        // Company Banner Ticker dưới TopBar (đồng bộ với Android CompanyBannerTicker)
-                        if isCompanyBannerActive && !companyBannerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            CompanyBannerTickerView(
-                                text: companyBannerText,
-                                type: CompanyBannerTickerView.BannerType(rawValue: companyBannerType.uppercased()) ?? .info,
-                                isActive: isCompanyBannerActive
-                            )
-                        }
                     }
                     .background(Color.appTopBarColor)
 
@@ -452,9 +443,6 @@ public struct SystemNotificationsView: View {
                     await fetchNotifications()
                     await fetchCompanyBannerConfig()
                 }
-            }
-            .onDisappear {
-                markAllAsRead()
             }
             .alert(item: $selectedDetailNotif) { notif in
                 Alert(
@@ -806,7 +794,7 @@ public struct SystemNotificationsView: View {
 }
 
 // MARK: - SHEET PHÁT THÔNG BÁO & QUẢN LÝ BANNER TOPBAR
-struct BroadcastNotificationSheetView: View {
+public struct BroadcastNotificationSheetView: View {
     @Environment(\.dismiss) private var dismiss
 
     var companyId: String
@@ -843,7 +831,7 @@ struct BroadcastNotificationSheetView: View {
     @State private var isSavingBanner: Bool = false
     @State private var bannerErrorMessage: String? = nil
 
-    init(
+    public init(
         companyId: String,
         idToken: String,
         userEmail: String,
@@ -1175,25 +1163,52 @@ struct BroadcastNotificationSheetView: View {
                     .foregroundColor(.red)
             }
 
-            // Nút Lưu Banner
-            Button(action: saveBannerConfig) {
-                HStack(spacing: 8) {
-                    if isSavingBanner {
-                        ProgressView().tint(.white)
-                    } else {
-                        Image(systemName: "megaphone.fill")
-                            .font(.system(size: 14))
-                        Text(bannerIsActive ? "📢 Phát thông báo Banner TopBar" : "Tắt Banner TopBar")
-                            .font(.system(size: 15, weight: .bold))
+            // Nút Lưu/Bật/Tắt Banner TopBar
+            VStack(spacing: 10) {
+                Button(action: {
+                    bannerIsActive = true
+                    saveBannerConfig()
+                }) {
+                    HStack(spacing: 8) {
+                        if isSavingBanner && bannerIsActive {
+                            ProgressView().tint(.white)
+                        } else {
+                            Image(systemName: "megaphone.fill")
+                                .font(.system(size: 14))
+                            Text("📢 Bật & Hiển thị Banner TopBar")
+                                .font(.system(size: 15, weight: .bold))
+                        }
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(isSavingBanner ? Color.gray.opacity(0.4) : Color(hex: "#2563EB"))
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(isSavingBanner ? Color.gray.opacity(0.4) : Color(hex: "#2563EB"))
-                .foregroundColor(.white)
-                .cornerRadius(10)
+                .disabled(isSavingBanner || bannerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                Button(action: {
+                    bannerIsActive = false
+                    saveBannerConfig()
+                }) {
+                    HStack(spacing: 8) {
+                        if isSavingBanner && !bannerIsActive {
+                            ProgressView().tint(.red)
+                        } else {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 14))
+                            Text("Tắt Banner TopBar")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Color.red.opacity(0.12))
+                    .foregroundColor(.red)
+                    .cornerRadius(10)
+                }
+                .disabled(isSavingBanner)
             }
-            .disabled(isSavingBanner)
         }
         .padding(16)
     }
