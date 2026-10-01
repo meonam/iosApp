@@ -794,6 +794,41 @@ public class SupportViewModel: ObservableObject {
                     }
                 }
 
+                // Parse handoverHistory if any
+                var parsedHandoverHistory: [HandoverRecord] = []
+                if let hoArr = (fields["handoverHistory"] as? [String: Any])?["arrayValue"] as? [String: Any],
+                   let hoVals = hoArr["values"] as? [[String: Any]] {
+                    for hv in hoVals {
+                        if let hm = (hv["mapValue"] as? [String: Any])?["fields"] as? [String: Any] {
+                            let handoverId = FirestoreHelper.getString(hm["handoverId"] as? [String: Any])
+                            let fromEmail = FirestoreHelper.getString(hm["fromEmail"] as? [String: Any])
+                            let fromName = FirestoreHelper.getString(hm["fromName"] as? [String: Any])
+                            let fromTitle = FirestoreHelper.getString(hm["fromTitle"] as? [String: Any])
+                            let toType = FirestoreHelper.getString(hm["toType"] as? [String: Any])
+                            let toEmail = FirestoreHelper.getString(hm["toEmail"] as? [String: Any])
+                            let toName = FirestoreHelper.getString(hm["toName"] as? [String: Any])
+                            let toTitle = FirestoreHelper.getString(hm["toTitle"] as? [String: Any])
+                            let toCluster = FirestoreHelper.getString(hm["toCluster"] as? [String: Any])
+                            let reason = FirestoreHelper.getString(hm["reason"] as? [String: Any])
+                            let timestamp = FirestoreHelper.getInt64(hm["timestamp"] as? [String: Any])
+
+                            parsedHandoverHistory.append(HandoverRecord(
+                                handoverId: handoverId.isEmpty ? UUID().uuidString : handoverId,
+                                fromEmail: fromEmail,
+                                fromName: fromName,
+                                fromTitle: fromTitle.isEmpty ? "KTV" : fromTitle,
+                                toType: toType,
+                                toEmail: toEmail,
+                                toName: toName,
+                                toTitle: toTitle.isEmpty ? "KTV" : toTitle,
+                                toCluster: toCluster,
+                                reason: reason,
+                                timestamp: timestamp
+                            ))
+                        }
+                    }
+                }
+
                 return SupportTicket(
                     id: id,
                     creatorEmail: FirestoreHelper.getString(fields["creatorEmail"] as? [String: Any]),
@@ -867,6 +902,7 @@ public class SupportViewModel: ObservableObject {
                     reopenedByEmail: FirestoreHelper.getString(fields["reopenedByEmail"] as? [String: Any]),
                     reopenedByName: FirestoreHelper.getString(fields["reopenedByName"] as? [String: Any]),
                     reopenReason: FirestoreHelper.getString(fields["reopenReason"] as? [String: Any]),
+                    handoverHistory: parsedHandoverHistory,
                     assignedApplication: FirestoreHelper.getString(fields["assignedApplication"] as? [String: Any]),
                     assignedRole: FirestoreHelper.getString(fields["assignedRole"] as? [String: Any]),
                     scope: FirestoreHelper.getString(fields["scope"] as? [String: Any]),
@@ -1696,6 +1732,7 @@ public class SupportViewModel: ObservableObject {
         targetTechEmail: String = "",
         targetTechName: String = "",
         targetCluster: String = "",
+        targetRegion: String = "",
         targetDeptId: String = "",
         targetDeptName: String = "",
         targetIsSpecialist: Bool = false,
@@ -1710,7 +1747,7 @@ public class SupportViewModel: ObservableObject {
             }
 
             let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let fromName = !user.fullName.isEmpty ? user.fullName : user.email
+            let fromName = !user.fullName.isEmpty ? user.fullName : (user.email.components(separatedBy: "@").first ?? user.email)
             let isFromSpecialist = user.isSpecialist ||
                 user.role.uppercased().contains("CHUYENVIEN") ||
                 user.role.uppercased().contains("SPECIALIST") ||
@@ -1722,12 +1759,15 @@ public class SupportViewModel: ObservableObject {
             let fromTitle = isFromSpecialist ? "Chuyên viên" : "KTV"
             let targetTitle = targetIsSpecialist ? "Chuyên viên" : "KTV"
 
+            let handoverId = "ho_\(now)_\(Int.random(in: 1000...9999))"
+            let currentTicket = self.rawTickets.first(where: { $0.id == ticketId })
+
             var maskFields = [
                 "assignedByEmail", "assignedByName", "assignedAt",
                 "dispatchNote", "lastMessage", "lastMessageAt",
                 "isAcknowledged", "acknowledged", "acknowledgedAt",
                 "acknowledgedBy", "acknowledgedByName", "handlingMethod",
-                "assignedTechnicianEmails", "tracking",
+                "assignedTechnicianEmails", "coTechnicians", "tracking", "handoverHistory",
                 "toNghiepVu", "assignedApplication", "scope", "isSpecialistAssigned"
             ]
 
@@ -1745,6 +1785,7 @@ public class SupportViewModel: ObservableObject {
             ]
 
             let systemMsg: String
+            let myEmailClean = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
             if toType == "TECHNICIAN" {
                 let cleanTargetEmail = targetTechEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -1752,7 +1793,6 @@ public class SupportViewModel: ObservableObject {
                 systemMsg = "🔄 [Bàn giao ca] \(fromTitle) \(fromName) đã bàn giao yêu cầu cho \(targetTitle) \(targetName). Lý do: \(cleanReason)"
 
                 f["assignedAt"] = ["integerValue": String(now)]
-                f["assignedTechnicianEmails"] = ["arrayValue": ["values": [["stringValue": cleanTargetEmail]]]]
                 maskFields.append(contentsOf: ["assignedTo", "assignedToEmail", "assignedToName", "assignedRole", "assignedCluster"])
                 f["assignedTo"] = ["stringValue": cleanTargetEmail]
                 f["assignedToEmail"] = ["stringValue": cleanTargetEmail]
@@ -1760,6 +1800,11 @@ public class SupportViewModel: ObservableObject {
                 f["assignedRole"] = ["stringValue": targetIsSpecialist ? "SPECIALIST" : "TECH"]
                 f["scope"] = ["stringValue": targetIsSpecialist ? "DEPARTMENT" : "UNIT"]
                 f["isSpecialistAssigned"] = ["booleanValue": targetIsSpecialist]
+
+                if !targetRegion.isEmpty {
+                    maskFields.append("assignedRegion")
+                    f["assignedRegion"] = ["stringValue": targetRegion]
+                }
 
                 if targetIsSpecialist {
                     f["assignedCluster"] = ["stringValue": ""]
@@ -1786,14 +1831,88 @@ public class SupportViewModel: ObservableObject {
                         f["assignedDepartmentName"] = ["stringValue": targetDeptName]
                     }
                 }
+
+                // Loại bỏ cả KTV nhận mới VÀ KTV bàn giao ra khỏi danh sách KTV phụ (đồng bộ Android)
+                let existingCoTechs = (currentTicket?.coTechnicians ?? []).filter {
+                    let e = $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    return !e.isEmpty && e != cleanTargetEmail && e != myEmailClean
+                }
+                let coTechValues: [[String: Any]] = existingCoTechs.map { c in
+                    return [
+                        "mapValue": [
+                            "fields": [
+                                "email": ["stringValue": c.email],
+                                "name": ["stringValue": c.name],
+                                "phone": ["stringValue": c.phone],
+                                "role": ["stringValue": c.role],
+                                "assignedAt": ["integerValue": String(c.assignedAt)],
+                                "assignedBy": ["stringValue": c.assignedBy],
+                                "isAcknowledged": ["booleanValue": c.isAcknowledged],
+                                "acknowledgedAt": ["integerValue": String(c.acknowledgedAt)]
+                            ]
+                        ]
+                    ]
+                }
+                f["coTechnicians"] = ["arrayValue": ["values": coTechValues]]
+
+                var allAssignedEmails: [String] = []
+                if !cleanTargetEmail.isEmpty {
+                    allAssignedEmails.append(cleanTargetEmail)
+                }
+                for c in existingCoTechs {
+                    let ce = c.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    if !ce.isEmpty && ce != myEmailClean && !allAssignedEmails.contains(ce) {
+                        allAssignedEmails.append(ce)
+                    }
+                }
+                f["assignedTechnicianEmails"] = ["arrayValue": ["values": allAssignedEmails.map { ["stringValue": $0] }]]
+
+                // Tạo handover record
+                let handoverRecord = HandoverRecord(
+                    handoverId: handoverId,
+                    fromEmail: myEmailClean,
+                    fromName: fromName,
+                    fromTitle: fromTitle,
+                    toType: toType,
+                    toEmail: cleanTargetEmail,
+                    toName: targetName,
+                    toTitle: targetTitle,
+                    toCluster: targetCluster.trimmingCharacters(in: .whitespacesAndNewlines),
+                    reason: cleanReason,
+                    timestamp: now
+                )
+                var historyList = currentTicket?.handoverHistory ?? []
+                historyList.append(handoverRecord)
+
+                let historyArrayValue: [[String: Any]] = historyList.map { h in
+                    return [
+                        "mapValue": [
+                            "fields": [
+                                "handoverId": ["stringValue": h.handoverId],
+                                "fromEmail": ["stringValue": h.fromEmail],
+                                "fromName": ["stringValue": h.fromName],
+                                "fromTitle": ["stringValue": h.fromTitle],
+                                "toType": ["stringValue": h.toType],
+                                "toEmail": ["stringValue": h.toEmail],
+                                "toName": ["stringValue": h.toName],
+                                "toTitle": ["stringValue": h.toTitle],
+                                "toCluster": ["stringValue": h.toCluster],
+                                "reason": ["stringValue": h.reason],
+                                "timestamp": ["integerValue": String(h.timestamp)]
+                            ]
+                        ]
+                    ]
+                }
+                f["handoverHistory"] = ["arrayValue": ["values": historyArrayValue]]
             } else {
                 systemMsg = "↩️ [Chuyển về HelpDesk] \(fromTitle) \(fromName) đã chuyển trả ticket cho HelpDesk tiếp nhận lại. Lý do: \(cleanReason)"
 
                 f["assignedAt"] = ["integerValue": "0"]
                 f["assignedTechnicianEmails"] = ["arrayValue": ["values": []]]
+                f["coTechnicians"] = ["arrayValue": ["values": []]]
                 maskFields.append(contentsOf: [
                     "status", "assignedTo", "assignedToEmail", "assignedToName", "assignedRole", "assignedCluster",
-                    "assignedDepartmentId", "assignedDepartmentName", "helpdeskAcknowledgedAt"
+                    "assignedDepartmentId", "assignedDepartmentName", "assignedRegion", "helpdeskAcknowledgedAt"
                 ])
                 f["status"] = ["stringValue": "OPEN"]
                 f["assignedTo"] = ["stringValue": ""]
@@ -1805,15 +1924,60 @@ public class SupportViewModel: ObservableObject {
                 f["toNghiepVu"] = ["stringValue": ""]
                 f["assignedApplication"] = ["stringValue": ""]
                 f["assignedCluster"] = ["stringValue": ""]
+                f["assignedRegion"] = ["stringValue": ""]
                 f["assignedDepartmentId"] = ["stringValue": ""]
                 f["assignedDepartmentName"] = ["stringValue": ""]
                 f["helpdeskAcknowledgedAt"] = ["integerValue": "0"]
+
+                // Tạo handover record
+                let handoverRecord = HandoverRecord(
+                    handoverId: handoverId,
+                    fromEmail: myEmailClean,
+                    fromName: fromName,
+                    fromTitle: fromTitle,
+                    toType: toType,
+                    toEmail: "",
+                    toName: "Bộ phận HelpDesk",
+                    toTitle: "HelpDesk",
+                    toCluster: "",
+                    reason: cleanReason,
+                    timestamp: now
+                )
+                var historyList = currentTicket?.handoverHistory ?? []
+                historyList.append(handoverRecord)
+
+                let historyArrayValue: [[String: Any]] = historyList.map { h in
+                    return [
+                        "mapValue": [
+                            "fields": [
+                                "handoverId": ["stringValue": h.handoverId],
+                                "fromEmail": ["stringValue": h.fromEmail],
+                                "fromName": ["stringValue": h.fromName],
+                                "fromTitle": ["stringValue": h.fromTitle],
+                                "toType": ["stringValue": h.toType],
+                                "toEmail": ["stringValue": h.toEmail],
+                                "toName": ["stringValue": h.toName],
+                                "toTitle": ["stringValue": h.toTitle],
+                                "toCluster": ["stringValue": h.toCluster],
+                                "reason": ["stringValue": h.reason],
+                                "timestamp": ["integerValue": String(h.timestamp)]
+                            ]
+                        ]
+                    ]
+                }
+                f["handoverHistory"] = ["arrayValue": ["values": historyArrayValue]]
             }
 
             f["lastMessage"] = ["stringValue": systemMsg]
             f["lastMessageAt"] = ["integerValue": String(now)]
 
-            let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
+            var uniqueFields: [String] = []
+            for field in maskFields {
+                if !uniqueFields.contains(field) {
+                    uniqueFields.append(field)
+                }
+            }
+            let maskStr = uniqueFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 

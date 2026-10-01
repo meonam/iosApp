@@ -75,9 +75,11 @@ public struct HandoverRecord: Identifiable, Codable, Hashable {
     public var handoverId: String
     public var fromEmail: String
     public var fromName: String
+    public var fromTitle: String // KTV, Chuyên viên
     public var toType: String // TECHNICIAN, HELPDESK
     public var toEmail: String
     public var toName: String
+    public var toTitle: String // KTV, Chuyên viên, HelpDesk
     public var toCluster: String
     public var reason: String
     public var timestamp: Int64
@@ -86,9 +88,11 @@ public struct HandoverRecord: Identifiable, Codable, Hashable {
         handoverId: String = UUID().uuidString,
         fromEmail: String = "",
         fromName: String = "",
+        fromTitle: String = "KTV",
         toType: String = "",
         toEmail: String = "",
         toName: String = "",
+        toTitle: String = "KTV",
         toCluster: String = "",
         reason: String = "",
         timestamp: Int64 = Int64(Date().timeIntervalSince1970 * 1000)
@@ -96,9 +100,11 @@ public struct HandoverRecord: Identifiable, Codable, Hashable {
         self.handoverId = handoverId
         self.fromEmail = fromEmail
         self.fromName = fromName
+        self.fromTitle = fromTitle
         self.toType = toType
         self.toEmail = toEmail
         self.toName = toName
+        self.toTitle = toTitle
         self.toCluster = toCluster
         self.reason = reason
         self.timestamp = timestamp
