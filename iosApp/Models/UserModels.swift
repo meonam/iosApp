@@ -146,6 +146,13 @@ public struct User: Identifiable, Codable, Hashable {
         return !isSuperAdmin && !isAdmin && !isHelpDesk && !isWarehouse && !isManager && !isTechnician && !isSpecialist
     }
 
+    /// Quyền tạo yêu cầu hỗ trợ mới: Chỉ dành cho Nhân viên (Staff/User) và Quản lý phòng ban (Manager).
+    /// Admin, HelpDesk, Kỹ thuật viên (KTV), và Chuyên viên nghiệp vụ KHÔNG được tạo phiếu mới (chỉ nhận và xử lý điều phối).
+    /// Đồng bộ chuẩn xác 1:1 với MainActivity.kt (Android), SupportTicketList.tsx (Web), và SupportScreen.kt (Desktop).
+    public var canCreateTicket: Bool {
+        return !isSuperAdmin && !isAdmin && !isHelpDesk && !isTechnician && !isSpecialist
+    }
+
     public var roleTitle: String {
         if isAdmin { return "Quản trị viên (Admin)" }
         if isHelpDesk { return "Phòng Helpdesk" }

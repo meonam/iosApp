@@ -682,7 +682,7 @@ public struct HomeScreenView: View {
             // Thẻ 2: Sự cố kỹ thuật OPEN
             let openCount = viewModel.openTicketsCount
             let isAdmOrHd = viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk
-            let isTech = viewModel.user.isTechnician
+            let isTech = viewModel.user.isTechnician || viewModel.user.isSpecialist
 
             let ticketColor = openCount > 0 ? Color(hex: "#DC2626") : Color(hex: "#16A34A")
             let ticketBg = openCount > 0 ? Color(hex: "#FEF2F2") : Color(hex: "#F0FDF4")

@@ -274,9 +274,8 @@ public struct StaffSupportView: View {
                     }
                 }
 
-                // Nút Gửi yêu cầu mới (Chỉ hiển thị cho Người dùng/Nhân viên, ẩn đối với Admin/HelpDesk)
-                let isHelpDeskOrAdmin = supportVM.user.isAdmin || supportVM.user.isSuperAdmin || supportVM.user.isHelpDesk
-                if !isHelpDeskOrAdmin {
+                // Nút Gửi yêu cầu mới (Chỉ hiển thị cho Người dùng/Nhân viên/Quản lý, ẩn đối với Admin, HelpDesk, KTV, Chuyên viên)
+                if supportVM.user.canCreateTicket {
                     Button(action: { showingCreateSheet = true }) {
                         HStack(spacing: 4) {
                             Image(systemName: "plus.circle.fill")
