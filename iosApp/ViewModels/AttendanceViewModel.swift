@@ -409,55 +409,35 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
     // MARK: - GOOGLE MAPS GEOCODING API (GIỐNG HỆT ANDROID Geocoder — CHUẨN NHẤT CHO VIỆT NAM)
     public static func fetchGoogleMapsAddress(latitude: Double, longitude: Double, completion: @escaping (String?) -> Void) {
-        let primaryKey = "AIzaSyDXssW9ZtELkOc5d1GGQ5bjYVPRo6Yq_hc"
-        let fallbackKey = "AIzaSyCd5zerDho7eveBBrcbq6FFBOMMCo_Y1eE"
-        
-        func tryFetch(withKey key: String, isRetry: Bool) {
-            let urlString = "https://maps.googleapis.com/maps/api/geocode/json?latlng=\(latitude),\(longitude)&key=\(key)&language=vi"
-            guard let url = URL(string: urlString) else {
-                if !isRetry {
-                    tryFetch(withKey: fallbackKey, isRetry: true)
+        let apiKey = "AIzaSyDXssW9ZtELkOc5d1GGQ5bjYVPRo6Yq_hc"
+        let urlString = "https://maps.googleapis.com/maps/api/geocode/json?latlng=\(latitude),\(longitude)&key=\(apiKey)&language=vi"
+        guard let url = URL(string: urlString) else {
+            completion(nil)
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 4.0
+
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            guard let data = data, error == nil else {
+                completion(nil)
+                return
+            }
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let status = json["status"] as? String, status == "OK",
+                   let results = json["results"] as? [[String: Any]],
+                   let first = results.first,
+                   let formattedAddress = first["formatted_address"] as? String {
+                    completion(formattedAddress.trimmingCharacters(in: .whitespacesAndNewlines))
                 } else {
                     completion(nil)
                 }
-                return
+            } catch {
+                completion(nil)
             }
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
-            request.timeoutInterval = 4.0
-
-            URLSession.shared.dataTask(with: request) { data, _, error in
-                guard let data = data, error == nil else {
-                    if !isRetry {
-                        tryFetch(withKey: fallbackKey, isRetry: true)
-                    } else {
-                        completion(nil)
-                    }
-                    return
-                }
-                do {
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let status = json["status"] as? String, status == "OK",
-                       let results = json["results"] as? [[String: Any]],
-                       let first = results.first,
-                       let formattedAddress = first["formatted_address"] as? String {
-                        completion(formattedAddress.trimmingCharacters(in: .whitespacesAndNewlines))
-                    } else if !isRetry {
-                        tryFetch(withKey: fallbackKey, isRetry: true)
-                    } else {
-                        completion(nil)
-                    }
-                } catch {
-                    if !isRetry {
-                        tryFetch(withKey: fallbackKey, isRetry: true)
-                    } else {
-                        completion(nil)
-                    }
-                }
-            }.resume()
-        }
-
-        tryFetch(withKey: primaryKey, isRetry: false)
+        }.resume()
     }
 
 

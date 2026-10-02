@@ -4,7 +4,16 @@ import os
 import zipfile
 import sys
 
-token = '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'
+def get_token():
+    if os.environ.get('GITHUB_TOKEN'):
+        return os.environ['GITHUB_TOKEN'].strip()
+    token_file = os.path.join(os.path.dirname(__file__), 'token_github.txt')
+    if os.path.exists(token_file):
+        with open(token_file, 'r', encoding='utf-8') as f:
+            return f.read().strip()
+    return ''
+
+token = get_token()
 repo = 'meonam/iosApp'
 
 def check_and_download(run_id=None):
@@ -44,11 +53,13 @@ def check_and_download(run_id=None):
         artifacts = data.get('artifacts', [])
         target = None
         for a in artifacts:
-            if a['name'] == 'QLTB-iOS-App-IPA':
+            if 'IPA' in a['name'] or 'ipa' in a['name'] or a['name'] == 'QLTB-iOS-App-IPA':
                 target = a
                 break
+        if not target and artifacts:
+            target = artifacts[0]
         if not target:
-            print("Artifact QLTB-iOS-App-IPA not found in run", run_id)
+            print("No artifacts found in run", run_id)
             return False
 
     download_url = target['archive_download_url']
@@ -80,18 +91,23 @@ def check_and_download(run_id=None):
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
         zip_ref.extractall(build_dir)
 
-    ipa_path = os.path.join(build_dir, 'QLTB_iOS_v1.2.0.ipa')
-    if os.path.exists(ipa_path):
-        size_mb = os.path.getsize(ipa_path) / (1024 * 1024)
-        print(f"SUCCESS: {ipa_path} extracted! Size: {size_mb:.2f} MB")
+    ipa_files = [f for f in os.listdir(build_dir) if f.endswith('.ipa')]
+    if ipa_files:
+        chosen_ipa = os.path.join(build_dir, ipa_files[0])
+        size_mb = os.path.getsize(chosen_ipa) / (1024 * 1024)
+        print(f"SUCCESS: {chosen_ipa} extracted! Size: {size_mb:.2f} MB")
         
         # Copy to release/iOS
         release_dir = r"E:\CODE\Android\APP\QLTB\release\iOS"
         os.makedirs(release_dir, exist_ok=True)
         import shutil
-        dest_ipa = os.path.join(release_dir, 'QLTB_iOS_v1.2.0.ipa')
-        shutil.copy2(ipa_path, dest_ipa)
+        dest_ipa = os.path.join(release_dir, os.path.basename(chosen_ipa))
+        shutil.copy2(chosen_ipa, dest_ipa)
         print(f"COPIED TO RELEASE: {dest_ipa} ({os.path.getsize(dest_ipa) / (1024 * 1024):.2f} MB)")
+
+        root_ipa = os.path.join(os.path.dirname(os.path.abspath(__file__)), os.path.basename(chosen_ipa))
+        shutil.copy2(chosen_ipa, root_ipa)
+        print(f"COPIED TO ROOT: {root_ipa}")
 
         if os.path.exists(zip_path):
             os.remove(zip_path)
