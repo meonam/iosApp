@@ -64,8 +64,9 @@ public struct PendingApprovalView: View {
                             }
                         }
                         .padding()
-                        .background(Color.white)
+                        .background(Color.appSurface)
                         .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
                         .padding(.horizontal, 32)
                         
                         Text("Liên hệ admin: admin@sgcoop.com")
@@ -94,7 +95,7 @@ public struct PendingApprovalView: View {
                             Text("Đăng xuất")
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color.white)
+                                .background(Color.appSurface)
                                 .foregroundColor(.red)
                                 .cornerRadius(8)
                                 .overlay(

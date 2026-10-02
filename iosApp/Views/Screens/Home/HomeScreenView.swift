@@ -252,6 +252,7 @@ public struct HomeScreenView: View {
                         }
 
                         Divider()
+                            .background(Color.appDivider)
                             .padding(.vertical, 4)
 
                         overflowMenuItem(
@@ -267,12 +268,12 @@ public struct HomeScreenView: View {
                     }
                     .padding(8)
                     .frame(width: 308)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(16)
                     .shadow(color: Color.black.opacity(0.18), radius: 16, x: -2, y: 8)
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color(hex: "#E2E8F0"), lineWidth: 1)
+                            .stroke(Color.appCardBorder, lineWidth: 1)
                     )
                     .padding(.top, SafeAreaHelper.top(geometry) + 48)
                     .padding(.trailing, 10)
@@ -782,7 +783,7 @@ public struct HomeScreenView: View {
             HStack(spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(bgColor)
+                        .fill(color.opacity(0.15))
                         .frame(width: 32, height: 32)
 
                     Image(systemName: icon)

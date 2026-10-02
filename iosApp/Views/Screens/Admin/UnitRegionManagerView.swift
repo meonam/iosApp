@@ -78,7 +78,7 @@ public struct UnitRegionManagerView: View {
                     .pickerStyle(SegmentedPickerStyle())
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(Color.white)
+                    .background(Color.appSurface)
 
                     HStack(spacing: 8) {
                         Image(systemName: "magnifyingglass")
@@ -87,7 +87,7 @@ public struct UnitRegionManagerView: View {
                             .font(.system(size: 14))
                     }
                     .padding(10)
-                    .background(Color.white)
+                    .background(Color.appSurface)
                     .cornerRadius(10)
                     .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                     .padding(.horizontal, 14)
@@ -159,7 +159,7 @@ public struct UnitRegionManagerView: View {
             Spacer()
         }
         .padding(12)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
@@ -185,7 +185,7 @@ public struct UnitRegionManagerView: View {
             Spacer()
         }
         .padding(12)
-        .background(Color.white)
+        .background(Color.appSurface)
         .cornerRadius(12)
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
