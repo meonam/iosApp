@@ -484,1434 +484,1445 @@ public class HelpRepository {
 
     private static let categoriesCache: [HelpCategory] = [
         HelpCategory(
-            title: "0. Sơ Đồ Quy Trình Swimlane & Phân Quyền 4 Bộ Phận",
+            title: "0. Tổng Quan & Ma Trận Phân Quyền",
             iconName: "chart.bar.doc.horizontal",
             defaultExpanded: true,
             articles: [
                 HelpArticle(
-                    id: "swimlane_overview",
-                    title: "0.1. Sơ Đồ Phân Luồng Swimlane & Ma Trận 4 Làn Nghiệp Vụ",
+                    id: "overview_roles",
+                    title: "0.1. Ma Trận Quyền Hạn 4 Vai Trò Chính",
                     htmlContent: #"""
 
-                            <div style="border-left: 5px solid #002a8f; padding-left: 12px; margin-bottom: 14px;">
-                                <h3 style="margin: 0; color: #002a8f; border: none; font-size: 16px; font-weight: bold;">I. SƠ ĐỒ PHÂN LUỒNG 4 LÀN NGHIỆP VỤ (SWIMLANE WORKFLOW)</h3>
-                                <p style="margin: 4px 0 0 0; color: #64748b; font-size: 12px;">Quy trình vận hành đồng bộ thời gian thực (Realtime 100%) giữa App Mobile và Desktop</p>
-                            </div>
+          <div style="border-left:5px solid #002a8f;padding-left:10px;margin-bottom:14px">
+            <h3 style="margin:0;color:#002a8f;border:none;font-size:15px;font-weight:bold;text-transform:uppercase">MA TRẬN QUYỀN HẠN THEO VAI TRÒ — HỆ THỐNG IT SERVICE & ASSETS</h3>
+            <p style="margin:4px 0 0;font-size:12px;color:#64748b">Mỗi vai trò có phạm vi quyền hạn riêng biệt, rõ ràng trên cả 4 nền tảng.</p>
+          </div>
 
-                            <!-- LANE 1: ADMIN -->
-                            <div style="border: 2px solid #002a8f; border-radius: 12px; margin-bottom: 14px; overflow: hidden; background: #ffffff;">
-                                <div style="background: #002a8f; color: #ffffff; padding: 10px 14px;">
-                                    <div style="font-weight: bold; font-size: 14px;">👑 LÀN 1: BAN GIÁM ĐỐC / SUPER ADMIN</div>
-                                    <div style="font-size: 11px; color: #c7d2fe; margin-top: 2px;">Toàn Doanh Nghiệp</div>
-                                </div>
-                                <div style="padding: 12px 14px; background: #f8faff;">
-                                    <!-- Step 1.1 -->
-                                    <div style="background: #ffffff; border: 1.5px solid #bfdbfe; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;">
-                                        <div style="margin-bottom: 6px;">
-                                            <span style="display: inline-block; background: #002a8f; color: #ffffff; font-size: 10.5px; font-weight: bold; padding: 2px 7px; border-radius: 4px; margin-bottom: 4px;">BƯỚC 1</span>
-                                            <b style="display: block; color: #002a8f; font-size: 13px;">⚙️ Cấu hình Doanh nghiệp &amp; Kích hoạt License</b>
-                                        </div>
-                                        <p style="margin: 0; font-size: 12px; color: #334155; line-height: 1.45;">Nạp thông tin công ty, tải Logo xuất hiện trên các biểu mẫu A4, kích hoạt bản quyền License Key và thiết lập tiêu đề chuẩn Nghị định 30.</p>
-                                    </div>
-                                    <!-- Arrow -->
-                                    <div style="text-align: center; color: #002a8f; font-size: 18px; margin: 4px 0;">⬇️</div>
-                                    <!-- Step 1.2 -->
-                                    <div style="background: #ffffff; border: 1.5px solid #bfdbfe; border-radius: 8px; padding: 10px 12px;">
-                                        <div style="margin-bottom: 6px;">
-                                            <span style="display: inline-block; background: #002a8f; color: #ffffff; font-size: 10.5px; font-weight: bold; padding: 2px 7px; border-radius: 4px; margin-bottom: 4px;">BƯỚC 2</span>
-                                            <b style="display: block; color: #002a8f; font-size: 13px;">📊 Giám sát KPI KTV &amp; Báo cáo Đánh giá</b>
-                                        </div>
-                                        <p style="margin: 0; font-size: 12px; color: #334155; line-height: 1.45;">Theo dõi bảng xếp hạng thi đua KTV, tỉ lệ hài lòng CSKH (1-5 ⭐), bật/tắt chế độ bảo trì hệ thống toàn công ty.</p>
-                                    </div>
-                                </div>
-                            </div>
+          <table border="0" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-bottom:16px">
+            <tr style="background:#f1f5f9">
+              <th style="padding:8px 10px;border:1px solid #cbd5e1;font-size:12px;color:#002a8f;text-align:left">Vai Trò</th>
+              <th style="padding:8px 10px;border:1px solid #cbd5e1;font-size:11.5px;color:#002a8f">Tạo phiếu HT</th>
+              <th style="padding:8px 10px;border:1px solid #cbd5e1;font-size:11.5px;color:#002a8f">Điều phối</th>
+              <th style="padding:8px 10px;border:1px solid #cbd5e1;font-size:11.5px;color:#002a8f">Nhận & Xử lý</th>
+              <th style="padding:8px 10px;border:1px solid #cbd5e1;font-size:11.5px;color:#002a8f">Quản lý TB</th>
+              <th style="padding:8px 10px;border:1px solid #cbd5e1;font-size:11.5px;color:#002a8f">Báo cáo</th>
+            </tr>
+            <tr>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0"><span style="display:inline-block;padding:2px 7px;background:#0369a1;color:#fff;font-size:11px;font-weight:bold;border-radius:3px">🎧 HelpDesk</span></td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#dc2626;font-size:12px">✗</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#16a34a;font-size:12px;font-weight:bold">✓ Điều phối</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#dc2626;font-size:12px">✗</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px">Chỉ xem</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px">Giới hạn</td>
+            </tr>
+            <tr style="background:#f8fafc">
+              <td style="padding:7px 10px;border:1px solid #e2e8f0"><span style="display:inline-block;padding:2px 7px;background:#b45309;color:#fff;font-size:11px;font-weight:bold;border-radius:3px">🛠️ KTV</span></td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#dc2626;font-size:11.5px;font-weight:bold">✗ KHÔNG</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#dc2626;font-size:12px">✗</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#16a34a;font-size:12px;font-weight:bold">✓ Nhận & Xử lý</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px">Chỉ xem</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px">Cá nhân</td>
+            </tr>
+            <tr>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0"><span style="display:inline-block;padding:2px 7px;background:#7e22ce;color:#fff;font-size:11px;font-weight:bold;border-radius:3px">🔬 Chuyên Viên</span></td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#dc2626;font-size:11.5px;font-weight:bold">✗ KHÔNG</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#dc2626;font-size:12px">✗</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#16a34a;font-size:12px;font-weight:bold">✓ Nhận & Xử lý</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px">Chỉ xem</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px">Cá nhân</td>
+            </tr>
+            <tr style="background:#f8fafc">
+              <td style="padding:7px 10px;border:1px solid #e2e8f0"><span style="display:inline-block;padding:2px 7px;background:#0f766e;color:#fff;font-size:11px;font-weight:bold;border-radius:3px">🏢 Quản Lý</span></td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#16a34a;font-size:12px;font-weight:bold">✓ Có</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#16a34a;font-size:12px;font-weight:bold">✓ Có</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#dc2626;font-size:12px">✗</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#16a34a;font-size:12px">✓ Phòng ban</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#16a34a;font-size:12px">✓ Phòng ban</td>
+            </tr>
+            <tr>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0"><span style="display:inline-block;padding:2px 7px;background:#e11d48;color:#fff;font-size:11px;font-weight:bold;border-radius:3px">👤 Nhân Viên</span></td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#16a34a;font-size:12px;font-weight:bold">✓ Có</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#dc2626;font-size:12px">✗</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#dc2626;font-size:12px">✗</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:12px">TB cá nhân</td>
+              <td style="padding:7px 10px;border:1px solid #e2e8f0;text-align:center;color:#dc2626;font-size:12px">✗</td>
+            </tr>
+          </table>
 
-                            <!-- Inter-lane connector -->
-                            <div style="text-align: center; margin: -6px 0 8px 0;">
-                                <span style="display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; font-size: 11px; font-weight: bold; padding: 3px 12px; border-radius: 20px;">
-                                    ▼ Phân quyền quản lý xuống các bộ phận
-                                </span>
-                            </div>
+          <div style="background:#fff1f2;border-left:4px solid #e11d48;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>⚠️ Quy tắc KTV & Chuyên viên:</b> Hai vai trò này <b>TUYỆT ĐỐI KHÔNG</b> được phép tạo phiếu hỗ trợ mới. Nút "+ Tạo yêu cầu" đã bị ẩn hoàn toàn trên tất cả 4 nền tảng.</div>
 
-                            <!-- LANE 2: MANAGER -->
-                            <div style="border: 2px solid #0d9488; border-radius: 12px; margin-bottom: 14px; overflow: hidden; background: #ffffff;">
-                                <div style="background: #0d9488; color: #ffffff; padding: 10px 14px;">
-                                    <div style="font-weight: bold; font-size: 14px;">🏢 LÀN 2: TRƯỞNG PHÒNG (MANAGER)</div>
-                                    <div style="font-size: 11px; color: #ccfbf1; margin-top: 2px;">Phòng Ban &amp; Đơn Vị</div>
-                                </div>
-                                <div style="padding: 12px 14px; background: #f0fdfa;">
-                                    <!-- Step 2.1 -->
-                                    <div style="background: #ffffff; border: 1.5px solid #99f6e4; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;">
-                                        <div style="margin-bottom: 6px;">
-                                            <span style="display: inline-block; background: #0d9488; color: #ffffff; font-size: 10.5px; font-weight: bold; padding: 2px 7px; border-radius: 4px; margin-bottom: 4px;">BƯỚC 1</span>
-                                            <b style="display: block; color: #0d9488; font-size: 13px;">👥 Phê duyệt Nhân viên &amp; Thiết lập Đơn vị</b>
-                                        </div>
-                                        <p style="margin: 0; font-size: 12px; color: #334155; line-height: 1.45;">Phê duyệt tài khoản nhân viên mới đăng ký xin vào phòng ban; tạo lập các tổ đội, trạm làm việc trực thuộc.</p>
-                                    </div>
-                                    <!-- Arrow -->
-                                    <div style="text-align: center; color: #0d9488; font-size: 18px; margin: 4px 0;">⬇️</div>
-                                    <!-- Step 2.2 -->
-                                    <div style="background: #ffffff; border: 1.5px solid #99f6e4; border-radius: 8px; padding: 10px 12px;">
-                                        <div style="margin-bottom: 6px;">
-                                            <span style="display: inline-block; background: #0d9488; color: #ffffff; font-size: 10.5px; font-weight: bold; padding: 2px 7px; border-radius: 4px; margin-bottom: 4px;">BƯỚC 2</span>
-                                            <b style="display: block; color: #0d9488; font-size: 13px;">💻 Quản lý Thiết bị Phòng ban &amp; In Tem QR</b>
-                                        </div>
-                                        <p style="margin: 0; font-size: 12px; color: #334155; line-height: 1.45;">Thêm thiết bị mới (tự động sinh mã chuẩn MT_, LT_, PR_), gán người sử dụng và in tem dán mã QR/Barcode hàng loạt.</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Inter-lane connector -->
-                            <div style="text-align: center; margin: -6px 0 8px 0;">
-                                <span style="display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; font-size: 11px; font-weight: bold; padding: 3px 12px; border-radius: 20px;">
-                                    ▼ Điều phối xử lý sự cố thiết bị
-                                </span>
-                            </div>
-
-                            <!-- LANE 3: TECH / HELPDESK -->
-                            <div style="border: 2px solid #d97706; border-radius: 12px; margin-bottom: 14px; overflow: hidden; background: #ffffff;">
-                                <div style="background: #d97706; color: #ffffff; padding: 10px 14px;">
-                                    <div style="font-weight: bold; font-size: 14px;">🛠️ LÀN 3: KỸ THUẬT VIÊN / HELPDESK</div>
-                                    <div style="font-size: 11px; color: #fef3c7; margin-top: 2px;">Hiện Trường &amp; Điều Phối</div>
-                                </div>
-                                <div style="padding: 12px 14px; background: #fffbeb;">
-                                    <!-- Step 3.1 -->
-                                    <div style="background: #ffffff; border: 1.5px solid #fde68a; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;">
-                                        <div style="margin-bottom: 6px;">
-                                            <span style="display: inline-block; background: #d97706; color: #ffffff; font-size: 10.5px; font-weight: bold; padding: 2px 7px; border-radius: 4px; margin-bottom: 4px;">BƯỚC 1</span>
-                                            <b style="display: block; color: #d97706; font-size: 13px;">🚨 Nhận Thông Báo Giọng Nói &amp; Live GPS</b>
-                                        </div>
-                                        <p style="margin: 0; font-size: 12px; color: #334155; line-height: 1.45;">Nhận chuông báo + đọc to nội dung sự cố 2 lần bằng tiếng Việt; bấm 'Bắt đầu di chuyển' để hệ thống bật GPS và hiển thị lộ trình dẫn đường OSRM.</p>
-                                    </div>
-                                    <!-- Arrow -->
-                                    <div style="text-align: center; color: #d97706; font-size: 18px; margin: 4px 0;">⬇️</div>
-                                    <!-- Step 3.2 -->
-                                    <div style="background: #ffffff; border: 1.5px solid #bbf7d0; border-radius: 8px; padding: 10px 12px;">
-                                        <div style="margin-bottom: 6px;">
-                                            <span style="display: inline-block; background: #16a34a; color: #ffffff; font-size: 10.5px; font-weight: bold; padding: 2px 7px; border-radius: 4px; margin-bottom: 4px;">BƯỚC 2</span>
-                                            <b style="display: block; color: #16a34a; font-size: 13px;">✅ Sửa Chữa Hiện Trường &amp; Ghi Nhận Công Tác Phí</b>
-                                        </div>
-                                        <p style="margin: 0; font-size: 12px; color: #334155; line-height: 1.45;">Đến nơi kiểm tra khắc phục lỗi, hoàn thành phiếu; hệ thống tự động tổng hợp số km di chuyển thực tế từ GPS vào bảng thanh toán công tác phí.</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Inter-lane connector -->
-                            <div style="text-align: center; margin: -6px 0 8px 0;">
-                                <span style="display: inline-block; background: #f1f5f9; border: 1px solid #cbd5e1; color: #475569; font-size: 11px; font-weight: bold; padding: 3px 12px; border-radius: 20px;">
-                                    ▼ Sử dụng thiết bị &amp; Phản hồi chất lượng
-                                </span>
-                            </div>
-
-                            <!-- LANE 4: STAFF -->
-                            <div style="border: 2px solid #e11d48; border-radius: 12px; margin-bottom: 14px; overflow: hidden; background: #ffffff;">
-                                <div style="background: #e11d48; color: #ffffff; padding: 10px 14px;">
-                                    <div style="font-weight: bold; font-size: 14px;">👤 LÀN 4: NHÂN VIÊN SỬ DỤNG (STAFF)</div>
-                                    <div style="font-size: 11px; color: #fecdd3; margin-top: 2px;">Cá Nhân &amp; Thiết Bị</div>
-                                </div>
-                                <div style="padding: 12px 14px; background: #fff1f2;">
-                                    <!-- Step 4.1 -->
-                                    <div style="background: #ffffff; border: 1.5px solid #fecdd3; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;">
-                                        <div style="margin-bottom: 6px;">
-                                            <span style="display: inline-block; background: #e11d48; color: #ffffff; font-size: 10.5px; font-weight: bold; padding: 2px 7px; border-radius: 4px; margin-bottom: 4px;">BƯỚC 1</span>
-                                            <b style="display: block; color: #e11d48; font-size: 13px;">👤 Gia Nhập &amp; Kiểm Tra Thiết Bị Bàn Giao</b>
-                                        </div>
-                                        <p style="margin: 0; font-size: 12px; color: #334155; line-height: 1.45;">Đăng ký tài khoản, chọn công ty &amp; phòng ban, theo dõi danh sách máy móc, tình trạng thiết bị cá nhân được bàn giao.</p>
-                                    </div>
-                                    <!-- Arrow -->
-                                    <div style="text-align: center; color: #e11d48; font-size: 18px; margin: 4px 0;">⬇️</div>
-                                    <!-- Step 4.2 -->
-                                    <div style="background: #ffffff; border: 1.5px solid #fecdd3; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;">
-                                        <div style="margin-bottom: 6px;">
-                                            <span style="display: inline-block; background: #e11d48; color: #ffffff; font-size: 10.5px; font-weight: bold; padding: 2px 7px; border-radius: 4px; margin-bottom: 4px;">BƯỚC 2</span>
-                                            <b style="display: block; color: #e11d48; font-size: 13px;">📸 Tạo Ticket Báo Hỏng Kèm Ảnh &amp; Chat KTV</b>
-                                        </div>
-                                        <p style="margin: 0; font-size: 12px; color: #334155; line-height: 1.45;">Chụp ảnh sự cố gửi phiếu, chat trực tuyến giải thích hiện tượng với KTV (hỗ trợ Zoom/Pan ảnh), theo dõi vị trí KTV đang di chuyển tới.</p>
-                                    </div>
-                                    <!-- Arrow -->
-                                    <div style="text-align: center; color: #e11d48; font-size: 18px; margin: 4px 0;">⬇️</div>
-                                    <!-- Step 4.3 -->
-                                    <div style="background: #ffffff; border: 1.5px solid #fef08a; border-radius: 8px; padding: 10px 12px;">
-                                        <div style="margin-bottom: 6px;">
-                                            <span style="display: inline-block; background: #ca8a04; color: #ffffff; font-size: 10.5px; font-weight: bold; padding: 2px 7px; border-radius: 4px; margin-bottom: 4px;">BƯỚC 3</span>
-                                            <b style="display: block; color: #ca8a04; font-size: 13px;">⭐ Tự Đóng Phiếu / Chấm Điểm 1 - 5 Sao</b>
-                                        </div>
-                                        <p style="margin: 0; font-size: 12px; color: #334155; line-height: 1.45;">Nếu máy tự hoạt động lại bấm 'Tôi đã tự xử lý xong'; khi KTV hoàn thành sửa chữa, chấm điểm 1 đến 5 ⭐ đánh giá chất lượng phục vụ.</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- SECTION II: MA TRẬN PHÂN QUYỀN -->
-                            <div style="border-left: 5px solid #002a8f; padding-left: 12px; margin: 26px 0 14px 0;">
-                                <h3 style="margin: 0; color: #002a8f; border: none; font-size: 16px; font-weight: bold;">II. MA TRẬN PHÂN QUYỀN &amp; TRÁCH NHIỆM 4 BỘ PHẬN</h3>
-                            </div>
-
-                            <!-- ROLE 1 -->
-                            <div style="border: 1.5px solid #cbd5e1; border-left: 5px solid #002a8f; border-radius: 8px; padding: 10px 12px; background: #ffffff; margin-bottom: 8px;">
-                                <div style="margin-bottom: 4px;">
-                                    <b style="color: #002a8f; font-size: 13.5px;">👑 Super Admin / Ban Giám Đốc</b>
-                                    <span class="badge badge-primary" style="float: right;">App &amp; PC</span>
-                                </div>
-                                <div style="clear: both;"></div>
-                                <div style="font-size: 11.5px; color: #64748b; margin-bottom: 4px;"><b>Phạm vi:</b> Toàn doanh nghiệp (Enterprise-wide)</div>
-                                <div style="font-size: 12px; color: #334155; line-height: 1.4;">Quản trị công ty, nạp Logo, License Key, cấu hình tiêu đề NĐ 30, giám sát KPI KTV, kích hoạt chế độ bảo trì khẩn cấp.</div>
-                            </div>
-
-                            <!-- ROLE 2 -->
-                            <div style="border: 1.5px solid #cbd5e1; border-left: 5px solid #0d9488; border-radius: 8px; padding: 10px 12px; background: #ffffff; margin-bottom: 8px;">
-                                <div style="margin-bottom: 4px;">
-                                    <b style="color: #0d9488; font-size: 13.5px;">🏢 Trưởng Phòng (Manager)</b>
-                                    <span class="badge badge-success" style="float: right;">App &amp; PC</span>
-                                </div>
-                                <div style="clear: both;"></div>
-                                <div style="font-size: 11.5px; color: #64748b; margin-bottom: 4px;"><b>Phạm vi:</b> Phòng ban &amp; Đơn vị trực thuộc</div>
-                                <div style="font-size: 12px; color: #334155; line-height: 1.4;">Quản lý tài sản thiết bị bộ phận, duyệt nhân viên mới gia nhập, quản lý đơn vị/tổ đội, in tem QR/Barcode hàng loạt.</div>
-                            </div>
-
-                            <!-- ROLE 3 -->
-                            <div style="border: 1.5px solid #cbd5e1; border-left: 5px solid #d97706; border-radius: 8px; padding: 10px 12px; background: #ffffff; margin-bottom: 8px;">
-                                <div style="margin-bottom: 4px;">
-                                    <b style="color: #d97706; font-size: 13.5px;">🛠️ Kỹ Thuật Viên (Tech / HelpDesk)</b>
-                                    <span class="badge badge-warning" style="float: right;">App &amp; PC</span>
-                                </div>
-                                <div style="clear: both;"></div>
-                                <div style="font-size: 11.5px; color: #64748b; margin-bottom: 4px;"><b>Phạm vi:</b> Phiếu sự cố điều phối &amp; Hiện trường</div>
-                                <div style="font-size: 12px; color: #334155; line-height: 1.4;">Tiếp nhận ticket (chuông + giọng nói 2 lần), chat 2 chiều, bật Live GPS hiện trường, chấm công GPS &amp; tổng hợp công tác phí.</div>
-                            </div>
-
-                            <!-- ROLE 4 -->
-                            <div style="border: 1.5px solid #cbd5e1; border-left: 5px solid #e11d48; border-radius: 8px; padding: 10px 12px; background: #ffffff; margin-bottom: 8px;">
-                                <div style="margin-bottom: 4px;">
-                                    <b style="color: #e11d48; font-size: 13.5px;">👤 Nhân Viên Sử Dụng (Staff)</b>
-                                    <span class="badge badge-danger" style="float: right;">App &amp; PC</span>
-                                </div>
-                                <div style="clear: both;"></div>
-                                <div style="font-size: 11.5px; color: #64748b; margin-bottom: 4px;"><b>Phạm vi:</b> Cá nhân &amp; Thiết bị được giao</div>
-                                <div style="font-size: 12px; color: #334155; line-height: 1.4;">Xem danh sách máy được cấp phát, tạo ticket báo hỏng kèm ảnh hiện trường, theo dõi vị trí KTV, tự đóng phiếu hoặc chấm 1-5 sao.</div>
-                            </div>
-                        
-"""#
-                ),
-                HelpArticle(
-                    id: "swimlane_admin",
-                    title: "0.2. Hướng Dẫn Nghiệp Vụ: Ban Giám Đốc & Super Admin",
-                    htmlContent: #"""
-
-                            <h3>Hướng Dẫn Nghiệp Vụ Chi Tiết - Ban Giám Đốc & Super Admin</h3>
-                            <p><b>Super Admin</b> là cấp quản trị tối cao, nắm toàn quyền thiết lập hệ thống, phân quyền và giám sát toàn diện hoạt động của doanh nghiệp.</p>
-
-                            <h4>1. Khởi tạo & Nhận diện Thương hiệu Doanh nghiệp</h4>
-                            <ul>
-                                <li>Vào mục <i>Cài đặt ➔ Thông tin doanh nghiệp</i>: Cập nhật Tên công ty, Hotline, Email và <b>Tải Logo thương hiệu</b>.</li>
-                                <li><i>Logo đã tải sẽ tự động xuất hiện trên tất cả phiếu in ấn, biên bản và báo cáo A4.</i></li>
-                            </ul>
-
-                            <h4>2. Kích hoạt Bản quyền License Key</h4>
-                            <ul>
-                                <li>Tại màn hình <i>Bản quyền & Gói cước</i>, dán License Key được cấp vào ô và nhấn <b>Kích hoạt</b>.</li>
-                                <li>Mở khóa không giới hạn thiết bị, mở toàn bộ tính năng HelpDesk, Live GPS và Báo cáo đánh giá KPI.</li>
-                            </ul>
-
-                            <h4>3. Cấu hình Tiêu đề Báo cáo Chuẩn Nghị định 30</h4>
-                            <ul>
-                                <li>Tại màn hình In ấn & Báo cáo, nhấn <b>⚙️ Cấu hình Tiêu đề</b>.</li>
-                                <li>Khai báo Tên cơ quan chủ quản, Đơn vị ban hành, Quốc hiệu - Tiêu ngữ và thiết lập <b>3 cấp chữ ký số</b> (Lãnh đạo, Trưởng BP, Người lập).</li>
-                            </ul>
-
-                            <h4>4. Chế độ Bảo trì Hệ thống Realtime</h4>
-                            <ul>
-                                <li>Khi cần nâng cấp hoặc khóa tạm thời, bật <b>Chế độ Bảo trì</b> tại mục Cài đặt.</li>
-                                <li>Toàn bộ App Mobile và Desktop của các người dùng khác sẽ tự động hiện thông báo bảo trì theo thời gian thực (chỉ Super Admin được truy cập).</li>
-                            </ul>
-
-                            <h4>5. Giám sát Báo cáo Hài lòng (KPI) & Thi đua KTV</h4>
-                            <ul>
-                                <li>Mở màn hình <i>Báo cáo Đánh giá Hỗ trợ</i> để xem số sao trung bình (1-5 ⭐), tỉ lệ hài lòng (%) và biểu đồ xếp hạng thi đua KTV toàn công ty.</li>
-                            </ul>
-                        
-"""#
-                ),
-                HelpArticle(
-                    id: "swimlane_manager",
-                    title: "0.3. Hướng Dẫn Nghiệp Vụ: Trưởng Phòng / Quản Lý (Manager)",
-                    htmlContent: #"""
-
-                            <h3>Hướng Dẫn Nghiệp Vụ Chi Tiết - Trưởng Phòng (Manager)</h3>
-                            <p><b>Trưởng phòng</b> chịu trách nhiệm quản lý toàn bộ tài sản thiết bị, nhân sự và đơn vị trực thuộc phòng ban mình phụ trách.</p>
-
-                            <h4>1. Quản lý Danh sách Thiết bị & Chuẩn hóa Mã Loại TB</h4>
-                            <ul>
-                                <li>Tại mục <i>Danh sách Thiết bị</i>, bấm <b>+ Thêm thiết bị</b> để khai báo tài sản mới.</li>
-                                <li>Khi nhập tên loại thiết bị, hệ thống <b>tự động tạo mã loại chuẩn hóa</b> (VD: <i>Máy tính để bàn ➔ MT_</i>, <i>Laptop ➔ LT_</i>, <i>Máy in ➔ PR_</i>).</li>
-                                <li>Gán người dùng phụ trách, vị trí và đơn vị trực thuộc.</li>
-                            </ul>
-
-                            <h4>2. Phê duyệt Nhân viên Mới Xin Gia Nhập (Duyệt NV)</h4>
-                            <ul>
-                                <li>Khi có nhân viên mới đăng ký vào phòng ban, trên Trang chủ của Trưởng phòng sẽ xuất hiện nút <b>👥 Duyệt NV</b> kèm số lượng chờ duyệt.</li>
-                                <li>Bấm vào danh sách, kiểm tra họ tên/email và bấm <b>[Phê duyệt]</b> để kích hoạt tài khoản nhân viên.</li>
-                            </ul>
-
-                            <h4>3. Quản lý Đơn vị / Chi nhánh Trực thuộc</h4>
-                            <ul>
-                                <li>Vào thẻ <b>Quản lý Đơn vị</b> để thêm mới, sửa đổi các tổ đội, phòng chức năng, chi nhánh làm việc thuộc phạm vi phòng ban mình.</li>
-                            </ul>
-
-                            <h4>4. In Tem QR / Barcode & Xuất Excel Kiểm Kê</h4>
-                            <ul>
-                                <li>Chọn các thiết bị trong danh sách ➔ Nhấn <b>In ấn & Báo cáo</b> để in tem dán mã QR/Barcode hoặc xuất báo cáo kiểm kê Excel theo kỳ.</li>
-                            </ul>
-                        
-"""#
-                ),
-                HelpArticle(
-                    id: "swimlane_tech",
-                    title: "0.4. Hướng Dẫn Nghiệp Vụ: Kỹ Thuật Viên & HelpDesk (Tech)",
-                    htmlContent: #"""
-
-                            <h3>Hướng Dẫn Nghiệp Vụ Chi Tiết - Kỹ Thuật Viên & HelpDesk</h3>
-                            <p><b>Kỹ thuật viên</b> phụ trách tiếp nhận yêu cầu báo hỏng, di chuyển đến hiện trường xử lý và ghi nhận công tác phí.</p>
-
-                            <h4>1. Tiếp nhận Yêu cầu Sự cố Tức thì</h4>
-                            <ul>
-                                <li>Khi có nhân viên báo hỏng, KTV nhận được chuông báo kèm <b>giọng nói tiếng Việt thông báo 2 lần</b> nội dung sự cố.</li>
-                                <li>Mở phiếu trong mục <i>Hỗ trợ ➔ Quản lý sự cố</i>, chat trao đổi trực tiếp với người dùng và xem ảnh lỗi phóng to sắc nét.</li>
-                            </ul>
-
-                            <h4>2. Bắt đầu Di chuyển với Live GPS Hiện Trường</h4>
-                            <ul>
-                                <li>Bấm nút <b>🚀 Bắt đầu di chuyển</b>: Hệ thống tự động kích hoạt định vị GPS nền, vẽ tuyến đường di chuyển thực tế (OSRM) trên bản đồ và hiển thị cho người dùng biết KTV đang tới đâu.</li>
-                                <li>Khi đến nơi bấm <b>📍 Đã đến nơi</b>; sau khi sửa chữa xong bấm <b>✅ Hoàn thành</b>.</li>
-                            </ul>
-
-                            <h4>3. Chấm Công GPS Hàng Ngày, Nhắc Nhở Tan Ca &amp; Tăng Ca Ngoài Giờ (OT)</h4>
-                            <ul>
-                                <li>Mở màn hình <i>Chấm công</i> trên App ➔ Chọn ca làm việc (Hành chính 08h-17h, Ca 1 07h-15h, Ca 2 14h-22h, Ca 3/Đêm 22h-06h) ➔ Kiểm tra bán kính GPS hợp lệ ➔ Bấm <b>Chấm công Vào ca / Ra ca</b>.</li>
-                                <li><b>Chuông &amp; Giọng nói nhắc nhở tan ca:</b> Khi chạm mốc hết ca, điện thoại phát thông báo Heads-Up, rung chuông và đọc TTS nhắc nhở KTV bấm Check-out tan ca. Bấm vào thông báo sẽ mở ngay màn hình Chấm công.</li>
-                                <li><b>Phân loại Check-out thông minh:</b>
-                                    <br>&bull; <i>Quên check-out (không có ticket):</i> Chốt trần giờ công theo ca chuẩn (8 tiếng), nhãn xanh <b>✅ Hoàn thành ca</b>. Sau 3.5 giờ quá ca, hệ thống tự động Auto Check-out.
-                                    <br>&bull; <i>Tăng ca ngoài giờ (có ticket sự cố ngoài ca):</i> Ghi nhận đủ 100% thời gian làm việc thực tế, nhãn cam đậm <b>🔥 Tăng ca ngoài giờ (OT)</b> và tính phụ cấp ngoài giờ (hệ số x1.5 / x2.0).
-                                </li>
-                            </ul>
-
-                            <h4>4. Phân Quyền Quản Lý Nhân Sự Cho Bộ Phận Helpdesk (Theo Cấu Hình Hệ Thống)</h4>
-                            <ul>
-                                <li>Trong mục <i>Cấu hình hệ thống (Settings)</i>, Admin có nút gạt: <b>"Cho phép Helpdesk quản lý nhân sự &amp; phân quyền vai trò"</b>.</li>
-                                <li>Khi BẬT: Helpdesk được phép tạo tài khoản mới (chủ động chọn vai trò Nhân viên, KTV, Helpdesk, Quản lý phòng ban), phê duyệt tài khoản xin gia nhập, phân quyền vai trò và đặt lại mật khẩu người dùng.</li>
-                                <li><b>Khóa bảo vệ tài khoản Admin (<code>🔒 Admin (Đã khóa)</code>):</b> Bảo vệ an toàn tuyệt đối cho tài khoản Admin tối cao – Helpdesk không thể gán quyền Admin, không sửa đổi, không đổi mật khẩu và không xóa được tài khoản Admin.</li>
-                            </ul>
-                        
-"""#
-                ),
-                HelpArticle(
-                    id: "swimlane_staff",
-                    title: "0.5. Hướng Dẫn Nghiệp Vụ: Nhân Viên Sử Dụng Thiết Bị (Staff)",
-                    htmlContent: #"""
-
-                            <h3>Hướng Dẫn Nghiệp Vụ Chi Tiết - Nhân Viên Sử Dụng (Staff)</h3>
-                            <p><b>Nhân viên</b> theo dõi các thiết bị mình được cấp phát, tạo yêu cầu hỗ trợ khi gặp trục trặc và đánh giá chất lượng phục vụ.</p>
-
-                            <h4>1. Theo dõi Thiết bị Được Bàn Giao</h4>
-                            <ul>
-                                <li>Mở ứng dụng để xem danh sách máy móc, serial, cấu hình và tình trạng các thiết bị cá nhân đang quản lý.</li>
-                            </ul>
-
-                            <h4>2. Tạo Phiếu Báo Hỏng Kèm Ảnh Hiện Trường</h4>
-                            <ul>
-                                <li>Khi thiết bị gặp sự cố, vào mục <i>Hỗ trợ ➔ + Tạo yêu cầu</i>, chọn thiết bị, mô tả lỗi và chụp ảnh thực tế đính kèm.</li>
-                            </ul>
-
-                            <h4>3. Chat Trực Tuyến & Theo Dõi Vị Trí KTV</h4>
-                            <ul>
-                                <li>Nhắn tin trực tiếp với KTV xử lý trong phiếu (hỗ trợ phóng to/thu nhỏ ảnh lỗi chi tiết).</li>
-                                <li>Bấm nút <b>🏍️ Theo dõi KTV</b> để xem bản đồ lộ trình KTV đang di chuyển tới phòng làm việc của bạn.</li>
-                            </ul>
-
-                            <h4>4. Tự Đóng Phiếu hoặc Chấm Điểm 1-5 Sao</h4>
-                            <ul>
-                                <li>Nếu máy tự hoạt động lại hoặc tự khắc phục được, bấm <b>💡 Tôi đã tự xử lý xong</b> để KTV không phải di chuyển.</li>
-                                <li>Khi KTV xử lý xong, chấm điểm <b>1 đến 5 ⭐</b> kèm nhận xét để hoàn tất phiếu và nâng cao chất lượng CSKH.</li>
-                            </ul>
-                        
+          <div style="border-left:5px solid #002a8f;padding-left:10px;margin:14px 0 10px">
+            <h4 style="margin:0;color:#002a8f;font-size:12.5px;font-weight:bold;text-transform:uppercase">HỖ TRỢ THEO NỀN TẢNG</h4>
+          </div>
+          <table border="0" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">
+            <tr style="background:#f1f5f9">
+              <th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:11.5px;color:#002a8f">Vai Trò</th>
+              <th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:11.5px;color:#16a34a">Android</th>
+              <th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:11.5px;color:#555">iOS</th>
+              <th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:11.5px;color:#0ea5e9">Web</th>
+              <th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:11.5px;color:#7c3aed">Desktop</th>
+            </tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11.5px;font-weight:bold">HelpDesk</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#16a34a;text-align:center">✓</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#16a34a;text-align:center">✓</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#16a34a;text-align:center">✓</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#16a34a;text-align:center">✓</td></tr>
+            <tr style="background:#f8fafc"><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11.5px;font-weight:bold">KTV / Chuyên viên</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#d97706;text-align:center">✓ Nhận xử lý</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#d97706;text-align:center">✓ Nhận xử lý</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#d97706;text-align:center">✓ Nhận xử lý</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#d97706;text-align:center">✓ Nhận xử lý</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11.5px;font-weight:bold">Quản Lý (Manager)</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#16a34a;text-align:center">✓ Đầy đủ</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#16a34a;text-align:center">✓ Đầy đủ</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#16a34a;text-align:center">✓ Đầy đủ</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#16a34a;text-align:center">✓ Đầy đủ</td></tr>
+            <tr style="background:#f8fafc"><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11.5px;font-weight:bold">Nhân viên (Staff)</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#16a34a;text-align:center">✓ Tạo & Theo dõi</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#16a34a;text-align:center">✓ Tạo & Theo dõi</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#16a34a;text-align:center">✓ Tạo & Theo dõi</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:11px;color:#16a34a;text-align:center">✓ Tạo & Theo dõi</td></tr>
+          </table>
+        
 """#
                 )
             ]
         ),
         HelpCategory(
-            title: "1. Khởi Tạo & Xác Thực Hệ Thống",
+            title: "1. Đăng Nhập & Gia Nhập Hệ Thống",
             iconName: "building.2",
             defaultExpanded: true,
             articles: [
                 HelpArticle(
-                    id: "admin_init",
-                    title: "1.1. Đăng ký Doanh nghiệp & Tài khoản Super Admin",
+                    id: "auth_login",
+                    title: "1.1. Đăng nhập, Đổi mật khẩu & Quên mật khẩu",
                     htmlContent: #"""
 
-                            <h3>1. Đăng Ký Doanh Nghiệp Mới & Tài Khoản Quản Trị Tối Cao</h3>
-                            <p>Hệ thống IT Service & Assets hoạt động theo kiến trúc <b>Đa Doanh nghiệp (Multi-tenant)</b>, đảm bảo dữ liệu của mỗi công ty hoàn toàn độc lập và bảo mật tuyệt đối.</p>
-                            
-                            <h4>A. Thao tác trên Mobile App</h4>
-                            <ol>
-                                <li>Tại màn hình đăng nhập, bấm vào nút <span class="badge badge-primary">🏢 Doanh nghiệp mới</span> ở khung phía dưới.</li>
-                                <li>Điền đầy đủ thông tin:
-                                    <ul>
-                                        <li><b>Tên Doanh nghiệp:</b> Tên đầy đủ của công ty/tổ chức (VD: <i>Công ty Cổ phần Công nghệ ABC</i>).</li>
-                                        <li><b>Mã Doanh nghiệp:</b> Mã định danh viết liền không dấu (VD: <code>ABC_TECH</code>). <i>Mã này dùng cho nhân viên khi xin gia nhập.</i></li>
-                                        <li><b>Họ tên Admin:</b> Tên người quản trị tối cao (Super Admin).</li>
-                                        <li><b>Email & Mật khẩu:</b> Tài khoản đăng nhập hệ thống.</li>
-                                        <li><b>Số điện thoại:</b> Số liên hệ quản trị.</li>
-                                    </ul>
-                                </li>
-                                <li>Nhấn <b>Xác nhận Đăng ký</b> để tạo không gian làm việc và vào ngay màn hình Quản trị.</li>
-                            </ol>
+          <h3>ĐĂNG NHẬP & BẢO MẬT TÀI KHOẢN</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
 
-                            <h4>B. Thao tác trên Bản Desktop</h4>
-                            <ol>
-                                <li>Tại màn hình Đăng nhập, bấm nút <b>Đăng ký Doanh nghiệp mới</b>.</li>
-                                <li>Nhập thông tin tương tự và xác nhận. Hệ thống tự động tạo kho dữ liệu độc lập trên Cloud Firestore.</li>
-                            </ol>
+          <h4>A. Đăng nhập</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Nhập Email & Mật khẩu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Tài khoản gắn với Email công vụ được Admin cấp phát.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Đăng nhập lần đầu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Hệ thống tự bật hộp thoại yêu cầu <b>đổi mật khẩu mới</b> (tối thiểu 6 ký tự) để đảm bảo bảo mật.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chọn ứng dụng</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5"><b>Android/iOS:</b> Mở App IT Service & Assets → Nhập thông tin → Đăng nhập.<br><b>Web:</b> Truy cập trình duyệt → Nhập Email & Mật khẩu.<br><b>Desktop:</b> Mở ứng dụng → Nhập thông tin → Đăng nhập.</div></div>
+  </div>
 
-                            <div class="callout">
-                                <b>💡 Lưu ý quan trọng:</b> Hãy ghi nhớ và chia sẻ <code>Mã Doanh Nghiệp</code> cho toàn bộ nhân viên trong công ty để họ có thể gửi yêu cầu gia nhập vào hệ thống.
-                            </div>
-                            <h4>D. Cơ Chế Xác Thực &amp; Kiểm Tra Email Tồn Tại</h4>
-                            <p>Hệ thống tự động kiểm tra định dạng email theo chuẩn RFC Regex và kiểm tra trùng lặp email trên Firebase Authentication và Firestore. Nếu email đã được đăng ký cho doanh nghiệp khác hoặc đang trong tiến trình xử lý, hệ thống sẽ đưa ra thông báo cảnh báo rõ ràng để ngăn chặn việc tạo tài khoản trùng lặp gây xung đột dữ liệu.</p>
+          <h4>B. Quên mật khẩu</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm "Quên mật khẩu"</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Tại màn hình đăng nhập, bấm liên kết <b>Quên mật khẩu</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Nhập Email đăng ký</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Hệ thống gửi link đặt lại mật khẩu vào hộp thư.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Đặt mật khẩu mới</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Mở Email → bấm link → đặt mật khẩu mới (tối thiểu 6 ký tự).</div></div>
+  </div>
 
-                        
+          <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>📌 Lưu ý:</b> Không chia sẻ mật khẩu. Mỗi tài khoản chỉ đăng nhập đồng thời trên 1 thiết bị.</div>
+        
 """#
                 ),
                 HelpArticle(
-                    id: "auth_login_reset",
-                    title: "1.2. Đăng nhập, Đổi mật khẩu & Quên mật khẩu",
+                    id: "staff_join",
+                    title: "1.2. Nhân viên / KTV / Chuyên viên: Xin gia nhập doanh nghiệp",
                     htmlContent: #"""
 
-                            <h3>2. Hướng Dẫn Đăng Nhập & Bảo Mật Tài Khoản</h3>
-                            <p>Mỗi nhân sự trong tổ chức được cấp phát một tài khoản duy nhất gắn liền với Email công vụ.</p>
-                            
-                            <h4>A. Đăng nhập lần đầu & Đổi mật khẩu bắt buộc</h4>
-                            <ul>
-                                <li>Khi tài khoản được Admin tạo mới hoặc reset, mật khẩu mặc định ban đầu sẽ được cấp tạm thời.</li>
-                                <li>Ở lần đăng nhập đầu tiên, hệ thống sẽ <b>tự động bật hộp thoại yêu cầu đổi mật khẩu mới</b> nhằm đảm bảo an toàn tuyệt đối.</li>
-                                <li>Mật khẩu mới phải có độ dài tối thiểu 6 ký tự.</li>
-                            </ul>
+          <h3>XIN GIA NHẬP DOANH NGHIỆP</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
+          <p>Áp dụng cho: <b>Nhân viên, KTV, Chuyên viên, HelpDesk, Quản lý</b> khi đăng ký tài khoản mới.</p>
 
-                            <h4>B. Tính năng Quên mật khẩu</h4>
-                            <ol>
-                                <li>Tại màn hình đăng nhập, bấm chọn <b>Quên mật khẩu?</b>.</li>
-                                <li>Nhập địa chỉ Email tài khoản đã đăng ký trong hệ thống.</li>
-                                <li>Bấm <b>Gửi yêu cầu</b>: Hệ thống sẽ tự động tạo thông báo gửi trực tiếp đến Quản trị viên (Admin) và HelpDesk để hỗ trợ cấp lại mật khẩu ngay trong ứng dụng.</li>
-                            </ol>
-                        
-"""#
-                ),
-                HelpArticle(
-                    id: "staff_join_approve",
-                    title: "1.3. Nhân viên xin gia nhập & Quy trình phê duyệt",
-                    htmlContent: #"""
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Tại màn hình đăng nhập</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>"Gia nhập Doanh nghiệp"</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Nhập Mã Doanh nghiệp</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Mã do Admin cấp (ví dụ: <code>coopmart</code>). Liên hệ Admin nếu chưa có.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Điền thông tin cá nhân</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Họ tên, Email công vụ, Mật khẩu, Phòng ban đang làm việc.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Gửi yêu cầu & Chờ duyệt</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Tài khoản ở trạng thái <b>Chờ duyệt</b> cho đến khi Manager/Admin phê duyệt.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Nhận thông báo & Đăng nhập</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Sau khi được duyệt, đăng nhập bình thường bằng Email & Mật khẩu đã đăng ký.</div></div>
+  </div>
 
-                            <h3>3. Quy Trình Nhân Viên Xin Gia Nhập & Admin Phê Duyệt</h3>
-                            <p>Quy trình đăng ký thành viên tự động giúp mở rộng quy mô doanh nghiệp mà không cần Admin phải nhập liệu thủ công từng tài khoản.</p>
-
-                            <h4>A. Dành cho Nhân viên xin gia nhập (Trên App hoặc Desktop)</h4>
-                            <ol>
-                                <li>Tại màn hình đăng nhập, bấm <span class="badge badge-success">👤 Gia nhập Doanh nghiệp</span>.</li>
-                                <li>Nhập chính xác <b>Mã Doanh nghiệp</b> do công ty cung cấp.</li>
-                                <li>Điền: Họ tên, Email, Mật khẩu khởi tạo, Số điện thoại và Chọn <b>Phòng ban / Đơn vị</b> công tác.</li>
-                                <li>Bấm <b>Gửi yêu cầu gia nhập</b>. Màn hình sẽ chuyển sang trạng thái <span class="badge badge-warning">⏳ Chờ Quản trị viên phê duyệt</span>.</li>
-                            </ol>
-
-                            <h4>B. Dành cho Quản trị viên (Admin) Phê duyệt</h4>
-                            <ol>
-                                <li>Admin nhận thông báo có nhân viên mới xin tham gia.</li>
-                                <li>Truy cập mục <b>Quản lý Người dùng ➔ Phê duyệt nhân viên</b>.</li>
-                                <li>Kiểm tra thông tin họ tên, email, phòng ban.</li>
-                                <li>Bấm <span class="badge badge-success">✓ Phê duyệt</span> (tài khoản kích hoạt ngay) hoặc <span class="badge badge-danger">✗ Từ chối</span> (nhập lý do từ chối).</li>
-                            </ol>
-                            <h4>D. Tự Động Kiểm Tra Email Khi Xin Gia Nhập</h4>
-                            <p>Khi nhân viên nhập email để gửi yêu cầu gia nhập doanh nghiệp, hệ thống tự động kiểm tra xem email này đã tồn tại trong danh sách thành viên hoặc đang có hồ sơ chờ duyệt hay chưa để ngăn chặn việc gửi yêu cầu trùng lặp.</p>
-
-                        
-"""#
-                ),
-                HelpArticle(
-                    id: "license_management",
-                    title: "1.4. Quản lý Gói cước & Kích hoạt Bản quyền Key",
-                    htmlContent: #"""
-
-                            <h3>4. Quản Lý Gói Cước & Kích Hoạt Bản Quyền Hệ Thống</h3>
-                            <p>IT Service & Assets cung cấp nhiều gói bản quyền linh hoạt phù hợp với mọi quy mô doanh nghiệp từ nhỏ đến tập đoàn lớn.</p>
-
-                            <h4>A. Danh sách các gói bản quyền</h4>
-                            <ul>
-                                <li><span class="badge badge-outline">Gói Miễn Phí (Free):</span> Quản lý tối đa 50 thiết bị, tính năng cơ bản.</li>
-                                <li><span class="badge badge-primary">Gói Cơ Bản (Basic):</span> Quản lý 200 thiết bị, hỗ trợ ticket sự cố & in ấn A4.</li>
-                                <li><span class="badge badge-success">Gói Nâng Cao (Pro):</span> Quản lý 1,000 thiết bị, đầy đủ GPS Chấm công & Báo cáo chất lượng.</li>
-                                <li><span class="badge badge-purple">Gói Doanh Nghiệp (Enterprise):</span> Quản lý 5,000 thiết bị, Live GPS Kỹ thuật viên, Bản quyền vĩnh viễn.</li>
-                                <li><span class="badge badge-dark">Gói VIP Unlimited:</span> Không giới hạn thiết bị, Full quyền năng cao cấp nhất.</li>
-                            </ul>
-
-                            <h4>B. Hướng dẫn Kích hoạt License Key</h4>
-                            <ol>
-                                <li>Vào mục <b>Cài đặt ➔ Thông tin ứng dụng & Bản quyền</b> (trên Desktop hoặc App).</li>
-                                <li>Xem mã định danh máy chủ <code>Device ID</code> / <code>Machine Code</code>.</li>
-                                <li>Dán mã kích hoạt <b>License Key</b> nhận được từ nhà phát triển vào ô nhập.</li>
-                                <li>Nhấn <b>Kích hoạt bản quyền</b>: Hệ thống sẽ mở khóa ngay lập tức toàn bộ tính năng và thời hạn sử dụng tương ứng.</li>
-                            </ol>
-                        
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>💡 Mẹo:</b> Sau khi được duyệt, liên hệ Manager để được gán đúng vai trò (KTV, Chuyên viên, HelpDesk...) vì mặc định tài khoản mới là Nhân viên.</div>
+        
 """#
                 )
             ]
         ),
         HelpCategory(
-            title: "2. Cơ Cấu Tổ Chức & Phân Quyền",
-            iconName: "person.2.circle",
+            title: "2. Hỗ Trợ Trực Tuyến — Nhân Viên (Staff)",
+            iconName: "headphones",
             defaultExpanded: false,
             articles: [
                 HelpArticle(
-                    id: "dept_management",
-                    title: "2.1. Quản lý Phòng ban & Cờ tiếp nhận sự cố (HelpDesk)",
+                    id: "staff_ticket_android",
+                    title: "2.1. Staff: Tạo phiếu báo hỏng trên Android",
                     htmlContent: #"""
 
-                            <h3>1. Quản Lý Phòng Ban & Chỉ Định Bộ Phận HelpDesk</h3>
-                            <p>Thiết lập sơ đồ tổ chức phòng ban rõ ràng là nền tảng để phân luồng sự cố và quản lý tài sản chính xác.</p>
+          <h3>NHÂN VIÊN — TẠO PHIẾU BÁO HỎNG TRÊN ANDROID</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span>
 
-                            <h4>A. Tạo & Quản lý Phòng ban</h4>
-                            <ol>
-                                <li>Truy cập màn hình <b>Quản lý Danh mục ➔ Phòng ban</b>.</li>
-                                <li>Bấm <b>+ Thêm Phòng ban</b>.</li>
-                                <li>Nhập Tên phòng ban (VD: <i>Phòng Kỹ thuật & CNTT</i>, <i>Phòng Hành chính</i>, <i>Phòng Kế toán</i>...).</li>
-                                <li>Nhập Mã phòng ban và mô tả chức năng nhiệm vụ.</li>
-                            </ol>
+          <h4>Tạo phiếu hỗ trợ</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mở mục Hỗ trợ</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Thanh menu dưới → bấm biểu tượng <b>🎧 Hỗ trợ</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm nút "+ Tạo yêu cầu"</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Nút màu xanh, góc trên bên phải.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chọn thiết bị gặp sự cố</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Tìm kiếm hoặc chọn từ danh sách thiết bị được bàn giao cá nhân.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mô tả sự cố</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Chọn <b>Danh mục lỗi</b>, <b>Mức độ ưu tiên</b> (Thấp / Trung / Cao / Khẩn cấp), nhập mô tả chi tiết.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Đính kèm ảnh</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm 📷 Camera để chụp ảnh lỗi trực tiếp hoặc chọn từ thư viện (tối đa 5 ảnh).</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">6</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Gửi phiếu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>[Gửi yêu cầu]</b>. HelpDesk/Quản lý nhận thông báo ngay lập tức.</div></div>
+  </div>
 
-                            <h4>B. Cờ "Phòng ban Tiếp nhận & Xử lý Sự cố" (HelpDesk Flag)</h4>
-                            <ul>
-                                <li>Khi bật tùy chọn <b>Phòng ban tiếp nhận sự cố</b> cho một phòng ban (VD: Phòng CNTT, Ban Bảo trì):</li>
-                                <li>Toàn bộ nhân sự trong phòng ban này sẽ có quyền tiếp nhận các phiếu báo hỏng của nhân viên toàn công ty, tiến hành điều phối và phân công kỹ thuật viên xử lý.</li>
-                                <li>Tên phòng ban sẽ tự động hiển thị chính xác dưới tên người hỗ trợ trên màn hình chat và báo cáo.</li>
-                            </ul>
-                        
+          <h4>Các trạng thái phiếu</h4>
+          <ul>
+            <li>🟡 <b>Chờ xử lý:</b> Phiếu vừa tạo, chờ HelpDesk điều phối.</li>
+            <li>🔵 <b>Đã điều phối:</b> KTV đã được giao — có thể chat trực tiếp với KTV.</li>
+            <li>🟣 <b>KTV đang di chuyển:</b> Bấm <b>🏍️ Theo dõi KTV</b> để xem lộ trình trên bản đồ.</li>
+            <li>🟢 <b>Hoàn thành:</b> Sự cố được khắc phục — cần đánh giá 1–5 ⭐.</li>
+          </ul>
+
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>💡 Mẹo:</b> Nếu tự khắc phục được, bấm <b>"💡 Tôi đã tự xử lý xong"</b> để đóng phiếu nhanh — KTV không cần di chuyển.</div>
+        
 """#
                 ),
                 HelpArticle(
-                    id: "role_matrix",
-                    title: "2.2. Ma trận Phân quyền 5 Cấp bậc",
+                    id: "staff_ticket_ios",
+                    title: "2.2. Staff: Tạo phiếu báo hỏng trên iOS",
                     htmlContent: #"""
 
-                            <h3>2. Ma Trận Phân Quyền & Vai Trò Trong Hệ Thống</h3>
-                            <p>Hệ thống hỗ trợ 5 vai trò phân quyền chuẩn mực và an toàn:</p>
+          <h3>NHÂN VIÊN — TẠO PHIẾU BÁO HỎNG TRÊN iOS</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span>
 
-                            <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 12px 0;">
-                                <tr style="background-color: #f1f5f9;">
-                                    <th style="color: #002a8f; text-align: left;">Vai trò</th>
-                                    <th style="color: #002a8f; text-align: left;">Quyền hạn chính</th>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge badge-dark">Super Admin</span></td>
-                                    <td>Quyền tối cao: Cấu hình Doanh nghiệp, Bản quyền Key, Chế độ bảo trì, Sao lưu đám mây, Phân quyền toàn hệ thống.</td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge badge-danger">Admin</span></td>
-                                    <td>Quản lý toàn bộ thiết bị, người dùng, phê duyệt thành viên, điều phối sự cố, cấu hình tiêu đề báo cáo, in ấn A4.</td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge badge-purple">Manager (Quản lý)</span></td>
-                                    <td>Quản lý tài sản và nhân viên trong phòng ban/đơn vị phụ trách, duyệt phiếu trong bộ phận.</td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge badge-purple" style="background-color: #f3e8ff; color: #7e22ce;">Helpdesk (IT Support)</span></td>
-                                    <td>Tiếp nhận sự cố, điều phối kỹ thuật viên, theo dõi tiến độ SLA. <i>Khi được Admin BẬT nút gạt cấu hình nhân sự:</i> Helpdesk có toàn quyền tạo nhân sự mới (chọn vai trò), duyệt thành viên, phân quyền vai trò và đặt lại mật khẩu (được bảo vệ tuyệt đối: không thể can thiệp tài khoản Admin).</td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge badge-warning">Kỹ thuật viên (Tech)</span></td>
-                                    <td>Nhận điều phối sự cố, cập nhật lộ trình di chuyển Live GPS, sửa chữa thiết bị, nhận đánh giá sao từ người dùng.</td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge badge-primary">Nhân viên (Staff)</span></td>
-                                    <td>Xem thiết bị được bàn giao, gửi yêu cầu hỗ trợ, chat trực tuyến, tự đóng phiếu và đánh giá chất lượng phục vụ.</td>
-                                </tr>
-                            </table>
+          <h4>Tạo phiếu trên iPhone / iPad</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Tab Hỗ trợ</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm tab <b>"Hỗ Trợ"</b> trên thanh điều hướng dưới cùng.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm nút "+"</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Nút <b>+</b> màu xanh ở góc trên phải.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chọn thiết bị & Mô tả</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Chọn thiết bị, danh mục lỗi, mức độ ưu tiên, nhập mô tả chi tiết.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Đính kèm ảnh</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm biểu tượng Camera — iOS yêu cầu cấp quyền truy cập Camera & Thư viện ảnh lần đầu.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Gửi phiếu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>[Gửi]</b>. Phiếu xuất hiện ngay trong danh sách của HelpDesk.</div></div>
+  </div>
 
-                            <div class="callout" style="border-left: 4px solid #002a8f; background-color: #f8faff; margin-top: 10px; padding: 8px 12px;">
-                                <b style="color: #002a8f;">⚙️ Cơ Chế Phân Quyền Vận Hành Nhân Sự Cho Helpdesk (Toggle Switch):</b>
-                                <p style="margin: 4px 0 0 0; font-size: 12px; color: #334155; line-height: 1.45;">
-                                    Admin có thể chủ động Bật/Tắt quyền quản lý nhân sự cho Helpdesk trong Cấu hình hệ thống. Khi bật, toàn bộ các dropdown phân quyền tại Desktop đều hỗ trợ con trỏ bàn tay (<code>PointerIcon.Hand</code>) mượt mà, đồng thời gắn nhãn bảo vệ <code>🔒 Admin (Đã khóa)</code> đối với tài khoản Quản trị viên để ngăn chặn mọi thao tác sửa đổi hay xóa nhầm.
-                                </p>
-                            </div>
-                        
+          <h4>Theo dõi KTV đang di chuyển</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mở phiếu đang xử lý</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Vào danh sách phiếu → bấm phiếu đang có KTV được điều phối.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm "🏍️ Theo dõi KTV"</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bản đồ hiện lộ trình KTV di chuyển theo thời gian thực đến phòng bạn.</div></div>
+  </div>
+
+          <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>📱 iOS:</b> Đảm bảo cho phép App IT Service & Assets truy cập <b>Vị trí</b> và <b>Thông báo đẩy</b> để nhận cập nhật trạng thái phiếu.</div>
+        
+"""#
+                ),
+                HelpArticle(
+                    id: "staff_ticket_web",
+                    title: "2.3. Staff: Tạo phiếu báo hỏng trên Web",
+                    htmlContent: #"""
+
+          <h3>NHÂN VIÊN — TẠO PHIẾU BÁO HỎNG TRÊN WEB</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span>
+
+          <h4>Tạo phiếu trên trình duyệt</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Vào mục Hỗ trợ</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Menu trái → <b>Hỗ trợ → Danh sách phiếu</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm "+ Tạo phiếu"</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Nút màu xanh, góc trên bên phải.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Điền form</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Chọn thiết bị, loại sự cố, mức ưu tiên, mô tả chi tiết.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Upload ảnh</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Kéo thả ảnh vào vùng Upload hoặc bấm chọn file (JPG/PNG, tối đa 5MB/ảnh).</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Gửi</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>[Gửi yêu cầu]</b>.</div></div>
+  </div>
+
+          <h4>Theo dõi phiếu & Chat</h4>
+          <ul>
+            <li>Danh sách phiếu màu sắc trực quan: 🟡 Chờ | 🔵 Xử lý | 🟢 Hoàn thành | 🔴 Hủy.</li>
+            <li>Bấm vào phiếu → xem chi tiết, chat và ảnh đính kèm.</li>
+            <li>Khung chat realtime — không cần refresh trang.</li>
+          </ul>
+
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>💡 Mẹo Web:</b> Dùng ô tìm kiếm và bộ lọc Trạng thái để tìm nhanh phiếu cần xem.</div>
+        
+"""#
+                ),
+                HelpArticle(
+                    id: "staff_ticket_desktop",
+                    title: "2.4. Staff: Tạo phiếu báo hỏng trên Desktop",
+                    htmlContent: #"""
+
+          <h3>NHÂN VIÊN — TẠO PHIẾU BÁO HỎNG TRÊN DESKTOP</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
+
+          <h4>Tạo phiếu trên Desktop Windows</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mở ứng dụng Desktop</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Double-click biểu tượng IT Service & Assets trên Desktop hoặc Start Menu.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Menu → Hỗ trợ</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm mục <b>Hỗ trợ</b> trên thanh menu trái.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm "+ Tạo yêu cầu"</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm nút màu xanh, điền form sự cố.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Đính kèm ảnh</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Kéo thả ảnh hoặc bấm Browse. Hỗ trợ đọc Barcode USB khi điền mã thiết bị.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Gửi phiếu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>[Gửi]</b>. Desktop hiển thị toast xác nhận thành công.</div></div>
+  </div>
+
+          <h4>Lợi thế Desktop</h4>
+          <ul>
+            <li>Chạy nền liên tục — nhận thông báo dù đang làm việc ở app khác.</li>
+            <li>Hỗ trợ đầu đọc Barcode/QR USB để điền mã thiết bị cực nhanh.</li>
+            <li>In phiếu A4 trực tiếp từ ứng dụng.</li>
+          </ul>
+        
+"""#
+                ),
+                HelpArticle(
+                    id: "staff_rating",
+                    title: "2.5. Staff: Đánh giá & Đóng phiếu (Tất cả nền tảng)",
+                    htmlContent: #"""
+
+          <h3>NHÂN VIÊN — ĐÁNH GIÁ & ĐÓNG PHIẾU</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
+
+          <h4>A. Tự đóng phiếu khi sự cố đã khắc phục</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mở phiếu đang chờ xử lý</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Trong danh sách phiếu, bấm vào phiếu cần đóng.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm "💡 Tôi đã tự xử lý xong"</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Phiếu chuyển trạng thái Hủy. KTV không cần di chuyển nếu chưa xuất phát.</div></div>
+  </div>
+
+          <h4>B. Đánh giá sau khi KTV hoàn thành</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Nhận thông báo</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Khi KTV bấm Hoàn thành, bạn nhận thông báo đẩy "Phiếu của bạn đã được xử lý xong".</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mở form đánh giá</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm vào thông báo hoặc mở phiếu trong danh sách.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chọn số sao 1–5 ⭐</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm vào số sao tương ứng mức độ hài lòng của bạn.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Nhập nhận xét & Gửi</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Gõ nhận xét bổ sung (tùy chọn) → bấm <b>[Gửi đánh giá]</b>.</div></div>
+  </div>
+
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>⏰ Quy tắc 24h:</b> Nếu không đánh giá trong 24h sau khi phiếu hoàn thành, hệ thống tự động ghi nhận <b>5.0★</b> cho KTV.</div>
+          <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>🔒 Đánh giá bảo vệ:</b> Sau khi gửi, không thể chỉnh sửa lại để đảm bảo tính khách quan.</div>
+        
 """#
                 )
             ]
         ),
         HelpCategory(
-            title: "3. Quản Lý Thiết Bị & Tài Sản",
-            iconName: "laptopcomputer.and.iphone",
+            title: "3. Hỗ Trợ Trực Tuyến — KTV & Chuyên Viên",
+            iconName: "bicycle",
             defaultExpanded: false,
             articles: [
                 HelpArticle(
-                    id: "device_add_manage",
-                    title: "3.1. Thêm mới, Chỉnh sửa & Gán người sử dụng",
+                    id: "ktv_android",
+                    title: "3.1. KTV/Chuyên viên: Nhận & Xử lý phiếu trên Android",
                     htmlContent: #"""
 
-                            <h3>1. Hướng Dẫn Quản Lý Tài Sản & Thiết Bị</h3>
-                            <p>Theo dõi chặt chẽ vòng đời của toàn bộ thiết bị công nghệ và tài sản trong doanh nghiệp.</p>
+          <h3>KTV / CHUYÊN VIÊN — NHẬN & XỬ LÝ PHIẾU TRÊN ANDROID</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span>
 
-                            <h4>A. Thêm mới Thiết bị</h4>
-                            <ol>
-                                <li>Vào màn hình <b>Danh sách Thiết bị</b> ➔ Bấm <b>+ Thêm thiết bị mới</b>.</li>
-                                <li>Nhập các trường thông tin:
-                                    <ul>
-                                        <li><b>Tên thiết bị:</b> Tên gọi rõ ràng (VD: <i>Laptop Dell XPS 15 9520</i>).</li>
-                                        <li><b>Mã thiết bị / Serial:</b> Mã định danh duy nhất in trên tem hoặc số Serial của nhà sản xuất.</li>
-                                        <li><b>Loại thiết bị:</b> Phân loại (Máy tính, Máy in, Máy chủ, Mạng...).</li>
-                                        <li><b>Phòng ban & Đơn vị:</b> Nơi thiết bị đang được bố trí sử dụng.</li>
-                                        <li><b>Người đang giữ:</b> Chọn nhân viên tiếp nhận bàn giao.</li>
-                                        <li><b>Thông số kỹ thuật:</b> CPU, RAM, Ổ cứng, Cấu hình chi tiết.</li>
-                                        <li><b>Ngày mua & Hạn bảo hành:</b> Để hệ thống tự động cảnh báo bảo trì.</li>
-                                        <li><b>Hình ảnh thực tế:</b> Chụp hoặc tải ảnh thiết bị lên đám mây.</li>
-                                    </ul>
-                                </li>
-                                <li>Bấm <b>Lưu thông tin</b>.</li>
-                            </ol>
+          <div style="background:#fff1f2;border-left:4px solid #e11d48;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>⚠️ QUAN TRỌNG:</b> KTV và Chuyên viên <b>TUYỆT ĐỐI KHÔNG</b> được tạo phiếu hỗ trợ mới. Nút "+ Tạo yêu cầu" đã bị ẩn trên Android.</div>
 
-                            <h4>B. Quản lý Trạng thái Thiết bị</h4>
-                            <ul>
-                                <li><span class="badge badge-success">Đang sử dụng:</span> Thiết bị đang phục vụ công việc bình thường.</li>
-                                <li><span class="badge badge-primary">Sẵn sàng cấp phát:</span> Thiết bị trong kho sẵn sàng bàn giao.</li>
-                                <li><span class="badge badge-danger">Hỏng hóc / Đang báo lỗi:</span> Đang chờ xử lý sự cố.</li>
-                                <li><span class="badge badge-warning">Đang bảo trì / Sửa chữa:</span> Kỹ thuật viên đang xử lý.</li>
-                                <li><span class="badge badge-outline">Đã thanh lý:</span> Đã hết khấu hao và loại khỏi tài sản công ty.</li>
-                            </ul>
-                        
+          <h4>A. Thiết lập thông báo (Làm ngay khi cài App)</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bật thông báo đẩy</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Cài đặt điện thoại → Ứng dụng → IT Service & Assets → <b>Thông báo: Bật tất cả</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bật giọng đọc TTS trong App</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">App → ⚙️ Settings → Thông báo → bật <b>Giọng đọc tiếng Việt</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Cấp quyền Vị trí nền</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Cài đặt → Ứng dụng → IT Service & Assets → Vị trí → chọn <b>"Luôn cho phép"</b>.</div></div>
+  </div>
+
+          <h4>B. Nhận điều phối & Xử lý phiếu</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Khi có phiếu điều phối</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Điện thoại rung + âm thanh cảnh báo + <b>giọng đọc tiếng Việt 2 lần</b> nội dung sự cố (tên thiết bị, phòng, tầng).</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm vào thông báo</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Mở trực tiếp phiếu được điều phối.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Xác nhận tiếp nhận</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>[Tiếp nhận]</b> để xác nhận đã nhận lệnh điều phối.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chat với người dùng</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Nhắn tin trong khung Chat. Ảnh lỗi có thể phóng to/thu nhỏ bằng 2 ngón tay.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bắt đầu di chuyển</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>🚀 "Bắt đầu di chuyển"</b> — GPS nền bật, vẽ lộ trình OSRM. Người dùng thấy bạn trên bản đồ.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">6</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Đến nơi</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>📍 "Đã đến nơi"</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">7</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Hoàn thành sửa chữa</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>✅ "Hoàn thành"</b> → nhập ghi chú kết quả → Xác nhận. Người dùng nhận thông báo đánh giá.</div></div>
+  </div>
+
+          <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>📍 GPS nền:</b> Nếu chưa cấp quyền "Luôn cho phép vị trí", lộ trình sẽ không ghi chính xác khi tắt màn hình — ảnh hưởng công tác phí.</div>
+        
 """#
                 ),
                 HelpArticle(
-                    id: "barcode_qr_scanner",
-                    title: "3.2. Quét mã QR / Barcode & Cài đặt máy quét",
+                    id: "ktv_ios",
+                    title: "3.2. KTV/Chuyên viên: Nhận & Xử lý phiếu trên iOS",
                     htmlContent: #"""
 
-                            <h3>2. Tra Cứu Siêu Tốc Bằng Mã QR & Đầu Đọc Barcode</h3>
-                            <p>Tính năng quét mã giúp kiểm kê và tra cứu thiết bị chỉ trong 1 giây mà không cần nhập liệu thủ công.</p>
+          <h3>KTV / CHUYÊN VIÊN — NHẬN & XỬ LÝ PHIẾU TRÊN iOS</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span>
 
-                            <h4>A. Quét mã trên Mobile App</h4>
-                            <ol>
-                                <li>Bấm biểu tượng <b>Mã QR (Scanner)</b> trên thanh tìm kiếm hoặc BottomBar.</li>
-                                <li>Hướng camera về phía mã QR / Barcode dán trên thiết bị.</li>
-                                <li>Hệ thống tự động nhận diện và mở ngay màn hình chi tiết thiết bị, lịch sử sửa chữa và các nút thao tác nhanh.</li>
-                            </ol>
+          <div style="background:#fff1f2;border-left:4px solid #e11d48;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>⚠️ QUAN TRỌNG:</b> Nút "+ Tạo yêu cầu" đã ẩn hoàn toàn trên iOS với vai trò KTV / Chuyên viên.</div>
 
-                            <h4>B. Sử dụng Đầu đọc mã vạch trên Desktop</h4>
-                            <ol>
-                                <li>Cắm đầu đọc mã vạch USB / Bluetooth vào máy tính Desktop.</li>
-                                <li>Vào mục <b>Cài đặt Máy quét</b> để cấu hình tiền tố/hậu tố nếu cần.</li>
-                                <li>Tại màn hình Thiết bị hoặc Hành động nhanh, chỉ cần bấm đầu đọc vào tem tài sản, phần mềm sẽ tự động lọc đúng thiết bị ngay lập tức.</li>
-                            </ol>
-                        
+          <h4>A. Thiết lập thông báo trên iOS (Bắt buộc)</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Cho phép thông báo khi cài App</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Khi App hỏi quyền → bấm <b>"Cho phép"</b>. Nếu bấm nhầm, vào <b>Cài đặt iPhone → IT Service & Assets → Thông báo → Bật tất cả</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bật giọng đọc trong App</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">App → ⚙️ Settings → Thông báo → bật <b>Giọng đọc TTS</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Cấp quyền Vị trí nền</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Cài đặt iPhone → IT Service & Assets → Vị trí → chọn <b>"Luôn luôn"</b>.</div></div>
+  </div>
+
+          <h4>B. Nhận & Xử lý phiếu trên iOS</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Khi được điều phối</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">iOS hiện banner thông báo + âm thanh + giọng đọc tiếng Việt 2 lần nội dung sự cố.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mở phiếu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm banner thông báo, hoặc mở Tab Hỗ trợ → <b>Phiếu của tôi</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chat & Xem ảnh</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Nhắn tin với người dùng. Vuốt xem ảnh, chụm/mở để phóng to.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bắt đầu di chuyển</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>🚀 "Bắt đầu di chuyển"</b>. Hệ thống gửi GPS, người dùng thấy lộ trình.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Hoàn thành</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm ✅ <b>Hoàn thành</b> → Nhập ghi chú → Xác nhận.</div></div>
+  </div>
+
+          <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>🔔 Không nghe giọng đọc?</b> Kiểm tra công tắc im lặng bên hông iPhone. Chế độ Tập trung (Focus) có thể chặn thông báo.</div>
+          <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>📍 GPS iOS:</b> Bắt buộc chọn "Luôn luôn" trong cài đặt vị trí để GPS ghi lộ trình ngay cả khi màn hình tắt.</div>
+        
 """#
                 ),
                 HelpArticle(
-                    id: "device_lifecycle_flow",
-                    title: "3.3. Quy trình Vòng đời Thiết bị: Cấp phát, Luân chuyển, Kiểm kê & Thanh lý",
+                    id: "ktv_web",
+                    title: "3.3. KTV/Chuyên viên: Nhận & Xử lý phiếu trên Web",
                     htmlContent: #"""
 
-                            <h3>3. Quản Trị Vòng Đời Toàn Diện Thiết Bị &amp; Tài Sản</h3>
-                            <p>Hệ thống IT Service & Assets chuẩn hóa chu trình quản trị tài sản công nghệ thông tin từ lúc nhập kho đến khi kết thúc vòng đời thanh lý theo tiêu chuẩn quốc tế.</p>
+          <h3>KTV / CHUYÊN VIÊN — NHẬN & XỬ LÝ PHIẾU TRÊN WEB</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span>
 
-                            <h4>A. Sơ đồ 6 Giai đoạn Vòng đời Tài sản</h4>
-                            <ol>
-                                <li><b>Giai đoạn 1 - Nhập kho &amp; Định danh tài sản:</b>
-                                    <ul>
-                                        <li>Khi mua mới, thiết bị được tạo mã tự động theo tiền tố quy chuẩn: <code>MT_</code> (Máy tính để bàn), <code>LT_</code> (Laptop), <code>PR_</code> (Máy in), <code>SV_</code> (Máy chủ), <code>NT_</code> (Thiết bị mạng), <code>SC_</code> (Máy quét).</li>
-                                        <li>Ghi nhận cấu hình chi tiết (CPU, RAM, Ổ cứng, Serial nhà sản xuất), ngày mua, hạn bảo hành và ảnh chụp thực tế lên Cloudinary.</li>
-                                        <li>Trạng thái: <span class="badge badge-primary">Sẵn sàng cấp phát (IN_STOCK)</span>.</li>
-                                    </ul>
-                                </li>
-                                <li><b>Giai đoạn 2 - Cấp phát &amp; Bàn giao Thiết bị:</b>
-                                    <ul>
-                                        <li>Gán nhân viên và phòng ban tiếp nhận sử dụng.</li>
-                                        <li>Tự động xuất <b>Biên bản Bàn giao Tài sản A4</b> chuẩn thể thức Nghị định 30, đầy đủ chữ ký bên giao và bên nhận.</li>
-                                        <li>Trạng thái: <span class="badge badge-success">Đang sử dụng (ACTIVE)</span>.</li>
-                                    </ul>
-                                </li>
-                                <li><b>Giai đoạn 3 - Vận hành, Giám sát &amp; Luân chuyển:</b>
-                                    <ul>
-                                        <li>Khi nhân viên thay đổi vị trí hoặc điều chuyển sang chi nhánh khác, hệ thống thực hiện nghiệp vụ Luân chuyển.</li>
-                                        <li>Mọi biến động phòng ban, người giữ được lưu vết tự động vào <b>Nhật ký Luân chuyển (Audit Log)</b> thời gian thực.</li>
-                                    </ul>
-                                </li>
-                                <li><b>Giai đoạn 4 - Bảo dưỡng, Sửa chữa &amp; Lịch sử Ticket:</b>
-                                    <ul>
-                                        <li>Khi thiết bị phát sinh sự cố, trạng thái tự động đổi thành <span class="badge badge-danger">Hỏng hóc (DAMAGED)</span> hoặc <span class="badge badge-warning">Đang sửa chữa (MAINTENANCE)</span>.</li>
-                                        <li>Toàn bộ lịch sử hỏng hóc, thay thế linh kiện, chi phí và biên bản nghiệm thu từ Ticket đều tự động liên kết vào hồ sơ thiết bị.</li>
-                                    </ul>
-                                </li>
-                                <li><b>Giai đoạn 5 - Kiểm kê Định kỳ bằng Quét mã QR:</b>
-                                    <ul>
-                                        <li>Đoàn kiểm kê dùng Mobile App quét mã QR dán trên máy để đối soát nhanh vị trí thực tế so với sổ sách quản trị.</li>
-                                        <li>Tự động lập danh sách tài sản thất lạc, tài sản thừa hoặc hư hỏng cần xử lý.</li>
-                                    </ul>
-                                </li>
-                                <li><b>Giai đoạn 6 - Thu hồi, Khấu hao &amp; Đề xuất Thanh lý:</b>
-                                    <ul>
-                                        <li>Thu hồi khi nhân viên nghỉ việc hoặc thiết bị hết khấu hao kỹ thuật (3-5 năm).</li>
-                                        <li>Thiết bị hỏng nặng không thể khắc phục hoặc chi phí sửa &gt; 50% giá trị còn lại sẽ được lập Hội đồng thẩm định và xuất <b>Biên bản Đề xuất Thanh lý A4</b>.</li>
-                                        <li>Trạng thái: <span class="badge badge-dark">Đã thanh lý (DISPOSED)</span> (Khóa vĩnh viễn dữ liệu).</li>
-                                    </ul>
-                                </li>
-                            </ol>
+          <div style="background:#fff1f2;border-left:4px solid #e11d48;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>⚠️ QUAN TRỌNG:</b> KTV và Chuyên viên <b>KHÔNG</b> thấy nút "+ Tạo phiếu" trên Web Portal.</div>
 
-                            <h4>B. Bảng Tra Cứu Trạng Thái Thiết Bị Chuẩn</h4>
-                            <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse:collapse; border:1px solid #cbd5e1; font-size:12px; margin:8px 0;">
-                                <tr style="background-color:#f8fafc; font-weight:bold; color:#1e293b;">
-                                    <td style="padding:6px;">Trạng Thái</td>
-                                    <td style="padding:6px;">Mã Enum</td>
-                                    <td style="padding:6px;">Ý Nghĩa Nghiệp Vụ</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-success">Đang sử dụng</span></td>
-                                    <td style="padding:6px;"><code>ACTIVE</code></td>
-                                    <td style="padding:6px;">Thiết bị đã bàn giao cho nhân viên và đang hoạt động tốt.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-primary">Sẵn sàng cấp phát</span></td>
-                                    <td style="padding:6px;"><code>IN_STOCK</code></td>
-                                    <td style="padding:6px;">Thiết bị nằm trong kho IT, sẵn sàng bàn giao khi có yêu cầu.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-danger">Hỏng hóc</span></td>
-                                    <td style="padding:6px;"><code>DAMAGED</code></td>
-                                    <td style="padding:6px;">Thiết bị gặp sự cố đang chờ kỹ thuật viên tiếp nhận xử lý.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-warning">Đang sửa chữa</span></td>
-                                    <td style="padding:6px;"><code>MAINTENANCE</code></td>
-                                    <td style="padding:6px;">KTV đang sửa chữa hoặc gửi bảo hành chính hãng.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-dark">Đã thanh lý</span></td>
-                                    <td style="padding:6px;"><code>DISPOSED</code></td>
-                                    <td style="padding:6px;">Tài sản đã hết khấu hao và loại khỏi danh mục kiểm kê.</td>
-                                </tr>
-                            </table>
-                        
+          <h4>A. Bật thông báo trình duyệt</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Cho phép thông báo Web</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Khi đăng nhập lần đầu, trình duyệt hỏi quyền thông báo → bấm <b>Cho phép</b>. Nếu bỏ qua, bấm biểu tượng 🔒 trên thanh URL → Thông báo → Cho phép.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bật giọng đọc TTS</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm biểu tượng 🔊 trên Header → bật <b>Giọng đọc TTS</b>.</div></div>
+  </div>
+
+          <h4>B. Nhận & Xử lý phiếu</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Khi được điều phối</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Trình duyệt hiện pop-up thông báo + âm thanh cảnh báo + giọng đọc nội dung phiếu.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mở phiếu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm pop-up hoặc vào menu <b>Hỗ trợ → Phiếu của tôi</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chat & Xem ảnh</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Khung chat realtime bên phải. Bấm ảnh → phóng to bằng Zoom/Pan.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Cập nhật trạng thái</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm lần lượt: <b>Tiếp nhận → Bắt đầu di chuyển → Đã đến → Hoàn thành</b>.</div></div>
+  </div>
+
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>💡 Mẹo:</b> Ghim tab Web IT Service & Assets (chuột phải vào tab → Pin Tab) để luôn chạy nền và không bỏ lỡ thông báo.</div>
+        
 """#
                 ),
                 HelpArticle(
-                    id: "barcode_label_printing",
-                    title: "3.4. Quản lý Tem Nhãn Mã Vạch & Tem QR Code Chuẩn Mực",
+                    id: "ktv_desktop",
+                    title: "3.4. KTV/Chuyên viên: Nhận & Xử lý phiếu trên Desktop",
                     htmlContent: #"""
 
-                            <h3>4. Quy Chuẩn &amp; Hướng Dẫn In Tem Nhãn Dán Tài Sản</h3>
-                            <p>Mỗi thiết bị trong doanh nghiệp bắt buộc phải được dán tem định danh chứa mã QR và mã Barcode để phục vụ tra cứu và kiểm kê tức thì.</p>
+          <h3>KTV / CHUYÊN VIÊN — NHẬN & XỬ LÝ PHIẾU TRÊN DESKTOP</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
 
-                            <h4>A. Thông tin hiển thị trên Tem Chuẩn</h4>
-                            <ul>
-                                <li><b>Logo Doanh Nghiệp:</b> Nhận diện thương hiệu công ty.</li>
-                                <li><b>Tên Thiết Bị &amp; Model:</b> Ngắn gọn, súc tích (VD: <i>PC Dell OptiPlex 7090</i>).</li>
-                                <li><b>Mã Tài Sản / Serial:</b> In đậm rõ nét (VD: <code>MT_P01_0042</code>).</li>
-                                <li><b>Mã QR &amp; Barcode:</b> Độ phân giải cao, hỗ trợ máy quét quang học và camera điện thoại.</li>
-                                <li><b>Phòng ban &amp; Hotline IT:</b> Hỗ trợ người dùng gọi ứng cứu sự cố nhanh.</li>
-                            </ul>
+          <div style="background:#fff1f2;border-left:4px solid #e11d48;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>⚠️ QUAN TRỌNG:</b> Nút "+ Tạo yêu cầu" <b>KHÔNG</b> hiển thị cho KTV / Chuyên viên trên Desktop.</div>
 
-                            <h4>B. Các khổ tem in ấn được hỗ trợ</h4>
-                            <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse:collapse; border:1px solid #cbd5e1; font-size:12px; margin:8px 0;">
-                                <tr style="background-color:#f8fafc; font-weight:bold; color:#1e293b;">
-                                    <td style="padding:6px;">Loại Khổ Tem</td>
-                                    <td style="padding:6px;">Kích Thước (R x C)</td>
-                                    <td style="padding:6px;">Thiết Bị In Phù Hợp</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><b>Tem Nhiệt Cuộn (Chuẩn)</b></td>
-                                    <td style="padding:6px;">50mm x 30mm</td>
-                                    <td style="padding:6px;">Máy in tem nhiệt chuyên dụng (Xprinter, Bixolon, Zebra).</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><b>Tem Nhỏ (Thiết bị mini)</b></td>
-                                    <td style="padding:6px;">35mm x 22mm</td>
-                                    <td style="padding:6px;">Dán chuột, bàn phím, điện thoại bàn, switch mạng.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><b>Tem Lớn (Máy chủ / Tủ rack)</b></td>
-                                    <td style="padding:6px;">70mm x 40mm</td>
-                                    <td style="padding:6px;">Dán máy chủ Server, máy photocopy, tủ rack viễn thông.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><b>Giấy Decal A4 nhiều tem</b></td>
-                                    <td style="padding:6px;">Khổ A4 (Tomy 145/146)</td>
-                                    <td style="padding:6px;">In trực tiếp trên máy in laser văn phòng thông thường (HP, Canon).</td>
-                                </tr>
-                            </table>
+          <h4>A. Thiết lập Desktop</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Khởi động App Desktop</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Mở IT Service & Assets Desktop. App chạy nền trong System Tray (góc phải taskbar).</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bật thông báo Windows</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Settings → Thông báo → bật <b>Thông báo hệ thống Windows</b> và <b>Âm thanh cảnh báo</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bật giọng đọc TTS</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Settings → Giọng đọc → bật <b>TTS tiếng Việt</b>. Chọn chế độ <b>REPEAT</b> (lặp 30s) để không bỏ lỡ.</div></div>
+  </div>
 
-                            <h4>C. Các bước in tem hàng loạt</h4>
-                            <ol>
-                                <li>Mở màn hình <b>Quản lý Thiết bị</b> ➔ Chọn nút <b>In tem tài sản</b>.</li>
-                                <li>Lọc danh sách theo: <i>Phòng ban</i>, <i>Loại thiết bị</i>, hoặc tích chọn từng máy cụ thể.</li>
-                                <li>Chọn mẫu tem và kích thước phù hợp.</li>
-                                <li>Bấm <b>Xem trước (Print Preview)</b> để kiểm tra lề và độ sắc nét ➔ Bấm <b>In trực tiếp</b> hoặc <b>Xuất file PDF</b>.</li>
-                            </ol>
-                        
+          <h4>B. Nhận & Xử lý phiếu</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Khi được điều phối</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Cửa sổ Desktop tự nổi lên + âm thanh cảnh báo + giọng đọc nội dung sự cố.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mở phiếu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm thông báo Windows hoặc vào menu <b>Hỗ trợ</b> trong ứng dụng.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Xử lý & Chat</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Khung chat, ảnh, các nút cập nhật trạng thái đầy đủ.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Hoàn thành</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm ✅ <b>Hoàn thành</b> → nhập ghi chú → xác nhận.</div></div>
+  </div>
+
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>🖥️ Ưu thế Desktop:</b> Chạy nền 24/7 — không bỏ lỡ lệnh điều phối kể cả khi đang dùng Microsoft Office hay ứng dụng khác.</div>
+        
 """#
                 )
             ]
         ),
         HelpCategory(
-            title: "4. Tiếp Nhận & Xử Lý Sự Cố Trực Tuyến",
-            iconName: "person.2.circle",
+            title: "4. Hỗ Trợ Trực Tuyến — HelpDesk (Điều Phối Viên)",
+            iconName: "headphones",
             defaultExpanded: false,
             articles: [
                 HelpArticle(
-                    id: "ticket_create_flow",
-                    title: "4.1. Tạo phiếu yêu cầu hỗ trợ sự cố (Ticket)",
+                    id: "helpdesk_android",
+                    title: "4.1. HelpDesk: Điều phối phiếu trên Android",
                     htmlContent: #"""
 
-                            <h3>1. Hướng Dẫn Tạo Phiếu Báo Hỏng & Yêu Cầu Hỗ Trợ</h3>
-                            <p>Khi thiết bị gặp sự cố (không lên nguồn, lỗi mạng, máy in kẹt giấy, lỗi phần mềm...), nhân viên gửi phiếu yêu cầu để được hỗ trợ nhanh nhất.</p>
+          <h3>HELPDESK — ĐIỀU PHỐI PHIẾU TRÊN ANDROID</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span>
 
-                            <h4>A. Các bước gửi yêu cầu</h4>
-                            <ol>
-                                <li>Nhân viên mở màn hình <b>Hỗ trợ (Support)</b> ➔ Bấm <b>+ Tạo yêu cầu mới</b>.</li>
-                                <li>Chọn thiết bị gặp sự cố từ danh sách thiết bị được giao (hoặc chọn "Sự cố chung").</li>
-                                <li>Chọn danh mục lỗi: <i>Phần cứng, Mạng nội bộ, Phần mềm, Máy in/Scan, Khác...</i></li>
-                                <li>Chọn mức độ ưu tiên:
-                                    <ul>
-                                        <li><span class="badge badge-primary">Bình thường:</span> Sự cố không làm gián đoạn khẩn cấp công việc.</li>
-                                        <li><span class="badge badge-warning">Gấp:</span> Ảnh hưởng trực tiếp đến tiến độ công việc trong ngày.</li>
-                                        <li><span class="badge badge-danger">Khẩn cấp:</span> Tê liệt hệ thống, máy chủ, đường truyền chính.</li>
-                                    </ul>
-                                </li>
-                                <li>Mô tả chi tiết triệu chứng lỗi và <b>đính kèm hình ảnh chụp thực tế màn hình/thiết bị lỗi</b>.</li>
-                                <li>Bấm <b>Gửi yêu cầu hỗ trợ</b>.</li>
-                            </ol>
-                        
+          <div style="background:#fff1f2;border-left:4px solid #e11d48;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>⚠️ Lưu ý:</b> HelpDesk <b>KHÔNG</b> được tạo phiếu hỗ trợ mới — chỉ điều phối và theo dõi tiến độ.</div>
+
+          <h4>Màn hình chính HelpDesk</h4>
+          <ul>
+            <li>Dashboard tổng quan: Phiếu mới / Đang xử lý / Hoàn thành trong ngày.</li>
+            <li>Nhận thông báo đẩy + giọng đọc khi có phiếu mới từ nhân viên.</li>
+          </ul>
+
+          <h4>Quy trình điều phối phiếu</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Nhận thông báo phiếu mới</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Khi nhân viên tạo phiếu, HelpDesk nhận thông báo đẩy + âm thanh tức thì.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Xem chi tiết phiếu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm thông báo → đọc mô tả, xem ảnh hiện trường, xác định mức ưu tiên.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chọn KTV / Chuyên viên</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>[Điều phối]</b> → chọn từ danh sách KTV/Chuyên viên (hiển thị Online/Offline, số phiếu đang xử lý).</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Xác nhận điều phối</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>[Xác nhận]</b>. KTV được chọn nhận thông báo giọng nói 2 lần ngay lập tức.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Theo dõi tiến độ</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Trạng thái cập nhật realtime: Điều phối → Di chuyển → Đã đến → Hoàn thành.</div></div>
+  </div>
+
+          <h4>Màn hình giám sát KTV</h4>
+          <ul>
+            <li>Bấm biểu tượng <b>📊 Giám sát KTV</b> để xem bảng tổng quan KTV đang hoạt động.</li>
+            <li>Hiển thị: Tên KTV, trạng thái, số phiếu đang xử lý, vị trí GPS trên bản đồ.</li>
+          </ul>
+        
 """#
                 ),
                 HelpArticle(
-                    id: "ticket_chat_zoom",
-                    title: "4.2. Khung Chat Trực Tuyến & Phóng To/Thu Nhỏ Ảnh Đính Kèm",
+                    id: "helpdesk_ios",
+                    title: "4.2. HelpDesk: Điều phối phiếu trên iOS",
                     htmlContent: #"""
 
-                            <h3>2. Trò Chuyện Trực Tuyến & Xem Ảnh Chi Tiết (Zoom & Pan)</h3>
-                            <p>Hệ thống chat 2 chiều thời gian thực kết nối tức thì nhân viên báo lỗi với Kỹ thuật viên và Quản trị viên.</p>
+          <h3>HELPDESK — ĐIỀU PHỐI PHIẾU TRÊN iOS</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span>
 
-                            <h4>A. Trò chuyện và Phân biệt Phòng ban</h4>
-                            <ul>
-                                <li>Mọi tin nhắn gửi đi được đồng bộ tức thời qua Cloud Firestore.</li>
-                                <li>Dưới tên người gửi luôn hiển thị <b>chính xác tên phòng ban công tác</b> (VD: <i>Phòng Kỹ thuật & CNTT</i>, <i>Phòng Kế toán</i>) giúp nhận diện rõ vai trò.</li>
-                            </ul>
+          <div style="background:#fff1f2;border-left:4px solid #e11d48;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>⚠️ Lưu ý:</b> Nút "+ Tạo yêu cầu" đã ẩn với role HelpDesk trên iOS.</div>
 
-                            <h4>B. Xem ảnh đính kèm với tính năng Phóng to / Thu nhỏ (Zoom & Pan)</h4>
-                            <ul>
-                                <li>Bấm vào hình ảnh thumbnail trong khung chat để mở màn hình <b>Xem ảnh nâng cao</b>.</li>
-                                <li><b>Trên Mobile App:</b> Dùng 2 ngón tay chụm/mở để Phóng to (Zoom In) và Thu nhỏ (Zoom Out), vuốt để di chuyển xem từng chi tiết lỗi kỹ thuật.</li>
-                                <li><b>Trên Desktop:</b> Sử dụng thanh điều khiển phóng to (+), thu nhỏ (-), xoay ảnh và xem toàn màn hình sắc nét.</li>
-                            </ul>
-                        
+          <h4>Thiết lập thông báo HelpDesk trên iOS</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bật thông báo đẩy</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Cài đặt iPhone → IT Service & Assets → Thông báo → bật <b>Cho phép thông báo</b>, <b>Âm thanh</b>, <b>Thông báo khóa màn hình</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bật giọng đọc</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">App → Settings → Thông báo → bật <b>Giọng đọc TTS</b>.</div></div>
+  </div>
+
+          <h4>Điều phối phiếu</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Tab Hỗ trợ → Danh sách Chờ điều phối</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Lọc phiếu trạng thái <b>Chờ xử lý</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mở chi tiết phiếu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm vào phiếu → xem mô tả, ảnh, chat lịch sử.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Điều phối KTV/Chuyên viên</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>Điều phối</b> → chọn người phù hợp → Xác nhận.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Theo dõi trên Live Tracking</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Tab <b>🗺️ Live Tracking</b>: xem bản đồ vị trí tất cả KTV đang hoạt động.</div></div>
+  </div>
+
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>📱 Mẹo iOS:</b> Bật chế độ <b>Màn hình luôn bật</b> (iPhone Pro) để theo dõi dashboard liên tục mà không cần mở khóa.</div>
+        
 """#
                 ),
                 HelpArticle(
-                    id: "self_resolved_flow",
-                    title: "4.3. Tính năng 'Tôi đã tự xử lý xong' & Khóa Đánh giá",
+                    id: "helpdesk_web",
+                    title: "4.3. HelpDesk: Điều phối phiếu trên Web",
                     htmlContent: #"""
 
-                            <h3>3. Tự Xử Lý Xong & Đánh Giá Chất Lượng Phục Vụ</h3>
-                            <p>Tối ưu hóa thời gian và nguồn lực kỹ thuật với quy trình tự đóng phiếu thông minh.</p>
+          <h3>HELPDESK — ĐIỀU PHỐI PHIẾU TRÊN WEB</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span>
 
-                            <h4>A. Thẻ "💡 Tôi đã tự xử lý xong" (Ghim cố định)</h4>
-                            <ul>
-                                <li>Khi người dùng tự giải quyết được sự cố (VD: tự cắm lại cáp mạng, khởi động lại máy thành công):</li>
-                                <li>Bấm nút <b>[Đóng phiếu]</b> trên thanh banner được <b>ghim cố định ngay dưới TopBar (trên App)</b> hoặc kế bên nút Đánh giá (trên Desktop).</li>
-                                <li>Hệ thống sẽ đóng phiếu ngay lập tức, tự động <b>dừng lộ trình di chuyển của KTV</b> để KTV không mất công di chuyển.</li>
-                            </ul>
+          <h4>Bảng điều phối Web (đầy đủ nhất)</h4>
+          <ul>
+            <li>Menu → <b>Hỗ trợ → Danh sách phiếu</b>: Lọc theo Trạng thái, Ngày, Phòng ban, KTV.</li>
+            <li>Màu sắc cột Trạng thái trực quan. Filter dropdown cho từng cột.</li>
+          </ul>
 
-                            <h4>B. Đánh giá chất lượng & Khóa đánh giá cố định</h4>
-                            <ol>
-                                <li>Người dùng chọn số sao (1 đến 5 ⭐) và viết nhận xét dịch vụ.</li>
-                                <li><b>Cơ chế tạo phiếu tự động:</b> Nếu đánh giá < 3 sao, hệ thống tự động gợi ý tạo phiếu mới để cấp quản lý tiếp tục theo dõi.</li>
-                                <li>Sau khi gửi, Card kết quả đánh giá sẽ được <b>ghim cố định ở chân trang với biểu tượng ổ khóa 🔒</b> thể hiện phiếu đã hoàn tất an toàn.</li>
-                            </ol>
-                        
+          <h4>Quy trình điều phối trên Web</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Lọc phiếu "Chờ điều phối"</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Dropdown Trạng thái → chọn <b>Chờ xử lý</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm vào phiếu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Panel chi tiết mở bên phải (split view) — không cần rời khỏi trang.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chọn KTV/Chuyên viên</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Dropdown <b>Điều phối cho</b> → gõ tên tìm kiếm. KTV Online được ưu tiên đầu danh sách.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Xác nhận</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>[Xác nhận điều phối]</b>. Phiếu chuyển màu xanh — Đang xử lý.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Theo dõi Live</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Nút 🗺️ <b>Live Tracking</b> mở bản đồ realtime tất cả KTV.</div></div>
+  </div>
+
+          <h4>Dashboard thống kê HelpDesk</h4>
+          <ul>
+            <li>Widget: Phiếu hôm nay / Tổng tháng / % SLA đúng hạn.</li>
+            <li>Biểu đồ phân bố phiếu theo giờ, KTV, phòng ban.</li>
+          </ul>
+        
 """#
                 ),
                 HelpArticle(
-                    id: "ticket_itil_workflow",
-                    title: "4.4. Quy Trình 6 Bước Hỗ Trợ Ticket & Điều Phối Sự Cố (ITIL Service Desk)",
+                    id: "helpdesk_desktop",
+                    title: "4.4. HelpDesk: Điều phối phiếu trên Desktop",
                     htmlContent: #"""
 
-                            <h3>4. Quy Trình 6 Bước Hỗ Trợ Ticket &amp; Điều Phối Sự Cố Chuẩn ITIL</h3>
-                            <p>Quy chuẩn vận hành hỗ trợ kỹ thuật tập trung theo tiêu chuẩn ITIL Service Desk, kết hợp cảnh báo âm thanh thời gian thực, dẫn đường OSRM và khung kiểm soát chất lượng Reopen.</p>
+          <h3>HELPDESK — ĐIỀU PHỐI PHIẾU TRÊN DESKTOP</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
 
-                            <h4>A. Khung Cam Kết Thời Gian Phản Hồi &amp; Xử Lý Sự Cố (SLA Matrix)</h4>
-                            <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse:collapse; border:1px solid #cbd5e1; font-size:12px; margin:8px 0;">
-                                <tr style="background-color:#f8fafc; font-weight:bold; color:#1e293b;">
-                                    <td style="padding:6px;">Mức Độ Ưu Tiên</td>
-                                    <td style="padding:6px;">Thời Gian Phản Hồi (SLA P1)</td>
-                                    <td style="padding:6px;">Thời Gian Xử Lý Xong (SLA P2)</td>
-                                    <td style="padding:6px;">Mô Tả Tiêu Biểu</td>
-                                </tr>
-                                <tr style="background-color:#fef2f2;">
-                                    <td style="padding:6px;"><span class="badge badge-danger">CRITICAL (Khẩn cấp)</span></td>
-                                    <td style="padding:6px;"><b>&le; 15 phút</b></td>
-                                    <td style="padding:6px;"><b>&le; 2 giờ</b></td>
-                                    <td style="padding:6px;">Sập máy chủ, đứt cáp quang chính, tê liệt hệ thống toàn đơn vị.</td>
-                                </tr>
-                                <tr style="background-color:#fffbeb;">
-                                    <td style="padding:6px;"><span class="badge badge-warning">HIGH (Cao)</span></td>
-                                    <td style="padding:6px;"><b>&le; 30 phút</b></td>
-                                    <td style="padding:6px;"><b>&le; 4 giờ</b></td>
-                                    <td style="padding:6px;">Hỏng thiết bị phòng giám đốc, máy in phòng kế toán ngày chốt sổ.</td>
-                                </tr>
-                                <tr style="background-color:#f0fdf4;">
-                                    <td style="padding:6px;"><span class="badge badge-success">MEDIUM (Bình thường)</span></td>
-                                    <td style="padding:6px;"><b>&le; 1 giờ</b></td>
-                                    <td style="padding:6px;"><b>&le; 8 giờ</b></td>
-                                    <td style="padding:6px;">Máy tính cá nhân lỗi phần mềm, virus nhẹ, yêu cầu cài đặt bổ sung.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-outline">LOW (Thấp)</span></td>
-                                    <td style="padding:6px;"><b>&le; 2 giờ</b></td>
-                                    <td style="padding:6px;"><b>&le; 24 giờ</b></td>
-                                    <td style="padding:6px;">Yêu cầu hỗ trợ hướng dẫn sử dụng, vệ sinh máy tính định kỳ.</td>
-                                </tr>
-                            </table>
+          <h4>Ưu điểm Desktop cho HelpDesk</h4>
+          <ul>
+            <li>Màn hình lớn, nhiều cột dữ liệu — phù hợp xử lý lượng phiếu lớn.</li>
+            <li>Chạy nền 24/7 — không bỏ lỡ phiếu mới.</li>
+            <li>In phiếu điều phối A4 trực tiếp từ ứng dụng.</li>
+            <li>Chế độ giọng đọc REPEAT: lặp 30s cho đến khi HelpDesk mở phiếu.</li>
+          </ul>
 
-                            <h4>B. Hệ Thống Cảnh Báo Âm Thanh &amp; Giọng Đọc Trợ Lý Ảo Voice TTS</h4>
-                            <ul>
-                                <li><b>Chuông Báo Động Định Kỳ:</b> Khi có ticket mới được tạo, hệ thống kích hoạt chuông cảnh báo lặp lại mỗi <b>30 giây</b> cho đến khi có KTV bấm tiếp nhận.</li>
-                                <li><b>Giọng Đọc Trợ Lý Ảo Tiếng Việt:</b> Phát tự động 2 lần: <i>"Có sự cố mới tại [Tên Phòng Ban] - Mức độ: [Khẩn cấp / Cao] - Cần hỗ trợ ngay!"</i>.</li>
-                                <li><b>Phân Quyền Âm Thanh:</b> Chỉ kích hoạt âm thanh trên thiết bị của KTV thuộc đúng nhóm HelpDesk được phân công phụ trách.</li>
-                            </ul>
-
-                            <h4>C. Chi Tiết 6 Bước Quy Trình Vận Hành</h4>
-                            <ol>
-                                <li><b>Bước 1 - Tiếp nhận &amp; Phân loại:</b> Người dùng gửi ticket kèm ảnh chụp lỗi ➔ Hệ thống tự động phân loại mức độ ưu tiên và định tuyến HelpDesk.</li>
-                                <li><b>Bước 2 - Phân công &amp; Phản hồi ban đầu:</b> Trưởng nhóm hoặc KTV bấm nhận ticket ➔ Chốt mốc thời gian tính <b>SLA P1</b> (Phản hồi ban đầu).</li>
-                                <li><b>Bước 3 - Điều hướng lộ trình &amp; Dẫn đường OSRM:</b> KTV bấm <i>"Bắt đầu di chuyển"</i> ➔ Hệ thống kích hoạt GPS và dẫn đường lộ trình ngắn nhất qua bản đồ OSRM.</li>
-                                <li><b>Bước 4 - Check-in Hiện trường &amp; Khắc phục:</b> Khi KTV đến trong bán kính <b>150m</b> (arrivalRadiusMeters), hệ thống tự xác nhận check-in ➔ KTV tiến hành xử lý kỹ thuật và trao đổi qua chat trực tuyến.</li>
-                                <li><b>Bước 5 - Nghiệm thu Kỹ thuật &amp; Đóng Ticket:</b> Hoàn tất sửa chữa ➔ KTV chụp ảnh xác nhận và đóng ticket ➔ Hệ thống tự động sinh phiếu quyết toán công tác phí PENDING.</li>
-                                <li><b>Bước 6 - Khung Theo Dõi Chất Lượng &amp; Chế Tài Reopen:</b>
-                                    <ul>
-                                        <li>Hệ thống kích hoạt đồng hồ theo dõi chất lượng sau khi đóng ticket:
-                                            <table border="1" cellpadding="5" cellspacing="0" style="width:100%; border-collapse:collapse; margin:6px 0; font-size:11.5px;">
-                                                <tr style="background:#f1f5f9;">
-                                                    <td>Độ Ưu Tiên</td><td>CRITICAL</td><td>HIGH</td><td>NORMAL / MEDIUM</td><td>LOW</td>
-                                                </tr>
-                                                <tr style="font-weight:bold; color:#0284c7;">
-                                                    <td>Khung Theo Dõi</td><td>120 giờ (5 ngày)</td><td>72 giờ (3 ngày)</td><td>48 giờ (2 ngày)</td><td>24 giờ (1 ngày)</td>
-                                                </tr>
-                                            </table>
-                                        </li>
-                                        <li><div class="callout-warning"><b>Chế tài Reopen:</b> Nếu người dùng phát hiện lỗi chưa triệt để và bấm <b>Reopen trong khung theo dõi chất lượng</b>, ticket sẽ bị đánh dấu chất lượng kém và gán hệ số quy đổi <b>P2 = 0.0 (0% thành công)</b> vào kết quả đánh giá KPI của KTV.</div></li>
-                                    </ul>
-                                </li>
-                            </ol>
-                            <h4>G. Điều Phối Thông Minh: Cảnh Báo Trạng Thái KTV &amp; Quy Tắc 24h Đóng 5 Sao</h4>
-                            <ul>
-                                <li><b>Giám sát trạng thái KTV thời gian thực:</b> Trên form điều phối sự cố, HelpDesk có thể quan sát trực quan trạng thái của từng KTV:
-                                    <br>&bull; <span class="badge badge-success">Online</span>: KTV đang trực tuyến và sẵn sàng tiếp nhận ticket mới.
-                                    <br>&bull; <span class="badge badge-warning">Bận việc</span>: KTV đang xử lý dở dang một ticket khác tại hiện trường.
-                                    <br>&bull; <span class="badge badge-outline">Offline</span>: KTV đang ngoại tuyến hoặc ngoài ca trực.
-                                </li>
-                                <li><b>Cảnh báo khi gán KTV Bận việc hoặc Offline:</b> Nếu người điều phối chọn gán ticket cho KTV đang Bận việc hoặc Offline, hệ thống sẽ lập tức hiển thị <b>hộp thoại cảnh báo xác nhận</b>. Điều này giúp ngăn ngừa việc giao việc cho nhân sự không sẵn sàng, hạn chế tối đa nguy cơ trễ SLA phản hồi (P1) hoặc xử lý (P2).</li>
-                                <li><b>Quy tắc tự động 5 sao sau 24h:</b> Khi KTV hoàn tất xử lý ticket, nếu trong vòng 24 giờ người dùng không thực hiện đánh giá và không có yêu cầu mở lại, hệ thống sẽ tự động ghi nhận mức <b>5.0 sao (Rất hài lòng)</b> để tính điểm KPI cho KTV.</li>
-                            </ul>
-
-                        
+          <h4>Quy trình điều phối trên Desktop</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Menu → Hỗ trợ → Danh sách phiếu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Mở ứng dụng, bấm <b>Hỗ trợ</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Lọc & Tìm kiếm</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Thanh tìm kiếm + filter trạng thái, ngày, phòng ban.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Điều phối</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Double-click phiếu → bấm <b>Điều phối</b> → chọn KTV.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">In phiếu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>🖨️ In phiếu A4</b> để có bản in vật lý chuẩn NĐ 30.</div></div>
+  </div>
+        
 """#
                 )
             ]
         ),
         HelpCategory(
-            title: "5. Giám Sát Lộ Trình Live GPS Kỹ Thuật Viên",
-            iconName: "figure.outdoor.cycle",
+            title: "5. Hỗ Trợ Trực Tuyến — Quản Lý (Manager)",
+            iconName: "chart.bar.doc.horizontal",
             defaultExpanded: false,
             articles: [
                 HelpArticle(
-                    id: "live_tracking_guide",
-                    title: "5.1. Lộ trình Di chuyển Thời gian thực & Định tuyến OSRM",
+                    id: "manager_support_all",
+                    title: "5.1. Quản lý: Tạo, Điều phối & Giám sát phiếu (Tất cả nền tảng)",
                     htmlContent: #"""
 
-                            <h3>1. Giám Sát Lộ Trình Kỹ Thuật Viên Thời Gian Thực</h3>
-                            <p>Hệ thống tự động theo dõi và hiển thị vị trí kỹ thuật viên đang trên đường đến điểm hỗ trợ sự cố.</p>
+          <h3>QUẢN LÝ (MANAGER) — TẠO, ĐIỀU PHỐI & GIÁM SÁT PHIẾU</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
 
-                            <h4>A. Quy trình Kỹ thuật viên di chuyển</h4>
-                            <ol>
-                                <li>Kỹ thuật viên nhận phiếu điều phối ➔ Bấm <b>🚀 Bắt đầu di chuyển</b>.</li>
-                                <li>Mobile App tự động kích hoạt dịch vụ GPS nền để cập nhật tọa độ liên tục lên máy chủ.</li>
-                                <li>Khi đến nơi, KTV bấm <b>📍 Đã đến nơi</b> để bắt đầu thao tác kỹ thuật.</li>
-                                <li>Sau khi khắc phục xong, KTV bấm <b>✅ Hoàn thành</b>.</li>
-                            </ol>
+          <h4>Quyền hạn của Quản lý với phiếu hỗ trợ</h4>
+          <ul>
+            <li>✓ Tạo phiếu mới thay mặt nhân viên trong phòng ban.</li>
+            <li>✓ Xem toàn bộ phiếu của phòng ban phụ trách.</li>
+            <li>✓ Điều phối phiếu cho KTV/Chuyên viên.</li>
+            <li>✓ Đóng hoặc Reopen phiếu (trong vòng 24h).</li>
+            <li>✓ Xem thống kê KPI, biểu đồ đánh giá sao của phòng ban.</li>
+          </ul>
 
-                            <h4>B. Bản đồ trực quan & Tính khoảng cách OSRM</h4>
-                            <ul>
-                                <li>Người dùng và Admin bấm nút <b>🏍️ Theo dõi KTV</b> để mở bản đồ trực tuyến.</li>
-                                <li>Hệ thống sử dụng máy chủ định tuyến OSRM để vẽ đường đi thực tế, tính toán chính xác số kilômét (km) và thời gian dự kiến đến nơi (ETA).</li>
-                                <li>Số km di chuyển thực tế sẽ được tự động lưu lại làm căn cứ tính công tác phí.</li>
-                            </ul>
-                        
+          <h4>Tạo phiếu thay mặt nhân viên</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Truy cập Hỗ trợ → Tạo phiếu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Quản lý thấy nút <b>"+ Tạo yêu cầu"</b> trên tất cả nền tảng.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chọn nhân viên báo cáo</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Chọn đúng nhân viên trong phòng, thiết bị, mô tả và ảnh.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Điều phối ngay (tùy chọn)</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Có thể điều phối ngay khi tạo hoặc để HelpDesk xử lý sau.</div></div>
+  </div>
+
+          <h4>Giám sát dashboard phòng ban</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Android/iOS</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Trang chủ → widget phiếu mới / đang xử lý / hoàn thành trong ngày.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Web/Desktop</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Dashboard đầy đủ với biểu đồ, bảng xếp hạng KPI KTV của phòng ban.</div></div>
+  </div>
+
+          <h4>Quy trình Reopen phiếu</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Trong vòng 24h sau khi phiếu hoàn thành</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Mở phiếu → bấm <b>[Mở lại phiếu]</b> nếu sự cố tái phát.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Sau 24h</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Phiếu bị khóa — cần tạo phiếu mới.</div></div>
+  </div>
+
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>📊 Báo cáo KPI phòng ban:</b> Menu → <b>Báo cáo → KPI IT</b> → chọn khoảng thời gian. Hỗ trợ xuất Excel (.xlsx) và PDF A4 chuẩn NĐ 30.</div>
+        
+"""#
+                ),
+                HelpArticle(
+                    id: "itil_flow",
+                    title: "5.2. Quy Trình 6 Bước ITIL — Luồng Xử Lý Chuẩn",
+                    htmlContent: #"""
+
+          <h3>QUY TRÌNH 6 BƯỚC XỬ LÝ PHIẾU CHUẨN ITIL</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
+
+          <div style="position:relative;padding-left:4px">
+            <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">🟡 NHÂN VIÊN TẠO PHIẾU</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Staff chọn thiết bị, mô tả sự cố, đính kèm ảnh và gửi yêu cầu hỗ trợ.</div></div>
+  </div>
+            <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">🔵 HELPDESK / QUẢN LÝ TIẾP NHẬN</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">HelpDesk nhận thông báo tức thì, xem phiếu, đánh giá mức độ ưu tiên.</div></div>
+  </div>
+            <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">🟠 ĐIỀU PHỐI KTV / CHUYÊN VIÊN</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">HelpDesk chỉ định KTV/Chuyên viên phù hợp. KTV nghe giọng đọc cảnh báo 2 lần.</div></div>
+  </div>
+            <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">🟣 KTV DI CHUYỂN & XỬ LÝ</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">KTV bấm Bắt đầu di chuyển — GPS bật nền, vẽ lộ trình OSRM. Nhân viên theo dõi live.</div></div>
+  </div>
+            <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">✅ KTV HOÀN THÀNH</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">KTV bấm Hoàn thành, nhập ghi chú kết quả. Công tác phí tự động tổng hợp theo GPS.</div></div>
+  </div>
+            <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">6</div>
+    <div><b style="color:#0f172a;font-size:12.5px">⭐ NHÂN VIÊN ĐÁNH GIÁ</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Nhân viên chấm 1–5 sao trong 24h. Sau 24h hệ thống tự ghi nhận 5.0★.</div></div>
+  </div>
+          </div>
+
+          <table border="0" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin-top:14px">
+            <tr style="background:#f1f5f9">
+              <th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;color:#002a8f">Mức ưu tiên</th>
+              <th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;color:#002a8f">SLA cam kết</th>
+            </tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:12px">🔴 Khẩn cấp</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">Tối đa 1 giờ</td></tr>
+            <tr style="background:#f8fafc"><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:12px">🟠 Cao</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">Tối đa 4 giờ</td></tr>
+            <tr><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:12px">🟡 Trung bình</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">Tối đa 8 giờ</td></tr>
+            <tr style="background:#f8fafc"><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:12px">🟢 Thấp</td><td style="padding:6px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">Tối đa 24 giờ</td></tr>
+          </table>
+          <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>⏱ Vượt SLA:</b> Hệ thống tự động gửi cảnh báo lên Quản lý và HelpDesk khi phiếu chưa được xử lý đúng hạn.</div>
+        
 """#
                 )
             ]
         ),
         HelpCategory(
-            title: "6. Chấm Công GPS & Công Tác Phí",
+            title: "6. Quản Lý Thiết Bị — Quản Lý (Manager)",
+            iconName: "laptopcomputer",
+            defaultExpanded: false,
+            articles: [
+                HelpArticle(
+                    id: "manager_device_android",
+                    title: "6.1. Manager: Thêm & Quản lý thiết bị trên Android",
+                    htmlContent: #"""
+
+          <h3>QUẢN LÝ — THÊM & QUẢN LÝ THIẾT BỊ TRÊN ANDROID</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span>
+
+          <h4>Thêm thiết bị mới</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mục Thiết bị</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Menu dưới → <b>Thiết bị</b> → bấm <b>+ Thêm thiết bị</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Điền thông tin cơ bản</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Tên thiết bị, Loại (hệ thống tự sinh mã: <code>MT_</code> máy tính, <code>LT_</code> laptop, <code>PR_</code> máy in, <code>PH_</code> điện thoại), Serial/Mã định danh.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Cấu hình chi tiết</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">CPU, RAM, Ổ cứng, Màu sắc, Hãng, Model.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Gán phòng ban & người dùng</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Chọn Phòng ban, Đơn vị, người đang giữ thiết bị trong phòng ban của bạn.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Ngày mua & bảo hành</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Nhập ngày mua, hạn bảo hành — hệ thống tự cảnh báo khi sắp hết hạn.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">6</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Lưu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>[Lưu thiết bị]</b>. QR Code tự động tạo.</div></div>
+  </div>
+
+          <h4>Quét QR nhanh</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm biểu tượng 📷 QR</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Màn hình danh sách → bấm icon Camera.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Quét tem QR trên thiết bị</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Camera nhận dạng QR → hiện thông tin thiết bị tức thì.</div></div>
+  </div>
+
+          <h4>Phê duyệt nhân viên mới vào phòng ban</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Nhận thông báo trên Trang chủ</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Khi có nhân viên đăng ký, nút <b>👥 Duyệt NV</b> xuất hiện kèm số lượng.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Kiểm tra & Phê duyệt</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Vào danh sách chờ duyệt → bấm <b>[Phê duyệt]</b> → kích hoạt tài khoản.</div></div>
+  </div>
+        
+"""#
+                ),
+                HelpArticle(
+                    id: "manager_device_ios",
+                    title: "6.2. Manager: Thêm & Quản lý thiết bị trên iOS",
+                    htmlContent: #"""
+
+          <h3>QUẢN LÝ — THÊM & QUẢN LÝ THIẾT BỊ TRÊN iOS</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span>
+
+          <h4>Thêm thiết bị trên iOS</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Tab Thiết bị</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Chuyển sang tab <b>Thiết bị</b> trên thanh điều hướng dưới.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm "+"</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Nút + góc trên phải → Form thêm thiết bị.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Điền thông tin</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Tương tự Android. iOS hỗ trợ keyboard gợi ý thông minh.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Quét QR tích hợp</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm icon Camera → Camera iOS nhận dạng QR → tự điền thông tin serial.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Lưu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>Lưu</b> góc trên phải. Đồng bộ Cloud ngay lập tức.</div></div>
+  </div>
+
+          <h4>Tìm kiếm & Lọc thiết bị</h4>
+          <ul>
+            <li>Thanh tìm kiếm trên cùng: nhập tên, serial, phòng ban.</li>
+            <li>Filter theo Trạng thái: Đang dùng / Hỏng / Bảo trì / Thanh lý.</li>
+            <li>Vuốt trái để xóa (chỉ Manager trở lên), vuốt phải để chỉnh sửa nhanh.</li>
+          </ul>
+        
+"""#
+                ),
+                HelpArticle(
+                    id: "manager_device_web",
+                    title: "6.3. Manager: Thêm & Quản lý thiết bị trên Web",
+                    htmlContent: #"""
+
+          <h3>QUẢN LÝ — THÊM & QUẢN LÝ THIẾT BỊ TRÊN WEB</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span>
+
+          <h4>Import hàng loạt bằng Excel</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Thiết bị → Import Excel</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Menu → Thiết bị → <b>Import Excel</b> → Tải file mẫu.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Điền danh sách</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Điền đúng format trong file mẫu (tên, serial, loại, phòng ban).</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Upload & Kiểm tra kết quả</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Upload file → xem số dòng thành công/lỗi → sửa và upload lại nếu cần.</div></div>
+  </div>
+
+          <h4>Thêm từng thiết bị</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Thiết bị → + Thêm</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>"+ Thêm thiết bị"</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Form 2 cột đầy đủ</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Web có form chi tiết nhất, giao diện 2 cột trực quan.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Upload ảnh thiết bị</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Kéo thả ảnh thực tế (JPG/PNG, tối đa 5MB).</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Lưu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>[Lưu]</b>. QR và Barcode tự sinh.</div></div>
+  </div>
+
+          <h4>Xuất báo cáo kiểm kê</h4>
+          <ul>
+            <li>Chọn nhiều thiết bị → <b>Xuất Excel</b> — file .xlsx đầy đủ thông tin.</li>
+            <li>Filter trước khi xuất: Phòng ban, Trạng thái, Loại thiết bị, Khoảng thời gian.</li>
+          </ul>
+        
+"""#
+                ),
+                HelpArticle(
+                    id: "manager_device_desktop",
+                    title: "6.4. Manager: Thêm & Quản lý thiết bị trên Desktop",
+                    htmlContent: #"""
+
+          <h3>QUẢN LÝ — THÊM & QUẢN LÝ THIẾT BỊ TRÊN DESKTOP</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
+
+          <h4>Lợi thế Desktop</h4>
+          <ul>
+            <li>Hỗ trợ <b>đầu đọc Barcode USB/Bluetooth</b> — quét mã tốc độ cao khi kiểm kê.</li>
+            <li>In tem QR/Barcode trực tiếp qua máy in nhiệt USB.</li>
+            <li>Hiển thị nhiều cột hơn trên màn hình rộng.</li>
+          </ul>
+
+          <h4>Thêm thiết bị với đầu đọc Barcode</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Menu → Thiết bị → Thêm mới</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>"+ Thêm thiết bị"</b> hoặc tổ hợp <code>Ctrl+N</code>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Đặt con trỏ vào ô Serial</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Click vào trường Serial/Mã định danh.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Quét Barcode bằng đầu đọc USB</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Đầu đọc tự điền mã vào ô — cực nhanh, không cần nhập tay.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Điền thông tin còn lại & Lưu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Loại thiết bị, phòng ban, người dùng → Lưu.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">In tem ngay</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>🖨️ In tem QR</b> để in tem dán lên thiết bị ngay sau khi tạo.</div></div>
+  </div>
+
+          <h4>Kiểm kê bằng đầu đọc Barcode</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Thiết bị → Kiểm kê → Bắt đầu quét</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Mở chế độ kiểm kê.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Quét lần lượt từng thiết bị</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Hệ thống đánh dấu đã kiểm kê tự động.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Xuất biên bản kiểm kê</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Sau khi quét xong → <b>Xuất báo cáo</b> ra Excel hoặc PDF A4.</div></div>
+  </div>
+        
+"""#
+                ),
+                HelpArticle(
+                    id: "device_lifecycle",
+                    title: "6.5. Vòng đời thiết bị: Cấp phát, Luân chuyển & Thanh lý",
+                    htmlContent: #"""
+
+          <h3>VÒNG ĐỜI THIẾT BỊ — 6 GIAI ĐOẠN</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
+
+          <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:10px 0">
+            <div style="background:#002a8f;color:#fff;padding:7px 12px;font-size:12px;font-weight:bold">📦 GIAI ĐOẠN 1 — NHẬP KHO & ĐỊNH DANH</div>
+            <div style="padding:9px 12px;font-size:12px;color:#334155;line-height:1.6">Nhập thiết bị, hệ thống sinh mã loại chuẩn tự động (<code>MT_</code> máy tính, <code>LT_</code> laptop, <code>PR_</code> máy in). In tem QR/Barcode dán lên thiết bị.</div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:10px 0">
+            <div style="background:#0f766e;color:#fff;padding:7px 12px;font-size:12px;font-weight:bold">📤 GIAI ĐOẠN 2 — CẤP PHÁT & BÀN GIAO</div>
+            <div style="padding:9px 12px;font-size:12px;color:#334155;line-height:1.6">Gán thiết bị cho người dùng. Hệ thống tự xuất <b>Biên bản bàn giao A4</b> chuẩn Nghị định 30 để ký tên.</div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:10px 0">
+            <div style="background:#0369a1;color:#fff;padding:7px 12px;font-size:12px;font-weight:bold">🔄 GIAI ĐOẠN 3 — VẬN HÀNH & LUÂN CHUYỂN</div>
+            <div style="padding:9px 12px;font-size:12px;color:#334155;line-height:1.6">Cập nhật người dùng mới khi thiết bị chuyển giao. Toàn bộ lịch sử bàn giao được ghi lại.</div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:10px 0">
+            <div style="background:#b45309;color:#fff;padding:7px 12px;font-size:12px;font-weight:bold">🔧 GIAI ĐOẠN 4 — BẢO DƯỠNG & SỬA CHỮA</div>
+            <div style="padding:9px 12px;font-size:12px;color:#334155;line-height:1.6">Lịch sử phiếu sự cố tự động gắn vào hồ sơ thiết bị. Xem lại tất cả lần báo hỏng, KTV xử lý, kết quả.</div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:10px 0">
+            <div style="background:#6d28d9;color:#fff;padding:7px 12px;font-size:12px;font-weight:bold">📋 GIAI ĐOẠN 5 — KIỂM KÊ ĐỊNH KỲ</div>
+            <div style="padding:9px 12px;font-size:12px;color:#334155;line-height:1.6">Quét QR/Barcode hàng loạt bằng Mobile hoặc Desktop. Tự xác định thiết bị thiếu/dư và xuất biên bản.</div>
+          </div>
+          <div style="border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin:10px 0">
+            <div style="background:#dc2626;color:#fff;padding:7px 12px;font-size:12px;font-weight:bold">♻️ GIAI ĐOẠN 6 — THANH LÝ & LƯU TRỮ</div>
+            <div style="padding:9px 12px;font-size:12px;color:#334155;line-height:1.6">Đổi trạng thái sang <b>Đã thanh lý</b>. Thiết bị vẫn lưu trong hệ thống để tra cứu lịch sử — không bị xóa vĩnh viễn.</div>
+          </div>
+        
+"""#
+                )
+            ]
+        ),
+        HelpCategory(
+            title: "7. Quản Lý Thiết Bị — Nhân Viên & KTV (Chỉ Xem)",
+            iconName: "laptopcomputer",
+            defaultExpanded: false,
+            articles: [
+                HelpArticle(
+                    id: "staff_device_view",
+                    title: "7.1. Nhân viên: Xem thiết bị cá nhân được bàn giao",
+                    htmlContent: #"""
+
+          <h3>NHÂN VIÊN — XEM THIẾT BỊ ĐƯỢC BÀN GIAO CÁ NHÂN</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
+          <p>Nhân viên chỉ xem thiết bị cá nhân — <b>không thể thêm, sửa hoặc xóa</b>.</p>
+
+          <h4>Cách truy cập danh sách thiết bị</h4>
+          <table border="0" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">
+            <tr style="background:#f1f5f9"><th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;color:#002a8f">Nền tảng</th><th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;color:#002a8f">Cách truy cập</th></tr>
+            <tr><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px"><b>Android</b></td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Menu dưới → Tab <b>Thiết bị</b></td></tr>
+            <tr style="background:#f8fafc"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px"><b>iOS</b></td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Tab bar → <b>Thiết bị</b></td></tr>
+            <tr><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px"><b>Web</b></td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Menu trái → <b>Thiết bị của tôi</b></td></tr>
+            <tr style="background:#f8fafc"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px"><b>Desktop</b></td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Menu → <b>Thiết bị</b></td></tr>
+          </table>
+
+          <h4>Thông tin nhân viên được xem</h4>
+          <ul>
+            <li>Tên thiết bị, Loại, Serial/Mã định danh.</li>
+            <li>Cấu hình: CPU, RAM, Ổ cứng, Màu sắc.</li>
+            <li>Ngày bàn giao, Hạn bảo hành.</li>
+            <li>Trạng thái hiện tại: Đang sử dụng / Đang bảo trì / Hỏng.</li>
+            <li>Lịch sử phiếu sự cố liên quan đến thiết bị.</li>
+          </ul>
+
+          <h4>Báo hỏng nhanh từ hồ sơ thiết bị</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm vào thiết bị trong danh sách</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Mở hồ sơ chi tiết thiết bị.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm "🔔 Báo hỏng"</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Phiếu hỗ trợ mới tự động điền tên thiết bị — tiết kiệm thời gian.</div></div>
+  </div>
+        
+"""#
+                ),
+                HelpArticle(
+                    id: "ktv_device_view",
+                    title: "7.2. KTV/Chuyên viên: Xem thông tin thiết bị khi xử lý phiếu",
+                    htmlContent: #"""
+
+          <h3>KTV / CHUYÊN VIÊN — XEM THÔNG TIN THIẾT BỊ KHI XỬ LÝ</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
+          <p>KTV xem hồ sơ thiết bị từ trong phiếu đang xử lý — để chuẩn bị công cụ, linh kiện trước khi đến hiện trường.</p>
+
+          <h4>Xem hồ sơ thiết bị từ phiếu</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mở phiếu được điều phối</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm vào phiếu trong Phiếu của tôi.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm vào tên thiết bị</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Trong chi tiết phiếu, tên thiết bị là liên kết — bấm để xem hồ sơ đầy đủ.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Xem tab Lịch sử sự cố</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Xem tất cả lần báo hỏng trước của thiết bị — giúp chẩn đoán nhanh hơn.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Xem cấu hình chi tiết</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">CPU, RAM, thông số kỹ thuật — chuẩn bị đúng linh kiện cần mang theo.</div></div>
+  </div>
+
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>📋 Mẹo kỹ thuật:</b> Xem lịch sử sự cố giúp biết trước lỗi tái phát, tránh mất thời gian chẩn đoán lại tại hiện trường.</div>
+        
+"""#
+                )
+            ]
+        ),
+        HelpCategory(
+            title: "8. In Tem QR/Barcode & Báo Cáo A4 (Manager)",
+            iconName: "chart.bar.doc.horizontal",
+            defaultExpanded: false,
+            articles: [
+                HelpArticle(
+                    id: "print_qr",
+                    title: "8.1. In tem QR Code & Barcode dán thiết bị",
+                    htmlContent: #"""
+
+          <h3>IN TEM QR CODE & BARCODE — QUẢN LÝ</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
+          <p>Tính năng in tem chỉ trên <b>Web</b> và <b>Desktop</b>. Mobile App hỗ trợ quét nhưng không in.</p>
+
+          <h4>Các loại tem hỗ trợ</h4>
+          <ul>
+            <li><b>Tem nhiệt cuộn 50×30mm:</b> Phù hợp máy in nhiệt Xprinter, TSC.</li>
+            <li><b>Tem nhỏ 35×22mm:</b> Dán thiết bị nhỏ (chuột, tai nghe, điện thoại).</li>
+            <li><b>Tem lớn 70×40mm:</b> Server, UPS, màn hình lớn.</li>
+            <li><b>Decal A4 Tomy:</b> In nhiều tem trên một tờ A4 (24 tem/tờ).</li>
+          </ul>
+
+          <h4>Cách in tem trên Web / Desktop</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chọn thiết bị cần in</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Tích chọn một hoặc nhiều thiết bị trong danh sách.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Bấm "🖨️ In tem QR/Barcode"</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Nút trên thanh công cụ.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chọn khổ tem</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Chọn kích thước phù hợp máy in của bạn.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Preview & In</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Xem trước bố cục → bấm <b>In</b> hoặc <b>Xuất PDF</b>.</div></div>
+  </div>
+        
+"""#
+                ),
+                HelpArticle(
+                    id: "print_a4",
+                    title: "8.2. Xuất báo cáo & Biên bản A4 chuẩn Nghị định 30",
+                    htmlContent: #"""
+
+          <h3>XUẤT BÁO CÁO & BIÊN BẢN A4 CHUẨN NGHỊ ĐỊNH 30</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
+
+          <h4>Các loại biên bản & báo cáo</h4>
+          <ul>
+            <li><b>Biên bản bàn giao thiết bị</b> — Tạo khi gán thiết bị cho người dùng.</li>
+            <li><b>Phiếu hỗ trợ kỹ thuật</b> — Chi tiết sự cố, người xử lý, kết quả.</li>
+            <li><b>Báo cáo kiểm kê thiết bị</b> — Danh sách theo phòng ban / kỳ kiểm kê.</li>
+            <li><b>Bảng tổng hợp KPI KTV</b> — Xếp hạng KTV theo điểm đánh giá.</li>
+            <li><b>Báo cáo công tác phí</b> — Km di chuyển, chi phí tổng hợp theo tháng.</li>
+          </ul>
+
+          <h4>Cách xuất báo cáo</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Menu → Báo cáo & In ấn</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Chọn mục báo cáo cần xuất.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Lọc dữ liệu</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Chọn khoảng thời gian, phòng ban, người dùng.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Xuất PDF hoặc Excel</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>Xuất PDF</b> để in A4, hoặc <b>Xuất Excel</b> để có file .xlsx.</div></div>
+  </div>
+
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>📋 Chuẩn NĐ 30:</b> Tất cả biên bản đều có đủ Quốc hiệu — Tiêu ngữ, tên cơ quan và 3 cấp chữ ký (Lãnh đạo / Trưởng bộ phận / Người lập) theo cấu hình của Manager.</div>
+        
+"""#
+                )
+            ]
+        ),
+        HelpCategory(
+            title: "9. Chấm Công GPS & Công Tác Phí — KTV / Chuyên Viên",
             iconName: "location.fill",
             defaultExpanded: false,
             articles: [
                 HelpArticle(
                     id: "attendance_guide",
-                    title: "6.1. Điểm danh Chấm công GPS & Quản lý Công tác phí",
+                    title: "9.1. Chấm công GPS: Vào ca & Ra ca (Android / iOS)",
                     htmlContent: #"""
 
-                            <h3>1. Chấm Công Định Vị GPS & Quản Lý Chi Phí Đi Lại</h3>
-                            <p>Quản lý giờ công và chi phí công tác minh bạch, chính xác tuyệt đối.</p>
+          <h3>CHẤM CÔNG GPS — VÀO CA & RA CA</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span>
+          <p>Chỉ trên <b>Mobile (Android & iOS)</b> — xác nhận vị trí thực tế tại cơ quan bằng GPS.</p>
 
-                            <h4>A. Chấm công GPS trên Mobile App</h4>
-                            <ol>
-                                <li>Nhân viên mở màn hình <b>Chấm công</b>.</li>
-                                <li>Ứng dụng lấy vị trí GPS hiện tại và so sánh với tọa độ cơ quan/chi nhánh được cấp phép.</li>
-                                <li>Nếu vị trí hợp lệ (trong bán kính cho phép, VD: 100m): Bấm <b>Chấm công Vào ca</b> hoặc <b>Chấm công Ra ca</b>.</li>
-                                <li>Hệ thống lưu trữ thời gian, tọa độ, địa chỉ thực tế và ảnh xác thực.</li>
-                            </ol>
+          <h4>4 ca làm việc chuẩn</h4>
+          <table border="0" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse">
+            <tr style="background:#f1f5f9"><th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;color:#002a8f">Ca làm việc</th><th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;color:#002a8f">Giờ làm</th></tr>
+            <tr><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Hành chính</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">08:00 — 17:00</td></tr>
+            <tr style="background:#f8fafc"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Ca 1</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">07:00 — 15:00</td></tr>
+            <tr><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Ca 2</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">14:00 — 22:00</td></tr>
+            <tr style="background:#f8fafc"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Ca 3 / Ca đêm</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">22:00 — 06:00</td></tr>
+          </table>
 
-                            <h4>C. Quy Chế Chấm Hết Ca, Nhắc Nhở Tan Ca &amp; Xử Lý Tăng Ca Ngoài Giờ (OT)</h4>
-                            <ul>
-                                <li><b>Khung giờ 4 ca làm việc chuẩn:</b>
-                                    <ul>
-                                        <li>☀️ <b>Hành chính (HC):</b> 08:00 – 17:00 (Nghỉ trưa 12:00 – 13:00, thời lượng: 8 tiếng làm việc).</li>
-                                        <li>🌅 <b>Ca 1 - Sáng (SHIFT_1 / S):</b> 07:00 – 15:00 (Hỗ trợ mở quầy, mở cửa kinh doanh).</li>
-                                        <li>🌇 <b>Ca 2 - Chiều (SHIFT_2 / C):</b> 14:00 – 22:00 (Hỗ trợ ca chiều và bàn giao đóng cửa).</li>
-                                        <li>🌙 <b>Ca 3 - Đêm (NIGHT):</b> 22:00 – 06:00 sáng hôm sau (Bảo trì hệ thống, kiểm kê ban đêm).</li>
-                                    </ul>
-                                </li>
-                                <li><b>Chuông, Rung &amp; Giọng nói nhắc nhở tan ca:</b> Khi chạm mốc kết thúc ca làm việc (và sau đó 12–15 phút nếu KTV chưa chấm hết ca), ứng dụng IT Service &amp; Assets tự động bật thông báo đẩy Heads-Up, rung máy, phát chuông báo động và đọc giọng nói TTS tiếng Việt nhắc nhở KTV mở ứng dụng bấm Check-out tan ca. Bấm vào thông báo sẽ mở ngay màn hình Chấm công.</li>
-                                <li><b>Trường hợp quên Check-out (không có ticket ngoài ca):</b> Hệ thống tự động <b>chốt trần thời gian làm việc tối đa theo ca chuẩn</b> (8 tiếng cho ca HC, ca 1, ca 2, ca 3), trạng thái <code>NORMAL</code> (nhãn xanh <b>✅ Hoàn thành ca</b>), giúp dữ liệu chấm công không bị nhảy vọt sai thực tế. Sau <b>3.5 giờ</b> kể từ giờ tan ca, nếu KTV chưa check-out và không có ticket nào đang mở, hệ thống sẽ <b>tự động Auto Check-out</b> với ghi chú <code>[Hệ thống tự động chốt do quên check-out (HH:mm)]</code> để giải phóng trạng thái điểm danh cho ca kế tiếp.</li>
-                                <li><b>Trường hợp được điều phối ticket / Tăng ca ngoài giờ (OT):</b> Sau giờ ca, nếu KTV đang xử lý sự cố hoặc có ticket hoàn thành sau giờ ca, hệ thống ghi nhận <b>toàn bộ số phút làm việc thực tế</b> đến khi bấm Check-out, đánh dấu trạng thái <code>OVERTIME</code> (nhãn cam đậm <b>🔥 Tăng ca ngoài giờ (OT)</b>), đồng thời KTV được tính phụ cấp làm thêm ngoài giờ (hệ số x1.5 / x2.0 theo quy chế).</li>
-                            </ul>
-                        
+          <h4>Cách chấm công</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Mở Chấm công</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Menu → <b>Chấm công</b>.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chọn ca làm việc</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Chọn đúng ca của ngày hôm nay.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Kiểm tra GPS</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Hệ thống tự kiểm tra khoảng cách đến cơ quan — phải trong bán kính GPS hợp lệ.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chấm công Vào ca</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm nút <b>✅ Chấm công Vào ca</b>. Hệ thống ghi nhận giờ và vị trí GPS.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Cuối ca: Chấm công Ra ca</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>✅ Chấm công Ra ca</b>. Hệ thống tự tính tổng giờ công.</div></div>
+  </div>
+
+          <h4>Nhắc nhở tan ca tự động</h4>
+          <ul>
+            <li><b>Trước 15 phút:</b> Điện thoại rung + thông báo nhắc nhở Check-out sắp tới.</li>
+            <li><b>Đúng giờ tan ca:</b> Âm thanh + giọng đọc TTS nhắc nhở bấm Ra ca.</li>
+          </ul>
+
+          <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>📍 GPS nền bắt buộc:</b> Cấp quyền <b>"Luôn cho phép vị trí"</b> để hệ thống ghi lộ trình công tác phí chính xác ngay cả khi tắt màn hình.</div>
+        
 """#
                 ),
                 HelpArticle(
-                    id: "travel_expense_policy",
-                    title: "6.2. Quy Chế & Cơ Chế Tính Toán Công Tác Phí Hiện Trường",
+                    id: "travel_expense",
+                    title: "9.2. Công tác phí: Cách tính & Xem báo cáo",
                     htmlContent: #"""
 
-                            <h3>2. Quy Chế &amp; Cơ Chế Tính Toán Công Tác Phí Đi Lại</h3>
-                            <p>Cơ chế tự động hóa 100% việc tính toán, thẩm định và chi trả công tác phí cho Kỹ thuật viên đi hỗ trợ hiện trường dựa trên đo đạc GPS và OSRM thời gian thực.</p>
+          <h3>CÔNG TÁC PHÍ — CÁCH TÍNH & XEM BÁO CÁO</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
 
-                            <h4>A. Công Thức Tính Toán Chi Phí Chuẩn</h4>
-                            <div class="callout">
-                                <p style="margin:0 0 6px 0; font-size:13px; font-weight:bold; color:#0284c7;">Tổng Công Tác Phí = Tiền Xăng Xe + Phụ Cấp Chuyến Đi</p>
-                                <ul style="margin:0; padding-left:18px;">
-                                    <li><b>1. Tiền Xăng Xe (kmExpenseAmount):</b><br>
-                                        <code>Tiền Xăng = Cự ly áp dụng (km) &times; pricePerKm</code><br>
-                                        <i>(Định mức chuẩn: <b>5.000 VNĐ / km</b>, cự ly đo tự động bằng GPS thực tế hoặc OSRM)</i>.
-                                    </li>
-                                    <li><b>2. Phụ Cấp Chuyến Đi (tripAllowanceAmount):</b><br>
-                                        <code>Phụ Cấp = tripBaseAllowance &times; overtimeMultiplier</code><br>
-                                        <i>(Mức phụ cấp chuẩn: <b>50.000 VNĐ / ca</b> đi hiện trường &gt; 500m)</i>.
-                                    </li>
-                                    <li><b>3. Hệ Số Ngoài Giờ / Ca Đêm (overtimeMultiplier):</b><br>
-                                        Ca phát sinh ngoài giờ hành chính (trước 08:00 hoặc sau 17:00) hoặc Thứ 7, Chủ Nhật được nhân hệ số <b>1.5x (75.000đ)</b> hoặc <b>2.0x (100.000đ)</b> để khích lệ tinh thần ứng cứu sự cố khẩn cấp.
-                                    </li>
-                                </ul>
-                            </div>
+          <h4>Công thức tính tự động</h4>
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:11px 14px;margin:10px 0;border-radius:4px;font-size:12.5px;color:#0f172a">
+            <b>Tổng chi phí = (Km GPS × 5.000đ) + (Phụ cấp ca × Hệ số ngoài giờ)</b><br>
+            <ul style="margin:7px 0 0;padding-left:18px;font-size:12px;color:#334155">
+              <li>Tiền xăng xe: <b>5.000đ/km</b> (tính theo GPS OSRM thực tế)</li>
+              <li>Phụ cấp ca cơ bản: <b>50.000đ/chuyến</b></li>
+              <li>Hệ số ngoài giờ: ×1.5 (tối / cuối tuần) | ×2.0 (ngày lễ)</li>
+            </ul>
+          </div>
 
-                            <h4>B. Bảng Tham Số Cấu Hình Định Mức (TravelExpenseConfig)</h4>
-                            <div class="callout-warning">
-                                <b>Lưu ý quan trọng:</b> Toàn bộ các giá trị trong bảng định mức dưới đây (như đơn giá 5.000 VNĐ/km, phụ cấp ca 50.000 VNĐ, hệ số ngoài giờ...) chỉ mang tính chất <b>tham khảo định mức mẫu</b>. Trong thực tế vận hành, các mức định mức chi trả cụ thể sẽ được <b>áp dụng theo đúng quyết định và quy định ban hành của Ban Lãnh đạo</b> (Quản trị viên có thể tùy chỉnh linh hoạt các tham số này trong mục Cài đặt hệ thống).
-                            </div>
-                            <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse:collapse; border:1px solid #cbd5e1; font-size:12px; margin:8px 0;">
-                                <tr style="background-color:#f8fafc; font-weight:bold; color:#1e293b;">
-                                    <td style="padding:6px;">Tên Tham Số</td>
-                                    <td style="padding:6px;">Giá Trị Tham Khảo</td>
-                                    <td style="padding:6px;">Ý Nghĩa Áp Dụng</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><code>pricePerKm</code></td>
-                                    <td style="padding:6px;"><b>5.000 VNĐ</b></td>
-                                    <td style="padding:6px;">Đơn giá tiền xăng hỗ trợ trên mỗi km di chuyển bằng xe máy.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><code>tripBaseAllowance</code></td>
-                                    <td style="padding:6px;"><b>50.000 VNĐ</b></td>
-                                    <td style="padding:6px;">Phụ cấp cố định cho 1 ca hỗ trợ / sửa chữa tại hiện trường đơn vị.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><code>overtimeMultiplier</code></td>
-                                    <td style="padding:6px;"><b>1.5x / 2.0x</b></td>
-                                    <td style="padding:6px;">Hệ số nhân phụ cấp khi phát sinh ngoài giờ hoặc cuối tuần.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><code>arrivalRadiusMeters</code></td>
-                                    <td style="padding:6px;"><b>150 mét</b></td>
-                                    <td style="padding:6px;">Bán kính GPS xung quanh đơn vị để xác nhận KTV đã đến nơi.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><code>cancellationThreshold</code></td>
-                                    <td style="padding:6px;"><b>50%</b></td>
-                                    <td style="padding:6px;">Ngưỡng % quãng đường để phân loại chính sách duyệt khi hủy chuyến.</td>
-                                </tr>
-                            </table>
+          <h4>Quy tắc xử lý khi hủy chuyến</h4>
+          <ul>
+            <li>Đã di chuyển <b>≥ 50% quãng đường:</b> Hưởng <b>100%</b> công tác phí.</li>
+            <li>Di chuyển <b>&lt; 50% quãng đường:</b> Áp dụng chính sách <b>HALF_TRIP (50% phí)</b>.</li>
+            <li>Chưa xuất phát: <b>Không tính</b> công tác phí.</li>
+          </ul>
 
-                            <h4>C. Ma Trận Xử Lý Khi Hủy Chuyến (Cancellation Policy)</h4>
-                            <p>Khi sự cố tự khắc phục hoặc người dùng bấm Hủy giữa đường:</p>
-                            <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse:collapse; border:1px solid #cbd5e1; font-size:12px; margin:8px 0;">
-                                <tr style="background-color:#f8fafc; font-weight:bold; color:#1e293b;">
-                                    <td style="padding:6px;">Trường Hợp Hủy</td>
-                                    <td style="padding:6px;">Chính Sách Áp Dụng</td>
-                                    <td style="padding:6px;">Quy Tắc Quyết Toán Chi Phí</td>
-                                </tr>
-                                <tr style="background-color:#f0fdf4;">
-                                    <td style="padding:6px;"><b>Đã đi &ge; 50% cự ly</b></td>
-                                    <td style="padding:6px;"><span class="badge badge-success">FULL_TRIP</span></td>
-                                    <td style="padding:6px;">Quyết toán <b>TRỌN GÓI 100%</b> (100% tiền xăng + đủ 100% phụ cấp ca).</td>
-                                </tr>
-                                <tr style="background-color:#eff6ff;">
-                                    <td style="padding:6px;"><b>Đã đi &lt; 50% cự ly</b></td>
-                                    <td style="padding:6px;"><span class="badge badge-primary">HALF_TRIP (Mặc định)</span></td>
-                                    <td style="padding:6px;">Quyết toán <b>1/2 chặng đường</b> (50% Km cự ly + 50% phụ cấp ca).</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><b>Đã đi &lt; 50% (Tùy chọn)</b></td>
-                                    <td style="padding:6px;"><span class="badge badge-outline">ACTUAL_KM</span></td>
-                                    <td style="padding:6px;">Tính quãng đường khứ hồi đã đi rồi quay về (Km thực tế &times; 2) + 50% phụ cấp.</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><b>Đã đi &lt; 50% (Tùy chọn)</b></td>
-                                    <td style="padding:6px;"><span class="badge badge-warning">FLAT_FEE</span></td>
-                                    <td style="padding:6px;">Hỗ trợ cố định một khoản (Mặc định: <b>30.000 VNĐ</b>).</td>
-                                </tr>
-                                <tr style="background-color:#fef2f2;">
-                                    <td style="padding:6px;"><b>Hủy tại chỗ (&lt; 500 mét)</b></td>
-                                    <td style="padding:6px;"><span class="badge badge-danger">REJECTED</span></td>
-                                    <td style="padding:6px;">Tự động <b>Từ chối (0 VNĐ)</b> do KTV thực tế chưa xuất phát.</td>
-                                </tr>
-                            </table>
+          <h4>Xem & Xuất báo cáo công tác phí</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Menu → Chấm công → Công tác phí</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Mở màn hình tổng hợp công tác phí.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Chọn tháng cần xem</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Danh sách từng chuyến: ngày, địa điểm, km thực tế, chi phí.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Xuất báo cáo</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>Xuất Excel</b> hoặc <b>Xuất PDF</b> để nộp phòng kế toán.</div></div>
+  </div>
 
-                            <h4>D. 3 Bài Toán Case Study Minh Họa Tính Tiền Thực Tế</h4>
-                            <ul>
-                                <li><b>Case 1 - Ca hành chính thông thường:</b> KTV đi sửa máy in tại Chi nhánh Đông Đô (cự ly GPS 16.4 km). Tiền xăng: 16.4 &times; 5.000 = 82.000đ; Phụ cấp: 50.000đ. ➔ <b>Tổng chi phí = 132.000 VNĐ</b> (Trạng thái: PENDING ➔ APPROVED).</li>
-                                <li><b>Case 2 - Ứng cứu khẩn cấp ngoài giờ (Overtime 1.5x):</b> KTV xử lý sự cố server lúc 21:30 Thứ Bảy (cự ly 22.0 km). Tiền xăng: 22.0 &times; 5.000 = 110.000đ; Phụ cấp ngoài giờ: 50.000 &times; 1.5 = 75.000đ. ➔ <b>Tổng chi phí = 185.000 VNĐ</b>.</li>
-                                <li><b>Case 3 - Sự cố hủy giữa đường (40% cự ly):</b> Lộ trình chuẩn 20.0 km, KTV đã đi được 8.0 km (40% &lt; 50%) thì khách tự xử lý xong. Áp dụng chính sách HALF_TRIP: Km tính = 20.0 &times; 50% = 10.0 km (50.000đ) + Phụ cấp hủy = 50.000 &times; 50% = 25.000đ. ➔ <b>Tổng chi phí = 75.000 VNĐ</b>.</li>
-                            </ul>
-                        
-"""#
-                ),
-                HelpArticle(
-                    id: "shift_schedule_presence_guide",
-                    title: "6.3. Quy Định Phân Ca, Giám Sát Hiện Diện Online & Chế Tài Blacklist",
-                    htmlContent: #"""
-
-                            <h3>3. Quy Định Phân Ca, Giám Sát Hiện Diện Online &amp; Chế Tài Blacklist</h3>
-                            <p>Quy trình tổ chức phân ca trực, kiểm soát hiện diện thời gian thực và chế tài kỷ luật đảm bảo tính liên tục của dịch vụ IT hiện trường theo chuẩn Saigon Co.op.</p>
-
-                            <h4>A. Bảng Khung Giờ Các Ca Trực Chuẩn</h4>
-                            <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse:collapse; border:1px solid #cbd5e1; font-size:12px; margin:8px 0;">
-                                <tr style="background-color:#f8fafc; font-weight:bold; color:#1e293b;">
-                                    <td style="padding:6px; width:15%;">Mã Ca</td>
-                                    <td style="padding:6px; width:25%;">Tên Ca Trực</td>
-                                    <td style="padding:6px; width:25%;">Khung Giờ Quy Định</td>
-                                    <td style="padding:6px; width:35%;">Đặc Thù &amp; Ghi Chú</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-primary">HC</span></td>
-                                    <td style="padding:6px;"><b>Hành chính</b></td>
-                                    <td style="padding:6px;">08:00 – 17:00</td>
-                                    <td style="padding:6px;">Nghỉ trưa 12:00 – 13:00 (Thời lượng: 8 tiếng làm việc)</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-success">S (SHIFT_1)</span></td>
-                                    <td style="padding:6px;"><b>Ca 1 (Sáng)</b></td>
-                                    <td style="padding:6px;">07:00 – 15:00</td>
-                                    <td style="padding:6px;">Trực hỗ trợ mở cửa siêu thị, quầy thu ngân sáng</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-warning">C (SHIFT_2)</span></td>
-                                    <td style="padding:6px;"><b>Ca 2 (Chiều)</b></td>
-                                    <td style="padding:6px;">14:00 – 22:00</td>
-                                    <td style="padding:6px;">Trực hỗ trợ ca chiều và bàn giao đóng cửa siêu thị</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-purple">NIGHT</span></td>
-                                    <td style="padding:6px;"><b>Ca 3 (Đêm)</b></td>
-                                    <td style="padding:6px;">22:00 – 06:00 (+1)</td>
-                                    <td style="padding:6px;">Bảo trì hệ thống, kiểm kê định kỳ, sự cố ban đêm</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-primary">TR</span></td>
-                                    <td style="padding:6px;"><b>Trực hỗ trợ / Điều động</b></td>
-                                    <td style="padding:6px;">Theo lịch phân công</td>
-                                    <td style="padding:6px;">Trực tăng cường xử lý sự cố, khai trương điểm bán</td>
-                                </tr>
-                            </table>
-
-                            <h4>B. Quy Định Dung Sai Đi Trễ, Về Sớm &amp; Bán Kính GPS</h4>
-                            <ul>
-                                <li><b>Dung sai đi trễ hợp lệ:</b> Tối đa <b>15 phút</b> (<code>maxCheckInLateMinutes = 15</code>). Điểm danh sau giờ bắt đầu ca + 15 phút sẽ tự động bị gắn nhãn <span class="badge badge-warning">Đi trễ (LATE)</span>.</li>
-                                <li><b>Dung sai về sớm:</b> Check-out trước thời gian kết thúc ca được ghi nhận là <span class="badge badge-warning">Về sớm (EARLY)</span>.</li>
-                                <li><b>Bán kính GPS hợp lệ:</b> Chấm công thành công khi nằm trong bán kính <b>250 mét</b> xung quanh đơn vị hoặc mốc tọa độ được phân công.</li>
-                            </ul>
-
-                            <h4>C. Giải Đáp Thắc Mắc: "Đi Làm Khi Chưa Kịp Phân Ca Trên Hệ Thống"</h4>
-                            <div class="callout" style="border-left: 4px solid #0f766e; background-color: #f0fdfa;">
-                                <p style="margin: 0 0 6px 0; font-weight: bold; color: #0f766e; font-size: 13.5px;">
-                                    ❓ Nếu ngày đó Lãnh đạo chưa kịp sắp phân ca trên hệ thống mà nhân viên vẫn đi làm bình thường thì như thế nào? Ngày giờ công có được tính không? Có ảnh hưởng KPI không? Phân ca chỉ để xem có online trong ca để cảnh báo blacklist đúng không?
-                                </p>
-                                <p style="margin: 0 0 6px 0; font-weight: bold; color: #115e59;">TRẢ LỜI CHI TIẾT &amp; CHÍNH XÁC 100%:</p>
-                                <ol style="margin: 0; padding-left: 20px; color: #134e4a;">
-                                    <li style="margin-bottom: 4px;">
-                                        <b>Ngày công và giờ công vẫn được tính đúng và đủ 100%:</b> KTV mở app, chủ động chọn ca thực tế đi làm (Sáng, Chiều, Đêm, Hành chính) và bấm Check-in bình thường. Bản ghi chấm công tự động mang cờ <code>isUnscheduled = true</code> (Đi làm ngoài lịch). Toàn bộ số giờ làm việc thực tế và phụ cấp công tác phí di chuyển vẫn được ghi nhận đầy đủ khi tính lương.
-                                    </li>
-                                    <li style="margin-bottom: 4px;">
-                                        <b>Hoàn toàn KHÔNG bị ảnh hưởng đến KPI:</b> Điểm KPI ticket đo lường độc lập theo thời gian tiếp nhận và kết quả xử lý của từng ca sự cố thực tế trong tháng, hoàn toàn không phụ thuộc vào việc ngày đó có lịch phân ca trước hay không.
-                                    </li>
-                                    <li style="margin-bottom: 4px;">
-                                        <b>Mục đích cốt lõi của việc Phân ca trên hệ thống:</b> Phân ca là điều kiện để kích hoạt công cụ <b>Giám sát hiện diện Online (PresenceMonitor)</b>. Hệ thống chỉ giám sát và quét kiểm tra trạng thái Online đối với những KTV <i>CÓ ca trực theo lịch phân công</i>.
-                                        <br>&bull; Nếu có lịch ca mà không check-in hoặc offline &gt; 15 phút không xin phép thì hệ thống mới cảnh báo và đưa vào danh sách xem xét Blacklist.
-                                        <br>&bull; Ngược lại, <b>nếu ngày đó CHƯA có lịch phân ca, hệ thống KHÔNG quét kiểm tra hiện diện</b>. Do đó, KTV đi làm chấm công đột xuất hoàn toàn yên tâm <b>không bao giờ bị cảnh báo hay bị đưa vào Blacklist</b>.
-                                    </li>
-                                </ol>
-                            </div>
-
-                            <h4>D. Cơ Chế Giám Sát Hiện Diện Online &amp; Chế Tài Blacklist</h4>
-                            <p>Công cụ Presence Monitor hoạt động tự động trên cả ứng dụng Android và máy chủ Desktop:</p>
-                            <ul>
-                                <li><b>Quét trạng thái hiện diện:</b> Trong suốt khung giờ ca trực đã được phân công, hệ thống định kỳ kiểm tra heartbeat online của KTV.</li>
-                                <li><b>Cảnh báo vi phạm:</b> Nếu KTV tự ý Offline hoặc không có tương tác quá <b>15 phút</b> mà không gửi đơn xin phép qua hệ thống, hệ thống sẽ:
-                                    <br>&bull; Phát âm thanh giọng nói cảnh báo (TTS) trên Desktop của HelpDesk/Quản lý: <i>"Cảnh báo: Kỹ thuật viên đang vắng mặt trong ca trực!"</i>
-                                    <br>&bull; Gửi thông báo nhắc nhở tức thì đến điện thoại của KTV.
-                                    <br>&bull; Tự động ghi nhận bản ghi vi phạm vào danh mục <code>PresenceViolation</code>.
-                                </li>
-                                <li><b>Tiêu chuẩn đưa vào Danh Sách Cảnh Báo (Blacklist):</b>
-                                    <br>&bull; Có từ <b>5 lần vi phạm Offline</b> trong ca trực / tháng.
-                                    <br>&bull; Tự ý <b>bỏ ca trực không phép từ 2 lần/tháng</b> trở lên.
-                                    <br>&bull; Tỷ lệ xử lý thành công tháng P2 &lt; 50% hoặc để tồn đọng sự cố nghiêm trọng (Critical) quá 24 giờ.
-                                    <br>&bull; Gian lận vị trí định vị GPS chấm công hoặc nhờ người khác can thiệp vé.
-                                </li>
-                                <li><b>Chế tài xử lý kỷ luật:</b> KTV nằm trong Blacklist sẽ bị hạ một bậc xếp loại thi đua tháng (ví dụ từ Loại B xuống Loại C), trừ thưởng hiệu quả công việc và lập biên bản giải trình trước Hội đồng đánh giá.</li>
-                            </ul>
-
-                            <h4>E. Quy Chế Chấm Hết Ca, Nhắc Nhở Tan Ca &amp; Tăng Ca Ngoài Giờ (OT)</h4>
-                            <ul>
-                                <li><b>Cơ chế nhắc nhở tan ca tự động:</b> Khi chạm mốc kết thúc ca làm việc (và sau đó 12–15 phút nếu chưa chấm hết ca), ứng dụng IT Service &amp; Assets tự động kích hoạt <b>thông báo đẩy Heads-Up, rung máy và chuông / giọng nói TTS tiếng Việt</b> nhắc nhở KTV mở ứng dụng bấm Check-out tan ca. Bấm vào thông báo sẽ mở trực tiếp màn hình Chấm công.</li>
-                                <li><b>Trường hợp quên Check-out (không có việc ngoài ca):</b> Hệ thống chốt trần thời gian làm việc tối đa theo thời lượng ca chuẩn (8 tiếng cho ca HC, ca 1, ca 2, ca 3), trạng thái <code>NORMAL</code> (nhãn xanh <b>✅ Hoàn thành ca</b>), tránh sai lệch lạm phát giờ công. Sau <b>3.5 giờ</b> kể từ lúc tan ca, nếu KTV chưa check-out và không có ticket nào đang mở, hệ thống sẽ <b>tự động Auto Check-out</b> với ghi chú <code>[Hệ thống tự động chốt do quên check-out (HH:mm)]</code> để giải phóng trạng thái điểm danh cho ca tiếp theo.</li>
-                                <li><b>Trường hợp được điều phối ticket / Xử lý sự cố ngoài ca (OT):</b> Sau giờ ca, nếu KTV đang xử lý ticket hoặc có ticket hoàn thành sau giờ ca, hệ thống ghi nhận <b>toàn bộ thời gian làm việc thực tế</b> đến khi check-out, đánh dấu trạng thái <code>OVERTIME</code> (nhãn cam đậm <b>🔥 Tăng ca ngoài giờ (OT)</b>), đồng thời KTV được tính phụ cấp tăng ca ngoài giờ (hệ số x1.5 / x2.0) theo đúng quy chế.</li>
-                            </ul>
-                        
+          <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>⚠️ Lưu ý:</b> GPS phải bật <b>Luôn luôn</b> trong cả chuyến đi. Nếu GPS bị tắt giữa chừng, km không được ghi đầy đủ và ảnh hưởng đến công tác phí.</div>
+        
 """#
                 )
             ]
         ),
         HelpCategory(
-            title: "7. Báo Cáo, Thống Kê & Đánh Giá KPI IT Chuẩn Mực",
+            title: "10. KPI IT & Đánh Giá Chất Lượng Dịch Vụ",
             iconName: "chart.bar.doc.horizontal",
             defaultExpanded: false,
             articles: [
                 HelpArticle(
-                    id: "report_print_guide",
-                    title: "7.1. Báo cáo Thống kê & Xuất PDF / In A4 Chuẩn Nghị Định 30",
+                    id: "kpi_formula",
+                    title: "10.1. Công thức KPI 5 chỉ tiêu — Quản lý & HelpDesk",
                     htmlContent: #"""
 
-                            <h3>1. Báo Cáo Thống Kê & Xuất Văn Bản In Ấn Chuyên Nghiệp</h3>
-                            <p>IT Service & Assets trang bị hệ thống tạo biểu mẫu báo cáo chuẩn thể thức văn bản hành chính Việt Nam (Nghị định 30/2020/NĐ-CP).</p>
+          <h3>CÔNG THỨC KPI IT — 5 CHỈ TIÊU CHUẨN (TB-LH 161)</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
+          <p>Áp dụng cho: <b>Quản lý (Manager)</b> và <b>HelpDesk</b> khi xem báo cáo đánh giá KTV.</p>
 
-                            <h4>A. Các loại báo cáo thống kê</h4>
-                            <ul>
-                                <li><b>Thống kê Thiết bị:</b> Cơ cấu tài sản theo phòng ban, chủng loại, tình trạng hoạt động và giá trị tài sản.</li>
-                                <li><b>Báo cáo Đánh giá Hài lòng (KPI):</b> Xếp hạng KTV, điểm sao trung bình, tỉ lệ hài lòng và chi tiết phản hồi của khách hàng.</li>
-                                <li><b>Báo cáo Chấm công & Chi phí:</b> Bảng tổng hợp ngày công, số lần đi hiện trường, tổng quãng đường (km) và công tác phí.</li>
-                            </ul>
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:11px 14px;margin:10px 0;border-radius:4px">
+            <b>Điểm KPI (%) = (C1 × 20%) + (P1 × 20%) + (P2 × 40%) + (P3 × 10%) + (P4 × 10%)</b>
+          </div>
 
-                            <h4>B. Cấu hình Tiêu đề Báo cáo Hành chính</h4>
-                            <ol>
-                                <li>Nhấn nút <b>⚙️ Cấu hình tiêu đề</b> trên màn hình In ấn/Báo cáo.</li>
-                                <li>Điền: <i>Tên Cơ quan Chủ quản, Tên Đơn vị, Số hiệu văn bản, Địa danh, Quốc hiệu tiêu ngữ</i>.</li>
-                                <li>Cấu hình này tự động lưu và áp dụng cho toàn bộ các biểu mẫu in ấn của công ty.</li>
-                            </ol>
+          <table border="0" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:12px 0">
+            <tr style="background:#f1f5f9">
+              <th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;color:#002a8f">Ký hiệu</th>
+              <th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;color:#002a8f">Mô tả</th>
+              <th style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;color:#002a8f">Trọng số</th>
+            </tr>
+            <tr><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">C1</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Tỷ lệ xử lý đúng hạn SLA</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold;color:#002a8f">20%</td></tr>
+            <tr style="background:#f8fafc"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">P1</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Số phiếu hoàn thành trong kỳ</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold;color:#002a8f">20%</td></tr>
+            <tr><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">P2</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Điểm CSAT trung bình (1–5 sao)</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold;color:#002a8f">40%</td></tr>
+            <tr style="background:#f8fafc"><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">P3</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Tỷ lệ phiếu không bị Reopen</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold;color:#002a8f">10%</td></tr>
+            <tr><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold">P4</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px">Tỷ lệ chấm công đầy đủ trong kỳ</td><td style="padding:7px 10px;border:1px solid #e2e8f0;font-size:12px;font-weight:bold;color:#002a8f">10%</td></tr>
+          </table>
 
-                            <h4>C. Xem trước & Xuất PDF / In trực tiếp / Excel</h4>
-                            <ul>
-                                <li><b>Xem trước (Print Preview):</b> Kiểm tra văn bản trực tiếp trên màn hình trước khi in.</li>
-                                <li><b>Xuất PDF chất lượng cao:</b> Hỗ trợ khổ giấy A4 Dọc (Portrait) và A4 Ngang (Landscape).</li>
-                                <li><b>Xuất Excel (.xlsx):</b> Đầy đủ dữ liệu, căn lề và định dạng chuẩn văn phòng.</li>
-                            </ul>
-                        
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>⏰ Quy tắc tự động 5 sao (24h):</b> Nếu nhân viên không đánh giá trong 24h sau khi phiếu hoàn thành, hệ thống tự ghi nhận <b>5.0★ (100%)</b> — bảo vệ KPI KTV khỏi sự trì hoãn đánh giá.</div>
+        
 """#
                 ),
                 HelpArticle(
-                    id: "kpi_sla_evaluation_policy",
-                    title: "7.2. Quy Chuẩn Đánh Giá 5 Chỉ Tiêu KPI IT Tập Trung (Thông Báo 161/TB-LH)",
+                    id: "ktv_kpi_view",
+                    title: "10.2. KTV/Chuyên viên: Xem điểm KPI cá nhân",
                     htmlContent: #"""
 
-                            <h3>2. Hướng Dẫn Chấm Điểm 5 Chỉ Tiêu KPI IT Tập Trung</h3>
-                            <p>Căn cứ văn bản chính thức <b>Thông báo số 161/TB-LH ngày 21/05/2026</b> của Phòng Công nghệ Thông tin và Chuyển đổi số và <b>Phụ lục Hướng dẫn chấm điểm KPI IT Tập trung</b> của Saigon Co.op, toàn bộ nhân sự IT được đánh giá trên thang điểm 100% qua 5 chỉ tiêu cụ thể.</p>
+          <h3>KTV / CHUYÊN VIÊN — XEM ĐIỂM KPI CÁ NHÂN</h3>
+          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
 
-                            <h4>A. Công Thức Tổng Điểm KPI (Thang Điểm 100%)</h4>
-                            <div class="callout">
-                                <p style="margin:0; font-size:13.5px; font-weight:bold; color:#002a8f;">
-                                    ĐIỂM KPI TỔNG KẾT (%) = (C1 &times; 20%) + (P1 &times; 20%) + (P2 &times; 40%) + (P3 &times; 10%) + (P4 &times; 10%)
-                                </p>
-                            </div>
+          <h4>Xem điểm KPI của mình</h4>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Menu → Báo cáo cá nhân hoặc Hồ sơ</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Mở mục Báo cáo hoặc bấm vào Avatar hồ sơ cá nhân.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Xem điểm đánh giá</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Biểu đồ điểm sao CSAT theo tháng, số phiếu xử lý, tỷ lệ đúng hạn.</div></div>
+  </div>
+          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
+    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+    <div><b style="color:#0f172a;font-size:12.5px">Xem nhận xét của nhân viên</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Danh sách nhận xét kèm tên người gửi (nếu không ẩn danh).</div></div>
+  </div>
 
-                            <h4>B. Bảng Đặc Tả 5 Chỉ Tiêu KPI IT Tập Trung Chuẩn Hóa</h4>
-                            <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse:collapse; border:1px solid #cbd5e1; font-size:12px; margin:8px 0;">
-                                <tr style="background-color:#f8fafc; font-weight:bold; color:#1e293b;">
-                                    <td style="padding:6px; width:8%;">Mã</td>
-                                    <td style="padding:6px; width:22%;">Tên Chỉ Tiêu</td>
-                                    <td style="padding:6px; width:10%;">Tỷ Trọng</td>
-                                    <td style="padding:6px; width:12%;">Kế Hoạch</td>
-                                    <td style="padding:6px; width:24%;">Kỹ Thuật Viên (KTV)</td>
-                                    <td style="padding:6px; width:24%;">Nhóm Trưởng (Leader)</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-purple">C1</span></td>
-                                    <td style="padding:6px;"><b>Mức độ hài lòng CSAT</b></td>
-                                    <td style="padding:6px;"><b>20%</b></td>
-                                    <td style="padding:6px;">&ge; 90%</td>
-                                    <td style="padding:6px;"><code>(CSAT cá nhân / 5.0) &times; 100</code><br><i>Tự động 5★ sau 24h</i></td>
-                                    <td style="padding:6px;"><code>(CSAT toàn nhóm / 5.0) &times; 100</code></td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-primary">P1</span></td>
-                                    <td style="padding:6px;"><b>Tỷ lệ phản hồi đúng hạn</b></td>
-                                    <td style="padding:6px;"><b>20%</b></td>
-                                    <td style="padding:6px;">&ge; 90%</td>
-                                    <td style="padding:6px;">Phản hồi trong SLA (&le; 30 phút)<br><code>(Ticket đúng hạn / Tổng) &times; 100</code></td>
-                                    <td style="padding:6px;"><code>60% cá nhân + 40% toàn nhóm</code></td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-success">P2</span></td>
-                                    <td style="padding:6px;"><b>Tỷ lệ xử lý thành công</b></td>
-                                    <td style="padding:6px;"><b>40%</b></td>
-                                    <td style="padding:6px;">&ge; 90%</td>
-                                    <td style="padding:6px;">Hệ số quy đổi (1.0 - 0.5 - 0.25 - 0.0)<br><code>(Tổng hệ số / Tổng) &times; 100</code></td>
-                                    <td style="padding:6px;"><code>60% cá nhân + 40% toàn nhóm</code></td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-warning">P3</span></td>
-                                    <td style="padding:6px;"><b>Đảm bảo mạng ổn định</b></td>
-                                    <td style="padding:6px;"><b>10%</b></td>
-                                    <td style="padding:6px;">0 sự việc</td>
-                                    <td style="padding:6px;">Khởi điểm 100%, trừ 20%/lỗi cá nhân (-2.0đ tổng)</td>
-                                    <td style="padding:6px;">Trừ 20% lỗi cá nhân (-2.0đ), trừ 10% lỗi nhóm (-1.0đ)</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding:6px;"><span class="badge badge-warning">P4</span></td>
-                                    <td style="padding:6px;"><b>Đảm bảo vi tính ổn định</b></td>
-                                    <td style="padding:6px;"><b>10%</b></td>
-                                    <td style="padding:6px;">0 sự việc</td>
-                                    <td style="padding:6px;">Khởi điểm 100%, trừ 20%/lỗi cá nhân (-2.0đ tổng)</td>
-                                    <td style="padding:6px;">Trừ 20% lỗi cá nhân (-2.0đ), trừ 10% lỗi nhóm (-1.0đ)</td>
-                                </tr>
-                            </table>
+          <h4>Yếu tố ảnh hưởng KPI của KTV</h4>
+          <ul>
+            <li>✓ Xử lý phiếu đúng hạn SLA → tăng điểm C1.</li>
+            <li>✓ Nhân viên đánh giá cao (4–5 sao) → tăng điểm P2 (trọng số cao nhất 40%).</li>
+            <li>✓ Phiếu không bị Reopen (xử lý đúng từ đầu) → tăng điểm P3.</li>
+            <li>✓ Chấm công đầy đủ mỗi ngày → tăng điểm P4.</li>
+            <li>✗ Nhân viên đánh giá thấp (1–2 sao) → giảm điểm P2 đáng kể.</li>
+          </ul>
 
-                            <h4>C. Chi Tiết Các Quy Định Vàng Của Phụ Lục Chấm Điểm</h4>
-                            <ul>
-                                <li><b style="color:#b45309;">🌟 QUY TẮC TỰ ĐỘNG 24H ĐÓNG 5 SAO (CHỈ TIÊU C1):</b><br>
-                                    <i>"Trường hợp người sử dụng không thực hiện đánh giá trong vòng 24 giờ kể từ thời điểm hoàn tất xử lý ticket và không phát sinh yêu cầu xử lý bổ sung hoặc xử lý lại, ticket sẽ được mặc định ghi nhận ở mức <b>'Rất hài lòng' (5 sao / 100%)</b> để phục vụ công tác tổng hợp và đánh giá KPI dịch vụ."</i><br>
-                                    ➔ Đảm bảo quyền lợi tối đa cho KTV, không bị thiệt thòi khi người dùng bận việc quên bấm sao.
-                                </li>
-                                <li><b>BẢNG HỆ SỐ QUY ĐỔI KẾT QUẢ XỬ LÝ (CHỈ TIÊU P2):</b><br>
-                                    &bull; <b>1.0:</b> Xử lý đúng hạn cam kết SLA và đạt chất lượng.<br>
-                                    &bull; <b>0.5:</b> Đạt chất lượng &amp; Trễ hạn lần 1 (thời gian xử lý &le; 1.5 lần SLA).<br>
-                                    &bull; <b>0.25:</b> Đạt chất lượng &amp; Trễ hạn lần 2 (thời gian xử lý &le; 2.5 lần SLA).<br>
-                                    &bull; <b>0.0:</b> Trễ hạn lần 3 (&gt; 2.5 lần SLA) HOẶC Không đạt chất lượng (bị Reopen).<br>
-                                    &bull; <b>1.0 (Miễn trừ):</b> Các trường hợp khách quan (đứt cáp ISP, chờ nhà cung cấp phần mềm, chờ linh kiện thay thế đặc thù có phê duyệt).
-                                </li>
-                                <li><b>THỜI GIAN THEO DÕI CHẤT LƯỢNG KHÔNG BỊ REOPEN:</b><br>
-                                    <i>Critical:</i> 72 – 120 giờ; <i>High:</i> 72 giờ; <i>Medium:</i> 48 giờ; <i>Low:</i> 24 giờ.
-                                </li>
-                                <li><b>DANH MỤC LỖI MẠNG (P3) &amp; LỖI VI TÍNH (P4) CHỦ QUAN:</b><br>
-                                    &bull; <i>Lỗi mạng (P3):</i> Mất kết nối WAN không liên hệ ISP; tự ý can thiệp sai thiết bị LAN/WAN; xử lý sai nguyên nhân sự cố; tự ý can thiệp sai dịch vụ server; không bảo trì định kỳ hệ thống mạng; không cập nhật sơ đồ mạng.<br>
-                                    &bull; <i>Lỗi vi tính (P4):</i> Không tuân thủ bảo trì định kỳ PC/ngoại vi; thiết bị lỗi lặp lại nhưng không có hướng đề xuất xử lý; không tuân thủ quy trình mua sắm/cải tạo; chậm phản hồi đề xuất đơn vị; không sao lưu định kỳ HĐH/cấu hình; không kiểm tra kết quả sao lưu dữ liệu; hồ sơ thiết bị thiếu sót.
-                                </li>
-                            </ul>
-
-                            <h4>D. Bài Toán Ví Dụ Minh Họa Tính Điểm Thực Tế (Case Study)</h4>
-                            <div style="background-color:#f0fdf4; border:1.5px solid #16a34a; border-radius:8px; padding:10px 14px; margin:8px 0;">
-                                <b style="color:#166534; font-size:13px;">Ví dụ: KTV Nguyễn Văn A xử lý 50 ticket trong tháng</b>
-                                <ul style="margin:4px 0 6px 0; padding-left:18px; font-size:12px;">
-                                    <li><b>Chỉ tiêu P1:</b> 48 ticket phản hồi &le; 30 phút (2 ticket trễ) ➔ Điểm P1 = (48 / 50) &times; 100 = <b>96.0%</b> (Đóng góp: 96.0% &times; 0.20 = <b>19.20đ</b>).</li>
-                                    <li><b>Chỉ tiêu P2:</b> 42 ticket đúng hạn (42&times;1.0) + 4 trễ L1 (4&times;0.5=2.0) + 2 trễ L2 (2&times;0.25=0.5) + 2 bị reopen (2&times;0.0) = 44.5 ticket quy đổi ➔ Điểm P2 = (44.5 / 50) &times; 100 = <b>89.0%</b> (Đóng góp: 89.0% &times; 0.40 = <b>35.60đ</b>).</li>
-                                    <li><b>Chỉ tiêu C1:</b> 30 ticket đánh giá đạt 4.80★ + 20 ticket tự động 5.0★ sau 24h ➔ CSAT TB = 4.88★ ➔ Điểm C1 = (4.88 / 5.0) &times; 100 = <b>97.6%</b> (Đóng góp: 97.6% &times; 0.20 = <b>19.52đ</b>).</li>
-                                    <li><b>Chỉ tiêu P3:</b> Không có sự cố mạng chủ quan ➔ <b>100%</b> (Đóng góp: 100% &times; 0.10 = <b>10.00đ</b>).</li>
-                                    <li><b>Chỉ tiêu P4:</b> 1 lỗi không kiểm tra sao lưu đơn vị ➔ Trừ 20% = <b>80%</b> (Đóng góp: 80% &times; 0.10 = <b>8.00đ</b>).</li>
-                                </ul>
-                                <div style="text-align:center; font-weight:bold; color:#002a8f; font-size:13px; border-top:1px dashed #86efac; padding-top:6px;">
-                                    TỔNG ĐIỂM KPI = 19.20 + 35.60 + 19.52 + 10.00 + 8.00 = <span style="color:#dc2626; font-size:14px;">92.32%</span> (Quy đổi: 4.62 ⭐)
-                                    <br><span class="badge badge-primary" style="font-size:11px; margin-top:3px;">XẾP LOẠI: B (HOÀN THÀNH TỐT NHIỆM VỤ)</span>
-                                </div>
-                            </div>
-
-                            <h4>E. Thang Điểm Xếp Loại Thi Đua Tháng</h4>
-                            <table border="1" cellpadding="6" cellspacing="0" style="width:100%; border-collapse:collapse; border:1px solid #cbd5e1; font-size:12px; margin:8px 0; text-align:center;">
-                                <tr style="background-color:#f8fafc; font-weight:bold;">
-                                    <td style="width:20%;">Khoảng Điểm KPI</td>
-                                    <td style="width:15%;">Điểm Sao (⭐)</td>
-                                    <td style="width:25%;">Xếp Loại Thi Đua</td>
-                                    <td style="width:40%; text-align:left;">Chế Độ Khen Thưởng / Kỷ Luật</td>
-                                </tr>
-                                <tr style="background-color:#f0fdf4;">
-                                    <td><b>Từ 95.0% trở lên</b></td>
-                                    <td>4.75 – 5.00 ⭐</td>
-                                    <td><span class="badge badge-success">LOẠI A (Xuất sắc)</span></td>
-                                    <td style="text-align:left;">Hưởng 100% lương hiệu quả + thưởng thi đua tháng.</td>
-                                </tr>
-                                <tr>
-                                    <td><b>Từ 85.0% đến 94.9%</b></td>
-                                    <td>4.25 – 4.74 ⭐</td>
-                                    <td><span class="badge badge-primary">LOẠI B (Hoàn thành tốt)</span></td>
-                                    <td style="text-align:left;">Hưởng 100% lương hiệu quả theo quy chế.</td>
-                                </tr>
-                                <tr style="background-color:#fffbeb;">
-                                    <td><b>Từ 70.0% đến 84.9%</b></td>
-                                    <td>3.50 – 4.24 ⭐</td>
-                                    <td><span class="badge badge-warning">LOẠI C (Đạt yêu cầu)</span></td>
-                                    <td style="text-align:left;">Đạt yêu cầu; nhắc nhở cải thiện các ca trễ hạn.</td>
-                                </tr>
-                                <tr style="background-color:#fef2f2;">
-                                    <td><b>Dưới 70.0%</b></td>
-                                    <td>Dưới 3.50 ⭐</td>
-                                    <td><span class="badge badge-danger">LOẠI D (Cần cải thiện)</span></td>
-                                    <td style="text-align:left;">Chưa đạt; xem xét giảm lương hiệu quả và đào tạo lại.</td>
-                                </tr>
-                            </table>
-                        
-"""#
-                )
-            ]
-        ),
-        HelpCategory(
-            title: "8. Cài Đặt Hệ Thống, Bảo Trì & Sao Lưu",
-            iconName: "gearshape.fill",
-            defaultExpanded: false,
-            articles: [
-                HelpArticle(
-                    id: "system_settings_guide",
-                    title: "8.1. Thông tin Doanh nghiệp, Chế độ Bảo trì & Sao lưu Dữ liệu",
-                    htmlContent: #"""
-
-                            <h3>1. Cài Đặt Doanh Nghiệp, Chế Độ Bảo Trì & Đồng Bộ Đám Mây</h3>
-                            <p>Tối ưu hóa và bảo vệ dữ liệu doanh nghiệp an toàn tuyệt đối.</p>
-
-                            <h4>A. Thông tin Doanh nghiệp & Logo Thương hiệu</h4>
-                            <ul>
-                                <li>Vào <b>Cài đặt ➔ Thông tin Doanh nghiệp</b>.</li>
-                                <li>Cập nhật Tên công ty, Địa chỉ trụ sở, Hotline, Email và tải lên <b>Logo chính thức</b>. Logo sẽ tự động xuất hiện trên tất cả biểu mẫu in ấn và báo cáo.</li>
-                            </ul>
-
-                            <h4>B. Chế độ Bảo trì Hệ thống (Maintenance Mode)</h4>
-                            <ul>
-                                <li>Khi cần nâng cấp cơ sở dữ liệu hoặc bảo trì định kỳ, Super Admin bật <b>Chế độ bảo trì</b> và nhập lời nhắn thông báo.</li>
-                                <li>Toàn bộ nhân viên sẽ nhận được màn hình thông báo thân thiện và tạm dừng thao tác ghi dữ liệu.</li>
-                                <li>Admin và Super Admin vẫn có toàn quyền thao tác để thực hiện kiểm thử và tắt bảo trì khi hoàn tất.</li>
-                            </ul>
-
-                            <h4>C. Cơ chế Đồng bộ Đám mây & SQLite Cục bộ</h4>
-                            <ul>
-                                <li>Hệ thống áp dụng kiến trúc <b>Offline-First</b> kết hợp <b>Cloud Firestore Sync</b>.</li>
-                                <li>Dữ liệu được lưu trữ trên máy chủ đám mây thời gian thực, đồng thời lưu đệm trên SQLite cục bộ để đảm bảo tốc độ phản hồi tức thì và không bị gián đoạn khi mạng chập chờn.</li>
-                            </ul>
-                        
+          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>💡 Mẹo nâng cao KPI:</b> Chat với nhân viên ngay sau khi nhận phiếu, cập nhật trạng thái thường xuyên, và xử lý triệt để để tránh phiếu bị Reopen.</div>
+        
 """#
                 )
             ]
