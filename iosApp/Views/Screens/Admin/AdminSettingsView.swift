@@ -412,33 +412,52 @@ struct SettingsSectionView<Content: View>: View {
     let title: String
     let icon: String
     let content: Content
+    @State private var isExpanded: Bool = false
     
-    init(title: String, icon: String, @ViewBuilder content: () -> Content) {
+    init(title: String, icon: String, defaultExpanded: Bool = false, @ViewBuilder content: () -> Content) {
         self.title = title
         self.icon = icon
+        self._isExpanded = State(initialValue: defaultExpanded)
         self.content = content()
     }
     
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundColor(Color.blue)
-                Text(title)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(Color.blue)
-                Spacer()
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack(spacing: 10) {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(Color.blue)
+                        .frame(width: 30, height: 30)
+                        .background(Color.blue.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                    Text(title)
+                        .font(.system(size: 14.5, weight: .bold))
+                        .foregroundColor(Color.appTextPrimary)
+
+                    Spacer()
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color.gray)
+                }
+                .padding(14)
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-            .padding(.bottom, 12)
+            .buttonStyle(PlainButtonStyle())
             
-            Divider().padding(.horizontal, 16)
-            
-            VStack(spacing: 12) {
-                content
+            if isExpanded {
+                Divider().padding(.horizontal, 14)
+                VStack(spacing: 12) {
+                    content
+                }
+                .padding(14)
             }
-            .padding(16)
         }
         .background(Color.appSurface)
         .cornerRadius(16)

@@ -56,6 +56,10 @@ public struct SystemSettingsView: View {
     @State private var showToast: Bool = false
     @State private var toastMessage: String = ""
 
+    // Accordion State: Quản lý Thu gọn / Sổ xuống (Mặc định thu gọn tất cả theo yêu cầu)
+    private let allSectionIds: Set<String> = ["company", "attendance", "expenses", "sla", "devices", "notifications"]
+    @State private var expandedSections: Set<String> = []
+
     // Local Cache
     @AppStorage("companyName") private var localCompanyName: String = ""
     @AppStorage("companyCode") private var localCompanyCode: String = ""
@@ -114,6 +118,8 @@ public struct SystemSettingsView: View {
                     } else {
                         ScrollView {
                             VStack(spacing: 16) {
+                                accordionMasterBar
+
                                 sectionCompanyInfo()
                                 sectionAttendance()
                                 sectionExpenses()
@@ -135,11 +141,112 @@ public struct SystemSettingsView: View {
             Alert(title: Text("Thông báo"), message: Text(toastMessage), dismissButton: .default(Text("OK")))
         }
     }
+
+    private func toggleSection(_ id: String) {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            if expandedSections.contains(id) {
+                expandedSections.remove(id)
+            } else {
+                expandedSections.insert(id)
+            }
+        }
+    }
+
+    private var accordionMasterBar: some View {
+        HStack {
+            HStack(spacing: 8) {
+                ZStack {
+                    Circle()
+                        .fill(expandedSections.isEmpty ? Color.gray.opacity(0.12) : Color.appPrimary.opacity(0.12))
+                        .frame(width: 28, height: 28)
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(expandedSections.isEmpty ? Color.gray : Color.appPrimary)
+                }
+                Text("Danh mục: \(expandedSections.count)/\(allSectionIds.count) mục đang mở")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundColor(Color.appTextSecondary)
+            }
+            Spacer()
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    if expandedSections.isEmpty {
+                        expandedSections = allSectionIds
+                    } else {
+                        expandedSections.removeAll()
+                    }
+                }
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: expandedSections.isEmpty ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 11, weight: .bold))
+                    Text(expandedSections.isEmpty ? "Mở rộng tất cả" : "Thu gọn tất cả")
+                        .font(.system(size: 12, weight: .bold))
+                }
+                .foregroundColor(expandedSections.isEmpty ? Color.appPrimary : Color(hex: "#EF4444"))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(expandedSections.isEmpty ? Color.appPrimary.opacity(0.1) : Color(hex: "#FEF2F2"))
+                .cornerRadius(8)
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color.appSurface)
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private func collapsibleCard<Content: View>(
+        id: String,
+        title: String,
+        icon: String,
+        iconColor: Color = Color.appPrimary,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        let isExpanded = expandedSections.contains(id)
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: { toggleSection(id) }) {
+                HStack(spacing: 10) {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(iconColor)
+                        .frame(width: 30, height: 30)
+                        .background(iconColor.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                    Text(title)
+                        .font(.system(size: 13.5, weight: .bold))
+                        .foregroundColor(Color.appTextPrimary)
+
+                    Spacer()
+
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color.gray)
+                }
+                .padding(14)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PlainButtonStyle())
+
+            if isExpanded {
+                Divider().padding(.horizontal, 14)
+                VStack(spacing: 12) {
+                    content()
+                }
+                .padding(14)
+            }
+        }
+        .background(Color.appSurface)
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
+    }
     
     @ViewBuilder
     private func sectionCompanyInfo() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("THÔNG TIN CÔNG TY").font(.system(size: 12, weight: .bold)).foregroundColor(.gray)
+        collapsibleCard(id: "company", title: "THÔNG TIN CÔNG TY", icon: "building.2.fill", iconColor: Color(hex: "#4F46E5")) {
             VStack(spacing: 12) {
                 settingTextField(title: "Tên công ty", text: $companyName)
                 settingTextField(title: "Mã công ty", text: $companyCode)
@@ -148,13 +255,11 @@ public struct SystemSettingsView: View {
                 settingTextField(title: "Email", text: $companyEmail)
             }
         }
-        .padding(14).background(Color.appSurface).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     @ViewBuilder
     private func sectionAttendance() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("CHẤM CÔNG & CA KÍP").font(.system(size: 12, weight: .bold)).foregroundColor(.gray)
+        collapsibleCard(id: "attendance", title: "CHẤM CÔNG & CA KÍP", icon: "clock.fill", iconColor: Color(hex: "#059669")) {
             VStack(spacing: 12) {
                 Toggle("Bật GPS Check-in", isOn: $gpsCheckInEnabled).font(.system(size: 13))
                 Toggle("Bật Selfie Check-in", isOn: $selfieCheckInEnabled).font(.system(size: 13))
@@ -208,13 +313,11 @@ public struct SystemSettingsView: View {
                 settingDoubleField(title: "Tọa độ Lng", value: $gpsLng)
             }
         }
-        .padding(14).background(Color.appSurface).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
 
     @ViewBuilder
     private func sectionExpenses() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("ĐỊNH MỨC CÔNG TÁC PHÍ & HỦY TICKET").font(.system(size: 12, weight: .bold)).foregroundColor(.gray)
+        collapsibleCard(id: "expenses", title: "ĐỊNH MỨC CÔNG TÁC PHÍ & HỦY TICKET", icon: "dollarsign.circle.fill", iconColor: Color(hex: "#D97706")) {
             VStack(spacing: 12) {
                 settingDoubleField(title: "Đơn giá xăng (VNĐ/km)", value: $pricePerKm)
                 settingDoubleField(title: "Phụ cấp ca xử lý (VNĐ/ca)", value: $tripBaseAllowance)
@@ -241,43 +344,36 @@ public struct SystemSettingsView: View {
                 }
             }
         }
-        .padding(14).background(Color.appSurface).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
     
     @ViewBuilder
     private func sectionSLA() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("SLA (CAM KẾT DỊCH VỤ)").font(.system(size: 12, weight: .bold)).foregroundColor(.gray)
+        collapsibleCard(id: "sla", title: "SLA (CAM KẾT DỊCH VỤ)", icon: "checkmark.shield.fill", iconColor: Color(hex: "#0284C7")) {
             VStack(spacing: 12) {
                 settingNumberField(title: "SLA Khẩn cấp (giờ)", value: $slaUrgentHours)
                 settingNumberField(title: "SLA Cao (giờ)", value: $slaHighHours)
                 settingNumberField(title: "SLA Thường (giờ)", value: $slaNormalHours)
             }
         }
-        .padding(14).background(Color.appSurface).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
     
     @ViewBuilder
     private func sectionDevices() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("THIẾT BỊ & GIẤY PHÉP").font(.system(size: 12, weight: .bold)).foregroundColor(.gray)
+        collapsibleCard(id: "devices", title: "THIẾT BỊ & GIẤY PHÉP", icon: "ipad.and.iphone", iconColor: Color(hex: "#7C3AED")) {
             VStack(spacing: 12) {
                 settingNumberField(title: "Số thiết bị tối đa / người", value: $maxDevicesPerUser)
                 Toggle("Bật Paywall / Giấy phép", isOn: $paywallEnabled).font(.system(size: 13))
             }
         }
-        .padding(14).background(Color.appSurface).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
     
     @ViewBuilder
     private func sectionNotifications() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("THÔNG BÁO").font(.system(size: 12, weight: .bold)).foregroundColor(.gray)
+        collapsibleCard(id: "notifications", title: "THÔNG BÁO", icon: "bell.fill", iconColor: Color(hex: "#EA580C")) {
             VStack(spacing: 12) {
                 Toggle("Bật thông báo đẩy", isOn: $notificationsEnabled).font(.system(size: 13))
             }
         }
-        .padding(14).background(Color.appSurface).cornerRadius(12).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
     }
     
     private func settingTextField(title: String, text: Binding<String>) -> some View {
