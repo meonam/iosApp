@@ -407,9 +407,13 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // MARK: - GOOGLE MAPS GEOCODING API (GIỐNG HỆT ANDROID Geocoder — CHUẨN NHẤT CHO VIỆT NAM)
+    // MARK: - GOOGLE MAPS GEOCODING API (CHỈ CHẠY KHI ĐƯỢC CẤU HÌNH API KEY HỢP LỆ)
     public static func fetchGoogleMapsAddress(latitude: Double, longitude: Double, completion: @escaping (String?) -> Void) {
-        let apiKey = "AIzaSyDXssW9ZtELkOc5d1GGQ5bjYVPRo6Yq_hc"
+        let apiKey = ""
+        guard !apiKey.isEmpty else {
+            completion(nil)
+            return
+        }
         let urlString = "https://maps.googleapis.com/maps/api/geocode/json?latlng=\(latitude),\(longitude)&key=\(apiKey)&language=vi"
         guard let url = URL(string: urlString) else {
             completion(nil)
