@@ -212,7 +212,7 @@ public struct HomeScreenView: View {
                         if viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk || viewModel.user.isManager {
                             overflowMenuItem(
                                 title: "Phát thông báo & Banner TopBar",
-                                icon: "megaphone.fill",
+                                icon: "bell.fill",
                                 color: Color(hex: "#EA580C"),
                                 bgColor: Color(hex: "#FFF7ED")
                             ) {
