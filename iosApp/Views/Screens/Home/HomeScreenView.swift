@@ -266,7 +266,7 @@ public struct HomeScreenView: View {
                         }
                     }
                     .padding(8)
-                    .frame(width: 260)
+                    .frame(width: 308)
                     .background(Color.white)
                     .cornerRadius(16)
                     .shadow(color: Color.black.opacity(0.18), radius: 16, x: -2, y: 8)
@@ -779,7 +779,7 @@ public struct HomeScreenView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(bgColor)
@@ -794,6 +794,7 @@ public struct HomeScreenView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(isDestructive ? color : Color.appTextPrimary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.85)
 
                 Spacer()
             }
