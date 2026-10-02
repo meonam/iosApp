@@ -210,7 +210,7 @@ public struct DeviceListView: View {
                                     } else {
                                         viewModel.groupMode = .deptThenUnit
                                     }
-                                    viewModel.autoExpandAllGroups()
+                                    viewModel.collapseAllGroups()
                                 }
                             }) {
                                 HStack(spacing: 5) {
@@ -259,9 +259,9 @@ public struct DeviceListView: View {
                                     }
                                 }) {
                                     HStack(spacing: 4) {
-                                        Image(systemName: viewModel.expandedLevel1.isEmpty ? "arrow.down.right.and.arrow.up.left" : "xmark")
+                                        Image(systemName: viewModel.isAllExpanded ? "xmark" : "arrow.down.right.and.arrow.up.left")
                                             .font(.system(size: 11, weight: .bold))
-                                        Text(viewModel.expandedLevel1.isEmpty ? "Mở tất cả" : "Thu gọn")
+                                        Text(viewModel.isAllExpanded ? "Thu gọn" : "Mở tất cả")
                                             .font(.system(size: 12, weight: .bold))
                                     }
                                     .padding(.horizontal, 10)

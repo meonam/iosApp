@@ -187,19 +187,47 @@ public class DeviceViewModel: ObservableObject {
         return result
     }
 
+    public var isAllExpanded: Bool {
+        let currentL1Keys: [String] = {
+            switch groupMode {
+            case .deptThenUnit:
+                return Array(groupedDeptThenUnit.keys)
+            case .unitThenDept:
+                return Array(groupedUnitThenDept.keys)
+            case .flat:
+                return []
+            }
+        }()
+        guard !currentL1Keys.isEmpty else { return false }
+        return currentL1Keys.allSatisfy { expandedLevel1.contains($0) }
+    }
+
     public func autoExpandAllGroups() {
-        for (dept, unitMap) in groupedDeptThenUnit {
-            expandedLevel1.insert(dept)
-            for (unit, _) in unitMap {
-                expandedLevel2.insert("\(dept)__\(unit)")
+        expandedLevel1.removeAll()
+        expandedLevel2.removeAll()
+        switch groupMode {
+        case .deptThenUnit:
+            for (dept, unitMap) in groupedDeptThenUnit {
+                expandedLevel1.insert(dept)
+                for (unit, _) in unitMap {
+                    expandedLevel2.insert("\(dept)__\(unit)")
+                }
             }
-        }
-        for (unit, deptMap) in groupedUnitThenDept {
-            expandedLevel1.insert(unit)
-            for (dept, _) in deptMap {
-                expandedLevel2.insert("\(unit)__\(dept)")
+        case .unitThenDept:
+            for (unit, deptMap) in groupedUnitThenDept {
+                expandedLevel1.insert(unit)
+                for (dept, _) in deptMap {
+                    expandedLevel2.insert("\(unit)__\(dept)")
+                }
             }
+        case .flat:
+            break
         }
+    }
+
+    public func collapseAllGroups() {
+        expandedLevel1.removeAll()
+        expandedLevel2.removeAll()
     }
 
     public func toggleLevel1(_ key: String) {
@@ -219,11 +247,10 @@ public class DeviceViewModel: ObservableObject {
     }
 
     public func toggleExpandAll() {
-        if expandedLevel1.isEmpty {
-            autoExpandAllGroups()
+        if isAllExpanded {
+            collapseAllGroups()
         } else {
-            expandedLevel1.removeAll()
-            expandedLevel2.removeAll()
+            autoExpandAllGroups()
         }
     }
 
@@ -326,7 +353,7 @@ public class DeviceViewModel: ObservableObject {
 
                 self.isLoading = false
                 self.isFetchingMore = false
-                self.autoExpandAllGroups()
+                // Mặc định các nhóm thiết bị ở trạng thái thu gọn ban đầu theo yêu cầu gọn gàng
 
             } else {
                 self.isLoading = false
@@ -841,7 +868,6 @@ public class DeviceViewModel: ObservableObject {
                 } else {
                     self.rawDevices.insert(newDevice, at: 0)
                 }
-                self.autoExpandAllGroups()
                 self.successMessage = "Đã thêm thiết bị thành công"
                 self.fetchDevices(isRefresh: true)
                 completion(.success(cleanId))
