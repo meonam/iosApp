@@ -711,6 +711,63 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         }
         return false
     }
+
+    // MARK: - KIỂM TRA TIẾP NHẬN TOÀN DIỆN (ĐỒNG BỘ 1:1 VỚI ANDROID & DESKTOP)
+    public var isEffectivelyAcknowledged: Bool {
+        if isAcknowledged || acknowledgedAt > 0 || !acknowledgedBy.isEmpty { return true }
+        if !handlingMethod.isEmpty { return true }
+        let st = status.uppercased()
+        if ["PROCESSING", "IN_PROGRESS", "ASSIGNED", "RESOLVED", "CLOSED"].contains(st) { return true }
+        if let tr = tracking, !tr.status.isEmpty && tr.status.uppercased() != "IDLE" { return true }
+        return false
+    }
+
+    public func isUserAcknowledged(email: String) -> Bool {
+        guard !email.isEmpty else { return false }
+        let clean = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanPrefix = clean.components(separatedBy: "@").first ?? clean
+
+        // 1. KTV chính
+        let aEmail = assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let aEmailPrefix = aEmail.components(separatedBy: "@").first ?? aEmail
+        let aTo = assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let aToPrefix = aTo.components(separatedBy: "@").first ?? aTo
+
+        let isPrimary = (!aEmail.isEmpty && (aEmail == clean || (!cleanPrefix.isEmpty && aEmailPrefix == cleanPrefix))) ||
+                        (!aTo.isEmpty && (aTo == clean || (!cleanPrefix.isEmpty && aToPrefix == cleanPrefix)))
+        if isPrimary {
+            return isEffectivelyAcknowledged
+        }
+
+        // 2. KTV phối hợp (CoTechnician)
+        if let myCo = coTechnicians.first(where: {
+            let co = $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let coPrefix = co.components(separatedBy: "@").first ?? co
+            return co == clean || (!cleanPrefix.isEmpty && coPrefix == cleanPrefix)
+        }) {
+            return myCo.isAcknowledged || myCo.acknowledgedAt > 0
+        }
+
+        // 3. Nếu là vé điều phối theo Cụm / Tổ (chưa gán đích danh) nhưng đã có KTV tiếp nhận
+        if isEffectivelyAcknowledged || (!aEmail.isEmpty && !aEmail.contains("null")) {
+            return true
+        }
+
+        return false
+    }
+
+    public func isDispatchedOrHandled() -> Bool {
+        if helpdeskAcknowledgedAt > 0 || !helpdeskAcknowledgedBy.isEmpty { return true }
+        if isEffectivelyAcknowledged { return true }
+        if isClosed || isResolved || isRejected { return true }
+        let st = status.uppercased()
+        if ["ASSIGNED", "IN_PROGRESS", "PROCESSING", "RESOLVED", "CLOSED"].contains(st) { return true }
+        if !assignedToEmail.isEmpty || !assignedToName.isEmpty || !assignedTo.isEmpty { return true }
+        if !assignedCluster.isEmpty || !assignedRegion.isEmpty { return true }
+        if assignedAt > 0 { return true }
+        if !handlingMethod.isEmpty { return true }
+        return false
+    }
 }
 
 // MARK: - SUPPORT MESSAGE (CHAT REALTIME)

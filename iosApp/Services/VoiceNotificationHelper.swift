@@ -771,13 +771,13 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         // 0. Nếu vé đang cảnh báo lặp lại đã được tiếp nhận / giải quyết / đóng -> DỪNG NGAY CẢNH BÁO
         if let activeId = activeAlertTicketId,
            let currentTicket = tickets.first(where: { $0.id == activeId }) {
-            if currentTicket.isAcknowledged || currentTicket.isClosed || currentTicket.isResolved {
+            if currentTicket.isEffectivelyAcknowledged || currentTicket.isUserAcknowledged(email: cleanEmail) || currentTicket.isClosed || currentTicket.isResolved {
                 stopAlert(ticketId: activeId)
             }
         }
 
         // Lần đầu mở app: Ghi nhận tất cả các vé hiện có để tránh đọc dồn lịch sử xa xưa
-        if isFirstFetch {
+        if isFirstFetch && !tickets.isEmpty {
             isFirstFetch = false
             for t in tickets {
                 seenTicketIds.insert(t.id)
@@ -809,7 +809,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
             if !seenTicketIds.contains(t.id) {
                 seenTicketIds.insert(t.id)
-                if !isDispatched && isCreatedAfterStart && isNotSelf && (currentUser.isHelpDesk || currentUser.isAdmin) && t.status.uppercased() == "OPEN" {
+                if !isDispatched && !t.isDispatchedOrHandled() && isCreatedAfterStart && isNotSelf && (currentUser.isHelpDesk || currentUser.isAdmin) && t.status.uppercased() == "OPEN" {
                     notifyNewSupportRequest(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, source: t.source)
                 }
             }
@@ -879,21 +879,31 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             // ĐIỀU KIỆN NHẬN ĐIỀU PHỐI:
             // 1. Đích danh (isPrimary): Người được gán trực tiếp luôn nhận (kể cả admin/quản lý)
             // 2. Phân bổ Cụm/Tổ (broadcast): KTV hoặc Chuyên viên của cụm/tổ đó nhận
-            let isAssignedToMe = isNotSelf && !t.isAcknowledged && !t.isClosed && !t.isResolved && (
+            let isUserAck = t.isUserAcknowledged(email: cleanEmail)
+            let isAssignedToMe = isNotSelf && !isUserAck && !t.isEffectivelyAcknowledged && !t.isClosed && !t.isResolved && (
                 isPrimary ||
                 (!currentUser.isAdmin && !currentUser.isHelpDesk && !currentUser.isManager && isFieldTech && (isSpecialistMatch || isClusterMatch))
             )
 
             let effectiveAssignedAt = t.assignedAt > 0 ? (t.assignedAt < 10_000_000_000 ? t.assignedAt * 1000 : t.assignedAt) : t.createdAt
+            let isFreshDispatch = (now - effectiveAssignedAt) <= 300_000 // Trong vòng 5 phút gần nhất
+            let isAfterAppStart = effectiveAssignedAt >= (appStartTime - 60_000)
 
             if isAssignedToMe && effectiveAssignedAt > 0 {
                 let lastSeenAssign = seenDispatches[t.id] ?? 0
-                let hasNotAnnounced = lastSeenAssign == 0 || effectiveAssignedAt > lastSeenAssign
+                let isNewDispatch = effectiveAssignedAt > lastSeenAssign && (isAfterAppStart || isFreshDispatch) && !isUserAck
 
-                if hasNotAnnounced {
+                if isNewDispatch {
                     seenDispatches[t.id] = effectiveAssignedAt
                     let isSpecialist = t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST" || isSpecialistMatch
                     notifyTechnicianDispatched(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, isSpecialist: isSpecialist)
+                } else if lastSeenAssign == 0 || !isFreshDispatch || isUserAck {
+                    seenDispatches[t.id] = effectiveAssignedAt
+                }
+            } else if isUserAck || t.isEffectivelyAcknowledged || t.isClosed || t.isResolved {
+                seenDispatches[t.id] = effectiveAssignedAt > 0 ? effectiveAssignedAt : now
+                if activeAlertTicketId == t.id {
+                    stopAlert(ticketId: t.id)
                 }
             }
 

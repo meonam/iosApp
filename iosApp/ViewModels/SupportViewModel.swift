@@ -647,10 +647,15 @@ public class SupportViewModel: ObservableObject {
                       let fields = doc["fields"] as? [String: Any] else { return nil }
                 let id = name.components(separatedBy: "/").last ?? ""
 
-                let ack = FirestoreHelper.getBool(fields["isAcknowledged"] as? [String: Any])
+                let ackBool = FirestoreHelper.getBool(fields["isAcknowledged"] as? [String: Any]) || FirestoreHelper.getBool(fields["acknowledged"] as? [String: Any])
                 let ackAt = FirestoreHelper.getInt64(fields["acknowledgedAt"] as? [String: Any])
                 let ackBy = FirestoreHelper.getString(fields["acknowledgedBy"] as? [String: Any])
                 let ackByName = FirestoreHelper.getString(fields["acknowledgedByName"] as? [String: Any])
+                let hdAckAt = FirestoreHelper.getInt64(fields["helpdeskAcknowledgedAt"] as? [String: Any])
+                let hdAckBy = FirestoreHelper.getString(fields["helpdeskAcknowledgedBy"] as? [String: Any])
+                let rawMethod = FirestoreHelper.getString(fields["handlingMethod"] as? [String: Any])
+                let rawStatus = FirestoreHelper.getString(fields["status"] as? [String: Any]).uppercased()
+                let ack = ackBool || ackAt > 0 || !ackBy.isEmpty || !rawMethod.isEmpty || ["PROCESSING", "IN_PROGRESS", "ASSIGNED", "RESOLVED", "CLOSED"].contains(rawStatus)
 
                 // Parse attachments if any
                 var attachmentsList: [AttachmentItem] = []
@@ -876,6 +881,8 @@ public class SupportViewModel: ObservableObject {
                     acknowledgedAt: ackAt,
                     acknowledgedBy: ackBy,
                     acknowledgedByName: ackByName,
+                    helpdeskAcknowledgedAt: hdAckAt,
+                    helpdeskAcknowledgedBy: hdAckBy,
                     resolvedAt: FirestoreHelper.getInt64(fields["resolvedAt"] as? [String: Any]),
                     resolvedBy: FirestoreHelper.getString(fields["resolvedBy"] as? [String: Any]),
                     resolvedByName: FirestoreHelper.getString(fields["resolvedByName"] as? [String: Any]),
