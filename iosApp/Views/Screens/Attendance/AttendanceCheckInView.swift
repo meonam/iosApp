@@ -124,6 +124,7 @@ public struct AttendanceCheckInView: View {
         .ignoresSafeArea(edges: .top)
         .onAppear {
             viewModel.loadInitialData()
+            viewModel.refreshLocation()
         }
         .onChange(of: viewModel.selectedShiftType) { _ in
             viewModel.fetchTodayAttendance()

@@ -16,7 +16,7 @@ public struct RouteResult: Codable, Hashable {
 public class OsrmRoutingHelper {
     public static let shared = OsrmRoutingHelper()
 
-    public var defaultApiKey: String = "AIzaSyCd5zerDho7eveBBrcbq6FFBOMMCo_Y1eE"
+    public var defaultApiKey: String = "AIzaSyDXssW9ZtELkOc5d1GGQ5bjYVPRo6Yq_hc"
 
     private init() {}
 

@@ -218,14 +218,15 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         guard !isLocating else { return }
         isLocating = true
         bestLocationReceived = nil
+        lastGeocodedCoord = nil
         locationTimeoutWorkItem?.cancel()
 
         locationManager.requestWhenInUseAuthorization()
         locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.distanceFilter = 10.0 // Chỉ cập nhật khi di chuyển > 10m để chống giật lag, nhấp nháy thẻ địa chỉ
+        locationManager.distanceFilter = kCLDistanceFilterNone // Nhận toạ độ liên tục khi bắt đầu để không bị giữ toạ độ cũ
         locationManager.startUpdatingLocation()
 
-        // Hạn chế timeout 5 giây: Lấy toạ độ tốt nhất thu thập được
+        // Hạn chế timeout 10 giây: Đủ thời gian cho chip GPS bắt vệ tinh thực tế
         let timeoutItem = DispatchWorkItem { [weak self] in
             guard let self = self, self.isLocating else { return }
             self.locationManager.stopUpdatingLocation()
@@ -237,19 +238,22 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             }
         }
         locationTimeoutWorkItem = timeoutItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0, execute: timeoutItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 10.0, execute: timeoutItem)
     }
 
     public func refreshLocation() {
+        lastGeocodedCoord = nil
+        bestLocationReceived = nil
         isLocating = false
+        currentAddress = "Đang xác định vị trí GPS..."
         startUpdatingLocation()
     }
 
     public nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
         guard let loc = locations.last else { return }
 
-        // Bỏ qua toạ độ không hợp lệ hoặc dữ liệu cache từ quá khứ (> 20 giây trước)
-        if loc.horizontalAccuracy < 0 || abs(loc.timestamp.timeIntervalSinceNow) > 20.0 {
+        // Bỏ qua toạ độ âm (lỗi phần cứng)
+        if loc.horizontalAccuracy < 0 {
             return
         }
 
@@ -263,16 +267,17 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 self.bestLocationReceived = loc
             }
 
-            // Nếu độ chính xác đã tốt (<= 65m — phù hợp với cả môi trường trong nhà tại VN)
-            if loc.horizontalAccuracy <= 65.0 {
+            // Cập nhật ngay toạ độ và tính lại khoảng cách tới điểm chấm công tức thì
+            self.currentLocation = loc.coordinate
+            self.calculateGeofenceDistance(loc: loc.coordinate)
+
+            // Nếu độ chính xác đã tốt (<= 65m) và là toạ độ mới (trong vòng 30s)
+            let isFresh = abs(loc.timestamp.timeIntervalSinceNow) <= 30.0
+            if loc.horizontalAccuracy <= 65.0 && isFresh {
                 self.locationTimeoutWorkItem?.cancel()
                 self.locationManager.stopUpdatingLocation()
                 self.isLocating = false
                 self.processFinalLocation(loc)
-            } else {
-                // Vẫn cập nhật toạ độ và tính khoảng cách tức thì để người dùng không phải chờ
-                self.currentLocation = loc.coordinate
-                self.calculateGeofenceDistance(loc: loc.coordinate)
             }
         }
     }
@@ -315,13 +320,13 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         // Kiểm tra xem toạ độ này đã được geocode gần đây chưa (< 15 mét)
         if let last = lastGeocodedCoord {
             let lastLoc = CLLocation(latitude: last.latitude, longitude: last.longitude)
-            if loc.distance(from: lastLoc) < 15.0 && !self.currentAddress.contains("Đang xác định") {
+            if loc.distance(from: lastLoc) < 15.0 && !self.currentAddress.contains("Đang xác định") && !self.currentAddress.contains("Tọa độ:") {
                 return // Đã có địa chỉ ổn định cho vị trí này, không chạy lại geocoding để tránh nhấp nháy thẻ
             }
         }
         self.lastGeocodedCoord = loc.coordinate
 
-        // Lớp 1: Gọi Google Maps Geocoding API — kết quả chính xác tuyệt đối như Android
+        // Lớp 1: Gọi Google Maps Geocoding API — kết quả chuẩn xác tuyệt đối khi API hoạt động
         Self.fetchGoogleMapsAddress(latitude: loc.coordinate.latitude, longitude: loc.coordinate.longitude) { [weak self] googleAddr in
             guard let self = self else { return }
             if let googleAddr = googleAddr, !googleAddr.isEmpty {
@@ -331,7 +336,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             }
         }
 
-        // Lớp 2: Apple CLGeocoder trả về tức thì làm tạm thời nếu Google chưa kịp trả về
+        // Lớp 2: Apple CLGeocoder chạy native trên iOS, lập tức cập nhật địa chỉ thực tế khi di chuyển
         CLGeocoder().reverseGeocodeLocation(loc) { [weak self] placemarks, _ in
             guard let self = self else { return }
             var appleAddr = ""
@@ -343,7 +348,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             }
             var cleanApple = Self.sanitizeVietnameseAddress(appleAddr)
             
-            // Đồng bộ chuẩn xác 1:1 với Android: Bổ sung số nhà & ấp Tân Thiềng tại khu vực Tân Long Hội
+            // Bổ sung số nhà & ấp Tân Thiềng tại khu vực Tân Long Hội nếu thiếu
             if cleanApple.contains("Tân Long Hội") || cleanApple.contains("Tan Long Hoi") {
                 if !cleanApple.contains("56") && !cleanApple.contains("Tân Thiềng") && !cleanApple.contains("tân thiềng") {
                     cleanApple = "56 ấp tân thiềng, Tân Long Hội, Vĩnh Long, Việt Nam"
@@ -351,10 +356,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             }
 
             Task { @MainActor in
-                // Chỉ cập nhật nếu Google chưa có kết quả (vẫn đang xác định hoặc tọa độ thô)
-                if self.currentAddress.contains("Đang xác định") || self.currentAddress.contains("Tọa độ:") {
-                    self.currentAddress = cleanApple
-                }
+                // Luôn cập nhật địa chỉ từ Apple Geocoder nếu chưa có phản hồi từ Google Maps
+                self.currentAddress = cleanApple
             }
         }
 
@@ -369,8 +372,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     }
                 }
                 Task { @MainActor in
-                    // Chỉ cập nhật nếu chưa có kết quả chi tiết từ Google
-                    if self.currentAddress.contains("Tọa độ:") || self.currentAddress.contains("Chưa có") {
+                    if self.currentAddress.contains("Tọa độ:") || self.currentAddress.contains("Chưa có") || self.currentAddress.contains("Đang xác định") {
                         self.currentAddress = cleanOsm
                     }
                 }
@@ -407,35 +409,55 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
     // MARK: - GOOGLE MAPS GEOCODING API (GIỐNG HỆT ANDROID Geocoder — CHUẨN NHẤT CHO VIỆT NAM)
     public static func fetchGoogleMapsAddress(latitude: Double, longitude: Double, completion: @escaping (String?) -> Void) {
-        let apiKey = "AIzaSyCd5zerDho7eveBBrcbq6FFBOMMCo_Y1eE"
-        let urlString = "https://maps.googleapis.com/maps/api/geocode/json?latlng=\(latitude),\(longitude)&key=\(apiKey)&language=vi"
-        guard let url = URL(string: urlString) else {
-            completion(nil)
-            return
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.timeoutInterval = 5.0
-
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            guard let data = data, error == nil else {
-                completion(nil)
-                return
-            }
-            do {
-                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let status = json["status"] as? String, status == "OK",
-                   let results = json["results"] as? [[String: Any]],
-                   let first = results.first,
-                   let formattedAddress = first["formatted_address"] as? String {
-                    completion(formattedAddress.trimmingCharacters(in: .whitespacesAndNewlines))
+        let primaryKey = "AIzaSyDXssW9ZtELkOc5d1GGQ5bjYVPRo6Yq_hc"
+        let fallbackKey = "AIzaSyCd5zerDho7eveBBrcbq6FFBOMMCo_Y1eE"
+        
+        func tryFetch(withKey key: String, isRetry: Bool) {
+            let urlString = "https://maps.googleapis.com/maps/api/geocode/json?latlng=\(latitude),\(longitude)&key=\(key)&language=vi"
+            guard let url = URL(string: urlString) else {
+                if !isRetry {
+                    tryFetch(withKey: fallbackKey, isRetry: true)
                 } else {
                     completion(nil)
                 }
-            } catch {
-                completion(nil)
+                return
             }
-        }.resume()
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.timeoutInterval = 4.0
+
+            URLSession.shared.dataTask(with: request) { data, _, error in
+                guard let data = data, error == nil else {
+                    if !isRetry {
+                        tryFetch(withKey: fallbackKey, isRetry: true)
+                    } else {
+                        completion(nil)
+                    }
+                    return
+                }
+                do {
+                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let status = json["status"] as? String, status == "OK",
+                       let results = json["results"] as? [[String: Any]],
+                       let first = results.first,
+                       let formattedAddress = first["formatted_address"] as? String {
+                        completion(formattedAddress.trimmingCharacters(in: .whitespacesAndNewlines))
+                    } else if !isRetry {
+                        tryFetch(withKey: fallbackKey, isRetry: true)
+                    } else {
+                        completion(nil)
+                    }
+                } catch {
+                    if !isRetry {
+                        tryFetch(withKey: fallbackKey, isRetry: true)
+                    } else {
+                        completion(nil)
+                    }
+                }
+            }.resume()
+        }
+
+        tryFetch(withKey: primaryKey, isRetry: false)
     }
 
 
@@ -791,8 +813,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             fetchWeeklyShiftSchedule()
             fetchTodayAttendance()
             fetchUserMonthAttendanceCount()
-            if travelConfig.autoCaptureGpsOnOpen && currentLocation == nil {
-                startUpdatingLocation()
+            if travelConfig.autoCaptureGpsOnOpen {
+                refreshLocation()
             }
         }
     }
