@@ -534,6 +534,7 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         if assignedRole.uppercased() == "TECH" { return false }
         if assignedRole.uppercased() == "SPECIALIST" { return true }
         return !assignedApplication.isEmpty ||
+            !toNghiepVu.isEmpty ||
             assignedDepartmentId.uppercased().hasPrefix("TO_") ||
             assignedDepartmentName.localizedCaseInsensitiveContains("Ứng Dụng") ||
             assignedDepartmentName.localizedCaseInsensitiveContains("Nghiệp Vụ") ||
@@ -705,6 +706,14 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
             let co = $0.technicianEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             let coPrefix = co.components(separatedBy: "@").first ?? co
             return co == clean || (!cleanPrefix.isEmpty && coPrefix == cleanPrefix)
+        }) {
+            return true
+        }
+
+        if assignedTechnicianEmails.contains(where: {
+            let ae = $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let aePrefix = ae.components(separatedBy: "@").first ?? ae
+            return ae == clean || (!cleanPrefix.isEmpty && aePrefix == cleanPrefix)
         }) {
             return true
         }

@@ -76,10 +76,12 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         configureAudioSession()
     }
 
-    private func configureAudioSession() {
+    public func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers, .defaultToSpeaker])
+            try session.overrideOutputAudioPort(.speaker)
+            try session.setActive(true, options: [])
         } catch {
             print("[VoiceNotificationHelper] Configure audio session error: \(error)")
         }
@@ -697,17 +699,20 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             }
 
         case "DISPATCHED":
-            // CHỈ KTV / Chuyên viên nhận lệnh điều phối; HelpDesk, Admin & Quản lý tuyệt đối không nhận
             let isFieldWorker = user.isTechnician || user.isSpecialist
             let isNotManagerOrAdmin = !user.isAdmin && !user.isHelpDesk && !user.isManager
-            if !isAssigner && !isSelf && isFieldWorker && isNotManagerOrAdmin {
+            let canReceive = isAssignedToMe || (!isAssigner && isFieldWorker && isNotManagerOrAdmin)
+            if canReceive && !isSelf {
                 // Nếu lệnh gán đích danh KTV khác thì bỏ qua
                 if !assignedToEmail.isEmpty && !isAssignedToMe {
                     print("[VoiceNotificationHelper] Bỏ qua DISPATCH vì được gán cho \(assignedToEmail), không phải \(myEmail)")
                     return
                 }
                 if !ticketId.isEmpty { seenDispatches[ticketId] = Int64(Date().timeIntervalSince1970 * 1000) }
-                let isSpecialist = user.isSpecialist || isSpecialistStr.lowercased() == "true"
+                let isSpecialist = user.isSpecialist ||
+                                   isSpecialistStr.lowercased() == "true" ||
+                                   extractString("assignedRole").uppercased() == "SPECIALIST" ||
+                                   extractString("role").uppercased() == "SPECIALIST"
                 notifyTechnicianDispatched(
                     ticketId: ticketId,
                     donViName: donViName,
@@ -824,35 +829,72 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             }
 
             // 2. LỆNH ĐIỀU PHỐI CHO KTV / CHUYÊN VIÊN
-            // Đồng bộ 1:1 với Android: Admin, HelpDesk, Quản lý KHÔNG BAO GIỜ nhận broadcast dispatch của cụm/chuyên viên!
             let isPrimary = t.isUserAssigned(email: cleanEmail)
-            let isSpecialistMatch = (t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST") && currentUser.isSpecialist && t.assignedToEmail.isEmpty && (
-                (!currentUser.toNghiepVu.isEmpty && currentUser.toNghiepVu == t.toNghiepVu) ||
-                (!currentUser.departmentId.isEmpty && currentUser.departmentId == t.assignedDepartmentId) ||
-                (!currentUser.departmentName.isEmpty && currentUser.departmentName == t.assignedDepartmentName)
-            )
-            let isClusterMatch = currentUser.isTechnician && t.assignedToEmail.isEmpty && !t.assignedCluster.isEmpty && (
-                currentUser.maKhuVuc == t.assignedCluster
-            )
+
+            // Khớp Tổ Chuyên viên (hỗ trợ so sánh linh hoạt không phân biệt hoa thường, tiền tố TO_ / Tổ / Khối)
+            let userTeam = currentUser.toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let userDept = currentUser.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let userDeptName = currentUser.departmentName.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+
+            let tTeam = t.toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let tDept = t.assignedDepartmentId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let tDeptName = t.assignedDepartmentName.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+
+            func matchesSpecialistTeam(_ a: String, _ b: String) -> Bool {
+                let ca = a.replacingOccurrences(of: "TO_", with: "").replacingOccurrences(of: "TỔ ", with: "").replacingOccurrences(of: "KHỐI ", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let cb = b.replacingOccurrences(of: "TO_", with: "").replacingOccurrences(of: "TỔ ", with: "").replacingOccurrences(of: "KHỐI ", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !ca.isEmpty && !cb.isEmpty else { return false }
+                return ca == cb || ca.contains(cb) || cb.contains(ca)
+            }
+
+            let isSpecialistMatch = (t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST") &&
+                currentUser.isSpecialist &&
+                t.assignedToEmail.isEmpty && (
+                    matchesSpecialistTeam(userTeam, tTeam) ||
+                    matchesSpecialistTeam(userTeam, tDept) ||
+                    matchesSpecialistTeam(userDept, tDept) ||
+                    matchesSpecialistTeam(userDept, tTeam) ||
+                    (!userDeptName.isEmpty && !tDeptName.isEmpty && (userDeptName == tDeptName || userDeptName.contains(tDeptName) || tDeptName.contains(userDeptName)))
+                )
+
+            // Khớp Cụm KTV
+            func matchesClusterArea(_ a: String, _ b: String) -> Bool {
+                let ca = a.replacingOccurrences(of: "CỤM ", with: "").replacingOccurrences(of: "CUM ", with: "").replacingOccurrences(of: "KHU VỰC ", with: "").trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                let cb = b.replacingOccurrences(of: "CỤM ", with: "").replacingOccurrences(of: "CUM ", with: "").replacingOccurrences(of: "KHU VỰC ", with: "").trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                guard !ca.isEmpty && !cb.isEmpty else { return false }
+                return ca == cb || ca.contains(cb) || cb.contains(ca)
+            }
+
+            let isClusterMatch = currentUser.isTechnician &&
+                t.assignedToEmail.isEmpty &&
+                (!t.assignedCluster.isEmpty || !t.assignedRegion.isEmpty) && (
+                    matchesClusterArea(currentUser.maKhuVuc, t.assignedCluster) ||
+                    matchesClusterArea(currentUser.maKhuVuc, t.assignedRegion) ||
+                    matchesClusterArea(currentUser.khuVuc, t.assignedCluster) ||
+                    matchesClusterArea(currentUser.khuVuc, t.assignedRegion)
+                )
 
             let isFieldTech = currentUser.isTechnician || currentUser.isSpecialist
-            let isAssignedToMe = !currentUser.isAdmin && !currentUser.isHelpDesk && !currentUser.isManager &&
-                                (isPrimary || (isFieldTech && (isSpecialistMatch || isClusterMatch))) &&
-                                !t.isAcknowledged && !t.isClosed && !t.isResolved
+            let isNotSelf = t.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != cleanEmail
+
+            // ĐIỀU KIỆN NHẬN ĐIỀU PHỐI:
+            // 1. Đích danh (isPrimary): Người được gán trực tiếp luôn nhận (kể cả admin/quản lý)
+            // 2. Phân bổ Cụm/Tổ (broadcast): KTV hoặc Chuyên viên của cụm/tổ đó nhận
+            let isAssignedToMe = isNotSelf && !t.isAcknowledged && !t.isClosed && !t.isResolved && (
+                isPrimary ||
+                (!currentUser.isAdmin && !currentUser.isHelpDesk && !currentUser.isManager && isFieldTech && (isSpecialistMatch || isClusterMatch))
+            )
 
             let effectiveAssignedAt = t.assignedAt > 0 ? (t.assignedAt < 10_000_000_000 ? t.assignedAt * 1000 : t.assignedAt) : t.createdAt
 
             if isAssignedToMe && effectiveAssignedAt > 0 {
                 let lastSeenAssign = seenDispatches[t.id] ?? 0
-                let isFreshDispatch = (now - effectiveAssignedAt) <= 300_000 // Trong vòng 5 phút
                 let hasNotAnnounced = lastSeenAssign == 0 || effectiveAssignedAt > lastSeenAssign
 
-                if isFreshDispatch && hasNotAnnounced {
+                if hasNotAnnounced {
                     seenDispatches[t.id] = effectiveAssignedAt
                     let isSpecialist = t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST" || isSpecialistMatch
                     notifyTechnicianDispatched(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, isSpecialist: isSpecialist)
-                } else if lastSeenAssign == 0 {
-                    seenDispatches[t.id] = effectiveAssignedAt
                 }
             }
 

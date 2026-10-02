@@ -117,12 +117,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             NotificationCenter.default.post(name: Notification.Name("QLTB_BackgroundFetch"), object: nil)
         }
 
-        // Nếu có ticketId trong payload thì stop alert cũ nếu cần
-        if let ticketId = userInfo["ticketId"] as? String, !ticketId.isEmpty {
-            DispatchQueue.main.async {
-                VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
-            }
-        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
             completionHandler(.newData)
         }
@@ -184,9 +178,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
         // Đồng bộ Android (setSound(null)): Khi đang mở app, không réo chuông hệ thống ding để giọng đọc TTS phát to rõ ra loa ngoài
         if #available(iOS 14.0, *) {
-            completionHandler([.banner, .badge, .list])
+            completionHandler([.banner, .badge, .list, .sound])
         } else {
-            completionHandler([.alert, .badge])
+            completionHandler([.alert, .badge, .sound])
         }
     }
 

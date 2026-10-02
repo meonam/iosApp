@@ -120,25 +120,26 @@ public struct User: Identifiable, Codable, Hashable {
     }
 
     public var isSpecialist: Bool {
-        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse || isManager { return false }
+        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse { return false }
         let r = role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let t = toNghiepVu.trimmingCharacters(in: .whitespacesAndNewlines)
+        let dept = departmentId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         return ["CHUYENVIEN", "CHUYEN_VIEN", "SPECIALIST", "CHUYÊN VIÊN"].contains(r) ||
                r.contains("CHUYENVIEN") || r.contains("SPECIALIST") || r.contains("CHUYEN VIEN") ||
-               !t.isEmpty
+               !t.isEmpty || dept.hasPrefix("TO_") || dept.contains("NGHIEP_VU") || dept.contains("NGHIỆP VỤ")
     }
 
     public var isManager: Bool {
-        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse { return false }
+        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse || isSpecialist { return false }
         let r = role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         return ["PHONGBAN", "QUANLY", "MANAGER", "LEADER", "TRUONGPHONG", "PHOPHONG"].contains(r)
     }
 
     public var isTechnician: Bool {
-        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse || isManager || isSpecialist { return false }
+        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse || isSpecialist { return false }
         let r = role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        return ["KYTHUAT", "KYTHUATVIEN", "KTV", "KY_THUAT", "TECHNICIAN", "KỸ THUẬT", "KỸ THUẬT VIÊN"].contains(r) ||
-               r.contains("KTV") || r.contains("KYTHUAT")
+        return ["KYTHUAT", "KYTHUATVIEN", "KTV", "KY_THUAT", "TECHNICIAN", "KỸ THUẬT", "KỸ THUẬT VIÊN", "INCIDENT_HANDLER"].contains(r) ||
+               r.contains("KTV") || r.contains("KYTHUAT") || r.contains("TECHNICIAN") || r.contains("INCIDENT_HANDLER")
     }
 
     public var isStaff: Bool {
