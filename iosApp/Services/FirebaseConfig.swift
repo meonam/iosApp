@@ -10,4 +10,5 @@ public struct FirebaseConfig {
     public static let authSignUpUrl = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=\(apiKey)"
     public static let authSendOobUrl = "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=\(apiKey)"
     public static let authUpdateUrl = "https://identitytoolkit.googleapis.com/v1/accounts:update?key=\(apiKey)"
+    public static let storageBucket = "qltb-81f4c.firebasestorage.app"
 }

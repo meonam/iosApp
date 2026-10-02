@@ -82,6 +82,7 @@
 		220010912C12345600000001 /* OsrmRoutingHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000912C12345600000001 /* OsrmRoutingHelper.swift */; };
 		220010992C12345600000001 /* PresenceHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000992C12345600000001 /* PresenceHelper.swift */; };
 		220010982C12345600000001 /* BackgroundKeepAliveService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000982C12345600000001 /* BackgroundKeepAliveService.swift */; };
+		2200109A2C12345600000001 /* FirebaseStorageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200009A2C12345600000001 /* FirebaseStorageService.swift */; };
 		220010572C12345600000001 /* TicketItemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000572C12345600000001 /* TicketItemView.swift */; };
 		220010582C12345600000001 /* ScannerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000582C12345600000001 /* ScannerSettingsView.swift */; };
 		220010612C12345600000001 /* DispatchTicketSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000612C12345600000001 /* DispatchTicketSheet.swift */; };
@@ -166,6 +167,7 @@
 		220000912C12345600000001 /* OsrmRoutingHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OsrmRoutingHelper.swift; sourceTree = "<group>"; };
 		220000992C12345600000001 /* PresenceHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresenceHelper.swift; sourceTree = "<group>"; };
 		220000982C12345600000001 /* BackgroundKeepAliveService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundKeepAliveService.swift; sourceTree = "<group>"; };
+		2200009A2C12345600000001 /* FirebaseStorageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseStorageService.swift; sourceTree = "<group>"; };
 		220000572C12345600000001 /* TicketItemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TicketItemView.swift; sourceTree = "<group>"; };
 		220000582C12345600000001 /* ScannerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScannerSettingsView.swift; sourceTree = "<group>"; };
 		220000612C12345600000001 /* DispatchTicketSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DispatchTicketSheet.swift; sourceTree = "<group>"; };
@@ -274,6 +276,7 @@
 				220000912C12345600000001 /* OsrmRoutingHelper.swift */,
 				220000992C12345600000001 /* PresenceHelper.swift */,
 				220000982C12345600000001 /* BackgroundKeepAliveService.swift */,
+				2200009A2C12345600000001 /* FirebaseStorageService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -604,6 +607,7 @@
 				220010912C12345600000001 /* OsrmRoutingHelper.swift in Sources */,
 				220010992C12345600000001 /* PresenceHelper.swift in Sources */,
 				220010982C12345600000001 /* BackgroundKeepAliveService.swift in Sources */,
+				2200109A2C12345600000001 /* FirebaseStorageService.swift in Sources */,
 				220010572C12345600000001 /* TicketItemView.swift in Sources */,
 				220010582C12345600000001 /* ScannerSettingsView.swift in Sources */,
 				220010612C12345600000001 /* DispatchTicketSheet.swift in Sources */,

@@ -1602,9 +1602,19 @@ public struct TicketChatDetailView: View {
         isUploadingAttachments = !pendingAttachments.isEmpty
         var uploadedUrls: [String] = []
 
-        // Upload từng attachment lên Cloudinary
+        // Upload từng attachment lên Firebase Storage (với fallback tự động sang Cloudinary giống Android FirebaseStorageHelper.kt)
+        let compId = ticket.companyId.isEmpty ? viewModel.companyId : ticket.companyId
         for att in pendingAttachments {
-            if let url = await CloudinaryService.uploadImageData(att.data, folder: "chat_attachments") {
+            let mime = FirebaseStorageService.resolveMimeType(fileName: att.fileName, customMime: att.type)
+            let safeName = att.fileName.isEmpty ? "chat_\(Int(Date().timeIntervalSince1970)).\(att.type == "image" ? "jpg" : "dat")" : att.fileName
+            if let url = await FirebaseStorageService.uploadTicketAttachment(
+                data: att.data,
+                companyId: compId,
+                ticketId: ticket.id,
+                fileName: safeName,
+                mimeType: mime,
+                idToken: viewModel.idToken
+            ) {
                 uploadedUrls.append(url)
             }
         }

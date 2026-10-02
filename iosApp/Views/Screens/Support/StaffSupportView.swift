@@ -838,23 +838,40 @@ public struct CreateTicketSheetView: View {
 
         isSubmitting = true
         Task {
-            // 1. Tải ảnh lên Cloudinary
+            // 1. Tải ảnh sự cố (đồng bộ Android StaffSupportScreen.kt & FirebaseStorageHelper.kt)
             var uploadedImageUrls: [String] = []
-            for img in pendingImages {
-                if let data = img.jpegData(compressionQuality: 0.8),
-                   let url = await CloudinaryService.uploadImageData(data, folder: "support_tickets") {
-                    uploadedImageUrls.append(url)
+            for (idx, img) in pendingImages.enumerated() {
+                if let data = img.jpegData(compressionQuality: 0.8) {
+                    let imgFileName = "ticket_img_\(idx + 1)_\(Int(Date().timeIntervalSince1970)).jpg"
+                    if let url = await FirebaseStorageService.uploadTicketAttachment(
+                        data: data,
+                        companyId: supportVM.companyId,
+                        ticketId: "temp_ticket_\(Int(Date().timeIntervalSince1970))",
+                        fileName: imgFileName,
+                        mimeType: "image/jpeg",
+                        idToken: supportVM.idToken
+                    ) {
+                        uploadedImageUrls.append(url)
+                    }
                 }
             }
 
-            // 2. Tải tệp tài liệu lên Cloudinary
+            // 2. Tải tệp tài liệu đính kèm (đồng bộ Android FirebaseStorageHelper.kt)
             var uploadedAttachments: [AttachmentItem] = []
             for doc in pendingDocs {
-                if let url = await CloudinaryService.uploadRawData(doc.data, folder: "support_tickets", fileName: doc.fileName) {
-                    let ext = (doc.fileName as NSString).pathExtension.lowercased()
-                    let typeStr = ["pdf", "doc", "docx", "xls", "xlsx", "txt", "zip", "rar"].contains(ext) ? ext : "file"
+                let ext = (doc.fileName as NSString).pathExtension.lowercased()
+                let typeStr = ["pdf", "doc", "docx", "xls", "xlsx", "txt", "zip", "rar"].contains(ext) ? ext : "file"
+                let mime = FirebaseStorageService.resolveMimeType(fileName: doc.fileName)
+                if let url = await FirebaseStorageService.uploadTicketAttachment(
+                    data: doc.data,
+                    companyId: supportVM.companyId,
+                    ticketId: "temp_ticket_\(Int(Date().timeIntervalSince1970))",
+                    fileName: doc.fileName,
+                    mimeType: mime,
+                    idToken: supportVM.idToken
+                ) {
                     let item = AttachmentItem(
-                        id: UUID().uuidString,
+                        id: "att_\(Int64(Date().timeIntervalSince1970 * 1000))_\(UUID().uuidString.prefix(6))",
                         name: doc.fileName,
                         url: url,
                         size: doc.fileSize,
