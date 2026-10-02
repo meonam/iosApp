@@ -113,6 +113,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         if let type = userInfo["type"] as? String, type == "INCOMING_CALL" {
             IncomingCallManager.shared.handleIncomingCallFromPush(userInfo: userInfo)
         } else {
+            VoiceNotificationHelper.shared.handlePushNotification(userInfo: userInfo)
             NotificationCenter.default.post(name: Notification.Name("QLTB_BackgroundFetch"), object: nil)
         }
 
@@ -175,6 +176,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        let userInfo = notification.request.content.userInfo
+        print("[AppDelegate] willPresent notification received: \(userInfo)")
+
+        // Phát giọng nói trực tiếp nếu nhận được remote push khi đang mở app (foreground)
+        VoiceNotificationHelper.shared.handlePushNotification(userInfo: userInfo)
+
         // Đồng bộ Android (setSound(null)): Khi đang mở app, không réo chuông hệ thống ding để giọng đọc TTS phát to rõ ra loa ngoài
         if #available(iOS 14.0, *) {
             completionHandler([.banner, .badge, .list])

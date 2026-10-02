@@ -68,7 +68,6 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
         DispatchQueue.main.async {
             let session = AVAudioSession.sharedInstance()
             try? session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try? session.setActive(false, options: .notifyOthersOnDeactivation)
             BackgroundKeepAliveService.shared.resumeKeepAliveIfRunning()
         }
     }

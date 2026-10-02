@@ -316,6 +316,8 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         let item = notificationQueue.removeFirst()
         queueLock.unlock()
 
+        beginBackgroundTask()
+
         Task { [weak self] in
             guard let self = self else { return }
 
@@ -388,9 +390,16 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
             self.queueLock.lock()
             self.isQueueWorkerRunning = false
+            let hasMore = !self.notificationQueue.isEmpty
             self.queueLock.unlock()
 
-            self.processNextQueueItem()
+            if hasMore {
+                self.processNextQueueItem()
+            } else {
+                if self.activeAlertTicketId == nil {
+                    self.endBackgroundTask()
+                }
+            }
         }
     }
 
@@ -599,6 +608,152 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
         )
 
         enqueueNotification(ticketId: ticketId, speechText: text, fallbackBundledName: "voice_ticket_resolved", type: "TICKET_RESOLVED")
+    }
+
+    // MARK: - LẤY THÔNG TIN NGƯỜI DÙNG HIỆN TẠI TỪ BỘ NHỚ LOCAL
+    public func getCurrentUser() -> User? {
+        if let data = UserDefaults.standard.data(forKey: "saved_auth_user_data"),
+           let user = try? JSONDecoder().decode(User.self, from: data) {
+            return user
+        }
+        if let email = UserDefaults.standard.string(forKey: "saved_auth_email"), !email.isEmpty {
+            return User(email: email)
+        }
+        return nil
+    }
+
+    // MARK: - XỬ LÝ PUSH NOTIFICATION NHẬN TỪ SERVER (ĐỒNG BỘ 1:1 VỚI MyFirebaseMessagingService.kt TRÊN ANDROID)
+    public func handlePushNotification(userInfo: [AnyHashable: Any]) {
+        let dataDict = (userInfo["data"] as? [String: Any]) ?? (userInfo as? [String: Any]) ?? [:]
+
+        func extractString(_ key: String) -> String {
+            if let val = dataDict[key] as? String { return val }
+            if let val = dataDict[key] as? CustomStringConvertible { return String(describing: val) }
+            if let val = userInfo[key] as? String { return val }
+            if let val = userInfo[key] as? CustomStringConvertible { return String(describing: val) }
+            if let aps = userInfo["aps"] as? [String: Any] {
+                if let val = aps[key] as? String { return val }
+                if let val = aps[key] as? CustomStringConvertible { return String(describing: val) }
+            }
+            return ""
+        }
+
+        let type = extractString("type").trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !type.isEmpty else { return }
+
+        let ticketId = extractString("ticketId").trimmingCharacters(in: .whitespacesAndNewlines)
+        let subject = extractString("subject").trimmingCharacters(in: .whitespacesAndNewlines)
+        let donViName = extractString("donViName").trimmingCharacters(in: .whitespacesAndNewlines)
+        let source = extractString("source").isEmpty ? "APP" : extractString("source")
+        let techName = extractString("techName").trimmingCharacters(in: .whitespacesAndNewlines)
+        let ratingStr = extractString("rating").trimmingCharacters(in: .whitespacesAndNewlines)
+        let feedback = extractString("feedback").trimmingCharacters(in: .whitespacesAndNewlines)
+        let creatorEmail = extractString("creatorEmail").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let assignedByEmail = extractString("assignedByEmail").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let assignedToEmail = extractString("assignedToEmail").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let resolvedReason = extractString("resolvedReason").trimmingCharacters(in: .whitespacesAndNewlines)
+        let isSpecialistStr = extractString("isSpecialist").isEmpty ? extractString("isSpecialistAssigned") : extractString("isSpecialist")
+
+        // 1. Kiểm tra tài khoản đang đăng nhập
+        guard let user = getCurrentUser() else {
+            print("[VoiceNotificationHelper] ⚠️ Bỏ qua push vì chưa có user profile lưu local")
+            return
+        }
+        let myEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !myEmail.isEmpty else { return }
+
+        let myPrefix = myEmail.components(separatedBy: "@").first ?? myEmail
+        let isSelf = !creatorEmail.isEmpty && (
+            creatorEmail == myEmail ||
+            (creatorEmail.contains("@") && creatorEmail.components(separatedBy: "@").first == myPrefix)
+        )
+        let isAssigner = !assignedByEmail.isEmpty && (
+            assignedByEmail == myEmail ||
+            (assignedByEmail.contains("@") && assignedByEmail.components(separatedBy: "@").first == myPrefix)
+        )
+        let isAssignedToMe = !assignedToEmail.isEmpty && (
+            assignedToEmail == myEmail ||
+            (assignedToEmail.contains("@") && assignedToEmail.components(separatedBy: "@").first == myPrefix)
+        )
+
+        print("[VoiceNotificationHelper] 🔔 Nhận Push: type=\(type), ticketId=\(ticketId), donVi=\(donViName), myRole=\(user.role), isSelf=\(isSelf)")
+
+        // 2. Kích hoạt giữ background task và cấu hình audio
+        beginBackgroundTask()
+        configureAudioSession()
+
+        // 3. Phân luồng xử lý đồng bộ 1:1 theo MyFirebaseMessagingService.kt
+        switch type {
+        case "TICKET_CREATED":
+            // CHỈ HelpDesk & Admin nhận thông báo vé mới
+            if !isSelf && (user.isHelpDesk || user.isAdmin) {
+                if !ticketId.isEmpty { seenTicketIds.insert(ticketId) }
+                notifyNewSupportRequest(
+                    ticketId: ticketId,
+                    donViName: donViName,
+                    subject: subject,
+                    source: source
+                )
+            }
+
+        case "DISPATCHED":
+            // CHỈ KTV / Chuyên viên nhận lệnh điều phối; HelpDesk, Admin & Quản lý tuyệt đối không nhận
+            let isFieldWorker = user.isTechnician || user.isSpecialist
+            let isNotManagerOrAdmin = !user.isAdmin && !user.isHelpDesk && !user.isManager
+            if !isAssigner && !isSelf && isFieldWorker && isNotManagerOrAdmin {
+                // Nếu lệnh gán đích danh KTV khác thì bỏ qua
+                if !assignedToEmail.isEmpty && !isAssignedToMe {
+                    print("[VoiceNotificationHelper] Bỏ qua DISPATCH vì được gán cho \(assignedToEmail), không phải \(myEmail)")
+                    return
+                }
+                if !ticketId.isEmpty { seenDispatches[ticketId] = Int64(Date().timeIntervalSince1970 * 1000) }
+                let isSpecialist = user.isSpecialist || isSpecialistStr.lowercased() == "true"
+                notifyTechnicianDispatched(
+                    ticketId: ticketId,
+                    donViName: donViName,
+                    subject: subject,
+                    isSpecialist: isSpecialist
+                )
+            }
+
+        case "RESOLVED":
+            let isSpecialist = isSpecialistStr.lowercased() == "true" ||
+                techName.lowercased().contains("chuyên viên") ||
+                extractString("resolvedRole").lowercased().contains("specialist")
+
+            // Thông báo cho HelpDesk, Admin, hoặc chính người tạo yêu cầu
+            if user.isAdmin || user.isHelpDesk || isSelf || isAssignedToMe {
+                if !ticketId.isEmpty { seenResolved[ticketId] = Int64(Date().timeIntervalSince1970 * 1000) }
+                notifyTicketResolved(
+                    ticketId: ticketId,
+                    donViName: donViName,
+                    subject: subject,
+                    techName: techName,
+                    resolvedReason: resolvedReason,
+                    isSpecialist: isSpecialist
+                )
+            }
+
+        case "RATED":
+            let rating = Int(ratingStr) ?? 0
+            if user.isAdmin || user.isHelpDesk || isAssignedToMe {
+                if !ticketId.isEmpty { seenRatings[ticketId] = Int64(Date().timeIntervalSince1970 * 1000) }
+                notifyTicketRated(
+                    ticketId: ticketId,
+                    rating: rating,
+                    feedback: feedback,
+                    donViName: donViName
+                )
+            }
+
+        case "TICKET_DELETED", "DISPATCH_CANCELLED", "TICKET_CLOSED", "TICKET_CANCELLED":
+            if !ticketId.isEmpty {
+                stopAlert(ticketId: ticketId)
+            }
+
+        default:
+            break
+        }
     }
 
     // MARK: - BỘ LỌC CHỐNG ĐỌC DỒN KHI MỞ NỀN TẢNG KHÁC (CROSS-PLATFORM DEDUPLICATION)
