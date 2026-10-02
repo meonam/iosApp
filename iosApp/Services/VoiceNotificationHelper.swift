@@ -875,7 +875,6 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 )
 
             let isFieldTech = currentUser.isTechnician || currentUser.isSpecialist
-            let isNotSelf = t.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != cleanEmail
 
             // ĐIỀU KIỆN NHẬN ĐIỀU PHỐI:
             // 1. Đích danh (isPrimary): Người được gán trực tiếp luôn nhận (kể cả admin/quản lý)

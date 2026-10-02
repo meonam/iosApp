@@ -709,15 +709,6 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         }) {
             return true
         }
-
-        if assignedTechnicianEmails.contains(where: {
-            let ae = $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let aePrefix = ae.components(separatedBy: "@").first ?? ae
-            return ae == clean || (!cleanPrefix.isEmpty && aePrefix == cleanPrefix)
-        }) {
-            return true
-        }
-
         return false
     }
 }
