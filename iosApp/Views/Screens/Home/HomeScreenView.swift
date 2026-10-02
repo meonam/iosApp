@@ -19,6 +19,7 @@ public struct HomeScreenView: View {
 
     @State private var showAboutDialog: Bool = false
     @State private var showLogoutConfirmDialog: Bool = false
+    @State private var showOverflowMenu: Bool = false
     @State private var accessRestrictedMessage: String? = nil
 
     // Image Picker for Avatar
@@ -73,7 +74,7 @@ public struct HomeScreenView: View {
 
     public var body: some View {
         GeometryReader { geometry in
-            ZStack {
+            ZStack(alignment: .topTrailing) {
                 Color.appBackground.ignoresSafeArea()
 
                 VStack(spacing: 0) {
@@ -139,37 +140,11 @@ public struct HomeScreenView: View {
                             }
 
                             // Nút 3: Menu mở rộng 3 chấm (Overflow Menu)
-                            Menu {
-                                if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
-                                    Button(action: { onNavigate(.systemSettings) }) {
-                                        Label("Cấu hình hệ thống", systemImage: "gearshape.fill")
-                                    }
+                            Button(action: {
+                                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                    showOverflowMenu.toggle()
                                 }
-
-                                if viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk || viewModel.user.isManager {
-                                    Button(action: { activeSheet = .broadcastBanner }) {
-                                        Label("Phát thông báo & Banner TopBar", systemImage: "megaphone.fill")
-                                    }
-                                }
-
-                                Button(action: { activeSheet = .changePassword }) {
-                                    Label("Đổi mật khẩu tài khoản", systemImage: "lock.fill")
-                                }
-
-                                Button(action: { onNavigate(.help) }) {
-                                    Label("Trợ giúp & Hướng dẫn", systemImage: "questionmark.circle.fill")
-                                }
-
-                                Button(action: { onNavigate(.appInfo) }) {
-                                    Label("Thông tin ứng dụng", systemImage: "info.circle.fill")
-                                }
-
-                                Divider()
-
-                                Button(role: .destructive, action: { showLogoutConfirmDialog = true }) {
-                                    Label("Đăng xuất", systemImage: "rectangle.portrait.and.arrow.right")
-                                }
-                            } label: {
+                            }) {
                                 Image(systemName: "ellipsis")
                                     .rotationEffect(.degrees(90))
                                     .font(.system(size: 20, weight: .bold))
@@ -210,12 +185,110 @@ public struct HomeScreenView: View {
                     }
                 }
 
+                // OVERFLOW DROPDOWN MENU (POPUP MÀU SẮC ĐỒNG BỘ HIỆN ĐẠI)
+                if showOverflowMenu {
+                    Color.black.opacity(0.18)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                showOverflowMenu = false
+                            }
+                        }
+                        .zIndex(80)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        if viewModel.user.isAdmin || viewModel.user.isSuperAdmin {
+                            overflowMenuItem(
+                                title: "Cấu hình hệ thống",
+                                icon: "gearshape.fill",
+                                color: Color(hex: "#4F46E5"),
+                                bgColor: Color(hex: "#EEF2FF")
+                            ) {
+                                showOverflowMenu = false
+                                onNavigate(.systemSettings)
+                            }
+                        }
+
+                        if viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk || viewModel.user.isManager {
+                            overflowMenuItem(
+                                title: "Phát thông báo & Banner TopBar",
+                                icon: "megaphone.fill",
+                                color: Color(hex: "#EA580C"),
+                                bgColor: Color(hex: "#FFF7ED")
+                            ) {
+                                showOverflowMenu = false
+                                activeSheet = .broadcastBanner
+                            }
+                        }
+
+                        overflowMenuItem(
+                            title: "Đổi mật khẩu tài khoản",
+                            icon: "lock.fill",
+                            color: Color(hex: "#0284C7"),
+                            bgColor: Color(hex: "#F0F9FF")
+                        ) {
+                            showOverflowMenu = false
+                            activeSheet = .changePassword
+                        }
+
+                        overflowMenuItem(
+                            title: "Trợ giúp & Hướng dẫn",
+                            icon: "questionmark.circle.fill",
+                            color: Color(hex: "#D97706"),
+                            bgColor: Color(hex: "#FFFBEB")
+                        ) {
+                            showOverflowMenu = false
+                            onNavigate(.help)
+                        }
+
+                        overflowMenuItem(
+                            title: "Thông tin ứng dụng",
+                            icon: "info.circle.fill",
+                            color: Color(hex: "#10B981"),
+                            bgColor: Color(hex: "#ECFDF5")
+                        ) {
+                            showOverflowMenu = false
+                            onNavigate(.appInfo)
+                        }
+
+                        Divider()
+                            .padding(.vertical, 4)
+
+                        overflowMenuItem(
+                            title: "Đăng xuất",
+                            icon: "rectangle.portrait.and.arrow.right",
+                            color: Color(hex: "#EF4444"),
+                            bgColor: Color(hex: "#FEF2F2"),
+                            isDestructive: true
+                        ) {
+                            showOverflowMenu = false
+                            showLogoutConfirmDialog = true
+                        }
+                    }
+                    .padding(8)
+                    .frame(width: 260)
+                    .background(Color.white)
+                    .cornerRadius(16)
+                    .shadow(color: Color.black.opacity(0.18), radius: 16, x: -2, y: 8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color(hex: "#E2E8F0"), lineWidth: 1)
+                    )
+                    .padding(.top, SafeAreaHelper.top(geometry) + 48)
+                    .padding(.trailing, 10)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.9, anchor: .topTrailing).combined(with: .opacity),
+                        removal: .scale(scale: 0.9, anchor: .topTrailing).combined(with: .opacity)
+                    ))
+                    .zIndex(85)
+                }
+
                 // Modal thông báo "Truy cập bị giới hạn" (chuẩn Android)
                 if let restrictedMsg = accessRestrictedMessage {
                     Color.black.opacity(0.4).ignoresSafeArea()
                     accessRestrictedDialog(message: restrictedMsg)
                         .padding(.horizontal, 28)
-                        .zIndex(50)
+                        .zIndex(90)
                 }
             }
         }
@@ -694,6 +767,42 @@ public struct HomeScreenView: View {
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.appCardBorder, lineWidth: 1))
             .shadow(color: Color.black.opacity(0.02), radius: 4, x: 0, y: 1)
         }
+    }
+
+    // MARK: - OVERFLOW MENU ITEM (ICON MÀU ĐỒNG BỘ ĐẸP MẮT)
+    private func overflowMenuItem(
+        title: String,
+        icon: String,
+        color: Color,
+        bgColor: Color,
+        isDestructive: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(bgColor)
+                        .frame(width: 32, height: 32)
+
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(color)
+                }
+
+                Text(title)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(isDestructive ? color : Color.appTextPrimary)
+                    .lineLimit(1)
+
+                Spacer()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 
     // MARK: - 3. TRUY CẬP NHANH CHỨC NĂNG (8 LỐI TẮT CHÍNH)
