@@ -551,7 +551,7 @@ public struct AppSidebarDrawer: View {
 
                     Spacer()
 
-                    Text("v1.2.0")
+                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.2.3")")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Color.appTextSecondary)
                 }
