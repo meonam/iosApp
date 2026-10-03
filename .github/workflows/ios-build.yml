@@ -50,26 +50,39 @@ jobs:
       - name: 5. Đóng gói ứng dụng thành tệp .IPA (Payload Packaging)
         run: |
           mkdir -p build/Payload
-          # Sao chép file .app được tạo ra trong thư mục Applications vào thư mục Payload
           cp -r build/QLTB.xcarchive/Products/Applications/*.app build/Payload/
+          PROJ="iosApp.xcodeproj"
+          if [ -d "iosApp/iosApp.xcodeproj" ]; then
+            PROJ="iosApp/iosApp.xcodeproj"
+          fi
+          VERSION=$(sed -n '/MARKETING_VERSION/{s/.*= *//;s/;//;p;q;}' "$PROJ/project.pbxproj" | tr -d ' ')
+          BUILD_NUM=$(sed -n '/CURRENT_PROJECT_VERSION/{s/.*= *//;s/;//;p;q;}' "$PROJ/project.pbxproj" | tr -d ' ')
+          [ -z "$VERSION" ] && VERSION="1.2.9"
+          [ -z "$BUILD_NUM" ] && BUILD_NUM="129"
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "APP_BUILD=$BUILD_NUM" >> $GITHUB_ENV
+          IPA_NAME="IT-Service-and-Assets_iOS_v${VERSION}-${BUILD_NUM}.ipa"
+          echo "IPA_NAME=$IPA_NAME" >> $GITHUB_ENV
           cd build
-          zip -r "IT-Service-and-Assets_iOS_v1.2.3.ipa" Payload
-          ls -lh IT-Service-and-Assets_iOS_v1.2.3.ipa
+          zip -r "$IPA_NAME" Payload
+          # Tạo thêm symlink/copy với tên chuẩn dễ tìm
+          cp "$IPA_NAME" "IT-Service-and-Assets_iOS_v${VERSION}.ipa"
+          ls -lh *.ipa
 
       - name: 6. Xuất bản tệp cài đặt IPA lên GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: IT-Service-and-Assets-iOS-IPA
-          path: build/IT-Service-and-Assets_iOS_v1.2.3.ipa
+          path: build/*.ipa
           retention-days: 30
 
       - name: 7. Tạo GitHub Release đính kèm tệp IPA
         uses: softprops/action-gh-release@v2
         continue-on-error: true
         with:
-          files: build/IT-Service-and-Assets_iOS_v1.2.3.ipa
-          name: IT Service & Assets iOS v1.2.3 (Build 123)
-          tag_name: latest
+          files: build/*.ipa
+          name: IT Service & Assets iOS v${{ env.APP_VERSION }} (Build ${{ env.APP_BUILD }})
+          tag_name: v${{ env.APP_VERSION }}
           draft: false
           prerelease: false
 
