@@ -93,6 +93,34 @@ public struct UserManagementView: View {
         }
     }
 
+    // Lọc danh sách User ở Tab 2 (Phân quyền)
+    private var filteredUsersForPerm: [User] {
+        let q = permUserSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        if q.isEmpty { return viewModel.allUsers }
+        return viewModel.allUsers.filter { u in
+            u.fullName.localizedCaseInsensitiveContains(q) ||
+            u.email.localizedCaseInsensitiveContains(q) ||
+            u.maNhanVien.localizedCaseInsensitiveContains(q) ||
+            u.phone.contains(q) ||
+            u.departmentId.localizedCaseInsensitiveContains(q) ||
+            u.donVi.localizedCaseInsensitiveContains(q)
+        }
+    }
+
+    // Lọc danh sách User ở Tab 3 (Đặt lại mật khẩu)
+    private var filteredUsersForReset: [User] {
+        let q = resetUserSearch.trimmingCharacters(in: .whitespacesAndNewlines)
+        if q.isEmpty { return viewModel.allUsers }
+        return viewModel.allUsers.filter { u in
+            u.fullName.localizedCaseInsensitiveContains(q) ||
+            u.email.localizedCaseInsensitiveContains(q) ||
+            u.maNhanVien.localizedCaseInsensitiveContains(q) ||
+            u.phone.contains(q) ||
+            u.departmentId.localizedCaseInsensitiveContains(q) ||
+            u.donVi.localizedCaseInsensitiveContains(q)
+        }
+    }
+
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -993,11 +1021,46 @@ public struct UserManagementView: View {
                         .font(.system(size: 11.5))
                         .foregroundColor(.gray)
 
-                    // Searchable User Selector
+                    // Ô tìm kiếm tài khoản phân quyền
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                            .font(.system(size: 13))
+                        TextField("Tìm theo tên, email, MNV, SĐT...", text: $permUserSearch)
+                            .font(.system(size: 13))
+                            .autocapitalization(.none)
+                            .disableAutocorrection(true)
+                        if !permUserSearch.isEmpty {
+                            Button(action: { permUserSearch = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.gray)
+                                    .font(.system(size: 13))
+                            }
+                        }
+                    }
+                    .padding(8)
+                    .background(Color.appSurfaceVariant)
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
+
+                    if !permUserSearch.isEmpty {
+                        Text("Tìm thấy \(filteredUsersForPerm.count)/\(viewModel.allUsers.count) tài khoản phù hợp")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                    }
+
+                    // Searchable User Selector Menu
                     Menu {
-                        ForEach(viewModel.allUsers) { u in
-                            Button("\(u.fullName.isEmpty ? u.email : u.fullName) (\(u.email))") {
-                                selectUserForPermission(u)
+                        if filteredUsersForPerm.isEmpty {
+                            Button("Không tìm thấy người dùng phù hợp") {}
+                                .disabled(true)
+                        } else {
+                            ForEach(filteredUsersForPerm) { u in
+                                let mnv = u.maNhanVien.trimmingCharacters(in: .whitespacesAndNewlines)
+                                let display = mnv.isEmpty ? "\(u.fullName.isEmpty ? u.email : u.fullName) (\(u.email))" : "[\(mnv)] \(u.fullName.isEmpty ? u.email : u.fullName) (\(u.email))"
+                                Button(display) {
+                                    selectUserForPermission(u)
+                                }
                             }
                         }
                     } label: {
@@ -1336,11 +1399,46 @@ public struct UserManagementView: View {
                         .font(.system(size: 12))
                         .foregroundColor(.gray)
 
+                    // Ô tìm kiếm nhân sự
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                            .font(.system(size: 13))
+                        TextField("Tìm theo tên, email, MNV, SĐT...", text: $resetUserSearch)
+                            .font(.system(size: 13))
+                            .autocapitalization(.none)
+                            .disableAutocorrection(true)
+                        if !resetUserSearch.isEmpty {
+                            Button(action: { resetUserSearch = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.gray)
+                                    .font(.system(size: 13))
+                            }
+                        }
+                    }
+                    .padding(8)
+                    .background(Color.appSurfaceVariant)
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
+
+                    if !resetUserSearch.isEmpty {
+                        Text("Tìm thấy \(filteredUsersForReset.count)/\(viewModel.allUsers.count) tài khoản phù hợp")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                    }
+
                     // Chọn User dropdown
                     Menu {
-                        ForEach(viewModel.allUsers) { u in
-                            Button("\(u.fullName.isEmpty ? u.email : u.fullName) (\(u.email))") {
-                                selectUserForResetPassword(u)
+                        if filteredUsersForReset.isEmpty {
+                            Button("Không tìm thấy người dùng phù hợp") {}
+                                .disabled(true)
+                        } else {
+                            ForEach(filteredUsersForReset) { u in
+                                let mnv = u.maNhanVien.trimmingCharacters(in: .whitespacesAndNewlines)
+                                let display = mnv.isEmpty ? "\(u.fullName.isEmpty ? u.email : u.fullName) (\(u.email))" : "[\(mnv)] \(u.fullName.isEmpty ? u.email : u.fullName) (\(u.email))"
+                                Button(display) {
+                                    selectUserForResetPassword(u)
+                                }
                             }
                         }
                     } label: {
