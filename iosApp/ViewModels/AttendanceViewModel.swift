@@ -1930,17 +1930,19 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     }
 
     // MARK: - FETCH FULL MONTHLY REPORT (ĐỒNG BỘ 1:1 VỚI ANDROID lines 220-417 & AttendanceRepository.kt lines 281-408)
-    public func fetchMonthlyReport(monthStr: String? = nil) {
+    public func fetchMonthlyReport(monthStr: String? = nil, silent: Bool = false) {
         let targetMonth = (monthStr?.isEmpty == false) ? monthStr! : selectedReportMonth
         selectedReportMonth = targetMonth
 
         Task {
-            await self.performFetchMonthlyReport(targetMonth: targetMonth)
+            await self.performFetchMonthlyReport(targetMonth: targetMonth, silent: silent)
         }
     }
 
-    private func performFetchMonthlyReport(targetMonth: String) async {
-        await MainActor.run { self.isLoadingReport = true }
+    private func performFetchMonthlyReport(targetMonth: String, silent: Bool = false) async {
+        if !silent {
+            await MainActor.run { self.isLoadingReport = true }
+        }
 
         let cleanComp = cleanCompanyId
         guard !cleanComp.isEmpty else {

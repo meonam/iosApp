@@ -211,7 +211,7 @@ public struct SupportRatingReportView: View {
             .onAppear {
                 if !viewModel.user.isStaff {
                     Task {
-                        await fetchTickets()
+                        await fetchTickets(silent: false)
                     }
                 } else {
                     isLoading = false
@@ -296,8 +296,10 @@ public struct SupportRatingReportView: View {
         return "Tháng " + df.string(from: date)
     }
 
-    private func fetchTickets() async {
-        await MainActor.run { isLoading = true }
+    private func fetchTickets(silent: Bool = false) async {
+        if !silent {
+            await MainActor.run { isLoading = true }
+        }
         let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.companyId):runQuery"
         guard let url = URL(string: urlStr) else { return }
         
