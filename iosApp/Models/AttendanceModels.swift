@@ -105,6 +105,10 @@ public struct AttendanceRecord: Identifiable, Codable, Hashable {
     public var shiftType: String                 // "HC", "SHIFT_1", "SHIFT_2", "NIGHT"
     public var scheduledShiftCode: String        // "S", "C", "HC", "TR", "NC", "P", "NL"
     public var isUnscheduled: Bool
+    public var checkInDeviceId: String
+    public var checkInDeviceName: String
+    public var checkOutDeviceId: String
+    public var checkOutDeviceName: String
 
     public init(
         id: String = "",
@@ -132,7 +136,11 @@ public struct AttendanceRecord: Identifiable, Codable, Hashable {
         companyId: String = "",
         shiftType: String = "HC",
         scheduledShiftCode: String = "",
-        isUnscheduled: Bool = false
+        isUnscheduled: Bool = false,
+        checkInDeviceId: String = "",
+        checkInDeviceName: String = "",
+        checkOutDeviceId: String = "",
+        checkOutDeviceName: String = ""
     ) {
         self.id = id
         self.userEmail = userEmail
@@ -160,7 +168,18 @@ public struct AttendanceRecord: Identifiable, Codable, Hashable {
         self.shiftType = shiftType
         self.scheduledShiftCode = scheduledShiftCode
         self.isUnscheduled = isUnscheduled
+        self.checkInDeviceId = checkInDeviceId
+        self.checkInDeviceName = checkInDeviceName
+        self.checkOutDeviceId = checkOutDeviceId
+        self.checkOutDeviceName = checkOutDeviceName
     }
+
+// MARK: - DEVICE BINDING RESULT (CHẶN ĐIỂM DANH HỘ)
+public enum DeviceBindingResult {
+    case success(isNewlyBound: Bool, deviceName: String)
+    case deviceMismatch(boundDeviceName: String, currentDeviceName: String)
+    case error(message: String)
+}
 
     public var isCheckedIn: Bool { checkInTime > 0 }
     public var isCheckedOut: Bool { checkOutTime > 0 }

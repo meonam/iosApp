@@ -48,6 +48,10 @@ public struct User: Identifiable, Codable, Hashable {
     public var emailVerified: Bool
     public var disabledAt: Int64
     public var disabledBy: String
+    public var boundDeviceId: String
+    public var boundDeviceName: String
+    public var boundDevicePlatform: String
+    public var boundDeviceAt: Int64
 
     public init(
         maNhanVien: String = "",
@@ -70,7 +74,11 @@ public struct User: Identifiable, Codable, Hashable {
         disabledReason: String = "",
         emailVerified: Bool = false,
         disabledAt: Int64 = 0,
-        disabledBy: String = ""
+        disabledBy: String = "",
+        boundDeviceId: String = "",
+        boundDeviceName: String = "",
+        boundDevicePlatform: String = "",
+        boundDeviceAt: Int64 = 0
     ) {
         self.maNhanVien = maNhanVien
         self.email = email
@@ -93,6 +101,10 @@ public struct User: Identifiable, Codable, Hashable {
         self.emailVerified = emailVerified
         self.disabledAt = disabledAt
         self.disabledBy = disabledBy
+        self.boundDeviceId = boundDeviceId
+        self.boundDeviceName = boundDeviceName
+        self.boundDevicePlatform = boundDevicePlatform
+        self.boundDeviceAt = boundDeviceAt
     }
 
     // Computed Properties phân quyền chuẩn xác 1:1 theo User.kt

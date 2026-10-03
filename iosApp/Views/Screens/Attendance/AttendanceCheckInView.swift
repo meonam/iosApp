@@ -115,6 +115,11 @@ public struct AttendanceCheckInView: View {
                     geofenceAlertDialog
                 }
 
+                // DIALOG CẢNH BÁO CHẶN ĐIỂM DANH HỘ (DEVICE BINDING MISMATCH)
+                if let mismatch = viewModel.deviceMismatchError {
+                    deviceMismatchAlertDialog(boundDevice: mismatch.boundDevice, currentDevice: mismatch.currentDevice)
+                }
+
                 // HƯỚNG DẪN DIALOG
                 if showGuideDialog {
                     guideDialog
@@ -1004,6 +1009,107 @@ public struct AttendanceCheckInView: View {
         case "SHIFT_2": return Color(hex: "#DBEAFE")
         case "NIGHT", "SHIFT_3": return Color(hex: "#EDE9FE")
         default: return Color(hex: "#DCFCE7")
+        }
+    }
+
+    // MARK: - DEVICE MISMATCH ALERT DIALOG (CHẶN ĐIỂM DANH HỘ)
+    private func deviceMismatchAlertDialog(boundDevice: String, currentDevice: String) -> some View {
+        ZStack {
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    viewModel.deviceMismatchError = nil
+                }
+
+            VStack(spacing: 16) {
+                // Header Icon
+                ZStack {
+                    Circle()
+                        .fill(Color(hex: "#FEF2F2"))
+                        .frame(width: 60, height: 60)
+                    Image(systemName: "exclamationmark.shield.fill")
+                        .font(.system(size: 30))
+                        .foregroundColor(Color(hex: "#DC2626"))
+                }
+
+                Text("THIẾT BỊ KHÔNG HỢP LỆ")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(Color(hex: "#DC2626"))
+
+                Text("Hệ thống phát hiện thiết bị không trùng khớp. Để đảm bảo tính minh bạch và CHỐNG ĐIỂM DANH HỘ, mỗi nhân viên chỉ được chấm công trên 1 thiết bị chính chủ.")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(hex: "#4B5563"))
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+
+                VStack(spacing: 8) {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(hex: "#16A34A"))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Thiết bị chính chủ đã đăng ký:")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(hex: "#6B7280"))
+                            Text(boundDevice)
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(Color(hex: "#15803D"))
+                        }
+                        Spacer()
+                    }
+                    .padding(10)
+                    .background(Color(hex: "#F0FDF4"))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(hex: "#BBF7D0"), lineWidth: 1)
+                    )
+
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "xmark.seal.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(hex: "#DC2626"))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Thiết bị bạn đang thao tác:")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(hex: "#6B7280"))
+                            Text(currentDevice)
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(Color(hex: "#B91C1C"))
+                        }
+                        Spacer()
+                    }
+                    .padding(10)
+                    .background(Color(hex: "#FEF2F2"))
+                    .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(hex: "#FECACA"), lineWidth: 1)
+                    )
+                }
+
+                Text("💡 Nếu bạn vừa đổi điện thoại mới, vui lòng liên hệ Admin / Quản lý đơn vị để được hủy liên kết máy cũ.")
+                    .font(.system(size: 12))
+                    .foregroundColor(Color(hex: "#9CA3AF"))
+                    .multilineTextAlignment(.center)
+
+                Button(action: {
+                    viewModel.deviceMismatchError = nil
+                }) {
+                    Text("ĐÃ HIỂU VÀ ĐÓNG")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color(hex: "#DC2626"))
+                        .cornerRadius(10)
+                }
+            }
+            .padding(20)
+            .background(Color.white)
+            .cornerRadius(16)
+            .shadow(color: .black.opacity(0.2), radius: 16, x: 0, y: 8)
+            .padding(.horizontal, 28)
         }
     }
 }

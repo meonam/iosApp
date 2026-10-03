@@ -58,6 +58,19 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     @Published public var successMessage: String? = nil
     @Published public var errorMessage: String? = nil
 
+    // Device Binding (Anti-Buddy Punching - Đồng bộ Android)
+    @Published public var deviceMismatchError: (boundDevice: String, currentDevice: String)? = nil
+    
+    public var currentDeviceId: String {
+        UIDevice.current.identifierForVendor?.uuidString ?? "IOS_DEVICE_\(user.email)"
+    }
+    
+    public var currentDeviceName: String {
+        let name = UIDevice.current.name
+        let model = UIDevice.current.model
+        return "\(model) - \(name)"
+    }
+
     // History (Đồng bộ AttendanceHistoryScreen.kt)
     @Published public var attendanceHistory: [AttendanceRecord] = []
     @Published public var isLoadingHistory: Bool = false
@@ -1194,6 +1207,98 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         }
     }
 
+    // MARK: - DEVICE BINDING (CHỐNG ĐIỂM DANH HỘ)
+    public func verifyAndBindAttendanceDevice() async -> DeviceBindingResult {
+        let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanComp.isEmpty, !cleanEmail.isEmpty else {
+            return .error(message: "Thông tin công ty hoặc người dùng không hợp lệ")
+        }
+
+        let deviceId = currentDeviceId
+        let devName = currentDeviceName
+        let userUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/users/\(cleanEmail)"
+        guard let url = URL(string: userUrlStr) else {
+            return .error(message: "URL không hợp lệ")
+        }
+
+        var getReq = URLRequest(url: url)
+        getReq.httpMethod = "GET"
+        if !idToken.isEmpty { getReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+
+        guard let (data, http) = await FirestoreHelper.executeSafeRequest(getReq), http.statusCode == 200 else {
+            // Không lấy được dữ liệu do mạng -> cho phép qua để không chặn nhân viên
+            return .success(isNewlyBound: false, deviceName: devName)
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let fields = json["fields"] as? [String: Any] else {
+            return .success(isNewlyBound: false, deviceName: devName)
+        }
+
+        let boundDeviceId = (fields["boundDeviceId"] as? [String: Any])?["stringValue"] as? String ?? ""
+        let boundDeviceName = (fields["boundDeviceName"] as? [String: Any])?["stringValue"] as? String ?? ""
+
+        if boundDeviceId.isEmpty {
+            // Chưa có thiết bị gán -> Tự động gán thiết bị hiện tại làm thiết bị chính chủ
+            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let updateUrlStr = "\(userUrlStr)?updateMask.fieldPaths=boundDeviceId&updateMask.fieldPaths=boundDeviceName&updateMask.fieldPaths=boundDevicePlatform&updateMask.fieldPaths=boundDeviceAt"
+            if let updateUrl = URL(string: updateUrlStr) {
+                var patchReq = URLRequest(url: updateUrl)
+                patchReq.httpMethod = "PATCH"
+                if !idToken.isEmpty { patchReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                patchReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                let patchBody: [String: Any] = [
+                    "fields": [
+                        "boundDeviceId": ["stringValue": deviceId],
+                        "boundDeviceName": ["stringValue": devName],
+                        "boundDevicePlatform": ["stringValue": "iOS"],
+                        "boundDeviceAt": ["integerValue": String(now)]
+                    ]
+                ]
+                patchReq.httpBody = try? JSONSerialization.data(withJSONObject: patchBody)
+                _ = await FirestoreHelper.executeSafeRequest(patchReq)
+            }
+            return .success(isNewlyBound: true, deviceName: devName)
+        }
+
+        if boundDeviceId == deviceId {
+            return .success(isNewlyBound: false, deviceName: boundDeviceName.isEmpty ? devName : boundDeviceName)
+        } else {
+            return .deviceMismatch(
+                boundDeviceName: boundDeviceName.isEmpty ? "Thiết bị chính chủ iOS" : boundDeviceName,
+                currentDeviceName: devName
+            )
+        }
+    }
+
+    public func resetUserDeviceBinding(targetUserEmail: String) async -> Bool {
+        let cleanEmail = targetUserEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanComp.isEmpty, !cleanEmail.isEmpty else { return false }
+
+        let userUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/users/\(cleanEmail)?updateMask.fieldPaths=boundDeviceId&updateMask.fieldPaths=boundDeviceName&updateMask.fieldPaths=boundDevicePlatform&updateMask.fieldPaths=boundDeviceAt"
+        guard let url = URL(string: userUrlStr) else { return false }
+
+        var patchReq = URLRequest(url: url)
+        patchReq.httpMethod = "PATCH"
+        if !idToken.isEmpty { patchReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+        patchReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let patchBody: [String: Any] = [
+            "fields": [
+                "boundDeviceId": ["stringValue": ""],
+                "boundDeviceName": ["stringValue": ""],
+                "boundDevicePlatform": ["stringValue": ""],
+                "boundDeviceAt": ["integerValue": "0"]
+            ]
+        ]
+        patchReq.httpBody = try? JSONSerialization.data(withJSONObject: patchBody)
+        if let (_, http) = await FirestoreHelper.executeSafeRequest(patchReq), http.statusCode == 200 {
+            return true
+        }
+        return false
+    }
+
     // MARK: - CHECK-IN (ĐỒNG BỘ ANDROID lines 1393-1467 & 217-253)
     public func performCheckIn() {
         if isSubmitting { return }
@@ -1256,6 +1361,27 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
         Task {
+            // Kiểm tra Device Binding (Chống điểm danh hộ)
+            let bindResult = await self.verifyAndBindAttendanceDevice()
+            switch bindResult {
+            case .deviceMismatch(let boundName, let currentName):
+                await MainActor.run {
+                    self.isSubmitting = false
+                    self.deviceMismatchError = (boundName, currentName)
+                }
+                return
+            case .error(let msg):
+                await MainActor.run {
+                    self.isSubmitting = false
+                    self.errorMessage = "Kiểm tra thiết bị thất bại: \(msg)"
+                }
+                return
+            case .success(let isNewlyBound, let devName):
+                if isNewlyBound {
+                    print("✅ Đã liên kết thiết bị chính chủ: \(devName)")
+                }
+            }
+
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances/\(docId)"
             guard let url = URL(string: urlStr) else {
                 self.isSubmitting = false
@@ -1288,7 +1414,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     "scheduledShiftCode": ["stringValue": self.scheduledShiftCode],
                     "isUnscheduled": ["booleanValue": isUnscheduled],
                     "note": ["stringValue": self.noteInput.trimmingCharacters(in: .whitespacesAndNewlines)],
-                    "companyId": ["stringValue": self.companyId]
+                    "companyId": ["stringValue": self.companyId],
+                    "checkInDeviceId": ["stringValue": self.currentDeviceId],
+                    "checkInDeviceName": ["stringValue": self.currentDeviceName]
                 ]
             ]
             req.httpBody = try? JSONSerialization.data(withJSONObject: body)
@@ -1374,6 +1502,25 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         let docId = currentRec.id.isEmpty ? todayDocId : currentRec.id
 
         Task {
+            // Kiểm tra Device Binding (Chống điểm danh hộ)
+            let bindResult = await self.verifyAndBindAttendanceDevice()
+            switch bindResult {
+            case .deviceMismatch(let boundName, let currentName):
+                await MainActor.run {
+                    self.isSubmitting = false
+                    self.deviceMismatchError = (boundName, currentName)
+                }
+                return
+            case .error(let msg):
+                await MainActor.run {
+                    self.isSubmitting = false
+                    self.errorMessage = "Kiểm tra thiết bị thất bại: \(msg)"
+                }
+                return
+            case .success:
+                break
+            }
+
             // Kiểm tra ticket OT sau giờ tan ca (Android lines 1590-1612)
             var hasOvertimeTicket = false
             var overtimeTicketCount = 0
@@ -1447,7 +1594,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
             let combinedNote = (self.noteInput.trimmingCharacters(in: .whitespacesAndNewlines) + noteSuffix).trimmingCharacters(in: .whitespacesAndNewlines)
 
-            let patchUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances/\(docId)?updateMask.fieldPaths=checkOutTime&updateMask.fieldPaths=checkOutLat&updateMask.fieldPaths=checkOutLng&updateMask.fieldPaths=checkOutAddress&updateMask.fieldPaths=checkOutStatus&updateMask.fieldPaths=totalWorkMinutes&updateMask.fieldPaths=shiftType&updateMask.fieldPaths=note"
+            let patchUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances/\(docId)?updateMask.fieldPaths=checkOutTime&updateMask.fieldPaths=checkOutLat&updateMask.fieldPaths=checkOutLng&updateMask.fieldPaths=checkOutAddress&updateMask.fieldPaths=checkOutStatus&updateMask.fieldPaths=totalWorkMinutes&updateMask.fieldPaths=shiftType&updateMask.fieldPaths=note&updateMask.fieldPaths=checkOutDeviceId&updateMask.fieldPaths=checkOutDeviceName"
             guard let patchUrl = URL(string: patchUrlStr) else {
                 self.isSubmitting = false
                 return
@@ -1467,7 +1614,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     "checkOutStatus": ["stringValue": checkOutStatus],
                     "totalWorkMinutes": ["integerValue": String(effectiveWorkMins)],
                     "shiftType": ["stringValue": self.selectedShiftType],
-                    "note": ["stringValue": combinedNote]
+                    "note": ["stringValue": combinedNote],
+                    "checkOutDeviceId": ["stringValue": self.currentDeviceId],
+                    "checkOutDeviceName": ["stringValue": self.currentDeviceName]
                 ]
             ]
             patchReq.httpBody = try? JSONSerialization.data(withJSONObject: patchBody)
