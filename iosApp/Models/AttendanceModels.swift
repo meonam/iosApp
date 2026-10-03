@@ -74,7 +74,13 @@ public struct TravelExpenseConfig: Codable {
         self.underThresholdPolicy = underThresholdPolicy
         self.underThresholdFlatFee = underThresholdFlatFee
         self.aboveThresholdPolicy = aboveThresholdPolicy
-    }
+}
+
+// MARK: - DEVICE BINDING RESULT (CHẶN ĐIỂM DANH HỘ)
+public enum DeviceBindingResult {
+    case success(isNewlyBound: Bool, deviceName: String)
+    case deviceMismatch(boundDeviceName: String, currentDeviceName: String)
+    case error(message: String)
 }
 
 // MARK: - ATTENDANCE RECORD (ĐỒNG BỘ 1:1 VỚI ATTENDANCEMODELS.KT)
@@ -173,13 +179,6 @@ public struct AttendanceRecord: Identifiable, Codable, Hashable {
         self.checkOutDeviceId = checkOutDeviceId
         self.checkOutDeviceName = checkOutDeviceName
     }
-
-// MARK: - DEVICE BINDING RESULT (CHẶN ĐIỂM DANH HỘ)
-public enum DeviceBindingResult {
-    case success(isNewlyBound: Bool, deviceName: String)
-    case deviceMismatch(boundDeviceName: String, currentDeviceName: String)
-    case error(message: String)
-}
 
     public var isCheckedIn: Bool { checkInTime > 0 }
     public var isCheckedOut: Bool { checkOutTime > 0 }
