@@ -74,6 +74,7 @@ public struct TravelExpenseConfig: Codable {
         self.underThresholdPolicy = underThresholdPolicy
         self.underThresholdFlatFee = underThresholdFlatFee
         self.aboveThresholdPolicy = aboveThresholdPolicy
+    }
 }
 
 // MARK: - DEVICE BINDING RESULT (CHẶN ĐIỂM DANH HỘ)
