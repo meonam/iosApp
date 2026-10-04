@@ -21,6 +21,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
     private var seenRatings: [String: Int64] = [:]
     private var seenResolved: [String: Int64] = [:]
     private var seenHandoffs: [String: Int64] = [:]
+    private var resolvedOrClosedTicketIds = Set<String>()
 
     // Vòng lặp cảnh báo lặp lại (Repeating Alert cho Lệnh Điều Phối)
     private var alertTask: Task<Void, Never>? = nil
@@ -333,6 +334,17 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 return
             }
 
+            // Nếu item là NEW_TICKET hoặc HANDOVER nhưng vé đã được xử lý xong/đóng/đánh giá: Bỏ qua tuyệt đối
+            let cleanId = item.ticketId.trimmingCharacters(in: .whitespacesAndNewlines)
+            if (item.type == "NEW_TICKET" || item.type == "HANDOVER") && !cleanId.isEmpty && self.resolvedOrClosedTicketIds.contains(cleanId) {
+                print("[VoiceNotificationHelper] ⏭️ Bỏ qua giọng nói \(item.type) vì vé #\(cleanId) đã được xử lý / đóng / đánh giá")
+                self.queueLock.lock()
+                self.isQueueWorkerRunning = false
+                self.queueLock.unlock()
+                self.processNextQueueItem()
+                return
+            }
+
             let mode = self.effectiveVoiceMode
             if self.isVoiceEnabled && mode != "OFF" {
                 self.triggerVibration()
@@ -363,12 +375,12 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                         }
                     }
                 } else if item.type == "TICKET_RATED" {
-                    // Đánh giá: Lần 1 phát intro, Lần 2 đọc chi tiết số sao
-                    if let bundled = item.fallbackBundledName {
-                        await EdgeTtsClient.shared.playBundledAudioSuspend(named: bundled)
-                        try? await Task.sleep(nanoseconds: 300_000_000)
+                    // Đánh giá: Đọc câu chi tiết trọn vẹn "Đơn vị ... vừa đánh giá X sao", đồng bộ 1:1 Android & Web
+                    await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: item.fallbackBundledName)
+                    if mode == "REPEAT" {
+                        try? await Task.sleep(nanoseconds: 600_000_000)
+                        await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: item.fallbackBundledName)
                     }
-                    await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
                 } else if item.type == "TICKET_RESOLVED" {
                     // KTV Báo xử lý xong: Phát trực tiếp câu hoàn chỉnh, không lồng intro mp3
                     await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
@@ -459,6 +471,20 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 self.stopAlert(ticketId: ticketId)
             }
         }
+    }
+
+    // MARK: - ĐÁNH DẤU VÉ ĐÃ XỬ LÝ XONG HOẶC ĐÃ ĐÓNG (ĐỒNG BỘ 1:1 VỚI ANDROID)
+    public func markTicketResolvedOrClosed(ticketId: String) {
+        let cleanId = ticketId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanId.isEmpty else { return }
+        queueLock.lock()
+        resolvedOrClosedTicketIds.insert(cleanId)
+        // Xóa ngay lập tức mọi thông báo tiếp nhận/điều phối cũ của vé này ra khỏi hàng đợi
+        notificationQueue.removeAll(where: {
+            $0.ticketId == cleanId && ($0.type == "NEW_TICKET" || $0.type == "HANDOVER" || $0.type == "DISPATCH")
+        })
+        queueLock.unlock()
+        stopAlert(ticketId: cleanId)
     }
 
     public func stopAlert(ticketId: String? = nil) {
@@ -567,6 +593,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
     // MARK: - 3. KHÁCH HÀNG ĐÁNH GIÁ (ĐỒNG BỘ 1:1 DESKTOP & WEB & ANDROID)
     public func notifyTicketRated(ticketId: String, rating: Int, feedback: String, donViName: String) {
+        markTicketResolvedOrClosed(ticketId: ticketId)
         let dv = cleanDonViName(donViName)
         let text = "Đơn vị \(dv) vừa đánh giá \(rating) sao"
         
@@ -584,6 +611,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
     // MARK: - 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ / NGƯỜI YÊU CẦU TỰ XỬ LÝ (ĐỒNG BỘ 1:1 DESKTOP & WEB & ANDROID)
     public func notifyTicketResolved(ticketId: String, donViName: String, subject: String = "", techName: String, resolvedReason: String = "", isSpecialist: Bool = false) {
+        markTicketResolvedOrClosed(ticketId: ticketId)
         let dv = cleanDonViName(donViName)
         let isSelfResolved = resolvedReason.uppercased() == "SELF_RESOLVED"
         let rawTech = techName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -741,7 +769,11 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
         case "RATED":
             let rating = Int(ratingStr) ?? 0
-            if user.isAdmin || user.isHelpDesk || isAssignedToMe {
+            if !ticketId.isEmpty {
+                markTicketResolvedOrClosed(ticketId: ticketId)
+            }
+            // Chỉ HelpDesk, Admin, hoặc KTV phụ trách mới nghe (TUYỆT ĐỐI KHÔNG đọc cho chính người đánh giá):
+            if (user.isAdmin || user.isHelpDesk || isAssignedToMe) && !isSelf {
                 if !ticketId.isEmpty { seenRatings[ticketId] = Int64(Date().timeIntervalSince1970 * 1000) }
                 notifyTicketRated(
                     ticketId: ticketId,
@@ -785,6 +817,9 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 if effAssign > 0 {
                     seenDispatches[t.id] = effAssign
                 }
+                if t.isClosed || t.isResolved || t.rating > 0 {
+                    resolvedOrClosedTicketIds.insert(t.id)
+                }
                 let rateTime = t.feedbackAt > 0 ? t.feedbackAt : t.closedAt
                 if rateTime > 0 { seenRatings[t.id] = rateTime }
                 if t.resolvedAt > 0 { seenResolved[t.id] = t.resolvedAt }
@@ -800,6 +835,11 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 continue
             }
 
+            // Ghi nhận ngay các vé đã giải quyết / đóng / có đánh giá để hủy bỏ mọi âm thanh tiếp nhận cũ
+            if t.isClosed || t.isResolved || t.rating > 0 {
+                resolvedOrClosedTicketIds.insert(t.id)
+            }
+
             let effectiveDonVi = !t.donVi.isEmpty ? t.donVi : (!t.assignedDepartmentName.isEmpty ? t.assignedDepartmentName : (!t.creatorAddress.isEmpty ? t.creatorAddress : "Hiện trường"))
 
             // 1. SỰ CỐ MỚI GỬI LÊN (Chỉ HelpDesk và Admin mới nhận)
@@ -809,14 +849,14 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
             if !seenTicketIds.contains(t.id) {
                 seenTicketIds.insert(t.id)
-                if !isDispatched && !t.isDispatchedOrHandled() && isCreatedAfterStart && isNotSelf && (currentUser.isHelpDesk || currentUser.isAdmin) && t.status.uppercased() == "OPEN" {
+                if !isDispatched && !t.isDispatchedOrHandled() && isCreatedAfterStart && isNotSelf && (currentUser.isHelpDesk || currentUser.isAdmin) && t.status.uppercased() == "OPEN" && !t.isClosed && !t.isResolved {
                     notifyNewSupportRequest(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, source: t.source)
                 }
             }
 
             // 1.1 VÉ ĐƯỢC KTV CHUYỂN TRẢ VỀ CHO HELPDESK TIẾP NHẬN LẠI (TẤT CẢ USER HELPDESK / ADMIN ĐỀU NHẬN)
             let isHandedOverToHelpDesk = t.lastMessage.contains("[Chuyển về HelpDesk]") || t.lastMessage.contains("chuyển trả ticket cho HelpDesk")
-            if isHandedOverToHelpDesk && (currentUser.isHelpDesk || currentUser.isAdmin) {
+            if isHandedOverToHelpDesk && (currentUser.isHelpDesk || currentUser.isAdmin) && !t.isClosed && !t.isResolved {
                 let lastSeenHandoff = seenHandoffs[t.id] ?? 0
                 let effHandoffAt = t.lastMessageAt > 0 ? t.lastMessageAt : now
                 let isFreshHandoff = (now - effHandoffAt) <= 300_000 // Trong vòng 5 phút
@@ -909,12 +949,21 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
             // 3. ĐÁNH GIÁ MỚI TỪ KHÁCH HÀNG
             if t.rating > 0 {
+                markTicketResolvedOrClosed(ticketId: t.id)
                 let rateTime = t.feedbackAt > 0 ? t.feedbackAt : t.closedAt
                 let lastSeenRate = seenRatings[t.id] ?? 0
                 let isFreshRating = rateTime > lastSeenRate && (rateTime >= appStartTime || rateTime >= fiveMinutesAgo)
                 if isFreshRating {
                     seenRatings[t.id] = rateTime
-                    notifyTicketRated(ticketId: t.id, rating: t.rating, feedback: t.feedback, donViName: effectiveDonVi)
+                    let isAssignedTech = isPrimary || t.isUserAssigned(email: cleanEmail)
+                    let isHelpDeskOrAdmin = currentUser.isHelpDesk || currentUser.isAdmin
+                    let isSelfCreated = t.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == cleanEmail
+
+                    // CHỈ phát âm thanh cho HelpDesk, Admin, hoặc chính KTV/Chuyên viên phụ trách ca:
+                    // Tuyệt đối KHÔNG phát cho người tạo phiếu (người dùng đánh giá) hoặc người dùng thông thường:
+                    if (isHelpDeskOrAdmin || isAssignedTech) && !isSelfCreated {
+                        notifyTicketRated(ticketId: t.id, rating: t.rating, feedback: t.feedback, donViName: effectiveDonVi)
+                    }
                 } else if lastSeenRate == 0 {
                     seenRatings[t.id] = rateTime
                 }
