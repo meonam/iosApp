@@ -992,6 +992,7 @@ public class SupportViewModel: ObservableObject {
             "lastMessageAt": ["integerValue": String(now)],
             "source": ["stringValue": "APP"]
         ]
+
         if !assetId.isEmpty { fields["assetId"] = ["stringValue": assetId] }
         if !assetName.isEmpty { fields["assetName"] = ["stringValue": assetName] }
         if !images.isEmpty {
@@ -1196,8 +1197,9 @@ public class SupportViewModel: ObservableObject {
             ]
 
             let effectiveSenderName = customSenderName ?? (!user.fullName.isEmpty ? user.fullName : user.email)
+            let effectiveSenderEmail = isSystemMessage ? "system@sgcoop.com" : user.email
             var fields: [String: Any] = [
-                "senderEmail": ["stringValue": user.email],
+                "senderEmail": ["stringValue": effectiveSenderEmail],
                 "senderName": ["stringValue": effectiveSenderName],
                 "message": ["stringValue": cleanText.isEmpty ? "📎 Đã gửi \(attachmentUrls.count) tệp đính kèm" : cleanText],
                 "timestamp": ["integerValue": String(now)],
