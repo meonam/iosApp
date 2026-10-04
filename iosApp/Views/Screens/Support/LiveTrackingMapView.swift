@@ -1451,7 +1451,9 @@ public struct LiveTrackingMapView: View {
             if (isEnRoute || isArrived), let selfResolve = onSelfResolved, isCreator {
                 Button(action: {
                     onDismiss()
-                    selfResolve()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        selfResolve()
+                    }
                 }) {
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill")

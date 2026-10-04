@@ -1112,7 +1112,9 @@ public class SupportViewModel: ObservableObject {
                 )
             }
 
-            self.messages = msgs.sorted { $0.timestamp < $1.timestamp }
+            await MainActor.run {
+                self.messages = msgs.sorted { $0.timestamp < $1.timestamp }
+            }
         }
     }
 
@@ -1209,8 +1211,10 @@ public class SupportViewModel: ObservableObject {
                 _ = await FirestoreHelper.executeSafeRequest(pReq)
             }
 
-            self.isSendingMessage = false
-            self.fetchMessages(for: ticketId)
+            await MainActor.run {
+                self.isSendingMessage = false
+                self.fetchMessages(for: ticketId)
+            }
         }
     }
 
@@ -2025,7 +2029,7 @@ public class SupportViewModel: ObservableObject {
     ) {
         Task {
             guard !companyId.isEmpty, !ticketId.isEmpty else {
-                completion?(false)
+                DispatchQueue.main.async { completion?(false) }
                 return
             }
 
@@ -2037,7 +2041,14 @@ public class SupportViewModel: ObservableObject {
 
             let maskFields = [
                 "status", "closedAt", "resolvedReason", "resolutionNote",
-                "lastMessage", "lastMessageAt", "tracking"
+                "lastMessage", "lastMessageAt", "tracking.status", "tracking.cancelReason", "tracking.cancelledAt", "tracking.lastUpdatedAt"
+            ]
+
+            let trackingFields: [String: Any] = [
+                "status": ["stringValue": "CANCELLED_SELF_RESOLVED"],
+                "cancelReason": ["stringValue": cleanReason],
+                "cancelledAt": ["integerValue": String(now)],
+                "lastUpdatedAt": ["integerValue": String(now)]
             ]
 
             var f: [String: Any] = [
@@ -2047,12 +2058,15 @@ public class SupportViewModel: ObservableObject {
                 "resolutionNote": ["stringValue": cleanReason],
                 "lastMessage": ["stringValue": selfResolveMsg],
                 "lastMessageAt": ["integerValue": String(now)],
-                "tracking": ["nullValue": NSNull()]
+                "tracking": ["mapValue": ["fields": trackingFields]]
             ]
 
             let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
-            guard let url = URL(string: urlStr) else { completion?(false); return }
+            guard let url = URL(string: urlStr) else {
+                DispatchQueue.main.async { completion?(false) }
+                return
+            }
 
             var request = URLRequest(url: url)
             request.httpMethod = "PATCH"

@@ -260,8 +260,18 @@ public struct TicketChatDetailView: View {
                     ticket: currentTicket,
                     viewModel: viewModel,
                     onDismiss: { activeSheet = nil },
-                    onSelfResolved: { activeSheet = .selfResolved },
-                    onTechResolve: { activeSheet = .techResolve }
+                    onSelfResolved: {
+                        activeSheet = nil
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            activeSheet = .selfResolved
+                        }
+                    },
+                    onTechResolve: {
+                        activeSheet = nil
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            activeSheet = .techResolve
+                        }
+                    }
                 )
             case .rejectReason:
                 rejectTicketSheetView
@@ -2229,14 +2239,8 @@ public struct TicketChatDetailView: View {
                     let reasonToSubmit = selfResolvedReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                         ? "Đã cắm lại dây nguồn / dây mạng / cáp kết nối"
                         : selfResolvedReason
-                    viewModel.selfResolveTicket(ticketId: ticket.id, reason: reasonToSubmit) { success in
-                        if success {
-                            activeSheet = nil
-                            if currentTicket.rating == 0 {
-                                activeSheet = .rating
-                            }
-                        }
-                    }
+                    activeSheet = nil
+                    viewModel.selfResolveTicket(ticketId: ticket.id, reason: reasonToSubmit) { _ in }
                 }
                 .font(.system(size: 14, weight: .bold))
                 .foregroundColor(Color(hex: "#10B981"))
