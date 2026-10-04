@@ -920,14 +920,18 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             // 1. Đích danh (isPrimary): Người được gán trực tiếp luôn nhận (kể cả admin/quản lý)
             // 2. Phân bổ Cụm/Tổ (broadcast): KTV hoặc Chuyên viên của cụm/tổ đó nhận
             let isUserAck = t.isUserAcknowledged(email: cleanEmail)
-            let isAssignedToMe = isNotSelf && !isUserAck && !t.isEffectivelyAcknowledged && !t.isClosed && !t.isResolved && (
+            let isActuallyDispatched = t.assignedAt > 0 && ["ASSIGNED", "IN_PROGRESS"].contains(t.status.uppercased()) && (
+                !t.assignedTo.isEmpty || !t.assignedToEmail.isEmpty || !t.assignedCluster.isEmpty || !t.assignedDepartmentId.isEmpty || t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST"
+            )
+
+            let isAssignedToMe = isActuallyDispatched && isNotSelf && !isUserAck && !t.isEffectivelyAcknowledged && !t.isClosed && !t.isResolved && (
                 isPrimary ||
                 (!currentUser.isAdmin && !currentUser.isHelpDesk && !currentUser.isManager && isFieldTech && (isSpecialistMatch || isClusterMatch))
             )
 
-            let effectiveAssignedAt = t.assignedAt > 0 ? (t.assignedAt < 10_000_000_000 ? t.assignedAt * 1000 : t.assignedAt) : t.createdAt
-            let isFreshDispatch = (now - effectiveAssignedAt) <= 300_000 // Trong vòng 5 phút gần nhất
-            let isAfterAppStart = effectiveAssignedAt >= (appStartTime - 60_000)
+            let effectiveAssignedAt = t.assignedAt > 0 ? (t.assignedAt < 10_000_000_000 ? t.assignedAt * 1000 : t.assignedAt) : 0
+            let isFreshDispatch = effectiveAssignedAt > 0 && (now - effectiveAssignedAt) <= 300_000 // Trong vòng 5 phút gần nhất
+            let isAfterAppStart = effectiveAssignedAt > 0 && effectiveAssignedAt >= (appStartTime - 60_000)
 
             if isAssignedToMe && effectiveAssignedAt > 0 {
                 let lastSeenAssign = seenDispatches[t.id] ?? 0
