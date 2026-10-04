@@ -171,7 +171,7 @@ public struct TicketItemView: View {
                                 .cornerRadius(4)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 4)
-                                        .stroke(Color.appBorder, lineWidth: 0.8)
+                                        .stroke(Color.appCardBorder, lineWidth: 0.8)
                                 )
                         }
                         Text(ticket.subject.isEmpty ? "Yêu cầu hỗ trợ & xử lý sự cố" : ticket.subject)

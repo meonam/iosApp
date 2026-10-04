@@ -58,6 +58,7 @@ public extension Color {
     static let appSurface = Color.dynamic(light: "#FFFFFF", dark: "#1E293B")
     static let appSurfaceVariant = Color.dynamic(light: "#F1F5F9", dark: "#334155")
     static let appCardBorder = Color.dynamic(light: "#E2E8F0", dark: "#334155")
+    static let appBorder = Color.dynamic(light: "#E2E8F0", dark: "#334155")
     static let appTextPrimary = Color.dynamic(light: "#0F172A", dark: "#F8FAFC")
     static let appTextSecondary = Color.dynamic(light: "#475569", dark: "#CBD5E1")
     static let appTextMuted = Color.dynamic(light: "#94A3B8", dark: "#64748B")
