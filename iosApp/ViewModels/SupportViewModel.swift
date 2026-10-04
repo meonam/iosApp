@@ -1244,9 +1244,15 @@ public class SupportViewModel: ObservableObject {
     public func acknowledgeTicket(ticketId: String) {
         VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
         let ticket = rawTickets.first { $0.id == ticketId }
-        if let t = ticket, t.status.uppercased() == "CLOSED" || t.closedAt > 0 {
-            print("[SupportVM] Ticket \(ticketId) is already CLOSED, cannot acknowledge.")
-            return
+        if let t = ticket {
+            if t.status.uppercased() == "CLOSED" || t.closedAt > 0 || t.status.uppercased() == "RESOLVED" || t.resolvedAt > 0 {
+                print("[SupportVM] Ticket \(ticketId) is already CLOSED or RESOLVED, cannot acknowledge.")
+                return
+            }
+            if t.isAcknowledged || t.acknowledgedAt > 0 {
+                print("[SupportVM] Ticket \(ticketId) is already acknowledged, skipping duplicate acknowledge.")
+                return
+            }
         }
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
@@ -1296,10 +1302,17 @@ public class SupportViewModel: ObservableObject {
     public func selectHandlingMethod(ticketId: String, method: String, completion: ((Bool) -> Void)? = nil) {
         VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
         let ticket = rawTickets.first { $0.id == ticketId }
-        if let t = ticket, t.status.uppercased() == "CLOSED" || t.closedAt > 0 {
-            print("[SupportVM] Ticket \(ticketId) is already CLOSED, cannot select handling method.")
-            completion?(false)
-            return
+        if let t = ticket {
+            if t.status.uppercased() == "CLOSED" || t.closedAt > 0 || t.status.uppercased() == "RESOLVED" || t.resolvedAt > 0 {
+                print("[SupportVM] Ticket \(ticketId) is already CLOSED or RESOLVED, cannot select handling method.")
+                completion?(false)
+                return
+            }
+            if t.isAcknowledged && t.handlingMethod.uppercased() == method.uppercased() {
+                print("[SupportVM] Ticket \(ticketId) already selected method \(method), skipping duplicate.")
+                completion?(true)
+                return
+            }
         }
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
@@ -1532,6 +1545,19 @@ public class SupportViewModel: ObservableObject {
     public func rateTicket(ticketId: String, rating: Int, feedback: String = "", completion: ((Bool) -> Void)? = nil) {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let satisfactionDesc: String = {
+                switch rating {
+                case 1: return "Rất không hài lòng"
+                case 2: return "Không hài lòng"
+                case 3: return "Bình thường"
+                case 4: return "Hài lòng"
+                default: return "Rất hài lòng"
+                }
+            }()
+            let cleanFb = feedback.trimmingCharacters(in: .whitespacesAndNewlines)
+            let fbDetail = cleanFb.isEmpty ? satisfactionDesc : cleanFb
+            let finalCloseMsg = "⭐ [Khách hàng đánh giá \(rating)/5★]: \(fbDetail). Phiếu hỗ trợ đã được đóng tự động."
+
             let fields = "updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt&updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=closedByEmail&updateMask.fieldPaths=closedByName&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(fields)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
@@ -1544,18 +1570,21 @@ public class SupportViewModel: ObservableObject {
             let body: [String: Any] = [
                 "fields": [
                     "rating": ["integerValue": String(rating)],
-                    "feedback": ["stringValue": feedback],
+                    "feedback": ["stringValue": cleanFb],
                     "feedbackAt": ["integerValue": String(now)],
                     "status": ["stringValue": "CLOSED"],
                     "closedAt": ["integerValue": String(now)],
                     "closedByEmail": ["stringValue": user.email],
                     "closedByName": ["stringValue": user.fullName],
-                    "lastMessage": ["stringValue": "⭐ [Đánh giá \(rating)/5★] Phiếu hỗ trợ đã được đóng nghiệm thu."],
+                    "lastMessage": ["stringValue": finalCloseMsg],
                     "lastMessageAt": ["integerValue": String(now)]
                 ]
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
             _ = await FirestoreHelper.executeSafeRequest(request)
+
+            // Ghi nhận tin nhắn thông báo đánh giá vào cuộc hội thoại
+            sendMessage(ticketId: ticketId, text: finalCloseMsg, customSenderName: "Hệ thống (Nghiệm thu)", isSystemMessage: true)
 
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }

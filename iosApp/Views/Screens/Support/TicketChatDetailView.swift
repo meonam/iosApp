@@ -47,7 +47,7 @@ public struct TicketChatDetailView: View {
     @State private var selectedPreviewImageUrl: String? = nil
     @State private var techResolutionNote: String = ""
     @State private var reopenReason: String = ""
-    @State private var selectedRating: Int = 5
+    @State private var selectedRating: Int = 0
     @State private var ratingComment: String = ""
     @State private var rejectReasonText: String = ""
     @State private var isInternalNote: Bool = false
@@ -1998,6 +1998,12 @@ public struct TicketChatDetailView: View {
                     }
                 }
 
+                if selectedRating <= 0 {
+                    Text("Vui lòng chạm để chọn số sao đánh giá (1-5 sao)")
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Color(hex: "#EF4444"))
+                }
+
                 TextField("Nhận xét (không bắt buộc)...", text: $ratingComment)
                     .font(.system(size: 13.5))
                     .padding(12)
@@ -2007,18 +2013,20 @@ public struct TicketChatDetailView: View {
                     .padding(.horizontal, 20)
 
                 Button(action: {
+                    guard selectedRating > 0 else { return }
                     viewModel.rateTicket(ticketId: ticket.id, rating: selectedRating, feedback: ratingComment) { success in
                         if success { activeSheet = nil }
                     }
                 }) {
-                    Text("Nghiệm thu & Đóng phiếu")
+                    Text(selectedRating > 0 ? "Nghiệm thu & Đóng phiếu (\(selectedRating) ⭐)" : "Vui lòng chọn số sao để gửi")
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
-                        .background(Color.appPrimaryPink)
+                        .background(selectedRating > 0 ? Color.appPrimaryPink : Color.gray.opacity(0.5))
                         .cornerRadius(10)
                 }
+                .disabled(selectedRating <= 0)
                 .padding(.horizontal, 20)
 
                 Spacer()
@@ -2153,6 +2161,12 @@ public struct TicketChatDetailView: View {
                         }
                     }
 
+                    if selectedRating <= 0 {
+                        Text("Vui lòng chạm để chọn số sao đánh giá (1-5 sao)")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(hex: "#EF4444"))
+                    }
+
                     TextField("Nhận xét thêm (không bắt buộc)...", text: $ratingComment)
                         .font(.system(size: 12.5))
                         .padding(8)
@@ -2161,16 +2175,18 @@ public struct TicketChatDetailView: View {
                         .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
 
                     Button(action: {
+                        guard selectedRating > 0 else { return }
                         viewModel.rateTicket(ticketId: ticket.id, rating: selectedRating, feedback: ratingComment) { _ in }
                     }) {
-                        Text("✅ Gửi đánh giá & Nghiệm thu")
+                        Text(selectedRating > 0 ? "✅ Gửi đánh giá & Nghiệm thu (\(selectedRating) ⭐)" : "Vui lòng chọn số sao để gửi")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 40)
-                            .background(Color(hex: "#10B981"))
+                            .background(selectedRating > 0 ? Color(hex: "#10B981") : Color.gray.opacity(0.5))
                             .cornerRadius(8)
                     }
+                    .disabled(selectedRating <= 0)
                 }
                 .padding(12)
                 .background(Color.dynamic(light: "#FFFBEB", dark: "#2C2002"))
