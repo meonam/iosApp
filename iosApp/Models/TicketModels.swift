@@ -497,8 +497,22 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         )
     }
 
+    public var hasAssignee: Bool {
+        let hasTech = !assignedTo.trimmingCharacters(in: .whitespaces).isEmpty ||
+                      !assignedToEmail.trimmingCharacters(in: .whitespaces).isEmpty ||
+                      !coTechnicians.isEmpty
+        return hasTech || isSpecialistAssigned
+    }
+
+    public var isSelfResolved: Bool {
+        resolvedReason.uppercased() == "SELF_RESOLVED" ||
+        status.uppercased() == "CANCELLED_SELF_RESOLVED" ||
+        tracking?.status.uppercased() == "CANCELLED_SELF_RESOLVED"
+    }
+
     public var isAutoRateEligible: Bool {
         if isRejected || isInvalid || !invalidReason.isEmpty || status.uppercased() == "CANCELED" { return false }
+        if isSelfResolved || !hasAssignee { return false }
         if rating >= 1 && rating <= 5 { return false }
         let isDone = status.uppercased() == "CLOSED" || resolvedAt > 0 || ratingRequested || ratingEmailSent
         if !isDone { return false }
@@ -511,6 +525,7 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
 
     public var effectiveRating: Int {
         if isRejected || isInvalid || !invalidReason.isEmpty || status.uppercased() == "CANCELED" { return 0 }
+        if isSelfResolved || !hasAssignee { return rating }
         if rating >= 1 && rating <= 5 { return rating }
         if isAutoRated || isAutoRateEligible { return 5 }
         return 0
@@ -518,6 +533,7 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
 
     public var effectiveFeedback: String {
         if isInvalid || !invalidReason.isEmpty || status.uppercased() == "CANCELED" { return "" }
+        if isSelfResolved || !hasAssignee { return feedback }
         if !feedback.isEmpty { return feedback }
         if isAutoRated || isAutoRateEligible {
             return "[Hệ thống tự động ghi nhận Rất hài lòng (5★) sau 24h hoàn tất]"
@@ -526,11 +542,8 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
     }
 
     public var isEffectivelyAutoRated: Bool {
-        isAutoRated || (rating <= 0 && isAutoRateEligible)
-    }
-
-    public var isSelfResolved: Bool {
-        resolvedReason.uppercased() == "SELF_RESOLVED"
+        if isSelfResolved || !hasAssignee { return false }
+        return isAutoRated || (rating <= 0 && isAutoRateEligible)
     }
 
     public var isSpecialistAssigned: Bool {

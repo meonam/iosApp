@@ -2096,6 +2096,7 @@ public class SupportViewModel: ObservableObject {
             let autoFb = "[Hệ thống tự động ghi nhận Rất hài lòng (5★) sau 24h hoàn tất]"
 
             for ticket in candidates {
+                guard ticket.hasAssignee && !ticket.isSelfResolved && ticket.isAutoRateEligible else { continue }
                 let maskStr = "updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt&updateMask.fieldPaths=isAutoRated&updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
                 let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticket.id)?\(maskStr)"
                 guard let url = URL(string: urlStr) else { continue }

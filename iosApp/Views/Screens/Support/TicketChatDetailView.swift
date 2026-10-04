@@ -312,7 +312,7 @@ public struct TicketChatDetailView: View {
                 title: Text("Nghiệm thu & Đóng yêu cầu"),
                 message: Text("Kỹ thuật viên đã xử lý xong. Xác nhận nghiệm thu và hoàn tất đóng phiếu hỗ trợ này?"),
                 primaryButton: .default(Text("Nghiệm thu & Đóng")) {
-                    viewModel.closeTicket(ticketId: ticket.id, rating: 5, feedback: "Admin/HelpDesk nghiệm thu & đóng phiếu") { _ in }
+                    viewModel.closeTicket(ticketId: ticket.id, rating: nil, feedback: "") { _ in }
                 },
                 secondaryButton: .cancel(Text("Hủy"))
             )
@@ -927,7 +927,7 @@ public struct TicketChatDetailView: View {
             }
 
             // ── Banner 4: Nghiệm thu & Đánh giá 5 sao (cho Người tạo khi RESOLVED) ──
-            if isResolved {
+            if isResolved && currentTicket.hasAssignee && !currentTicket.isSelfResolved {
                 VStack(spacing: 6) {
                     HStack {
                         Image(systemName: "checkmark.seal.fill")
@@ -1767,8 +1767,32 @@ public struct TicketChatDetailView: View {
                 .padding(.vertical, 8)
             } else {
                 // Phiếu đã đóng nhưng chưa đánh giá
-                if isCreator {
-                    // Người tạo yêu cầu: hiển thị nút đánh giá
+                if currentTicket.isSelfResolved {
+                    // Người dùng tự đóng / tự xử lý xong: Đóng luôn, KHÔNG gợi ý đánh giá
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(Color(hex: "#10B981"))
+                        Text("Phiếu hỗ trợ đã đóng (Người dùng tự xử lý thành công).")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.appTextPrimary)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.appSurfaceVariant)
+                } else if !currentTicket.hasAssignee {
+                    // Phiếu chưa phân công KTV/Chuyên viên: Đóng luôn, không đánh giá KTV
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.fill")
+                            .foregroundColor(Color.gray)
+                        Text("Phiếu hỗ trợ đã đóng.")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color.gray)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.appSurfaceVariant)
+                } else if isCreator {
+                    // Người tạo yêu cầu và có KTV xử lý: hiển thị nút đánh giá
                     VStack(spacing: 8) {
                         HStack(spacing: 6) {
                             Image(systemName: "star.circle.fill")
@@ -2058,7 +2082,7 @@ public struct TicketChatDetailView: View {
     @ViewBuilder
     private var supportRatingSectionView: some View {
         let ticketRating = currentTicket.effectiveRating
-        if ticketRating == 0 && !isClosed && isResolved {
+        if ticketRating == 0 && !isClosed && isResolved && currentTicket.hasAssignee && !currentTicket.isSelfResolved {
             if isCreator {
                 // Người tạo xem phiếu khi KTV đã xử lý xong và chưa đánh giá -> Hiển thị form đánh giá nhanh
                 VStack(alignment: .leading, spacing: 10) {
