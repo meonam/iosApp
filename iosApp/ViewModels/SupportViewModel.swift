@@ -1021,8 +1021,9 @@ public class SupportViewModel: ObservableObject {
 
         let id = name.components(separatedBy: "/").last ?? ""
 
-        // Also add the first message into messages subcollection
-        sendMessage(ticketId: id, text: initialMessage)
+        // Also add the first message into messages subcollection (earlier timestamp ensures it always shows above dispatch)
+        let initTs = Int64(Date().timeIntervalSince1970 * 1000) - 1000
+        sendMessage(ticketId: id, text: initialMessage, customTimestamp: initTs)
         fetchTickets()
         return id
     }
@@ -1112,8 +1113,26 @@ public class SupportViewModel: ObservableObject {
                 )
             }
 
+            let curTicket = self.tickets.first(where: { $0.id == ticketId })
+            let cEmail = (curTicket?.creatorEmail ?? "").lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            let cInitMsg = curTicket?.initialMessage ?? ""
+
+            let sortedMsgs = msgs.sorted { a, b in
+                let aIsCreator = (!a.isSystemMessage && !a.isAdminReply) && (a.senderEmail.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == cEmail || (!cInitMsg.isEmpty && a.message == cInitMsg))
+                let bIsCreator = (!b.isSystemMessage && !b.isAdminReply) && (b.senderEmail.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == cEmail || (!cInitMsg.isEmpty && b.message == cInitMsg))
+                let aIsDispatch = (a.isSystemMessage || a.isAdminReply) && (a.message.contains("Điều phối") || a.message.contains("Chuyển giao tới"))
+                let bIsDispatch = (b.isSystemMessage || b.isAdminReply) && (b.message.contains("Điều phối") || b.message.contains("Chuyển giao tới"))
+
+                if aIsCreator && bIsDispatch && abs(a.timestamp - b.timestamp) <= 600_000 {
+                    return true
+                } else if bIsCreator && aIsDispatch && abs(a.timestamp - b.timestamp) <= 600_000 {
+                    return false
+                }
+                return a.timestamp < b.timestamp
+            }
+
             await MainActor.run {
-                self.messages = msgs.sorted { $0.timestamp < $1.timestamp }
+                self.messages = sortedMsgs
             }
         }
     }
@@ -1150,14 +1169,15 @@ public class SupportViewModel: ObservableObject {
         isInternal: Bool = false,
         attachmentUrls: [String] = [],
         customSenderName: String? = nil,
-        isSystemMessage: Bool = false
+        isSystemMessage: Bool = false,
+        customTimestamp: Int64? = nil
     ) {
         let cleanText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanText.isEmpty || !attachmentUrls.isEmpty else { return }
 
         isSendingMessage = true
         Task {
-            let now = Int64(Date().timeIntervalSince1970 * 1000)
+            let now = customTimestamp ?? Int64(Date().timeIntervalSince1970 * 1000)
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)/messages"
             guard let url = URL(string: urlStr) else { return }
 
@@ -1221,9 +1241,13 @@ public class SupportViewModel: ObservableObject {
     // MARK: - KTV / SPECIALIST TIẾP NHẬN / PHƯƠNG ÁN XỬ LÝ (ĐỒNG BỘ 1:1 ANDROID)
     public func acknowledgeTicket(ticketId: String) {
         VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
+        let ticket = rawTickets.first { $0.id == ticketId }
+        if let t = ticket, t.status.uppercased() == "CLOSED" || t.closedAt > 0 {
+            print("[SupportVM] Ticket \(ticketId) is already CLOSED, cannot acknowledge.")
+            return
+        }
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let ticket = rawTickets.first { $0.id == ticketId }
             let isClaiming = (ticket?.assignedToEmail ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
             var maskFields = [
@@ -1269,9 +1293,14 @@ public class SupportViewModel: ObservableObject {
 
     public func selectHandlingMethod(ticketId: String, method: String, completion: ((Bool) -> Void)? = nil) {
         VoiceNotificationHelper.shared.stopAlert(ticketId: ticketId)
+        let ticket = rawTickets.first { $0.id == ticketId }
+        if let t = ticket, t.status.uppercased() == "CLOSED" || t.closedAt > 0 {
+            print("[SupportVM] Ticket \(ticketId) is already CLOSED, cannot select handling method.")
+            completion?(false)
+            return
+        }
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let ticket = rawTickets.first { $0.id == ticketId }
             let isClaiming = (ticket?.assignedToEmail ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
 
             var maskFields = [
@@ -1583,6 +1612,19 @@ public class SupportViewModel: ObservableObject {
         assignedRole: String = "TECH",
         completion: ((Bool) -> Void)? = nil
     ) {
+        if let t = rawTickets.first(where: { $0.id == ticketId }), t.status.uppercased() == "CLOSED" || t.closedAt > 0 {
+            print("[SupportVM] Ticket \(ticketId) is already CLOSED, cannot assign.")
+            completion?(false)
+            return
+        }
+        if let t = rawTickets.first(where: { $0.id == ticketId }),
+           t.assignedToEmail.caseInsensitiveCompare(techEmail) == .orderedSame,
+           t.assignedDepartmentId.caseInsensitiveCompare(deptId) == .orderedSame,
+           t.dispatchNote == note {
+            print("[SupportVM] Ticket \(ticketId) already assigned to \(techEmail), skipping duplicate dispatch.")
+            completion?(true)
+            return
+        }
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let isSpecialist = assignedRole.uppercased() == "SPECIALIST" ||

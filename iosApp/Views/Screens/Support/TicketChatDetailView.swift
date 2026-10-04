@@ -56,6 +56,7 @@ public struct TicketChatDetailView: View {
     @State private var slaCountdown: String = ""
     @State private var slaTimer: Timer? = nil
     @State private var slaIsOverdue: Bool = false
+    @State private var chatPollTimer: Timer? = nil
 
     // MARK: - File Attachment State (đồng bộ Android AndroidPendingAttachment)
     /// Tối đa 5 tệp, mỗi tệp tối đa 10MB
@@ -234,11 +235,20 @@ public struct TicketChatDetailView: View {
         .onAppear {
             VoiceNotificationHelper.shared.stopAlert(ticketId: ticket.id)
             viewModel.fetchMessages(for: ticket.id)
+            viewModel.fetchTicketsSilent()
             startSlaTimer()
+
+            chatPollTimer?.invalidate()
+            chatPollTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
+                viewModel.fetchMessages(for: ticket.id)
+                viewModel.fetchTicketsSilent()
+            }
         }
         .onDisappear {
             slaTimer?.invalidate()
             slaTimer = nil
+            chatPollTimer?.invalidate()
+            chatPollTimer = nil
         }
         // ĐIỀU PHỐI SHEET ĐƠN LẺ CHÍNH THỨC TRÊN SWIFTUI (TRÁNH XUNG ĐỘT)
         .sheet(item: $activeSheet) { sheet in
@@ -322,7 +332,7 @@ public struct TicketChatDetailView: View {
         }
     }
 
-    // MARK: - TOP BAR (ĐỒNG BỘ 1:1 VỚI ANDROID Image 2)
+    // MARK: - TOP BAR (ĐỒNG BỘ 1:1 VỚI ANDROID AdminSupportChatScreen.kt:417-480)
     private func topBar(safeAreaTop: CGFloat) -> some View {
         VStack(spacing: 0) {
             Color.clear.frame(height: safeAreaTop)
@@ -335,6 +345,35 @@ public struct TicketChatDetailView: View {
                         .foregroundColor(.white)
                         .frame(width: 32, height: 32)
                         .contentShape(Rectangle())
+                }
+
+                // Tiêu đề TopBar đồng bộ 1:1 với Android: "Đang hỗ trợ #APP-..."
+                let rawCode: String = {
+                    let code = currentTicket.ticketCode.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return code.isEmpty ? "TK-\(currentTicket.id.prefix(8).uppercased())" : code
+                }()
+                let displayCode = rawCode.hasPrefix("#") ? rawCode : "#\(rawCode)"
+
+                Text("Đang hỗ trợ \(displayCode)")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .layoutPriority(0.5)
+
+                Spacer(minLength: 4)
+
+                // 0. Nút Đánh giá (nếu là người tạo & đã đóng/giải quyết & không phải tự giải quyết & có KTV)
+                if isCreator && isTicketDone && !currentTicket.isSelfResolved && currentTicket.hasAssignee {
+                    Button(action: { activeSheet = .rating }) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(Color(hex: "#F59E0B"))
+                            .frame(width: 30, height: 30)
+                            .background(Color.white.opacity(0.15))
+                            .clipShape(Circle())
+                            .contentShape(Rectangle())
+                    }
                 }
 
                 // 1. Nút Bản đồ lộ trình KTV (Live Tracking Map)
@@ -501,8 +540,13 @@ public struct TicketChatDetailView: View {
         VStack(alignment: .leading, spacing: 3) {
             // Hàng 1: #TK-TICKET_1 • NANG CAP APP SOAN HANG
             HStack(spacing: 6) {
-                let displayCode = !ticket.ticketCode.isEmpty ? ticket.ticketCode : "TK-\(ticket.id.prefix(8).uppercased())"
-                Text("#\(displayCode) • \(ticket.subject.isEmpty ? "Chi tiết hỗ trợ" : ticket.subject)")
+                let rawCode: String = {
+                    let code = currentTicket.ticketCode.trimmingCharacters(in: .whitespacesAndNewlines)
+                    return code.isEmpty ? "TK-\(currentTicket.id.prefix(8).uppercased())" : code
+                }()
+                let displayCode = rawCode.hasPrefix("#") ? rawCode : "#\(rawCode)"
+                let subject = currentTicket.subject.isEmpty ? "Chi tiết hỗ trợ" : currentTicket.subject
+                Text("\(displayCode) • \(subject)")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color.appSecondaryDarkBlue)
                     .lineLimit(1)
