@@ -1501,7 +1501,7 @@ public class SupportViewModel: ObservableObject {
     public func rateTicket(ticketId: String, rating: Int, feedback: String = "", completion: ((Bool) -> Void)? = nil) {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let fields = "updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt&updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=closedByEmail&updateMask.fieldPaths=closedByName"
+            let fields = "updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt&updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=closedByEmail&updateMask.fieldPaths=closedByName&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(fields)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
@@ -1518,16 +1518,14 @@ public class SupportViewModel: ObservableObject {
                     "status": ["stringValue": "CLOSED"],
                     "closedAt": ["integerValue": String(now)],
                     "closedByEmail": ["stringValue": user.email],
-                    "closedByName": ["stringValue": user.fullName]
+                    "closedByName": ["stringValue": user.fullName],
+                    "lastMessage": ["stringValue": "⭐ [Đánh giá \(rating)/5★] Phiếu hỗ trợ đã được đóng nghiệm thu."],
+                    "lastMessageAt": ["integerValue": String(now)]
                 ]
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
             _ = await FirestoreHelper.executeSafeRequest(request)
 
-            let stars = String(repeating: "⭐", count: rating)
-            let commentPart = feedback.isEmpty ? "" : " • Nhận xét: \"\(feedback)\""
-            let msg = "🎉 Người dùng đã nghiệm thu và đánh giá: \(stars) (\(rating)/5 sao)\(commentPart)"
-            sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
         }

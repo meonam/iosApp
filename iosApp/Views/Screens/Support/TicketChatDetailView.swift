@@ -1016,14 +1016,20 @@ public struct TicketChatDetailView: View {
                         initialMessageCard
                     }
 
-                    // Danh sách tin nhắn trao đổi
-                    ForEach(viewModel.messages) { msg in
+                    // Danh sách tin nhắn trao đổi (ẩn tin nhắn text tự động của đánh giá để không bị trùng lặp)
+                    ForEach(viewModel.messages.filter { msg in
+                        let text = msg.message
+                        let isRatingMsg = text.contains("Người dùng đã nghiệm thu và đánh giá") ||
+                                          text.contains("Khách hàng đánh giá") ||
+                                          text.contains("đã nghiệm thu và đánh giá")
+                        return !isRatingMsg
+                    }) { msg in
                         messageBubbleView(msg)
                             .id(msg.id)
                     }
 
-                    // Thẻ Đánh giá chất lượng hỗ trợ (đồng bộ 1:1 Android khi đã xử lý xong hoặc đã đóng)
-                    if isResolved || isClosed {
+                    // Thẻ Đánh giá chất lượng hỗ trợ: Chỉ hiển thị form đánh giá nhanh khi KTV đã xử lý xong và CHƯA đánh giá
+                    if isResolved && !isClosed && currentTicket.effectiveRating == 0 {
                         supportRatingSectionView
                     }
                 }
@@ -1745,7 +1751,7 @@ public struct TicketChatDetailView: View {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 9))
                             .foregroundColor(Color.gray.opacity(0.7))
-                        Text("🔒 Đánh giá đã được ghi nhận vào hồ sơ KPI và tự động khóa.")
+                        Text("Đánh giá đã được ghi nhận vào hồ sơ KPI và tự động khóa.")
                             .font(.system(size: 10))
                             .foregroundColor(Color.gray.opacity(0.85))
                     }
@@ -2048,146 +2054,74 @@ public struct TicketChatDetailView: View {
         }
     }
 
-    // MARK: - RATING SECTION VIEW (ĐỒNG BỘ 100% ANDROID AdminSupportChatScreen.kt lines 1740-1847)
+    // MARK: - QUICK RATING VIEW (Chỉ hiển thị khi KTV đã xử lý xong và CHƯA có đánh giá)
     @ViewBuilder
     private var supportRatingSectionView: some View {
-        let ticketRating = currentTicket.rating
-        if ticketRating > 0 {
-            // Đã đánh giá / Tự động 5 sao sau 24h -> Hiển thị Card đánh giá cố định có ổ khóa
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
+        let ticketRating = currentTicket.effectiveRating
+        if ticketRating == 0 && !isClosed && isResolved {
+            if isCreator {
+                // Người tạo xem phiếu khi KTV đã xử lý xong và chưa đánh giá -> Hiển thị form đánh giá nhanh
+                VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 6) {
-                        Image(systemName: "lock.fill")
-                            .font(.system(size: 13))
-                            .foregroundColor(ticketRating >= 3 ? Color(hex: "#15803D") : Color(hex: "#B91C1C"))
+                        Image(systemName: "star.bubble.fill")
+                            .foregroundColor(Color.appPrimaryPink)
+                            .font(.system(size: 16))
+                        Text("Đánh giá chất lượng hỗ trợ")
+                            .font(.system(size: 13.5, weight: .bold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                    }
 
-                        HStack(spacing: 2) {
-                            ForEach(1...5, id: \.self) { star in
-                                Image(systemName: star <= ticketRating ? "star.fill" : "star")
-                                    .font(.system(size: 13))
-                                    .foregroundColor(Color(hex: "#F59E0B"))
+                    Text("Kỹ thuật viên đã xử lý xong sự cố. Xin mời bạn đánh giá chất lượng dịch vụ:")
+                        .font(.system(size: 11.5))
+                        .foregroundColor(Color.gray)
+
+                    HStack(spacing: 8) {
+                        ForEach(1...5, id: \.self) { star in
+                            Button(action: { selectedRating = star }) {
+                                Image(systemName: star <= selectedRating ? "star.fill" : "star")
+                                    .font(.system(size: 26))
+                                    .foregroundColor(star <= selectedRating ? Color(hex: "#F59E0B") : Color(hex: "#CBD5E1"))
                             }
                         }
-
-                        Text("\(ticketRating)/5 ⭐")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(ticketRating >= 3 ? Color(hex: "#15803D") : Color(hex: "#B91C1C"))
                     }
 
-                    Spacer()
-
-                    let displayTime = currentTicket.feedbackAt > 0 ? currentTicket.feedbackAt : (currentTicket.closedAt > 0 ? currentTicket.closedAt : currentTicket.lastMessageAt)
-                    if displayTime > 0 {
-                        Text(formatMessageTime(displayTime))
-                            .font(.system(size: 10))
-                            .foregroundColor(Color.gray)
-                    }
-                }
-
-                let effectiveFb = currentTicket.feedback.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !effectiveFb.isEmpty {
-                    Text("💬 Nhận xét: \"\(effectiveFb)\"")
-                        .font(.system(size: 12))
-                        .italic()
-                        .foregroundColor(Color.appTextPrimary)
+                    TextField("Nhận xét thêm (không bắt buộc)...", text: $ratingComment)
+                        .font(.system(size: 12.5))
                         .padding(8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.appSurfaceVariant)
-                        .cornerRadius(6)
-                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
-                }
+                        .background(Color.appSurface)
+                        .cornerRadius(8)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
 
-                HStack(spacing: 4) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 10))
-                        .foregroundColor(Color.gray.opacity(0.6))
-                    Text("Đánh giá chất lượng đã được lưu vào hệ thống KPI.")
-                        .font(.system(size: 10))
+                    Button(action: {
+                        viewModel.rateTicket(ticketId: ticket.id, rating: selectedRating, feedback: ratingComment) { _ in }
+                    }) {
+                        Text("✅ Gửi đánh giá & Nghiệm thu")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 40)
+                            .background(Color(hex: "#10B981"))
+                            .cornerRadius(8)
+                    }
+                }
+                .padding(12)
+                .background(Color.dynamic(light: "#FFFBEB", dark: "#2C2002"))
+                .cornerRadius(12)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.dynamic(light: "#FDE68A", dark: "#78350F"), lineWidth: 1))
+            } else {
+                // KTV / Quản trị viên xem khi chưa có đánh giá
+                HStack(spacing: 6) {
+                    Image(systemName: "clock")
+                        .foregroundColor(Color.gray)
+                    Text("⏳ Chờ người dùng đánh giá chất lượng (Tự động ghi nhận 5★ sau 24h)")
+                        .font(.system(size: 11))
                         .foregroundColor(Color.gray)
                 }
-
-                if isAdminOrHelpDesk && !isClosed {
-                    Button(action: { showCloseTicketAlert = true }) {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                            Text("Nghiệm thu & Đóng phiếu")
-                                .font(.system(size: 12.5, weight: .bold))
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 38)
-                        .background(Color(hex: "#16A34A"))
-                        .cornerRadius(8)
-                    }
-                    .padding(.top, 4)
-                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .background(Color.appSurfaceVariant)
+                .cornerRadius(8)
             }
-            .padding(12)
-            .background(ticketRating >= 3 ? Color.dynamic(light: "#F0FDF4", dark: "#064E3B") : Color.dynamic(light: "#FEF2F2", dark: "#7F1D1D"))
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(ticketRating >= 3 ? Color.dynamic(light: "#BBF7D0", dark: "#059669") : Color.dynamic(light: "#FECACA", dark: "#991B1B"), lineWidth: 1))
-        } else if isCreator {
-            // Người tạo xem phiếu khi KTV đã xử lý xong và chưa đánh giá -> Hiển thị form đánh giá nhanh
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 6) {
-                    Image(systemName: "star.bubble.fill")
-                        .foregroundColor(Color.appPrimaryPink)
-                        .font(.system(size: 16))
-                    Text("Đánh giá chất lượng hỗ trợ")
-                        .font(.system(size: 13.5, weight: .bold))
-                        .foregroundColor(Color.appSecondaryDarkBlue)
-                }
-
-                Text("Kỹ thuật viên đã xử lý xong sự cố. Xin mời bạn đánh giá chất lượng dịch vụ:")
-                    .font(.system(size: 11.5))
-                    .foregroundColor(Color.gray)
-
-                HStack(spacing: 8) {
-                    ForEach(1...5, id: \.self) { star in
-                        Button(action: { selectedRating = star }) {
-                            Image(systemName: star <= selectedRating ? "star.fill" : "star")
-                                .font(.system(size: 26))
-                                .foregroundColor(star <= selectedRating ? Color(hex: "#F59E0B") : Color(hex: "#CBD5E1"))
-                        }
-                    }
-                }
-
-                TextField("Nhận xét thêm (không bắt buộc)...", text: $ratingComment)
-                    .font(.system(size: 12.5))
-                    .padding(8)
-                    .background(Color.appSurface)
-                    .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
-
-                Button(action: {
-                    viewModel.rateTicket(ticketId: ticket.id, rating: selectedRating, feedback: ratingComment) { _ in }
-                }) {
-                    Text("✅ Gửi đánh giá & Nghiệm thu")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 40)
-                        .background(Color(hex: "#10B981"))
-                        .cornerRadius(8)
-                }
-            }
-            .padding(12)
-            .background(Color.dynamic(light: "#FFFBEB", dark: "#2C2002"))
-            .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.dynamic(light: "#FDE68A", dark: "#78350F"), lineWidth: 1))
-        } else {
-            // KTV / Quản trị viên xem khi chưa có đánh giá
-            HStack(spacing: 6) {
-                Image(systemName: "clock")
-                    .foregroundColor(Color.gray)
-                Text("⏳ Chờ người dùng đánh giá chất lượng (Tự động ghi nhận 5★ sau 24h)")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color.gray)
-            }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .background(Color.appSurfaceVariant)
-            .cornerRadius(8)
         }
     }
 
