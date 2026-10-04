@@ -160,12 +160,27 @@ public struct TicketItemView: View {
                     }
 
                     // ── TẦNG 2: Hero Title chiếm trọn chiều ngang, chữ đậm #002A8F (hoặc sáng trong Dark mode) ──
-                    Text(ticket.subject.isEmpty ? "Yêu cầu hỗ trợ & xử lý sự cố" : ticket.subject)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(isOpen ? Color.appSecondaryDarkBlue : Color.appTextPrimary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 5) {
+                        if !ticket.ticketCode.isEmpty {
+                            Text("#\(ticket.ticketCode)")
+                                .font(.system(size: 10.5, weight: .black, design: .monospaced))
+                                .foregroundColor(Color.appTextSecondary)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1.5)
+                                .background(Color.appSurfaceVariant)
+                                .cornerRadius(4)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(Color.appBorder, lineWidth: 0.8)
+                                )
+                        }
+                        Text(ticket.subject.isEmpty ? "Yêu cầu hỗ trợ & xử lý sự cố" : ticket.subject)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(isOpen ? Color.appSecondaryDarkBlue : Color.appTextPrimary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
                     // ── TẦNG 3: Badges Row 1 (Trạng thái, Phân công KTV/Chuyên viên, NEW / Mở lại / Báo xong) ──
                     HStack(spacing: 4.5) {

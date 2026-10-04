@@ -836,6 +836,7 @@ public class SupportViewModel: ObservableObject {
 
                 return SupportTicket(
                     id: id,
+                    ticketCode: FirestoreHelper.getString(fields["ticketCode"] as? [String: Any]),
                     creatorEmail: FirestoreHelper.getString(fields["creatorEmail"] as? [String: Any]),
                     creatorName: FirestoreHelper.getString(fields["creatorName"] as? [String: Any]),
                     creatorPhone: FirestoreHelper.getString(fields["creatorPhone"] as? [String: Any]),
@@ -966,7 +967,15 @@ public class SupportViewModel: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let calendar = Calendar.current
+        let year = calendar.component(.year, from: Date()) % 100
+        let month = calendar.component(.month, from: Date())
+        let yymm = String(format: "%02d%02d", year, month)
+        let randNum = Int.random(in: 1000...9999)
+        let generatedTicketCode = "APP-\(yymm)-\(randNum)"
+
         var fields: [String: Any] = [
+            "ticketCode": ["stringValue": generatedTicketCode],
             "subject": ["stringValue": subject],
             "initialMessage": ["stringValue": initialMessage],
             "lastMessage": ["stringValue": initialMessage],

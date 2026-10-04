@@ -206,6 +206,7 @@ public struct TicketTracking: Codable, Hashable {
 // MARK: - SUPPORT TICKET MODEL (ĐỒNG BỘ 1:1 VỚI SUPPORTMODELS.KT TRÊN ANDROID)
 public struct SupportTicket: Identifiable, Codable, Hashable {
     public var id: String
+    public var ticketCode: String
     public var creatorEmail: String
     public var creatorName: String
     public var creatorPhone: String
@@ -294,6 +295,7 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
 
     public init(
         id: String = "",
+        ticketCode: String = "",
         creatorEmail: String = "",
         creatorName: String = "",
         creatorPhone: String = "",
@@ -381,6 +383,7 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         toNghiepVu: String = ""
     ) {
         self.id = id
+        self.ticketCode = ticketCode
         self.creatorEmail = creatorEmail
         self.creatorName = creatorName
         self.creatorPhone = creatorPhone

@@ -491,8 +491,8 @@ public struct TicketChatDetailView: View {
         VStack(alignment: .leading, spacing: 3) {
             // Hàng 1: #TK-TICKET_1 • NANG CAP APP SOAN HANG
             HStack(spacing: 6) {
-                let tCode = ticket.id.prefix(8).uppercased()
-                Text("#TK-\(tCode) • \(ticket.subject.isEmpty ? "Chi tiết hỗ trợ" : ticket.subject)")
+                let displayCode = !ticket.ticketCode.isEmpty ? ticket.ticketCode : "TK-\(ticket.id.prefix(8).uppercased())"
+                Text("#\(displayCode) • \(ticket.subject.isEmpty ? "Chi tiết hỗ trợ" : ticket.subject)")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color.appSecondaryDarkBlue)
                     .lineLimit(1)

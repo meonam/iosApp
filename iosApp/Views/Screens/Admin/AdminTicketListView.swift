@@ -48,6 +48,7 @@ public struct AdminTicketListView: View {
                             ticket.creatorName.lowercased().contains(q) ||
                             ticket.creatorEmail.lowercased().contains(q) ||
                             ticket.id.lowercased().contains(q) ||
+                            ticket.ticketCode.lowercased().contains(q) ||
                             ticket.donVi.lowercased().contains(q) ||
                             ticket.assetName.lowercased().contains(q)
                 if !match { return false }

@@ -95,6 +95,7 @@ public struct StaffSupportView: View {
                 let q = searchQuery.lowercased()
                 let match = ticket.subject.lowercased().contains(q) ||
                             ticket.id.lowercased().contains(q) ||
+                            ticket.ticketCode.lowercased().contains(q) ||
                             ticket.assetName.lowercased().contains(q) ||
                             ticket.donVi.lowercased().contains(q)
                 if !match { return false }
