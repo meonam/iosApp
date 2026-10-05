@@ -1396,6 +1396,12 @@ public class SupportViewModel: ObservableObject {
             let rolePrefix = isSpecialist ? "Chuyên viên" : "KTV"
             let msg = "🛠️ \(rolePrefix) \(user.fullName) báo cáo ĐÃ XỬ LÝ XONG: \(note). Mời bạn nghiệm thu & đánh giá chất lượng."
             sendMessage(ticketId: ticketId, text: msg)
+
+            // Tự động gửi Email nghiệm thu & 1-Click Rating nếu đủ điều kiện
+            Task {
+                await self.trySendResolutionEmail(ticketId: ticketId)
+            }
+
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
         }
@@ -1437,9 +1443,79 @@ public class SupportViewModel: ObservableObject {
 
             let closeMsg = !note.isEmpty ? "🔒 Yêu cầu hỗ trợ đã được đóng bởi \(user.fullName): \(note)" : "🔒 Yêu cầu hỗ trợ đã được đóng bởi \(user.fullName)."
             sendMessage(ticketId: ticketId, text: closeMsg)
+
+            // Tự động gửi Email nghiệm thu & 1-Click Rating nếu đủ điều kiện (Đồng bộ 100% Android & Desktop)
+            Task {
+                await self.trySendResolutionEmail(ticketId: ticketId)
+            }
+
             self.fetchTickets()
             DispatchQueue.main.async { completion?(true) }
         }
+    }
+
+    // MARK: - TỰ ĐỘNG GỬI EMAIL NGHIỆM THU & 1-CLICK RATING (ĐỒNG BỘ ANDROID)
+    public func trySendResolutionEmail(ticketId: String) async {
+        guard let ticket = rawTickets.first(where: { $0.id == ticketId }) else { return }
+        let recipientEmail = (!ticket.creatorEmail.isEmpty ? ticket.creatorEmail : ticket.externalSenderId)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard recipientEmail.contains("@"), !ticket.ratingEmailSent else { return }
+
+        guard let emailCfg = await fetchCompanyEmailConfig(),
+              emailCfg.autoSendRatingEmailOnClose && emailCfg.isConfigured else { return }
+
+        let res = await IosEmailSender.sendResolutionRatingEmail(ticket: ticket, config: emailCfg)
+        switch res {
+        case .success:
+            let nowTime = Int64(Date().timeIntervalSince1970 * 1000)
+            let updateUrl = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=ratingEmailSent&updateMask.fieldPaths=ratingEmailSentAt"
+            if let u = URL(string: updateUrl) {
+                var req = URLRequest(url: u)
+                req.httpMethod = "PATCH"
+                req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                let body: [String: Any] = [
+                    "fields": [
+                        "ratingEmailSent": ["booleanValue": true],
+                        "ratingEmailSentAt": ["integerValue": String(nowTime)]
+                    ]
+                ]
+                req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+                _ = await FirestoreHelper.executeSafeRequest(req)
+            }
+
+            let auditMsg = "✉️ [Hệ thống]: Đã tự động gửi email nghiệm thu & liên kết đánh giá 1-Click Rating tới \(recipientEmail)."
+            self.sendMessage(ticketId: ticketId, text: auditMsg)
+        case .failure(let err):
+            print("[SupportVM] Không thể gửi email nghiệm thu trên iOS: \(err.localizedDescription)")
+        }
+    }
+
+    public func fetchCompanyEmailConfig() async -> CompanyEmailConfig? {
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanComp.isEmpty else { return nil }
+
+        // 1. Tìm cấu hình riêng của công ty: companies/{compId}/system_config/email_integration
+        let compDocUrl = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/email_integration"
+        if let u = URL(string: compDocUrl), let (data, resp) = await FirestoreHelper.safeGet(url: u, idToken: idToken), resp == 200 {
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let fields = json["fields"] as? [String: Any] {
+                let cfg = CompanyEmailConfig.fromFirestore(fields)
+                if cfg.isConfigured { return cfg }
+            }
+        }
+
+        // 2. Fallback: Cấu hình dùng chung toàn hệ thống /system_config/email_integration
+        let globalDocUrl = "\(FirebaseConfig.firestoreBaseUrl)/system_config/email_integration"
+        if let u = URL(string: globalDocUrl), let (data, resp) = await FirestoreHelper.safeGet(url: u, idToken: idToken), resp == 200 {
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let fields = json["fields"] as? [String: Any] {
+                let cfg = CompanyEmailConfig.fromFirestore(fields)
+                if cfg.isConfigured { return cfg }
+            }
+        }
+
+        return nil
     }
 
     // MARK: - TỪ CHỐI TICKET (ĐỒNG BỘ 1:1 VỚI rejectTicket TRÊN ANDROID)
