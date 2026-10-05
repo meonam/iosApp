@@ -855,6 +855,18 @@ public struct SlaConfig: Codable, Hashable {
     public var warningBeforeBreachMinutes: Int = 15     // Cảnh báo âm thanh trước khi trễ (phút)
     public var slaPenaltyPercentDefault: Int = 0         // % Trừ KPI khi vi phạm SLA
     public var enableHelpdeskSla: Bool = true           // Bật/tắt SLA cho Tổng đài tiếp nhận HelpDesk (mặc định true)
+    public var enableAutoDispatchOffHours: Bool = true  // Tự động điều phối ngoài ca trực HelpDesk
+    public var helpdeskWeekdayStart: String = "08:00"   // Giờ bắt đầu trực T2 - T6
+    public var helpdeskWeekdayEnd: String = "17:30"     // Giờ kết thúc trực T2 - T6
+    public var helpdeskSaturdayStart: String = "08:00"  // Giờ bắt đầu trực T7
+    public var helpdeskSaturdayEnd: String = "12:00"    // Giờ kết thúc trực T7 (sau 12:00 là ngoài giờ)
+    public var escalationTimeoutMinutes: Int = 15       // Thời hạn KTV xác nhận tiếp nhận trước khi báo cáo lên Trưởng nhóm Cụm
+    public var holidaysList: [String] = [               // Danh sách ngày nghỉ Lễ/Tết do HelpDesk tự điền
+        "2026-01-01",
+        "2026-04-30 (Giải Phóng Miền Nam)",
+        "2026-05-01 (Quốc Tế Lao Động)",
+        "2026-09-02 (Quốc Khánh)"
+    ]
 
     public init(
         responseMinutesDefault: Int = 30,
@@ -868,7 +880,19 @@ public struct SlaConfig: Codable, Hashable {
         qualityTrackingHoursLow: Int = 24,
         warningBeforeBreachMinutes: Int = 15,
         slaPenaltyPercentDefault: Int = 0,
-        enableHelpdeskSla: Bool = true
+        enableHelpdeskSla: Bool = true,
+        enableAutoDispatchOffHours: Bool = true,
+        helpdeskWeekdayStart: String = "08:00",
+        helpdeskWeekdayEnd: String = "17:30",
+        helpdeskSaturdayStart: String = "08:00",
+        helpdeskSaturdayEnd: String = "12:00",
+        escalationTimeoutMinutes: Int = 15,
+        holidaysList: [String] = [
+            "2026-01-01",
+            "2026-04-30 (Giải Phóng Miền Nam)",
+            "2026-05-01 (Quốc Tế Lao Động)",
+            "2026-09-02 (Quốc Khánh)"
+        ]
     ) {
         self.responseMinutesDefault = responseMinutesDefault
         self.resolveMinutesUrgent = resolveMinutesUrgent
@@ -882,5 +906,12 @@ public struct SlaConfig: Codable, Hashable {
         self.warningBeforeBreachMinutes = warningBeforeBreachMinutes
         self.slaPenaltyPercentDefault = slaPenaltyPercentDefault
         self.enableHelpdeskSla = enableHelpdeskSla
+        self.enableAutoDispatchOffHours = enableAutoDispatchOffHours
+        self.helpdeskWeekdayStart = helpdeskWeekdayStart
+        self.helpdeskWeekdayEnd = helpdeskWeekdayEnd
+        self.helpdeskSaturdayStart = helpdeskSaturdayStart
+        self.helpdeskSaturdayEnd = helpdeskSaturdayEnd
+        self.escalationTimeoutMinutes = escalationTimeoutMinutes
+        self.holidaysList = holidaysList
     }
 }

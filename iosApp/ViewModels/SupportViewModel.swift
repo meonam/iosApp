@@ -24,6 +24,8 @@ public class SupportViewModel: ObservableObject {
     @Published public var errorMessage: String? = nil
 
     @Published public var isTicketReopenEnabled: Bool = false
+    @Published public var slaConfig: SlaConfig = SlaConfig()
+    @Published public var companyUnits: [DonVi] = []
 
     // Chat realtime
     @Published public var currentTicket: SupportTicket? = nil
@@ -114,6 +116,9 @@ public class SupportViewModel: ObservableObject {
         }
 
         fetchSystemToggleConfig()
+        fetchSlaConfig()
+        fetchCompanyUnits()
+        fetchKtvTechnicians()
     }
 
     // MARK: - SYSTEM TOGGLE CONFIG (ĐỒNG BỘ CẤU HÌNH ADMIN / REOPEN TICKET)
@@ -137,6 +142,111 @@ public class SupportViewModel: ObservableObject {
             } else {
                 await MainActor.run {
                     self.isTicketReopenEnabled = false
+                }
+            }
+        }
+    }
+
+    // MARK: - SLA CONFIG & AUTO DISPATCH
+    public func fetchSlaConfig() {
+        guard !companyId.isEmpty else { return }
+        Task {
+            let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/sla_config"
+            guard let url = URL(string: urlStr) else { return }
+            var req = URLRequest(url: url)
+            if !idToken.isEmpty {
+                req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            }
+            if let (data, httpResp) = await FirestoreHelper.executeSafeRequest(req), httpResp.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let fields = json["fields"] as? [String: Any] {
+                var cfg = SlaConfig()
+                if let rDef = FirestoreHelper.getInt(fields["responseMinutesDefault"] as? [String: Any]), rDef > 0 {
+                    cfg.responseMinutesDefault = rDef
+                }
+                if let rUrg = FirestoreHelper.getInt(fields["resolveMinutesUrgent"] as? [String: Any]), rUrg > 0 {
+                    cfg.resolveMinutesUrgent = rUrg
+                }
+                if let rHigh = FirestoreHelper.getInt(fields["resolveMinutesHigh"] as? [String: Any]), rHigh > 0 {
+                    cfg.resolveMinutesHigh = rHigh
+                }
+                if let rNorm = FirestoreHelper.getInt(fields["resolveMinutesNormal"] as? [String: Any]), rNorm > 0 {
+                    cfg.resolveMinutesNormal = rNorm
+                }
+                if let rLow = FirestoreHelper.getInt(fields["resolveMinutesLow"] as? [String: Any]), rLow > 0 {
+                    cfg.resolveMinutesLow = rLow
+                }
+                if let qUrg = FirestoreHelper.getInt(fields["qualityTrackingHoursUrgent"] as? [String: Any]), qUrg > 0 {
+                    cfg.qualityTrackingHoursUrgent = qUrg
+                }
+                if let qHigh = FirestoreHelper.getInt(fields["qualityTrackingHoursHigh"] as? [String: Any]), qHigh > 0 {
+                    cfg.qualityTrackingHoursHigh = qHigh
+                }
+                if let qNorm = FirestoreHelper.getInt(fields["qualityTrackingHoursNormal"] as? [String: Any]), qNorm > 0 {
+                    cfg.qualityTrackingHoursNormal = qNorm
+                }
+                if let qLow = FirestoreHelper.getInt(fields["qualityTrackingHoursLow"] as? [String: Any]), qLow > 0 {
+                    cfg.qualityTrackingHoursLow = qLow
+                }
+                if let wMin = FirestoreHelper.getInt(fields["warningBeforeBreachMinutes"] as? [String: Any]), wMin > 0 {
+                    cfg.warningBeforeBreachMinutes = wMin
+                }
+                if let pen = FirestoreHelper.getInt(fields["slaPenaltyPercentDefault"] as? [String: Any]) {
+                    cfg.slaPenaltyPercentDefault = pen
+                }
+                if let eh = fields["enableHelpdeskSla"] as? [String: Any], let b = eh["booleanValue"] as? Bool {
+                    cfg.enableHelpdeskSla = b
+                }
+                if let autoOff = fields["enableAutoDispatchOffHours"] as? [String: Any], let b = autoOff["booleanValue"] as? Bool {
+                    cfg.enableAutoDispatchOffHours = b
+                }
+                let wdS = FirestoreHelper.getString(fields["helpdeskWeekdayStart"] as? [String: Any])
+                if !wdS.isEmpty { cfg.helpdeskWeekdayStart = wdS }
+                let wdE = FirestoreHelper.getString(fields["helpdeskWeekdayEnd"] as? [String: Any])
+                if !wdE.isEmpty { cfg.helpdeskWeekdayEnd = wdE }
+                let satS = FirestoreHelper.getString(fields["helpdeskSaturdayStart"] as? [String: Any])
+                if !satS.isEmpty { cfg.helpdeskSaturdayStart = satS }
+                let satE = FirestoreHelper.getString(fields["helpdeskSaturdayEnd"] as? [String: Any])
+                if !satE.isEmpty { cfg.helpdeskSaturdayEnd = satE }
+                let escMin = FirestoreHelper.getInt(fields["escalationTimeoutMinutes"] as? [String: Any])
+                if escMin > 0 { cfg.escalationTimeoutMinutes = escMin }
+                if let hArr = fields["holidaysList"] as? [String: Any],
+                   let vals = hArr["arrayValue"] as? [String: Any],
+                   let list = vals["values"] as? [[String: Any]] {
+                    let hList: [String] = list.compactMap { $0["stringValue"] as? String }
+                    if !hList.isEmpty { cfg.holidaysList = hList }
+                }
+                await MainActor.run {
+                    self.slaConfig = cfg
+                }
+            }
+        }
+    }
+
+    public func fetchCompanyUnits() {
+        guard !companyId.isEmpty else { return }
+        Task {
+            let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/units?pageSize=300"
+            guard let url = URL(string: urlStr) else { return }
+            var req = URLRequest(url: url)
+            if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+            if let (data, resp) = await FirestoreHelper.executeSafeRequest(req), resp.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let docs = json["documents"] as? [[String: Any]] {
+                let units: [DonVi] = docs.compactMap { doc in
+                    guard let fields = doc["fields"] as? [String: Any],
+                          let name = doc["name"] as? String else { return nil }
+                    let id = name.components(separatedBy: "/").last ?? ""
+                    let uName = FirestoreHelper.getString(fields["unitName"] as? [String: Any]).isEmpty
+                        ? (FirestoreHelper.getString(fields["name"] as? [String: Any]).isEmpty ? id : FirestoreHelper.getString(fields["name"] as? [String: Any]))
+                        : FirestoreHelper.getString(fields["unitName"] as? [String: Any])
+                    let maKhuVuc = FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any])
+                    return DonVi(id: id, tenDonVi: uName, maKhuVuc: maKhuVuc, companyId: cleanComp)
+                }
+                await MainActor.run {
+                    self.companyUnits = units
                 }
             }
         }
@@ -956,7 +1066,8 @@ public class SupportViewModel: ObservableObject {
         assetId: String = "",
         assetName: String = "",
         images: [String] = [],
-        attachments: [AttachmentItem] = []
+        attachments: [AttachmentItem] = [],
+        donVi: String = ""
     ) async -> String? {
         let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets"
         guard let url = URL(string: urlStr) else { return nil }
@@ -974,6 +1085,8 @@ public class SupportViewModel: ObservableObject {
         let randNum = Int.random(in: 1000...9999)
         let generatedTicketCode = "APP-\(yymm)-\(randNum)"
 
+        let effectiveDonVi = !donVi.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? donVi : user.donVi
+
         var fields: [String: Any] = [
             "ticketCode": ["stringValue": generatedTicketCode],
             "subject": ["stringValue": subject],
@@ -985,7 +1098,7 @@ public class SupportViewModel: ObservableObject {
             "creatorEmail": ["stringValue": user.email],
             "creatorName": ["stringValue": !user.fullName.isEmpty ? user.fullName : user.email],
             "creatorPhone": ["stringValue": user.phone],
-            "donVi": ["stringValue": user.donVi],
+            "donVi": ["stringValue": effectiveDonVi],
             "departmentId": ["stringValue": user.departmentId],
             "companyId": ["stringValue": companyId],
             "createdAt": ["integerValue": String(now)],
@@ -1012,6 +1125,38 @@ public class SupportViewModel: ObservableObject {
             }]]
         }
 
+        // TỰ ĐỘNG ĐIỀU PHỐI NGOÀI GIỜ / NGÀY NGHỈ LỄ THEO CỤM SỞ TẠI
+        let offHoursCheck = WorkingHoursHelper.isHelpdeskOffHours(date: Date(), slaConfig: self.slaConfig)
+        var autoDispatchedTech: AutoDispatchedTechnician? = nil
+
+        if self.slaConfig.enableAutoDispatchOffHours && !offHoursCheck.isBusinessHours {
+            let targetCluster = WorkingHoursHelper.resolveUnitCluster(units: self.companyUnits, donViName: effectiveDonVi)
+            var workloadMap: [String: Int] = [:]
+            for ktv in self.ktvTechnicians {
+                workloadMap[ktv.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()] = getActiveTicketCount(email: ktv.email)
+            }
+            autoDispatchedTech = WorkingHoursHelper.findDutyTechnician(
+                check: offHoursCheck,
+                ktvList: self.ktvTechnicians,
+                targetCluster: targetCluster,
+                workloadMap: workloadMap
+            )
+            if let auto = autoDispatchedTech {
+                fields["status"] = ["stringValue": "ASSIGNED"]
+                fields["assignedDepartmentId"] = ["stringValue": auto.departmentId]
+                fields["assignedDepartmentName"] = ["stringValue": auto.departmentName]
+                fields["assignedToEmail"] = ["stringValue": auto.email]
+                fields["assignedToName"] = ["stringValue": auto.name]
+                fields["assignedCluster"] = ["stringValue": auto.assignedCluster]
+                fields["assignedRole"] = ["stringValue": "TECH"]
+                fields["assignedAt"] = ["integerValue": String(now)]
+                fields["assignedByEmail"] = ["stringValue": "system_auto_dispatcher@qltb.vn"]
+                fields["dispatchNote"] = ["stringValue": auto.dispatchNote]
+                fields["scope"] = ["stringValue": "TECHNICAL"]
+                fields["assignedTechnicianEmails"] = ["arrayValue": ["values": [["stringValue": auto.email]]]]
+            }
+        }
+
         let body: [String: Any] = ["fields": fields]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
@@ -1025,6 +1170,19 @@ public class SupportViewModel: ObservableObject {
         // Also add the first message into messages subcollection (earlier timestamp ensures it always shows above dispatch)
         let initTs = Int64(Date().timeIntervalSince1970 * 1000) - 1000
         sendMessage(ticketId: id, text: initialMessage, customTimestamp: initTs)
+
+        // Ghi nhận log tin nhắn hệ thống nếu ticket được tự động điều phối ngoài giờ
+        if let auto = autoDispatchedTech {
+            let escMin = self.slaConfig.escalationTimeoutMinutes > 0 ? self.slaConfig.escalationTimeoutMinutes : 15
+            let autoDispatchMsg = """
+            ⏰ [TỰ ĐỘNG ĐIỀU PHỐI NGOÀI GIỜ]
+            Sự cố phát sinh ngoài giờ trực của HelpDesk (\(offHoursCheck.reason)).
+            Hệ thống đã tự động gán vé cho KTV \(auto.name) thuộc Cụm \(auto.assignedCluster).
+            ⏱️ Vui lòng xác nhận tiếp nhận trong vòng \(escMin) phút.
+            """
+            sendMessage(ticketId: id, text: autoDispatchMsg, isSystemMessage: true, customTimestamp: now + 500)
+        }
+
         fetchTickets()
         return id
     }
@@ -1056,7 +1214,8 @@ public class SupportViewModel: ObservableObject {
                 assetId: assetId,
                 assetName: assetName,
                 images: images,
-                attachments: attachments
+                attachments: attachments,
+                donVi: donVi
             )
             DispatchQueue.main.async {
                 completion?(res != nil)

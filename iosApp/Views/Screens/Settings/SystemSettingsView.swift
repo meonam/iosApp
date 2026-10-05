@@ -60,6 +60,21 @@ public struct SystemSettingsView: View {
     @State private var slaWarningMinutes: Int = 15
     @State private var slaPenaltyPercent: Int = 0
     @State private var slaEnableHelpdesk: Bool = true
+
+    // Quản lý điều phối ngoài giờ HelpDesk & Ngày nghỉ Lễ do HelpDesk tự điền
+    @State private var enableAutoDispatchOffHours: Bool = true
+    @State private var helpdeskWeekdayStart: String = "08:00"
+    @State private var helpdeskWeekdayEnd: String = "17:30"
+    @State private var helpdeskSaturdayStart: String = "08:00"
+    @State private var helpdeskSaturdayEnd: String = "12:00"
+    @State private var escalationTimeoutMinutes: Int = 15
+    @State private var holidaysList: [String] = [
+        "2026-01-01",
+        "2026-04-30 (Giải Phóng Miền Nam)",
+        "2026-05-01 (Quốc Tế Lao Động)",
+        "2026-09-02 (Quốc Khánh)"
+    ]
+    @State private var newHolidayText: String = ""
     
     @State private var notificationsEnabled: Bool = true
     @State private var maxDevicesPerUser: Int = 5
@@ -464,6 +479,186 @@ public struct SystemSettingsView: View {
                     }
                 }
                 .padding(.top, 2)
+
+                Divider().padding(.vertical, 4)
+
+                // 5. ĐIỀU PHỐI TỰ ĐỘNG NGOÀI GIỜ & NGÀY NGHỈ LỄ
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("🌙 Điều phối tự động ngoài ca trực HelpDesk:")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text("Bật tự động điều phối ngoài giờ")
+                                        .font(.system(size: 12.5, weight: .semibold))
+                                        .foregroundColor(Color.appTextPrimary)
+                                    Text(enableAutoDispatchOffHours ? "BẬT" : "TẮT")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(enableAutoDispatchOffHours ? Color(hex: "#15803D") : Color(hex: "#64748B"))
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1.5)
+                                        .background(enableAutoDispatchOffHours ? Color(hex: "#DCFCE7") : Color(hex: "#F1F5F9"))
+                                        .cornerRadius(4)
+                                }
+                                Text("Tự động gán vé cho KTV theo Cụm sở tại khi ngoài giờ trực HelpDesk hoặc ngày Lễ/Tết.")
+                                    .font(.system(size: 10.5))
+                                    .foregroundColor(.gray)
+                            }
+                            Spacer()
+                            Toggle("", isOn: $enableAutoDispatchOffHours)
+                                .labelsHidden()
+                        }
+                    }
+                    .padding(10)
+                    .background(Color(hex: "#F8FAFC"))
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
+
+                    if enableAutoDispatchOffHours {
+                        VStack(alignment: .leading, spacing: 10) {
+                            // Khung giờ trực T2 - T6
+                            HStack {
+                                Text("Ca trực T2 - T6:")
+                                    .font(.system(size: 12.5))
+                                    .foregroundColor(Color.appTextPrimary)
+                                Spacer()
+                                TextField("08:00", text: $helpdeskWeekdayStart)
+                                    .font(.system(size: 12.5))
+                                    .frame(width: 60)
+                                    .multilineTextAlignment(.center)
+                                    .padding(4)
+                                    .background(Color.gray.opacity(0.1))
+                                    .cornerRadius(6)
+                                Text("đến")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.gray)
+                                TextField("17:30", text: $helpdeskWeekdayEnd)
+                                    .font(.system(size: 12.5))
+                                    .frame(width: 60)
+                                    .multilineTextAlignment(.center)
+                                    .padding(4)
+                                    .background(Color.gray.opacity(0.1))
+                                    .cornerRadius(6)
+                            }
+
+                            // Khung giờ trực Thứ 7
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Ca trực Thứ 7:")
+                                        .font(.system(size: 12.5))
+                                        .foregroundColor(Color.appTextPrimary)
+                                    Text("(Sau 12h & CN là ngoài giờ)")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.gray)
+                                }
+                                Spacer()
+                                TextField("08:00", text: $helpdeskSaturdayStart)
+                                    .font(.system(size: 12.5))
+                                    .frame(width: 60)
+                                    .multilineTextAlignment(.center)
+                                    .padding(4)
+                                    .background(Color.gray.opacity(0.1))
+                                    .cornerRadius(6)
+                                Text("đến")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.gray)
+                                TextField("12:00", text: $helpdeskSaturdayEnd)
+                                    .font(.system(size: 12.5))
+                                    .frame(width: 60)
+                                    .multilineTextAlignment(.center)
+                                    .padding(4)
+                                    .background(Color.gray.opacity(0.1))
+                                    .cornerRadius(6)
+                            }
+
+                            // Thời hạn xác nhận nhận việc
+                            settingNumberField(title: "⏱️ Thời hạn KTV nhận việc trước khi báo cáo Trưởng cụm (phút)", value: $escalationTimeoutMinutes)
+
+                            // Danh sách Ngày nghỉ Lễ/Tết do HelpDesk tự điền
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("📅 Ngày nghỉ Lễ / Tết (HelpDesk tự cấu hình):")
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .foregroundColor(Color.appTextPrimary)
+
+                                Text("Hệ thống sẽ tự động gán vé cho KTV theo Cụm trong các ngày này.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.gray)
+
+                                // Chips list
+                                if holidaysList.isEmpty {
+                                    Text("Chưa có ngày nghỉ lễ nào được cấu hình.")
+                                        .font(.system(size: 11.5))
+                                        .foregroundColor(.gray)
+                                        .italic()
+                                } else {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        ForEach(holidaysList, id: \.self) { hol in
+                                            HStack {
+                                                Image(systemName: "calendar.badge.clock")
+                                                    .font(.system(size: 11))
+                                                    .foregroundColor(Color(hex: "#EA580C"))
+                                                Text(hol)
+                                                    .font(.system(size: 11.5, weight: .medium))
+                                                    .foregroundColor(Color.appTextPrimary)
+                                                Spacer()
+                                                Button(action: {
+                                                    holidaysList.removeAll { $0 == hol }
+                                                }) {
+                                                    Image(systemName: "xmark.circle.fill")
+                                                        .font(.system(size: 14))
+                                                        .foregroundColor(.gray)
+                                                }
+                                                .buttonStyle(PlainButtonStyle())
+                                            }
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(Color(hex: "#FFF7ED"))
+                                            .cornerRadius(6)
+                                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#FED7AA"), lineWidth: 1))
+                                        }
+                                    }
+                                }
+
+                                // Thêm ngày lễ mới
+                                HStack(spacing: 8) {
+                                    TextField("Ví dụ: 2026-09-02 (Quốc Khánh)", text: $newHolidayText)
+                                        .font(.system(size: 12))
+                                        .padding(6)
+                                        .background(Color.gray.opacity(0.1))
+                                        .cornerRadius(6)
+
+                                    Button(action: {
+                                        let clean = newHolidayText.trimmingCharacters(in: .whitespacesAndNewlines)
+                                        if !clean.isEmpty && !holidaysList.contains(clean) {
+                                            holidaysList.append(clean)
+                                            newHolidayText = ""
+                                        }
+                                    }) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "plus.circle.fill")
+                                                .font(.system(size: 12))
+                                            Text("Thêm")
+                                                .font(.system(size: 12, weight: .bold))
+                                        }
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(Color(hex: "#EA580C"))
+                                        .cornerRadius(6)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                }
+                                .padding(.top, 4)
+                            }
+                        }
+                        .padding(10)
+                        .background(Color(hex: "#F8FAFC"))
+                        .cornerRadius(8)
+                    }
+                }
             }
         }
     }
@@ -700,6 +895,29 @@ public struct SystemSettingsView: View {
                         self.slaEnableHelpdesk = true
                     }
 
+                    if let autoOffDict = fields["enableAutoDispatchOffHours"] as? [String: Any],
+                       let boolVal = autoOffDict["booleanValue"] as? Bool {
+                        self.enableAutoDispatchOffHours = boolVal
+                    } else {
+                        self.enableAutoDispatchOffHours = true
+                    }
+                    let wdS = FirestoreHelper.getString(fields["helpdeskWeekdayStart"] as? [String: Any])
+                    if !wdS.isEmpty { self.helpdeskWeekdayStart = wdS }
+                    let wdE = FirestoreHelper.getString(fields["helpdeskWeekdayEnd"] as? [String: Any])
+                    if !wdE.isEmpty { self.helpdeskWeekdayEnd = wdE }
+                    let satS = FirestoreHelper.getString(fields["helpdeskSaturdayStart"] as? [String: Any])
+                    if !satS.isEmpty { self.helpdeskSaturdayStart = satS }
+                    let satE = FirestoreHelper.getString(fields["helpdeskSaturdayEnd"] as? [String: Any])
+                    if !satE.isEmpty { self.helpdeskSaturdayEnd = satE }
+                    let escMin = FirestoreHelper.getInt(fields["escalationTimeoutMinutes"] as? [String: Any])
+                    if escMin > 0 { self.escalationTimeoutMinutes = escMin }
+                    if let hArr = fields["holidaysList"] as? [String: Any],
+                       let vals = hArr["arrayValue"] as? [String: Any],
+                       let list = vals["values"] as? [[String: Any]] {
+                        let parsed = list.compactMap { $0["stringValue"] as? String }
+                        if !parsed.isEmpty { self.holidaysList = parsed }
+                    }
+
                     self.localSlaUrgentHours = self.slaUrgentHours
                     self.localSlaHighHours = self.slaHighHours
                     self.localSlaNormalHours = self.slaNormalHours
@@ -821,6 +1039,13 @@ public struct SystemSettingsView: View {
                     "warningBeforeBreachMinutes": ["integerValue": String(slaWarningMinutes)],
                     "slaPenaltyPercentDefault": ["integerValue": String(slaPenaltyPercent)],
                     "enableHelpdeskSla": ["booleanValue": slaEnableHelpdesk],
+                    "enableAutoDispatchOffHours": ["booleanValue": enableAutoDispatchOffHours],
+                    "helpdeskWeekdayStart": ["stringValue": helpdeskWeekdayStart],
+                    "helpdeskWeekdayEnd": ["stringValue": helpdeskWeekdayEnd],
+                    "helpdeskSaturdayStart": ["stringValue": helpdeskSaturdayStart],
+                    "helpdeskSaturdayEnd": ["stringValue": helpdeskSaturdayEnd],
+                    "escalationTimeoutMinutes": ["integerValue": String(escalationTimeoutMinutes)],
+                    "holidaysList": ["arrayValue": ["values": holidaysList.map { ["stringValue": $0] }]],
                     "updatedAt": ["integerValue": String(Int(Date().timeIntervalSince1970 * 1000))]
                 ]
             ]

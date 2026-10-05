@@ -64,6 +64,23 @@ public struct DispatchTicketSheet: View {
         return clusters
     }
 
+    private var ticketCluster: String {
+        if !ticket.assignedCluster.isEmpty {
+            return WorkingHoursHelper.normalizeClusterCode(ticket.assignedCluster)
+        }
+        return WorkingHoursHelper.resolveUnitCluster(units: viewModel.companyUnits, donViName: ticket.donVi)
+    }
+
+    private var clusterSuggestion: ClusterTechSuggestion? {
+        let cl = ticketCluster
+        if cl.isEmpty { return nil }
+        var workloadMap: [String: Int] = [:]
+        for ktv in viewModel.ktvTechnicians {
+            workloadMap[ktv.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()] = viewModel.getActiveTicketCount(email: ktv.email)
+        }
+        return WorkingHoursHelper.suggestClusterTechnician(ktvList: viewModel.ktvTechnicians, targetCluster: cl, workloadMap: workloadMap)
+    }
+
     private var currentSpecialistTeam: SpecialistTeamInfo {
         let teams = viewModel.specialistTeams.isEmpty ? SpecialistTeamDefaults.TEAMS : viewModel.specialistTeams
         return teams.first { $0.id.caseInsensitiveCompare(selectedSpecialistTeamId) == .orderedSame } ?? teams[0]
@@ -178,6 +195,7 @@ public struct DispatchTicketSheet: View {
             .onAppear {
                 viewModel.fetchKtvTechnicians()
                 viewModel.fetchStaffAndSpecialistTeams()
+                viewModel.fetchCompanyUnits()
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
@@ -294,6 +312,69 @@ public struct DispatchTicketSheet: View {
                 .padding(.vertical, 4)
             }
 
+            // GỢI Ý ĐIỀU PHỐI THEO CỤM (1-CHẠM)
+            if let suggestion = clusterSuggestion {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "sparkles")
+                            .foregroundColor(Color(hex: "#2563EB"))
+                            .font(.system(size: 13, weight: .bold))
+                        Text("GỢI Ý KTV THEO CỤM SỞ TẠI (Đơn vị: \(ticket.donVi.isEmpty ? "Chưa rõ" : ticket.donVi) • Cụm: \(suggestion.cluster))")
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundColor(Color(hex: "#1E40AF"))
+                        Spacer()
+                    }
+
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            HStack(spacing: 6) {
+                                Text(suggestion.name)
+                                    .font(.system(size: 13.5, weight: .bold))
+                                    .foregroundColor(Color.appTextPrimary)
+                                Text(suggestion.isOnline ? "🟢 Online" : "⚪ Gần đây")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundColor(suggestion.isOnline ? Color(hex: "#15803D") : Color(hex: "#64748B"))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(suggestion.isOnline ? Color(hex: "#DCFCE7") : Color(hex: "#F1F5F9"))
+                                    .cornerRadius(4)
+                            }
+                            Text(suggestion.reason)
+                                .font(.system(size: 11))
+                                .foregroundColor(Color.appTextSecondary)
+                        }
+
+                        Spacer()
+
+                        Button(action: {
+                            selectedTechEmail = suggestion.email
+                            selectedTechName = suggestion.name
+                            selectedCluster = suggestion.cluster
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 12))
+                                Text("Chọn nhanh")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color(hex: "#2563EB"))
+                            .cornerRadius(6)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .padding(10)
+                .background(Color(hex: "#EFF6FF"))
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color(hex: "#BFDBFE"), lineWidth: 1)
+                )
+            }
+
             // Lọc kỹ thuật viên theo cụm/khu vực
             VStack(alignment: .leading, spacing: 8) {
                 Text("Lọc kỹ thuật viên theo cụm/khu vực:")
@@ -348,6 +429,9 @@ public struct DispatchTicketSheet: View {
                         ForEach(filteredTechs) { tech in
                             let isSelected = selectedTechEmail == tech.email
                             let workload = viewModel.getActiveTicketCount(email: tech.email)
+                            let isMatchingCluster = !ticketCluster.isEmpty &&
+                                (WorkingHoursHelper.normalizeClusterCode(tech.maKhuVuc) == WorkingHoursHelper.normalizeClusterCode(ticketCluster) ||
+                                 tech.maKhuVuc.localizedCaseInsensitiveContains(ticketCluster))
 
                             Button(action: {
                                 selectedTechEmail = tech.email
@@ -372,6 +456,16 @@ public struct DispatchTicketSheet: View {
                                                 .font(.system(size: 14, weight: .semibold))
                                                 .foregroundColor(Color.appTextPrimary)
 
+                                            if isMatchingCluster {
+                                                Text("💡 Cụm sở tại")
+                                                    .font(.system(size: 10, weight: .bold))
+                                                    .foregroundColor(Color(hex: "#1D4ED8"))
+                                                    .padding(.horizontal, 5)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color(hex: "#DBEAFE"))
+                                                    .cornerRadius(4)
+                                            }
+
                                             Circle()
                                                 .fill(tech.isOnline ? Color(hex: "#10B981") : Color.gray)
                                                 .frame(width: 7, height: 7)
@@ -381,16 +475,24 @@ public struct DispatchTicketSheet: View {
                                                 .foregroundColor(tech.isOnline ? Color(hex: "#10B981") : Color.gray)
                                         }
 
-                                        let statusText = tech.isOnline
-                                            ? (workload == 0 ? "🟢 Đang rảnh (0 việc)" : "🔴 Bận (\(workload) việc)")
-                                            : (workload == 0 ? "⚪ Ngoại tuyến" : "⚪ Ngoại tuyến (\(workload) việc)")
-                                        let statusColor = tech.isOnline
-                                            ? (workload == 0 ? Color(hex: "#10B981") : Color(hex: "#EF4444"))
-                                            : Color.gray
+                                        HStack(spacing: 8) {
+                                            let statusText = tech.isOnline
+                                                ? (workload == 0 ? "🟢 Đang rảnh (0 việc)" : "🔴 Bận (\(workload) việc)")
+                                                : (workload == 0 ? "⚪ Ngoại tuyến" : "⚪ Ngoại tuyến (\(workload) việc)")
+                                            let statusColor = tech.isOnline
+                                                ? (workload == 0 ? Color(hex: "#10B981") : Color(hex: "#EF4444"))
+                                                : Color.gray
 
-                                        Text(statusText)
-                                            .font(.system(size: 11.5))
-                                            .foregroundColor(statusColor)
+                                            Text(statusText)
+                                                .font(.system(size: 11.5))
+                                                .foregroundColor(statusColor)
+
+                                            if !tech.maKhuVuc.isEmpty {
+                                                Text("• Cụm: \(tech.maKhuVuc)")
+                                                    .font(.system(size: 11))
+                                                    .foregroundColor(Color.appTextSecondary)
+                                            }
+                                        }
                                     }
 
                                     Spacer()
