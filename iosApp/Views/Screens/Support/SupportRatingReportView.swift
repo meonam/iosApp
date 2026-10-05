@@ -29,6 +29,7 @@ public struct SupportRatingReportView: View {
     @State private var systemSlaCompliance: Double = 0.0
     @State private var systemAvgRating: Double = 0.0
     @State private var enableHelpdeskSla: Bool = true
+    @State private var slaPenaltyPercent: Int = 0
     
     public init(viewModel: SupportViewModel, onBack: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -171,6 +172,26 @@ public struct SupportRatingReportView: View {
                                         }
                                     }
                                     .frame(height: 8)
+
+                                    // Huy hiệu Chính sách phạt chuẩn từ Cấu hình Hệ thống
+                                    HStack(spacing: 6) {
+                                        Text("⏱️")
+                                            .font(.system(size: 11))
+                                        Text(slaPenaltyPercent > 0 ? "Chính sách phạt trễ SLA: -\(slaPenaltyPercent)%" : "Chính sách phạt SLA: Tắt (0%)")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(slaPenaltyPercent > 0 ? Color(hex: "#DC2626") : Color(hex: "#64748B"))
+                                        
+                                        Spacer()
+                                        
+                                        Text("⚙️ Theo Cấu hình Hệ thống")
+                                            .font(.system(size: 9.5, weight: .semibold))
+                                            .foregroundColor(Color(hex: "#166534"))
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color(hex: "#DCFCE7"))
+                                            .cornerRadius(4)
+                                    }
+                                    .padding(.top, 4)
                                 }
                                 .padding(16)
                                 .background(slaColor(systemSlaCompliance).opacity(0.1))
@@ -309,8 +330,10 @@ public struct SupportRatingReportView: View {
                let doc = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = doc["fields"] as? [String: Any] {
                 let enabled = FirestoreHelper.getBool(fields["enableHelpdeskSla"] as? [String: Any], defaultValue: true)
+                let penalty = FirestoreHelper.getInt(fields["slaPenaltyPercentDefault"] as? [String: Any])
                 await MainActor.run {
                     self.enableHelpdeskSla = enabled
+                    self.slaPenaltyPercent = penalty
                 }
             }
         } catch {}

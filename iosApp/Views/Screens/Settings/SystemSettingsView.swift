@@ -432,6 +432,38 @@ public struct SystemSettingsView: View {
                 // 4. Cảnh báo trễ hạn & Điểm phạt
                 settingNumberField(title: "⚠️ Cảnh báo trước khi trễ (phút)", value: $slaWarningMinutes)
                 settingNumberField(title: "📉 Điểm phạt trễ hạn (%)", value: $slaPenaltyPercent)
+
+                // Các định mức chọn sẵn gợi ý cho điểm phạt trễ hạn
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Định mức gợi ý:")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color.appTextSecondary)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach([0, 10, 15, 20, 25, 30, 50], id: \.self) { p in
+                                let isSelected = slaPenaltyPercent == p
+                                Button(action: {
+                                    slaPenaltyPercent = p
+                                }) {
+                                    Text(p == 0 ? "0% (Tắt)" : "-\(p)%")
+                                        .font(.system(size: 11, weight: isSelected ? .bold : .medium))
+                                        .foregroundColor(isSelected ? .white : Color(hex: "#1E293B"))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(isSelected ? (p == 0 ? Color(hex: "#64748B") : Color(hex: "#DC2626")) : Color(hex: "#F1F5F9"))
+                                        .cornerRadius(6)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .stroke(isSelected ? (p == 0 ? Color(hex: "#64748B") : Color(hex: "#DC2626")) : Color(hex: "#CBD5E1"), lineWidth: 1)
+                                        )
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                    }
+                }
+                .padding(.top, 2)
             }
         }
     }
