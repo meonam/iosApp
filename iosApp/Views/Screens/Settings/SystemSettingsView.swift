@@ -46,6 +46,19 @@ public struct SystemSettingsView: View {
     @State private var slaUrgentHours: Int = 1
     @State private var slaHighHours: Int = 4
     @State private var slaNormalHours: Int = 24
+
+    // Ma Trận Cam Kết Dịch Vụ (SLA Matrix) đồng bộ 1:1 Android & Web
+    @State private var slaResponseMinutes: Int = 30
+    @State private var slaResolveUrgent: Int = 60
+    @State private var slaResolveHigh: Int = 240
+    @State private var slaResolveNormal: Int = 1440
+    @State private var slaResolveLow: Int = 2880
+    @State private var slaTrackingUrgent: Int = 120
+    @State private var slaTrackingHigh: Int = 72
+    @State private var slaTrackingNormal: Int = 48
+    @State private var slaTrackingLow: Int = 24
+    @State private var slaWarningMinutes: Int = 15
+    @State private var slaPenaltyPercent: Int = 0
     
     @State private var notificationsEnabled: Bool = true
     @State private var maxDevicesPerUser: Int = 5
@@ -348,11 +361,44 @@ public struct SystemSettingsView: View {
     
     @ViewBuilder
     private func sectionSLA() -> some View {
-        collapsibleCard(id: "sla", title: "SLA (CAM KẾT DỊCH VỤ)", icon: "checkmark.shield.fill", iconColor: Color(hex: "#0284C7")) {
-            VStack(spacing: 12) {
-                settingNumberField(title: "SLA Khẩn cấp (giờ)", value: $slaUrgentHours)
-                settingNumberField(title: "SLA Cao (giờ)", value: $slaHighHours)
-                settingNumberField(title: "SLA Thường (giờ)", value: $slaNormalHours)
+        collapsibleCard(id: "sla", title: "MA TRẬN CAM KẾT DỊCH VỤ (SLA MATRIX)", icon: "checkmark.shield.fill", iconColor: Color(hex: "#0284C7")) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Cấu hình thời gian cam kết dịch vụ (SLA) & quy chế theo dõi chất lượng:")
+                    .font(.system(size: 11.5))
+                    .foregroundColor(Color.appTextSecondary)
+
+                // 1. Phản hồi ban đầu
+                settingNumberField(title: "⚡ Phản hồi ban đầu mặc định (phút)", value: $slaResponseMinutes)
+
+                Divider()
+
+                // 2. Thời gian xử lý cam kết (Resolution Time)
+                Text("⏱️ Thời gian xử lý cam kết (Resolution Time - Phút):")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+
+                settingNumberField(title: "🔴 Khẩn cấp (phút)", value: $slaResolveUrgent)
+                settingNumberField(title: "🟡 Cần gấp / Cao (phút)", value: $slaResolveHigh)
+                settingNumberField(title: "🟢 Bình thường (phút)", value: $slaResolveNormal)
+                settingNumberField(title: "⚪ Thấp (phút)", value: $slaResolveLow)
+
+                Divider()
+
+                // 3. Cửa sổ theo dõi chất lượng
+                Text("🛡️ Cửa sổ theo dõi chất lượng (Quality Tracking - Giờ):")
+                    .font(.system(size: 12.5, weight: .semibold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+
+                settingNumberField(title: "Khẩn cấp (giờ)", value: $slaTrackingUrgent)
+                settingNumberField(title: "Cao (giờ)", value: $slaTrackingHigh)
+                settingNumberField(title: "Bình thường (giờ)", value: $slaTrackingNormal)
+                settingNumberField(title: "Thấp (giờ)", value: $slaTrackingLow)
+
+                Divider()
+
+                // 4. Cảnh báo trễ hạn & Điểm phạt
+                settingNumberField(title: "⚠️ Cảnh báo trước khi trễ (phút)", value: $slaWarningMinutes)
+                settingNumberField(title: "📉 Điểm phạt trễ hạn (%)", value: $slaPenaltyPercent)
             }
         }
     }
@@ -546,13 +592,42 @@ public struct SystemSettingsView: View {
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let fields = json["fields"] as? [String: Any] else { return }
                 DispatchQueue.main.async {
+                    let respMin = FirestoreHelper.getInt(fields["responseMinutesDefault"] as? [String: Any])
+                    if respMin > 0 { self.slaResponseMinutes = respMin }
+
                     let rUrgentMin = FirestoreHelper.getInt(fields["resolveMinutesUrgent"] as? [String: Any])
-                    if rUrgentMin > 0 { self.slaUrgentHours = max(1, rUrgentMin / 60) }
+                    if rUrgentMin > 0 {
+                        self.slaResolveUrgent = rUrgentMin
+                        self.slaUrgentHours = max(1, rUrgentMin / 60)
+                    }
                     let rHighMin = FirestoreHelper.getInt(fields["resolveMinutesHigh"] as? [String: Any])
-                    if rHighMin > 0 { self.slaHighHours = max(1, rHighMin / 60) }
+                    if rHighMin > 0 {
+                        self.slaResolveHigh = rHighMin
+                        self.slaHighHours = max(1, rHighMin / 60)
+                    }
                     let rNormMin = FirestoreHelper.getInt(fields["resolveMinutesNormal"] as? [String: Any])
-                    if rNormMin > 0 { self.slaNormalHours = max(1, rNormMin / 60) }
-                    
+                    if rNormMin > 0 {
+                        self.slaResolveNormal = rNormMin
+                        self.slaNormalHours = max(1, rNormMin / 60)
+                    }
+                    let rLowMin = FirestoreHelper.getInt(fields["resolveMinutesLow"] as? [String: Any])
+                    if rLowMin > 0 { self.slaResolveLow = rLowMin }
+
+                    let tUrg = FirestoreHelper.getInt(fields["qualityTrackingHoursUrgent"] as? [String: Any])
+                    if tUrg > 0 { self.slaTrackingUrgent = tUrg }
+                    let tHigh = FirestoreHelper.getInt(fields["qualityTrackingHoursHigh"] as? [String: Any])
+                    if tHigh > 0 { self.slaTrackingHigh = tHigh }
+                    let tNorm = FirestoreHelper.getInt(fields["qualityTrackingHoursNormal"] as? [String: Any])
+                    if tNorm > 0 { self.slaTrackingNormal = tNorm }
+                    let tLow = FirestoreHelper.getInt(fields["qualityTrackingHoursLow"] as? [String: Any])
+                    if tLow > 0 { self.slaTrackingLow = tLow }
+
+                    let warnMin = FirestoreHelper.getInt(fields["warningBeforeBreachMinutes"] as? [String: Any])
+                    if warnMin > 0 { self.slaWarningMinutes = warnMin }
+
+                    let penPct = FirestoreHelper.getInt(fields["slaPenaltyPercentDefault"] as? [String: Any])
+                    self.slaPenaltyPercent = penPct
+
                     self.localSlaUrgentHours = self.slaUrgentHours
                     self.localSlaHighHours = self.slaHighHours
                     self.localSlaNormalHours = self.slaNormalHours
@@ -662,17 +737,17 @@ public struct SystemSettingsView: View {
             }
             let sBody: [String: Any] = [
                 "fields": [
-                    "responseMinutesDefault": ["integerValue": "30"],
-                    "resolveMinutesUrgent": ["integerValue": String(slaUrgentHours * 60)],
-                    "resolveMinutesHigh": ["integerValue": String(slaHighHours * 60)],
-                    "resolveMinutesNormal": ["integerValue": String(slaNormalHours * 60)],
-                    "resolveMinutesLow": ["integerValue": "2880"],
-                    "qualityTrackingHoursUrgent": ["integerValue": "120"],
-                    "qualityTrackingHoursHigh": ["integerValue": "72"],
-                    "qualityTrackingHoursNormal": ["integerValue": "48"],
-                    "qualityTrackingHoursLow": ["integerValue": "24"],
-                    "warningBeforeBreachMinutes": ["integerValue": "15"],
-                    "slaPenaltyPercentDefault": ["integerValue": "0"],
+                    "responseMinutesDefault": ["integerValue": String(slaResponseMinutes)],
+                    "resolveMinutesUrgent": ["integerValue": String(slaResolveUrgent)],
+                    "resolveMinutesHigh": ["integerValue": String(slaResolveHigh)],
+                    "resolveMinutesNormal": ["integerValue": String(slaResolveNormal)],
+                    "resolveMinutesLow": ["integerValue": String(slaResolveLow)],
+                    "qualityTrackingHoursUrgent": ["integerValue": String(slaTrackingUrgent)],
+                    "qualityTrackingHoursHigh": ["integerValue": String(slaTrackingHigh)],
+                    "qualityTrackingHoursNormal": ["integerValue": String(slaTrackingNormal)],
+                    "qualityTrackingHoursLow": ["integerValue": String(slaTrackingLow)],
+                    "warningBeforeBreachMinutes": ["integerValue": String(slaWarningMinutes)],
+                    "slaPenaltyPercentDefault": ["integerValue": String(slaPenaltyPercent)],
                     "updatedAt": ["integerValue": String(Int(Date().timeIntervalSince1970 * 1000))]
                 ]
             ]
