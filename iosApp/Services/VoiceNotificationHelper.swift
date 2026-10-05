@@ -749,20 +749,29 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 )
             }
 
-        case "RESOLVED":
+        case "RESOLVED", "SELF_RESOLVED":
+            let isSelfResolved = type == "SELF_RESOLVED" || resolvedReason.uppercased() == "SELF_RESOLVED"
+            if isSelfResolved && isSelf {
+                // Người tạo tự đóng ca: Không phát giọng đọc cho chính mình
+                return
+            }
             let isSpecialist = isSpecialistStr.lowercased() == "true" ||
                 techName.lowercased().contains("chuyên viên") ||
                 extractString("resolvedRole").lowercased().contains("specialist")
 
-            // Thông báo cho HelpDesk, Admin, hoặc chính người tạo yêu cầu
-            if user.isAdmin || user.isHelpDesk || isSelf || isAssignedToMe {
+            // Thông báo cho HelpDesk, Admin, KTV phụ trách (hoặc chính người tạo nếu KTV giải quyết):
+            let canNotify = isSelfResolved
+                ? (!isSelf && (user.isAdmin || user.isHelpDesk || isAssignedToMe))
+                : (user.isAdmin || user.isHelpDesk || isSelf || isAssignedToMe)
+
+            if canNotify {
                 if !ticketId.isEmpty { seenResolved[ticketId] = Int64(Date().timeIntervalSince1970 * 1000) }
                 notifyTicketResolved(
                     ticketId: ticketId,
                     donViName: donViName,
                     subject: subject,
                     techName: techName,
-                    resolvedReason: resolvedReason,
+                    resolvedReason: isSelfResolved ? "SELF_RESOLVED" : resolvedReason,
                     isSpecialist: isSpecialist
                 )
             }
@@ -976,7 +985,16 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             // 4. KTV BÁO ĐÃ XỬ LÝ XONG SỰ CỐ / NGƯỜI YÊU CẦU TỰ XỬ LÝ
             let isSelf = t.isSelfResolved || t.resolvedReason.uppercased() == "SELF_RESOLVED"
             let isResolvedCase = (t.resolvedAt > 0 && t.isResolved) || (isSelf && (t.isClosed || t.isResolved))
-            let isStaffTarget = currentUser.isAdmin || currentUser.isHelpDesk || t.isUserAssigned(email: cleanEmail)
+            let resolvedByEmail = t.resolvedBy.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let isMeResolved = !cleanEmail.isEmpty && (
+                resolvedByEmail == cleanEmail ||
+                (resolvedByEmail.contains("@") && cleanEmail.contains("@") && resolvedByEmail.components(separatedBy: "@").first == cleanEmail.components(separatedBy: "@").first)
+            )
+            let isSelfCreated = t.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == cleanEmail
+            let isAssignedTech = isPrimary || t.isUserAssigned(email: cleanEmail) || t.coTechnicians.contains(where: { $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == cleanEmail })
+            let isStaffTarget = isSelf
+                ? (!isSelfCreated && (currentUser.isAdmin || currentUser.isHelpDesk || isAssignedTech || isClusterMatch || isSpecialistMatch))
+                : (!isMeResolved && (currentUser.isAdmin || currentUser.isHelpDesk || isSelfCreated))
             if isResolvedCase && isStaffTarget {
                 let resolvedTimestamp = t.resolvedAt > 0 ? t.resolvedAt : t.closedAt
                 let lastSeenRes = seenResolved[t.id] ?? 0
