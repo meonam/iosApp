@@ -491,10 +491,11 @@ public struct DepartmentManagerView: View {
                             }
                             .buttonStyle(PlainButtonStyle())
 
+                            let isHelpDeskType = editDeptType == "HELPDESK" || editDeptName.localizedCaseInsensitiveContains("helpdesk")
                             if editDeptSlaEnabled {
                                 HStack(spacing: 8) {
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("Tiếp nhận (phút)")
+                                        Text(isHelpDeskType ? "Tiếp nhận & Phân phối (phút)" : "Tiếp nhận (phút)")
                                             .font(.system(size: 10.5))
                                             .foregroundColor(.gray)
                                         TextField("30", text: $editDeptSlaResponse)
@@ -506,18 +507,20 @@ public struct DepartmentManagerView: View {
                                             .cornerRadius(6)
                                             .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
                                     }
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Xử lý (phút)")
-                                            .font(.system(size: 10.5))
-                                            .foregroundColor(.gray)
-                                        TextField("240", text: $editDeptSlaResolve)
-                                            .keyboardType(.numberPad)
-                                            .font(.system(size: 13))
-                                            .foregroundColor(Color.appTextPrimary)
-                                            .padding(6)
-                                            .background(Color.appSurfaceVariant)
-                                            .cornerRadius(6)
-                                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
+                                    if !isHelpDeskType {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Xử lý (phút)")
+                                                .font(.system(size: 10.5))
+                                                .foregroundColor(.gray)
+                                            TextField("240", text: $editDeptSlaResolve)
+                                                .keyboardType(.numberPad)
+                                                .font(.system(size: 13))
+                                                .foregroundColor(Color.appTextPrimary)
+                                                .padding(6)
+                                                .background(Color.appSurfaceVariant)
+                                                .cornerRadius(6)
+                                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
+                                        }
                                     }
                                 }
                                 .padding(.top, 2)
@@ -714,7 +717,7 @@ public struct DepartmentManagerView: View {
         let isTech = isHd || isInc || isApp
 
         let slaResp = (isTech && editDeptSlaEnabled) ? (Int(editDeptSlaResponse) ?? 30) : 0
-        let slaRes = (isTech && editDeptSlaEnabled) ? (Int(editDeptSlaResolve) ?? 240) : 0
+        let slaRes = (isTech && editDeptSlaEnabled && !isHd && !cleanName.localizedCaseInsensitiveContains("helpdesk")) ? (Int(editDeptSlaResolve) ?? 240) : 0
 
         let dept = Department(
             departmentId: cleanId,

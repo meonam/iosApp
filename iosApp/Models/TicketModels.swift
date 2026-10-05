@@ -657,7 +657,10 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         } else {
             endTime = Int64(Date().timeIntervalSince1970 * 1000)
         }
-        let diffMs = max(0, endTime - createdAt)
+        // KTV/Chuyên viên tính thời gian xử lý từ lúc được điều phối (assignedAt).
+        // Nếu chưa có điều phối (ticket trực tiếp), tính từ createdAt.
+        let startTime = (assignedAt > 0) ? assignedAt : ((createdAt > 0) ? createdAt : endTime)
+        let diffMs = max(0, endTime - startTime)
         return diffMs / (60 * 1000)
     }
 
@@ -851,6 +854,7 @@ public struct SlaConfig: Codable, Hashable {
     public var qualityTrackingHoursLow: Int = 24        // Theo dõi chất lượng Thấp (giờ)
     public var warningBeforeBreachMinutes: Int = 15     // Cảnh báo âm thanh trước khi trễ (phút)
     public var slaPenaltyPercentDefault: Int = 0         // % Trừ KPI khi vi phạm SLA
+    public var enableHelpdeskSla: Bool = true           // Bật/tắt SLA cho Tổng đài tiếp nhận HelpDesk (mặc định true)
 
     public init(
         responseMinutesDefault: Int = 30,
@@ -863,7 +867,8 @@ public struct SlaConfig: Codable, Hashable {
         qualityTrackingHoursNormal: Int = 48,
         qualityTrackingHoursLow: Int = 24,
         warningBeforeBreachMinutes: Int = 15,
-        slaPenaltyPercentDefault: Int = 0
+        slaPenaltyPercentDefault: Int = 0,
+        enableHelpdeskSla: Bool = true
     ) {
         self.responseMinutesDefault = responseMinutesDefault
         self.resolveMinutesUrgent = resolveMinutesUrgent
@@ -876,5 +881,6 @@ public struct SlaConfig: Codable, Hashable {
         self.qualityTrackingHoursLow = qualityTrackingHoursLow
         self.warningBeforeBreachMinutes = warningBeforeBreachMinutes
         self.slaPenaltyPercentDefault = slaPenaltyPercentDefault
+        self.enableHelpdeskSla = enableHelpdeskSla
     }
 }

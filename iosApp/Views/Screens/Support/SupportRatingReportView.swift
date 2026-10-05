@@ -28,6 +28,7 @@ public struct SupportRatingReportView: View {
     @State private var systemSatisfactionRate: Double = 0.0
     @State private var systemSlaCompliance: Double = 0.0
     @State private var systemAvgRating: Double = 0.0
+    @State private var enableHelpdeskSla: Bool = true
     
     public init(viewModel: SupportViewModel, onBack: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -296,10 +297,30 @@ public struct SupportRatingReportView: View {
         return "Tháng " + df.string(from: date)
     }
 
+    private func fetchSlaConfig() async {
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.companyId)/system_config/sla_config"
+        guard let url = URL(string: urlStr) else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization")
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+               let doc = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let fields = doc["fields"] as? [String: Any] {
+                let enabled = FirestoreHelper.getBool(fields["enableHelpdeskSla"] as? [String: Any], defaultValue: true)
+                await MainActor.run {
+                    self.enableHelpdeskSla = enabled
+                }
+            }
+        } catch {}
+    }
+
     private func fetchTickets(silent: Bool = false) async {
         if !silent {
             await MainActor.run { isLoading = true }
         }
+        await fetchSlaConfig()
         let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.companyId):runQuery"
         guard let url = URL(string: urlStr) else { return }
         
@@ -337,7 +358,7 @@ public struct SupportRatingReportView: View {
                         
                         let assignedEmail = FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any])
                         let assignedName = FirestoreHelper.getString(fields["assignedToName"] as? [String: Any])
-                        let ktvName = assignedName.isEmpty ? assignedEmail : assignedName
+                        let ktvName = assignedName.isEmpty ? (assignedEmail.isEmpty ? "HelpDesk" : assignedEmail) : assignedName
                         if !ktvName.isEmpty { ktvs.insert(ktvName) }
                         
                         let docName = doc["name"] as? String ?? ""
@@ -345,11 +366,15 @@ public struct SupportRatingReportView: View {
                         
                         let t = SupportTicket(
                             id: id,
+                            status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
                             priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
                             createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
                             rating: FirestoreHelper.getInt(fields["rating"] as? [String: Any]),
                             assignedToEmail: assignedEmail,
                             assignedToName: assignedName,
+                            assignedAt: FirestoreHelper.getInt64(fields["assignedAt"] as? [String: Any]),
+                            resolvedAt: FirestoreHelper.getInt64(fields["resolvedAt"] as? [String: Any]),
+                            feedbackAt: FirestoreHelper.getInt64(fields["feedbackAt"] as? [String: Any]),
                             closedAt: FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any]),
                             isAutoRated: FirestoreHelper.getBool(fields["isAutoRated"] as? [String: Any]),
                             isInvalid: FirestoreHelper.getBool(fields["isInvalid"] as? [String: Any])
@@ -385,7 +410,8 @@ public struct SupportRatingReportView: View {
         // Filter by KTV
         let filtered = monthTickets.filter { t in
             if selectedKtv == "Tất cả" { return true }
-            let name = t.assignedToName.isEmpty ? t.assignedToEmail : t.assignedToName
+            let rawName = t.assignedToName.isEmpty ? t.assignedToEmail : t.assignedToName
+            let name = rawName.isEmpty ? (enableHelpdeskSla ? "Tổng đài HelpDesk" : "HelpDesk") : rawName
             return name == selectedKtv
         }
         
@@ -408,17 +434,17 @@ public struct SupportRatingReportView: View {
                 if rating >= 4 { satisfiedCount += 1 }
             }
             
-            if t.closedAt > t.createdAt && t.createdAt > 0 {
+            let isClosedOrRated = t.status.uppercased() == "CLOSED" || t.effectiveRating > 0
+            if isClosedOrRated {
                 slaTotal += 1
-                let hours = Double(t.closedAt - t.createdAt) / (1000.0 * 60.0 * 60.0)
-                let limit = (t.priority.uppercased() == "URGENT") ? 1.0 : (t.priority.uppercased() == "HIGH" ? 4.0 : 24.0)
-                if hours <= limit { slaOnTime += 1 }
+                if !t.isSlaBreached() {
+                    slaOnTime += 1
+                }
             }
             
-            let name = t.assignedToName.isEmpty ? t.assignedToEmail : t.assignedToName
-            if !name.isEmpty {
-                ktvMap[name, default: []].append(t)
-            }
+            let rawName = t.assignedToName.isEmpty ? t.assignedToEmail : t.assignedToName
+            let key = rawName.isEmpty ? "HelpDesk" : rawName
+            ktvMap[key, default: []].append(t)
         }
         
         systemTotalRatings = ratedCount
@@ -428,6 +454,11 @@ public struct SupportRatingReportView: View {
         
         var newStats: [KtvStat] = []
         for (name, kList) in ktvMap {
+            let isHelpdesk = name.lowercased() == "helpdesk"
+            if isHelpdesk && !enableHelpdeskSla {
+                continue
+            }
+            let displayName = isHelpdesk ? "Tổng đài HelpDesk" : name
             var kTotalRating = 0.0
             var kRatedCount = 0
             var kSlaOnTime = 0
@@ -435,25 +466,32 @@ public struct SupportRatingReportView: View {
             var closed = 0
             
             for t in kList {
-                if t.closedAt > 0 { closed += 1 }
+                if t.closedAt > 0 || t.status.uppercased() == "CLOSED" { closed += 1 }
                 let rating = t.effectiveRating
                 if rating > 0 {
                     kTotalRating += Double(rating)
                     kRatedCount += 1
                 }
-                if t.closedAt > t.createdAt && t.createdAt > 0 {
+                let isClosedOrRated = t.status.uppercased() == "CLOSED" || t.effectiveRating > 0
+                if isClosedOrRated {
                     kSlaTotal += 1
-                    let hours = Double(t.closedAt - t.createdAt) / (1000.0 * 60.0 * 60.0)
-                    let limit = (t.priority.uppercased() == "URGENT") ? 1.0 : (t.priority.uppercased() == "HIGH" ? 4.0 : 24.0)
-                    if hours <= limit { kSlaOnTime += 1 }
+                    if isHelpdesk {
+                        if !t.isResponseSlaBreached(targetMinutes: 30) {
+                            kSlaOnTime += 1
+                        }
+                    } else {
+                        if !t.isSlaBreached() {
+                            kSlaOnTime += 1
+                        }
+                    }
                 }
             }
             
-            let avgR = kRatedCount > 0 ? kTotalRating / Double(kRatedCount) : 0.0
-            let slaR = kSlaTotal > 0 ? (Double(kSlaOnTime) / Double(kSlaTotal)) * 100.0 : 0.0
+            let avgR = kRatedCount > 0 ? kTotalRating / Double(kRatedCount) : (isHelpdesk ? 5.0 : 0.0)
+            let slaR = kSlaTotal > 0 ? (Double(kSlaOnTime) / Double(kSlaTotal)) * 100.0 : 100.0
             
             newStats.append(KtvStat(
-                id: name, name: name, totalTickets: kList.count, closedTickets: closed, avgRating: avgR, slaRate: slaR
+                id: displayName, name: displayName, totalTickets: kList.count, closedTickets: closed, avgRating: avgR, slaRate: slaR
             ))
         }
         

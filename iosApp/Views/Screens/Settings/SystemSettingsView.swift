@@ -59,6 +59,7 @@ public struct SystemSettingsView: View {
     @State private var slaTrackingLow: Int = 24
     @State private var slaWarningMinutes: Int = 15
     @State private var slaPenaltyPercent: Int = 0
+    @State private var slaEnableHelpdesk: Bool = true
     
     @State private var notificationsEnabled: Bool = true
     @State private var maxDevicesPerUser: Int = 5
@@ -363,6 +364,38 @@ public struct SystemSettingsView: View {
     private func sectionSLA() -> some View {
         collapsibleCard(id: "sla", title: "MA TRẬN CAM KẾT DỊCH VỤ (SLA MATRIX)", icon: "checkmark.shield.fill", iconColor: Color(hex: "#0284C7")) {
             VStack(alignment: .leading, spacing: 12) {
+                // 0. Bật/Tắt Áp Dụng SLA Cho Tổng Đài HelpDesk
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("🎧")
+                            .font(.system(size: 18))
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Text("SLA Tổng đài HelpDesk")
+                                    .font(.system(size: 12.5, weight: .bold))
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                                Text(slaEnableHelpdesk ? "BẬT" : "TẮT")
+                                    .font(.system(size: 9.5, weight: .bold))
+                                    .foregroundColor(slaEnableHelpdesk ? Color(hex: "#166534") : Color.gray)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 1.5)
+                                    .background(slaEnableHelpdesk ? Color(hex: "#DCFCE7") : Color(hex: "#F1F5F9"))
+                                    .cornerRadius(4)
+                            }
+                            Text("Bật để tính SLA/KPI tiếp nhận P1 cho HelpDesk. Tắt để miễn trừ.")
+                                .font(.system(size: 10.5))
+                                .foregroundColor(.gray)
+                        }
+                        Spacer()
+                        Toggle("", isOn: $slaEnableHelpdesk)
+                            .labelsHidden()
+                    }
+                }
+                .padding(10)
+                .background(Color(hex: "#F0F9FF"))
+                .cornerRadius(8)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#BAE6FD"), lineWidth: 1))
+
                 Text("Cấu hình thời gian cam kết dịch vụ (SLA) & quy chế theo dõi chất lượng:")
                     .font(.system(size: 11.5))
                     .foregroundColor(Color.appTextSecondary)
@@ -628,6 +661,13 @@ public struct SystemSettingsView: View {
                     let penPct = FirestoreHelper.getInt(fields["slaPenaltyPercentDefault"] as? [String: Any])
                     self.slaPenaltyPercent = penPct
 
+                    if let ehDict = fields["enableHelpdeskSla"] as? [String: Any],
+                       let boolVal = ehDict["booleanValue"] as? Bool {
+                        self.slaEnableHelpdesk = boolVal
+                    } else {
+                        self.slaEnableHelpdesk = true
+                    }
+
                     self.localSlaUrgentHours = self.slaUrgentHours
                     self.localSlaHighHours = self.slaHighHours
                     self.localSlaNormalHours = self.slaNormalHours
@@ -748,6 +788,7 @@ public struct SystemSettingsView: View {
                     "qualityTrackingHoursLow": ["integerValue": String(slaTrackingLow)],
                     "warningBeforeBreachMinutes": ["integerValue": String(slaWarningMinutes)],
                     "slaPenaltyPercentDefault": ["integerValue": String(slaPenaltyPercent)],
+                    "enableHelpdeskSla": ["booleanValue": slaEnableHelpdesk],
                     "updatedAt": ["integerValue": String(Int(Date().timeIntervalSince1970 * 1000))]
                 ]
             ]
