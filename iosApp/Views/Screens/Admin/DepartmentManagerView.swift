@@ -273,7 +273,9 @@ public struct DepartmentManagerView: View {
                 if !dept.managerName.isEmpty { list.append("👤 \(dept.managerName)") }
                 if !dept.hotline.isEmpty { list.append("📞 \(dept.hotline)") }
                 if !dept.location.isEmpty { list.append("📍 \(dept.location)") }
-                if dept.isHelpDesk || dept.isIncidentHandler || dept.isApplicationSupport || dept.departmentType == "HELPDESK" || dept.departmentType == "IT" {
+                if dept.isHelpDesk || dept.departmentType == "HELPDESK" || dept.departmentName.localizedCaseInsensitiveContains("helpdesk") {
+                    list.append("🎧 SLA Hệ thống (P1)")
+                } else if dept.isIncidentHandler || dept.isApplicationSupport || dept.departmentType == "IT" {
                     let resH = max(0, dept.slaResolveMinutes / 60)
                     list.append("⏱ SLA: \(dept.slaResponseMinutes)p/\(resH)h")
                 }
@@ -470,44 +472,71 @@ public struct DepartmentManagerView: View {
 
                     // Hàng 3: Khung SLA nếu là loại Kỹ thuật/HelpDesk/Ứng dụng
                     let isTechRole = editDeptType == "HELPDESK" || editDeptType == "IT" || editDeptType == "APPLICATION_SUPPORT"
+                    let isHelpDeskType = editDeptType == "HELPDESK" || editDeptName.localizedCaseInsensitiveContains("helpdesk")
                     if isTechRole {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Button(action: { editDeptSlaEnabled.toggle() }) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: editDeptSlaEnabled ? "checkmark.square.fill" : "square")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(editDeptSlaEnabled ? Color.appPrimaryPink : .gray)
-
-                                    VStack(alignment: .leading, spacing: 1) {
-                                        Text("⏱️ Cam kết thời gian xử lý (SLA)")
-                                            .font(.system(size: 12, weight: .semibold))
-                                            .foregroundColor(Color.appTextPrimary)
-                                        Text(editDeptSlaEnabled ? "Đo lường thời gian tiếp nhận & xử lý sự cố" : "Đang tắt (phù hợp nội bộ, không áp KPI)")
-                                            .font(.system(size: 10.5))
-                                            .foregroundColor(.gray)
-                                    }
-                                    Spacer()
-                                }
-                            }
-                            .buttonStyle(PlainButtonStyle())
-
-                            let isHelpDeskType = editDeptType == "HELPDESK" || editDeptName.localizedCaseInsensitiveContains("helpdesk")
-                            if editDeptSlaEnabled {
-                                HStack(spacing: 8) {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(isHelpDeskType ? "Tiếp nhận & Phân phối (phút)" : "Tiếp nhận (phút)")
-                                            .font(.system(size: 10.5))
-                                            .foregroundColor(.gray)
-                                        TextField("30", text: $editDeptSlaResponse)
-                                            .keyboardType(.numberPad)
+                        if isHelpDeskType {
+                            HStack(alignment: .center, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack(spacing: 4) {
+                                        Text("🎧")
                                             .font(.system(size: 13))
-                                            .foregroundColor(Color.appTextPrimary)
-                                            .padding(6)
-                                            .background(Color.appSurfaceVariant)
-                                            .cornerRadius(6)
-                                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
+                                        Text("SLA Tiếp nhận & Điều phối HelpDesk (P1)")
+                                            .font(.system(size: 12, weight: .bold))
+                                            .foregroundColor(Color.appSecondaryDarkBlue)
                                     }
-                                    if !isHelpDeskType {
+                                    Text("Áp dụng theo Cài đặt Admin (Ca kíp, GPS & SLA). Quản lý tập trung tại Cài đặt hệ thống.")
+                                        .font(.system(size: 10.5))
+                                        .foregroundColor(.gray)
+                                }
+                                Spacer()
+                                Text("⚙️ Cấu hình Hệ thống")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(Color(hex: "#166534"))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(Color(hex: "#DCFCE7"))
+                                    .cornerRadius(4)
+                            }
+                            .padding(10)
+                            .background(Color(hex: "#EFF6FF"))
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#BFDBFE"), lineWidth: 1))
+                        } else {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Button(action: { editDeptSlaEnabled.toggle() }) {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: editDeptSlaEnabled ? "checkmark.square.fill" : "square")
+                                            .font(.system(size: 16))
+                                            .foregroundColor(editDeptSlaEnabled ? Color.appPrimaryPink : .gray)
+
+                                        VStack(alignment: .leading, spacing: 1) {
+                                            Text("⏱️ Cam kết thời gian xử lý (SLA)")
+                                                .font(.system(size: 12, weight: .semibold))
+                                                .foregroundColor(Color.appTextPrimary)
+                                            Text(editDeptSlaEnabled ? "Đo lường thời gian tiếp nhận & xử lý sự cố" : "Đang tắt (phù hợp nội bộ, không áp KPI)")
+                                                .font(.system(size: 10.5))
+                                                .foregroundColor(.gray)
+                                        }
+                                        Spacer()
+                                    }
+                                }
+                                .buttonStyle(PlainButtonStyle())
+
+                                if editDeptSlaEnabled {
+                                    HStack(spacing: 8) {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Tiếp nhận (phút)")
+                                                .font(.system(size: 10.5))
+                                                .foregroundColor(.gray)
+                                            TextField("30", text: $editDeptSlaResponse)
+                                                .keyboardType(.numberPad)
+                                                .font(.system(size: 13))
+                                                .foregroundColor(Color.appTextPrimary)
+                                                .padding(6)
+                                                .background(Color.appSurfaceVariant)
+                                                .cornerRadius(6)
+                                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
+                                        }
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text("Xử lý (phút)")
                                                 .font(.system(size: 10.5))
@@ -522,14 +551,14 @@ public struct DepartmentManagerView: View {
                                                 .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
                                         }
                                     }
+                                    .padding(.top, 2)
                                 }
-                                .padding(.top, 2)
                             }
+                            .padding(10)
+                            .background(Color.appSurfaceVariant)
+                            .cornerRadius(10)
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                         }
-                        .padding(10)
-                        .background(Color.appSurfaceVariant)
-                        .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                     }
 
                     // Hàng 4: Trưởng phòng / Phụ trách Dropdown
