@@ -18,8 +18,39 @@ public struct HelpView: View {
     @State private var feedbackError: Bool = false
     @State private var showSafari: Bool = false
     @State private var safariURL: URL? = nil
+    @State private var selectedRoleFilter: String = "ALL"
 
-    private let categories = HelpRepository.getHelpCategories()
+    private let allCategories = HelpRepository.getHelpCategories()
+
+    private var normRole: String {
+        let r = (authViewModel.currentUser?.role ?? "").trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        switch r {
+        case "QUANLY", "PHONGBAN": return "MANAGER"
+        case "KYTHUAT", "KYTHUATVIEN": return "TECH"
+        case "CHUYENVIEN": return "SPECIALIST"
+        case "NHANVIEN": return "STAFF"
+        default: return r
+        }
+    }
+
+    private var isAdminOrHelpdesk: Bool {
+        return normRole == "ADMIN" || normRole == "HELPDESK"
+    }
+
+    private var filteredCategories: [HelpCategory] {
+        if isAdminOrHelpdesk {
+            if selectedRoleFilter == "ALL" {
+                return allCategories
+            }
+            return allCategories.filter { cat in
+                cat.targetRoles.isEmpty || cat.targetRoles.contains(selectedRoleFilter)
+            }
+        } else {
+            return allCategories.filter { cat in
+                cat.targetRoles.isEmpty || cat.targetRoles.contains(normRole)
+            }
+        }
+    }
 
     public init(authViewModel: AuthViewModel, onBack: @escaping () -> Void) {
         self.authViewModel = authViewModel
@@ -69,20 +100,79 @@ public struct HelpView: View {
                         ScrollView {
                             VStack(spacing: 14) {
                                 // Header Card
-                                HStack(spacing: 12) {
-                                    Image(systemName: "book.pages")
-                                        .font(.system(size: 30))
-                                        .foregroundColor(Color.appSecondaryDarkBlue)
+                                VStack(alignment: .leading, spacing: 10) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "book.pages")
+                                            .font(.system(size: 30))
+                                            .foregroundColor(Color.appSecondaryDarkBlue)
 
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("TÀI LIỆU HƯỚNG DẪN")
-                                            .font(.system(size: 15, weight: .bold))
-                                            .foregroundColor(Color.appTextPrimary)
-                                        Text("Chọn chuyên mục bên dưới để xem hướng dẫn chi tiết")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(Color.appTextSecondary)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            HStack(spacing: 8) {
+                                                Text("TÀI LIỆU HƯỚNG DẪN")
+                                                    .font(.system(size: 15, weight: .bold))
+                                                    .foregroundColor(Color.appTextPrimary)
+
+                                                if !normRole.isEmpty {
+                                                    let roleLabel: String = {
+                                                        switch normRole {
+                                                        case "ADMIN": return "Quản trị viên"
+                                                        case "HELPDESK": return "HelpDesk"
+                                                        case "MANAGER": return "Quản lý"
+                                                        case "TECH": return "Kỹ thuật viên"
+                                                        case "SPECIALIST": return "Chuyên viên"
+                                                        case "STAFF": return "Nhân viên"
+                                                        default: return normRole
+                                                        }
+                                                    }()
+                                                    Text(roleLabel)
+                                                        .font(.system(size: 10, weight: .bold))
+                                                        .foregroundColor(Color.appSecondaryDarkBlue)
+                                                        .padding(.horizontal, 6)
+                                                        .padding(.vertical, 2)
+                                                        .background(Color.appSecondaryDarkBlue.opacity(0.12))
+                                                        .cornerRadius(4)
+                                                }
+                                            }
+
+                                            Text(isAdminOrHelpdesk
+                                                ? "Hướng dẫn vận hành toàn hệ thống (bấm lọc vai trò bên dưới)"
+                                                : "Hướng dẫn được tối ưu cho vai trò của bạn")
+                                                .font(.system(size: 12))
+                                                .foregroundColor(Color.appTextSecondary)
+                                        }
+                                        Spacer()
                                     }
-                                    Spacer()
+
+                                    // Lọc vai trò (chỉ hiển thị cho Admin / HelpDesk)
+                                    if isAdminOrHelpdesk {
+                                        ScrollView(.horizontal, showsIndicators: false) {
+                                            HStack(spacing: 8) {
+                                                let filterOptions: [(key: String, label: String)] = [
+                                                    ("ALL", "Tất cả"),
+                                                    ("STAFF", "Nhân viên"),
+                                                    ("TECH", "Kỹ thuật viên"),
+                                                    ("SPECIALIST", "Chuyên viên"),
+                                                    ("HELPDESK", "HelpDesk"),
+                                                    ("MANAGER", "Quản lý")
+                                                ]
+                                                ForEach(filterOptions, id: \.key) { opt in
+                                                    let isSelected = selectedRoleFilter == opt.key
+                                                    Button(action: {
+                                                        selectedRoleFilter = opt.key
+                                                    }) {
+                                                        Text(opt.label)
+                                                            .font(.system(size: 11.5, weight: isSelected ? .bold : .medium))
+                                                            .foregroundColor(isSelected ? .white : Color.appTextPrimary)
+                                                            .padding(.horizontal, 10)
+                                                            .padding(.vertical, 5)
+                                                            .background(isSelected ? Color.appSecondaryDarkBlue : Color.appSurfaceVariant)
+                                                            .cornerRadius(14)
+                                                    }
+                                                }
+                                            }
+                                            .padding(.top, 4)
+                                        }
+                                    }
                                 }
                                 .padding(16)
                                 .background(Color.appSurface)
@@ -91,7 +181,7 @@ public struct HelpView: View {
                                 .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
 
                                 // Categories List
-                                ForEach(categories) { category in
+                                ForEach(filteredCategories) { category in
                                     let isExpanded = expandedCategories[category.title] ?? category.defaultExpanded
 
                                     VStack(spacing: 0) {
@@ -467,12 +557,14 @@ public struct HelpCategory: Identifiable {
     public let title: String
     public let iconName: String
     public let defaultExpanded: Bool
+    public let targetRoles: [String]
     public let articles: [HelpArticle]
 
-    public init(title: String, iconName: String, defaultExpanded: Bool = false, articles: [HelpArticle]) {
+    public init(title: String, iconName: String, defaultExpanded: Bool = false, targetRoles: [String] = [], articles: [HelpArticle]) {
         self.title = title
         self.iconName = iconName
         self.defaultExpanded = defaultExpanded
+        self.targetRoles = targetRoles
         self.articles = articles
     }
 }
@@ -487,6 +579,7 @@ public class HelpRepository {
             title: "0. Tổng Quan & Ma Trận Phân Quyền",
             iconName: "chart.bar.doc.horizontal",
             defaultExpanded: true,
+            targetRoles: [],
             articles: [
                 HelpArticle(
                     id: "overview_roles",
@@ -573,9 +666,10 @@ public class HelpRepository {
             ]
         ),
         HelpCategory(
-            title: "1. Đăng Nhập & Gia Nhập Hệ Thống",
+            title: "1. Đăng Nhập & Bảo Mật Tài Khoản",
             iconName: "building.2",
             defaultExpanded: true,
+            targetRoles: [],
             articles: [
                 HelpArticle(
                     id: "auth_login",
@@ -616,40 +710,6 @@ public class HelpRepository {
           <div style="background:#fffbeb;border-left:4px solid #f59e0b;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>📌 Lưu ý:</b> Không chia sẻ mật khẩu. Mỗi tài khoản chỉ đăng nhập đồng thời trên 1 thiết bị.</div>
         
 """#
-                ),
-                HelpArticle(
-                    id: "staff_join",
-                    title: "1.2. Nhân viên / KTV / Chuyên viên: Xin gia nhập doanh nghiệp",
-                    htmlContent: #"""
-
-          <h3>XIN GIA NHẬP DOANH NGHIỆP</h3>
-          <span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#3ddc84;color:#000">Android</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#555;color:#fff">iOS</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#0ea5e9;color:#fff">Web</span><span style="display:inline-block;padding:1px 7px;font-size:10px;font-weight:bold;border-radius:3px;margin-right:3px;background:#7c3aed;color:#fff">Desktop</span>
-          <p>Áp dụng cho: <b>Nhân viên, KTV, Chuyên viên, HelpDesk, Quản lý</b> khi đăng ký tài khoản mới.</p>
-
-          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
-    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
-    <div><b style="color:#0f172a;font-size:12.5px">Tại màn hình đăng nhập</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Bấm <b>"Gia nhập Doanh nghiệp"</b>.</div></div>
-  </div>
-          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
-    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
-    <div><b style="color:#0f172a;font-size:12.5px">Nhập Mã Doanh nghiệp</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Mã do Admin cấp (ví dụ: <code>coopmart</code>). Liên hệ Admin nếu chưa có.</div></div>
-  </div>
-          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
-    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
-    <div><b style="color:#0f172a;font-size:12.5px">Điền thông tin cá nhân</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Họ tên, Email công vụ, Mật khẩu, Phòng ban đang làm việc.</div></div>
-  </div>
-          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
-    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
-    <div><b style="color:#0f172a;font-size:12.5px">Gửi yêu cầu & Chờ duyệt</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Tài khoản ở trạng thái <b>Chờ duyệt</b> cho đến khi Manager/Admin phê duyệt.</div></div>
-  </div>
-          <div style="display:flex;gap:10px;margin-bottom:9px;align-items:flex-start">
-    <div style="min-width:24px;height:24px;border-radius:50%;background:#002a8f;color:#fff;font-size:11.5px;font-weight:bold;display:flex;align-items:center;justify-content:center;flex-shrink:0">5</div>
-    <div><b style="color:#0f172a;font-size:12.5px">Nhận thông báo & Đăng nhập</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.5">Sau khi được duyệt, đăng nhập bình thường bằng Email & Mật khẩu đã đăng ký.</div></div>
-  </div>
-
-          <div style="background:#f0f9ff;border-left:4px solid #0284c7;padding:9px 13px;margin:10px 0;border-radius:4px;font-size:12px;color:#334155;line-height:1.5"><b>💡 Mẹo:</b> Sau khi được duyệt, liên hệ Manager để được gán đúng vai trò (KTV, Chuyên viên, HelpDesk...) vì mặc định tài khoản mới là Nhân viên.</div>
-        
-"""#
                 )
             ]
         ),
@@ -657,6 +717,7 @@ public class HelpRepository {
             title: "2. Hỗ Trợ Trực Tuyến — Nhân Viên (Staff)",
             iconName: "headphones",
             defaultExpanded: false,
+            targetRoles: ["STAFF", "MANAGER"],
             articles: [
                 HelpArticle(
                     id: "staff_ticket_android",
@@ -875,6 +936,7 @@ public class HelpRepository {
             title: "3. Hỗ Trợ Trực Tuyến — KTV & Chuyên Viên",
             iconName: "bicycle",
             defaultExpanded: false,
+            targetRoles: ["TECH", "SPECIALIST"],
             articles: [
                 HelpArticle(
                     id: "ktv_android",
@@ -1079,6 +1141,7 @@ public class HelpRepository {
             title: "4. Hỗ Trợ Trực Tuyến — HelpDesk (Điều Phối Viên)",
             iconName: "headphones",
             defaultExpanded: false,
+            targetRoles: ["HELPDESK"],
             articles: [
                 HelpArticle(
                     id: "helpdesk_android",
@@ -1254,6 +1317,7 @@ public class HelpRepository {
             title: "5. Hỗ Trợ Trực Tuyến — Quản Lý (Manager)",
             iconName: "chart.bar.doc.horizontal",
             defaultExpanded: false,
+            targetRoles: ["MANAGER"],
             articles: [
                 HelpArticle(
                     id: "manager_support_all",
@@ -1365,6 +1429,7 @@ public class HelpRepository {
             title: "6. Quản Lý Thiết Bị — Quản Lý (Manager)",
             iconName: "laptopcomputer",
             defaultExpanded: false,
+            targetRoles: ["MANAGER"],
             articles: [
                 HelpArticle(
                     id: "manager_device_android",
@@ -1603,6 +1668,7 @@ public class HelpRepository {
             title: "7. Quản Lý Thiết Bị — Nhân Viên & KTV (Chỉ Xem)",
             iconName: "laptopcomputer",
             defaultExpanded: false,
+            targetRoles: ["STAFF", "TECH", "SPECIALIST"],
             articles: [
                 HelpArticle(
                     id: "staff_device_view",
@@ -1680,6 +1746,7 @@ public class HelpRepository {
             title: "8. In Tem QR/Barcode & Báo Cáo A4 (Manager)",
             iconName: "chart.bar.doc.horizontal",
             defaultExpanded: false,
+            targetRoles: ["MANAGER"],
             articles: [
                 HelpArticle(
                     id: "print_qr",
@@ -1759,6 +1826,7 @@ public class HelpRepository {
             title: "9. Chấm Công GPS & Công Tác Phí — KTV / Chuyên Viên",
             iconName: "location.fill",
             defaultExpanded: false,
+            targetRoles: ["TECH", "SPECIALIST"],
             articles: [
                 HelpArticle(
                     id: "attendance_guide",
@@ -1859,6 +1927,7 @@ public class HelpRepository {
             title: "10. KPI IT & Đánh Giá Chất Lượng Dịch Vụ",
             iconName: "chart.bar.doc.horizontal",
             defaultExpanded: false,
+            targetRoles: ["HELPDESK", "MANAGER"],
             articles: [
                 HelpArticle(
                     id: "kpi_formula",
