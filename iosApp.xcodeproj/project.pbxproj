@@ -88,6 +88,8 @@
 		220010612C12345600000001 /* DispatchTicketSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000612C12345600000001 /* DispatchTicketSheet.swift */; };
 		220010622C12345600000001 /* LiveTrackingMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000622C12345600000001 /* LiveTrackingMapView.swift */; };
 		220010632C12345600000001 /* HandoverTicketSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000632C12345600000001 /* HandoverTicketSheetView.swift */; };
+		2200109B2C12345600000001 /* IosEmailSender.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200009B2C12345600000001 /* IosEmailSender.swift */; };
+		2200109C2C12345600000001 /* RatingTokenHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2200009C2C12345600000001 /* RatingTokenHelper.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -173,6 +175,8 @@
 		220000612C12345600000001 /* DispatchTicketSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DispatchTicketSheet.swift; sourceTree = "<group>"; };
 		220000622C12345600000001 /* LiveTrackingMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveTrackingMapView.swift; sourceTree = "<group>"; };
 		220000632C12345600000001 /* HandoverTicketSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoverTicketSheetView.swift; sourceTree = "<group>"; };
+		2200009B2C12345600000001 /* IosEmailSender.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IosEmailSender.swift; sourceTree = "<group>"; };
+		2200009C2C12345600000001 /* RatingTokenHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingTokenHelper.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -277,6 +281,8 @@
 				220000992C12345600000001 /* PresenceHelper.swift */,
 				220000982C12345600000001 /* BackgroundKeepAliveService.swift */,
 				2200009A2C12345600000001 /* FirebaseStorageService.swift */,
+				2200009B2C12345600000001 /* IosEmailSender.swift */,
+				2200009C2C12345600000001 /* RatingTokenHelper.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -613,6 +619,8 @@
 				220010612C12345600000001 /* DispatchTicketSheet.swift in Sources */,
 				220010622C12345600000001 /* LiveTrackingMapView.swift in Sources */,
 				220010632C12345600000001 /* HandoverTicketSheetView.swift in Sources */,
+				2200109B2C12345600000001 /* IosEmailSender.swift in Sources */,
+				2200109C2C12345600000001 /* RatingTokenHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
