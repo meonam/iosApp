@@ -532,6 +532,33 @@ public struct SystemSettingsView: View {
                 }
             }.resume()
         }
+
+        // 3. Tải từ canonical system_config/sla_config
+        let slaUrl = FirebaseConfig.firestoreBaseUrl + "/companies/\(companyId)/system_config/sla_config"
+        if let sUrl = URL(string: slaUrl) {
+            var sReq = URLRequest(url: sUrl)
+            sReq.httpMethod = "GET"
+            if !viewModel.idToken.isEmpty {
+                sReq.setValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization")
+            }
+            URLSession.shared.dataTask(with: sReq) { data, _, _ in
+                guard let data = data,
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let fields = json["fields"] as? [String: Any] else { return }
+                DispatchQueue.main.async {
+                    let rUrgentMin = FirestoreHelper.getInt(fields["resolveMinutesUrgent"] as? [String: Any])
+                    if rUrgentMin > 0 { self.slaUrgentHours = max(1, rUrgentMin / 60) }
+                    let rHighMin = FirestoreHelper.getInt(fields["resolveMinutesHigh"] as? [String: Any])
+                    if rHighMin > 0 { self.slaHighHours = max(1, rHighMin / 60) }
+                    let rNormMin = FirestoreHelper.getInt(fields["resolveMinutesNormal"] as? [String: Any])
+                    if rNormMin > 0 { self.slaNormalHours = max(1, rNormMin / 60) }
+                    
+                    self.localSlaUrgentHours = self.slaUrgentHours
+                    self.localSlaHighHours = self.slaHighHours
+                    self.localSlaNormalHours = self.slaNormalHours
+                }
+            }.resume()
+        }
     }
 
     private func saveSettings() {
@@ -622,6 +649,35 @@ public struct SystemSettingsView: View {
             ]
             tReq.httpBody = try? JSONSerialization.data(withJSONObject: tBody)
             URLSession.shared.dataTask(with: tReq).resume()
+        }
+
+        // 3. Lưu đồng thời vào canonical system_config/sla_config
+        let slaPatchUrl = FirebaseConfig.firestoreBaseUrl + "/companies/\(companyId)/system_config/sla_config"
+        if let sReqUrl = URL(string: slaPatchUrl) {
+            var sReq = URLRequest(url: sReqUrl)
+            sReq.httpMethod = "PATCH"
+            sReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            if !viewModel.idToken.isEmpty {
+                sReq.setValue("Bearer \(viewModel.idToken)", forHTTPHeaderField: "Authorization")
+            }
+            let sBody: [String: Any] = [
+                "fields": [
+                    "responseMinutesDefault": ["integerValue": "30"],
+                    "resolveMinutesUrgent": ["integerValue": String(slaUrgentHours * 60)],
+                    "resolveMinutesHigh": ["integerValue": String(slaHighHours * 60)],
+                    "resolveMinutesNormal": ["integerValue": String(slaNormalHours * 60)],
+                    "resolveMinutesLow": ["integerValue": "2880"],
+                    "qualityTrackingHoursUrgent": ["integerValue": "120"],
+                    "qualityTrackingHoursHigh": ["integerValue": "72"],
+                    "qualityTrackingHoursNormal": ["integerValue": "48"],
+                    "qualityTrackingHoursLow": ["integerValue": "24"],
+                    "warningBeforeBreachMinutes": ["integerValue": "15"],
+                    "slaPenaltyPercentDefault": ["integerValue": "0"],
+                    "updatedAt": ["integerValue": String(Int(Date().timeIntervalSince1970 * 1000))]
+                ]
+            ]
+            sReq.httpBody = try? JSONSerialization.data(withJSONObject: sBody)
+            URLSession.shared.dataTask(with: sReq).resume()
         }
 
         URLSession.shared.dataTask(with: request) { data, response, error in

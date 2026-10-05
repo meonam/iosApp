@@ -51,6 +51,7 @@ public struct TicketChatDetailView: View {
     @State private var ratingComment: String = ""
     @State private var rejectReasonText: String = ""
     @State private var isInternalNote: Bool = false
+    @State private var showChangePriorityDialog: Bool = false
 
     // SLA countdown timer
     @State private var slaCountdown: String = ""
@@ -327,6 +328,21 @@ public struct TicketChatDetailView: View {
                 secondaryButton: .cancel(Text("Hủy"))
             )
         }
+        .confirmationDialog("Điều chỉnh Mức độ ưu tiên (SLA)", isPresented: $showChangePriorityDialog, titleVisibility: .visible) {
+            Button("🔴 Khẩn cấp (Urgent)") {
+                viewModel.updateTicketPriority(ticketId: currentTicket.id, newPriority: "urgent")
+            }
+            Button("🟠 Cần gấp (High)") {
+                viewModel.updateTicketPriority(ticketId: currentTicket.id, newPriority: "high")
+            }
+            Button("🔵 Thường (Normal)") {
+                viewModel.updateTicketPriority(ticketId: currentTicket.id, newPriority: "normal")
+            }
+            Button("⚪ Thấp (Low)") {
+                viewModel.updateTicketPriority(ticketId: currentTicket.id, newPriority: "low")
+            }
+            Button("Hủy", role: .cancel) {}
+        }
         .onReceive(WebRtcCallManager.shared.$isCallPresented) { presented in
             showCallView = presented
         }
@@ -553,6 +569,28 @@ public struct TicketChatDetailView: View {
 
                 Spacer(minLength: 4)
 
+                // Badge Mức độ ưu tiên (SLA Priority)
+                Button(action: {
+                    if !isClosed && (isAdminOrHelpDesk || isAssignedOrAckTech) {
+                        showChangePriorityDialog = true
+                    }
+                }) {
+                    HStack(spacing: 3) {
+                        Text(priorityLabel(currentTicket.priority))
+                            .font(.system(size: 9.5, weight: .bold))
+                        if !isClosed && (isAdminOrHelpDesk || isAssignedOrAckTech) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 8))
+                        }
+                    }
+                    .foregroundColor(priorityColor(currentTicket.priority))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(priorityColor(currentTicket.priority).opacity(0.12))
+                    .cornerRadius(4)
+                }
+                .buttonStyle(PlainButtonStyle())
+
                 // Badge Trạng thái
                 if isClosed {
                     Text("ĐÃ ĐÓNG")
@@ -659,13 +697,26 @@ public struct TicketChatDetailView: View {
             Spacer()
 
             // Badge Mức độ ưu tiên
-            Text(ticket.priority.uppercased())
-                .font(.system(size: 9.5, weight: .bold))
+            Button(action: {
+                if !isClosed && (isAdminOrHelpDesk || isAssignedOrAckTech) {
+                    showChangePriorityDialog = true
+                }
+            }) {
+                HStack(spacing: 3) {
+                    Text(priorityLabel(currentTicket.priority))
+                        .font(.system(size: 9.5, weight: .bold))
+                    if !isClosed && (isAdminOrHelpDesk || isAssignedOrAckTech) {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 8, weight: .bold))
+                    }
+                }
                 .foregroundColor(Color.white)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(priorityColor(ticket.priority))
+                .background(priorityColor(currentTicket.priority))
                 .cornerRadius(4)
+            }
+            .buttonStyle(PlainButtonStyle())
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 5)
@@ -2070,10 +2121,22 @@ public struct TicketChatDetailView: View {
 
     // MARK: - HELPERS
     private func priorityColor(_ p: String) -> Color {
-        switch p.uppercased() {
-        case "URGENT": return Color(hex: "#EF4444")
-        case "HIGH":   return Color(hex: "#F59E0B")
-        default:       return Color(hex: "#10B981")
+        switch p.lowercased() {
+        case "urgent": return Color(hex: "#DC2626")
+        case "high":   return Color(hex: "#EA580C")
+        case "normal": return Color(hex: "#2563EB")
+        case "low":    return Color(hex: "#6B7280")
+        default:       return Color(hex: "#2563EB")
+        }
+    }
+
+    private func priorityLabel(_ p: String) -> String {
+        switch p.lowercased() {
+        case "urgent": return "Khẩn cấp"
+        case "high":   return "Cần gấp"
+        case "normal": return "Thường"
+        case "low":    return "Thấp"
+        default:       return p.isEmpty ? "Thường" : p.uppercased()
         }
     }
 

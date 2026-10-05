@@ -1164,6 +1164,53 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
+    public func updateTicketPriority(ticketId: String, newPriority: String, completion: ((Bool) -> Void)? = nil) {
+        let cleanPriority = newPriority.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let priorityLabel: String = {
+            switch cleanPriority {
+            case "urgent": return "Khẩn cấp"
+            case "high": return "Cần gấp"
+            case "normal": return "Thường"
+            case "low": return "Thấp"
+            default: return cleanPriority.uppercased()
+            }
+        }()
+        // Optimistic UI update
+        if let idx = tickets.firstIndex(where: { $0.id == ticketId }) {
+            var updated = tickets[idx]
+            updated.priority = cleanPriority
+            tickets[idx] = updated
+        }
+        if let idx = rawTickets.firstIndex(where: { $0.id == ticketId }) {
+            var updated = rawTickets[idx]
+            updated.priority = cleanPriority
+            rawTickets[idx] = updated
+        }
+        Task {
+            let mask = "updateMask.fieldPaths=priority"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            guard let url = URL(string: urlStr) else {
+                DispatchQueue.main.async { completion?(false) }
+                return
+            }
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let f: [String: Any] = ["priority": ["stringValue": cleanPriority]]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
+            let resp = await FirestoreHelper.executeSafeRequest(request)
+            let isSuccess = resp != nil && (resp!.1.statusCode >= 200 && resp!.1.statusCode < 300)
+            if isSuccess {
+                let msg = "⚡ [Ưu tiên SLA] Đã cập nhật mức độ ưu tiên thành: \(priorityLabel)"
+                let sender = (!user.fullName.isEmpty && user.fullName.lowercased() != "admin" && user.fullName.lowercased() != "user") ? user.fullName : "Bộ phận HelpDesk"
+                sendMessage(ticketId: ticketId, text: msg, customSenderName: sender, isSystemMessage: true)
+                self.fetchTickets()
+            }
+            DispatchQueue.main.async { completion?(isSuccess) }
+        }
+    }
+
     public func sendMessage(
         ticketId: String,
         text: String,
@@ -1717,6 +1764,7 @@ public class SupportViewModel: ObservableObject {
         assignedRegion: String = "",
         assignedApplication: String = "",
         assignedRole: String = "TECH",
+        newPriority: String? = nil,
         completion: ((Bool) -> Void)? = nil
     ) {
         if let t = rawTickets.first(where: { $0.id == ticketId }), t.status.uppercased() == "CLOSED" || t.closedAt > 0 {
@@ -1814,7 +1862,7 @@ public class SupportViewModel: ObservableObject {
                 }
             }
 
-            let maskFields = [
+            var maskFields = [
                 "assignedDepartmentId", "assignedDepartmentName", "toNghiepVu",
                 "assignedToEmail", "assignedToName", "assignedCluster", "assignedRegion",
                 "assignedApplication", "assignedRole", "scope", "isSpecialistAssigned",
@@ -1822,6 +1870,10 @@ public class SupportViewModel: ObservableObject {
                 "isAcknowledged", "acknowledged", "acknowledgedAt", "acknowledgedBy", "acknowledgedByName",
                 "tracking", "coTechnicians", "assignedTechnicianEmails"
             ]
+            let cleanNewPriority = (newPriority ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !cleanNewPriority.isEmpty {
+                maskFields.append("priority")
+            }
             let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
             let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
@@ -1878,6 +1930,9 @@ public class SupportViewModel: ObservableObject {
                 "lastMessage": ["stringValue": dispatchMsg],
                 "lastMessageAt": ["integerValue": String(now)]
             ]
+            if !cleanNewPriority.isEmpty {
+                f["priority"] = ["stringValue": cleanNewPriority]
+            }
 
             let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)

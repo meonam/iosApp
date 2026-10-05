@@ -24,6 +24,9 @@ public struct DispatchTicketSheet: View {
     @State private var selectedSpecialistEmail: String = ""
     @State private var selectedSpecialistName: String = ""
 
+    // Priority state
+    @State private var selectedPriority: String = "normal"
+
     @State private var note: String = ""
     @State private var isSubmitting: Bool = false
 
@@ -34,6 +37,9 @@ public struct DispatchTicketSheet: View {
         self.viewModel = viewModel
         self.onDismiss = onDismiss
         
+        let p = ticket.priority.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        _selectedPriority = State(initialValue: p.isEmpty ? "normal" : p)
+
         let initialRole = ticket.isSpecialistAssigned ? "SPECIALIST" : "TECH"
         _targetRole = State(initialValue: initialRole)
         _selectedTechEmail = State(initialValue: ticket.assignedToEmail)
@@ -125,6 +131,9 @@ public struct DispatchTicketSheet: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        // 0. MỨC ĐỘ ƯU TIÊN (SLA)
+                        prioritySelectionSection
+
                         // 1. TABS SWITCHER: KTV Địa bàn vs Chuyên viên
                         switcherTabs
 
@@ -172,6 +181,44 @@ public struct DispatchTicketSheet: View {
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
+    }
+
+    // MARK: - 0. MỨC ĐỘ ƯU TIÊN (SLA)
+    private var prioritySelectionSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Mức độ ưu tiên (SLA):")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(Color.appTextPrimary)
+
+            HStack(spacing: 8) {
+                let priorityList: [(String, String, Color)] = [
+                    ("urgent", "Khẩn cấp", Color(hex: "#DC2626")),
+                    ("high", "Cần gấp", Color(hex: "#EA580C")),
+                    ("normal", "Thường", Color(hex: "#2563EB")),
+                    ("low", "Thấp", Color(hex: "#6B7280"))
+                ]
+
+                ForEach(priorityList, id: \.0) { item in
+                    let isSel = selectedPriority.caseInsensitiveCompare(item.0) == .orderedSame
+                    Button(action: {
+                        selectedPriority = item.0
+                    }) {
+                        Text(item.1)
+                            .font(.system(size: 12, weight: isSel ? .bold : .medium))
+                            .foregroundColor(isSel ? item.2 : Color.appTextSecondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(isSel ? item.2.opacity(0.12) : Color.appSurface)
+                            .cornerRadius(6)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(isSel ? item.2 : Color.appCardBorder, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+        }
     }
 
     // MARK: - 1. SWITCHER TABS (KTV ĐỊA BÀN vs CHUYÊN VIÊN)
@@ -651,7 +698,8 @@ public struct DispatchTicketSheet: View {
                 assignedCluster: "",
                 assignedRegion: "",
                 assignedApplication: selectedApp,
-                assignedRole: "SPECIALIST"
+                assignedRole: "SPECIALIST",
+                newPriority: selectedPriority
             ) { success in
                 isSubmitting = false
                 if success {
@@ -670,7 +718,8 @@ public struct DispatchTicketSheet: View {
                 assignedCluster: selectedCluster,
                 assignedRegion: selectedCluster,
                 assignedApplication: "",
-                assignedRole: "TECH"
+                assignedRole: "TECH",
+                newPriority: selectedPriority
             ) { success in
                 isSubmitting = false
                 if success {
