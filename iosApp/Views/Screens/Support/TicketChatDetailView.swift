@@ -1234,6 +1234,14 @@ public struct TicketChatDetailView: View {
                 Text("📝 Vấn đề: \(currentTicket.initialMessage)")
                     .font(.system(size: 12))
                     .foregroundColor(Color.appTextPrimary)
+                    .textSelection(.enabled)
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = currentTicket.initialMessage
+                        } label: {
+                            Label("Sao chép", systemImage: "doc.on.doc")
+                        }
+                    }
             }
 
             // Hình ảnh chụp hiện trường ban đầu
@@ -1411,6 +1419,14 @@ public struct TicketChatDetailView: View {
                             RoundedRectangle(cornerRadius: 14)
                                 .stroke(isMine ? Color.clear : Color.appCardBorder, lineWidth: 1)
                         )
+                        .textSelection(.enabled)
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = msg.text
+                            } label: {
+                                Label("Sao chép", systemImage: "doc.on.doc")
+                            }
+                        }
 
                     if msg.timestamp > 0 {
                         Text(formatMessageTime(msg.timestamp))
