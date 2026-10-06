@@ -23,6 +23,8 @@ public struct KtvOnlineLocation: Identifiable {
     public var isScheduledOff: Bool
     public var violationsThisMonth: Int
     public var isBlacklisted: Bool
+    public var isOnDuty: Bool
+    public var onDutyShift: String
 
     public init(
         name: String,
@@ -43,7 +45,9 @@ public struct KtvOnlineLocation: Identifiable {
         todayShiftCode: String = "",
         isScheduledOff: Bool = false,
         violationsThisMonth: Int = 0,
-        isBlacklisted: Bool = false
+        isBlacklisted: Bool = false,
+        isOnDuty: Bool = false,
+        onDutyShift: String = ""
     ) {
         self.name = name
         self.email = email
@@ -64,6 +68,8 @@ public struct KtvOnlineLocation: Identifiable {
         self.isScheduledOff = isScheduledOff
         self.violationsThisMonth = violationsThisMonth
         self.isBlacklisted = isBlacklisted
+        self.isOnDuty = isOnDuty
+        self.onDutyShift = onDutyShift
     }
 
     public var coordinate: CLLocationCoordinate2D {

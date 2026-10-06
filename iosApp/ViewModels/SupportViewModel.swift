@@ -3168,7 +3168,9 @@ public class SupportViewModel: ObservableObject {
                     todayShiftCode: shiftCode,
                     isScheduledOff: isScheduledOff,
                     violationsThisMonth: violCount,
-                    isBlacklisted: isBlacklisted
+                    isBlacklisted: isBlacklisted,
+                    isOnDuty: isOnDuty,
+                    onDutyShift: FirestoreHelper.getString(fields["onDutyShift"] as? [String: Any])
                 ))
             }
 
