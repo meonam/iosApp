@@ -162,34 +162,44 @@ public class SupportViewModel: ObservableObject {
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
                 var cfg = SlaConfig()
-                let rDef = FirestoreHelper.getInt(fields["responseMinutesDefault"] as? [String: Any])\r\n                if rDef > 0 {
+                let rDef = FirestoreHelper.getInt(fields["responseMinutesDefault"] as? [String: Any])
+                if rDef > 0 {
                     cfg.responseMinutesDefault = rDef
                 }
-                let rUrg = FirestoreHelper.getInt(fields["resolveMinutesUrgent"] as? [String: Any])\r\n                if rUrg > 0 {
+                let rUrg = FirestoreHelper.getInt(fields["resolveMinutesUrgent"] as? [String: Any])
+                if rUrg > 0 {
                     cfg.resolveMinutesUrgent = rUrg
                 }
-                let rHigh = FirestoreHelper.getInt(fields["resolveMinutesHigh"] as? [String: Any])\r\n                if rHigh > 0 {
+                let rHigh = FirestoreHelper.getInt(fields["resolveMinutesHigh"] as? [String: Any])
+                if rHigh > 0 {
                     cfg.resolveMinutesHigh = rHigh
                 }
-                let rNorm = FirestoreHelper.getInt(fields["resolveMinutesNormal"] as? [String: Any])\r\n                if rNorm > 0 {
+                let rNorm = FirestoreHelper.getInt(fields["resolveMinutesNormal"] as? [String: Any])
+                if rNorm > 0 {
                     cfg.resolveMinutesNormal = rNorm
                 }
-                let rLow = FirestoreHelper.getInt(fields["resolveMinutesLow"] as? [String: Any])\r\n                if rLow > 0 {
+                let rLow = FirestoreHelper.getInt(fields["resolveMinutesLow"] as? [String: Any])
+                if rLow > 0 {
                     cfg.resolveMinutesLow = rLow
                 }
-                let qUrg = FirestoreHelper.getInt(fields["qualityTrackingHoursUrgent"] as? [String: Any])\r\n                if qUrg > 0 {
+                let qUrg = FirestoreHelper.getInt(fields["qualityTrackingHoursUrgent"] as? [String: Any])
+                if qUrg > 0 {
                     cfg.qualityTrackingHoursUrgent = qUrg
                 }
-                let qHigh = FirestoreHelper.getInt(fields["qualityTrackingHoursHigh"] as? [String: Any])\r\n                if qHigh > 0 {
+                let qHigh = FirestoreHelper.getInt(fields["qualityTrackingHoursHigh"] as? [String: Any])
+                if qHigh > 0 {
                     cfg.qualityTrackingHoursHigh = qHigh
                 }
-                let qNorm = FirestoreHelper.getInt(fields["qualityTrackingHoursNormal"] as? [String: Any])\r\n                if qNorm > 0 {
+                let qNorm = FirestoreHelper.getInt(fields["qualityTrackingHoursNormal"] as? [String: Any])
+                if qNorm > 0 {
                     cfg.qualityTrackingHoursNormal = qNorm
                 }
-                let qLow = FirestoreHelper.getInt(fields["qualityTrackingHoursLow"] as? [String: Any])\r\n                if qLow > 0 {
+                let qLow = FirestoreHelper.getInt(fields["qualityTrackingHoursLow"] as? [String: Any])
+                if qLow > 0 {
                     cfg.qualityTrackingHoursLow = qLow
                 }
-                let wMin = FirestoreHelper.getInt(fields["warningBeforeBreachMinutes"] as? [String: Any])\r\n                if wMin > 0 {
+                let wMin = FirestoreHelper.getInt(fields["warningBeforeBreachMinutes"] as? [String: Any])
+                if wMin > 0 {
                     cfg.warningBeforeBreachMinutes = wMin
                 }
                 if fields["slaPenaltyPercentDefault"] != nil {
