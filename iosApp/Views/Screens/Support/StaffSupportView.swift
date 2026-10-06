@@ -723,13 +723,86 @@ public struct CreateTicketSheetView: View {
                     .font(.system(size: 13.5))
             }
 
-            Section(header: Text("Thông tin liên hệ")) {
-                TextField("Số điện thoại liên hệ", text: $phone)
-                    .keyboardType(.phonePad)
-                    .font(.system(size: 13.5))
+            Section(header: HStack {
+                Text("Thông tin liên hệ (*)")
+                Spacer()
+                HStack(spacing: 3) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 8))
+                    Text("Cố định tài khoản")
+                        .font(.system(size: 9.5, weight: .semibold))
+                }
+                .foregroundColor(Color(hex: "#475569"))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2.5)
+                .background(Color(hex: "#E2E8F0"))
+                .cornerRadius(5)
+            }) {
+                // 1. Đơn vị / Vị trí yêu cầu (Cố định tài khoản)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "mappin.and.ellipse")
+                            .foregroundColor(Color.appPrimaryPink)
+                            .font(.system(size: 14))
+                            .frame(width: 20)
 
-                TextField("Đơn vị / Chi nhánh", text: $donVi)
-                    .font(.system(size: 13.5))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Đơn vị / Chi nhánh")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                            Text(donVi.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Chưa có đơn vị được gán cho tài khoản" : donVi)
+                                .font(.system(size: 13.5, weight: .semibold))
+                                .foregroundColor(donVi.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .secondary : Color(hex: "#0B2545"))
+                        }
+
+                        Spacer()
+
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(hex: "#94A3B8"))
+                    }
+                    .padding(.vertical, 2)
+
+                    if !donVi.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        HStack(spacing: 5) {
+                            Image(systemName: "building.2.fill")
+                                .font(.system(size: 10))
+                                .foregroundColor(Color(hex: "#1D4ED8"))
+                            Text("🏢 Đơn vị: \(donVi)")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(Color(hex: "#1D4ED8"))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color(hex: "#EFF6FF"))
+                        .cornerRadius(6)
+                    }
+                }
+
+                // 2. Số điện thoại liên hệ (Cố định tài khoản)
+                HStack(spacing: 8) {
+                    Image(systemName: "phone.fill")
+                        .foregroundColor(Color(hex: "#10B981"))
+                        .font(.system(size: 13))
+                        .frame(width: 20)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Số điện thoại liên hệ")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Text(phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Chưa có SĐT đăng ký trong hồ sơ" : phone)
+                            .font(.system(size: 13.5, weight: .semibold))
+                            .foregroundColor(phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .secondary : Color(hex: "#0B2545"))
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color(hex: "#94A3B8"))
+                }
+                .padding(.vertical, 2)
             }
         }
     }
