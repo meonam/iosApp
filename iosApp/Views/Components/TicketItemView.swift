@@ -101,9 +101,17 @@ public struct TicketItemView: View {
     // Tổ hợp thông tin người gửi + đơn vị + phòng ban (chuẩn Android Image 3)
     private var metaInfoString: String {
         let creatorText = ticket.creatorName.isEmpty ? (ticket.creatorEmail.components(separatedBy: "@").first ?? ticket.creatorEmail) : ticket.creatorName
+        let effectiveDonVi: String = {
+            let cLower = ticket.creatorName.lowercased()
+            if ticket.donVi.localizedCaseInsensitiveContains("Điện Biên Phủ") &&
+                (cLower.contains("co.op") || cLower.contains("coop") || cLower.contains("chi nhánh") || cLower.contains("cửa hàng")) {
+                return ticket.creatorName
+            }
+            return ticket.donVi
+        }()
         var parts: [String] = []
         if !creatorText.isEmpty { parts.append(creatorText) }
-        if !ticket.donVi.isEmpty { parts.append("🏬 \(ticket.donVi)") }
+        if !effectiveDonVi.isEmpty { parts.append("🏬 \(effectiveDonVi)") }
         if !ticket.departmentId.isEmpty { parts.append("🏢 \(ticket.departmentId)") }
         return parts.joined(separator: " • ")
     }

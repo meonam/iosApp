@@ -52,6 +52,10 @@ public struct User: Identifiable, Codable, Hashable {
     public var boundDeviceName: String
     public var boundDevicePlatform: String
     public var boundDeviceAt: Int64
+    public var isOnDuty: Bool
+    public var onDutyShift: String
+    public var onDutySource: String
+    public var onDutySince: Int64
 
     public init(
         maNhanVien: String = "",
@@ -78,7 +82,11 @@ public struct User: Identifiable, Codable, Hashable {
         boundDeviceId: String = "",
         boundDeviceName: String = "",
         boundDevicePlatform: String = "",
-        boundDeviceAt: Int64 = 0
+        boundDeviceAt: Int64 = 0,
+        isOnDuty: Bool = false,
+        onDutyShift: String = "",
+        onDutySource: String = "",
+        onDutySince: Int64 = 0
     ) {
         self.maNhanVien = maNhanVien
         self.email = email
@@ -105,6 +113,10 @@ public struct User: Identifiable, Codable, Hashable {
         self.boundDeviceName = boundDeviceName
         self.boundDevicePlatform = boundDevicePlatform
         self.boundDeviceAt = boundDeviceAt
+        self.isOnDuty = isOnDuty
+        self.onDutyShift = onDutyShift
+        self.onDutySource = onDutySource
+        self.onDutySince = onDutySince
     }
 
     // Computed Properties phân quyền chuẩn xác 1:1 theo User.kt

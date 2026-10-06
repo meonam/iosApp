@@ -393,11 +393,11 @@ public struct SupportRatingReportView: View {
                             priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
                             createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
                             rating: FirestoreHelper.getInt(fields["rating"] as? [String: Any]),
+                            feedbackAt: FirestoreHelper.getInt64(fields["feedbackAt"] as? [String: Any]),
                             assignedToEmail: assignedEmail,
                             assignedToName: assignedName,
                             assignedAt: FirestoreHelper.getInt64(fields["assignedAt"] as? [String: Any]),
                             resolvedAt: FirestoreHelper.getInt64(fields["resolvedAt"] as? [String: Any]),
-                            feedbackAt: FirestoreHelper.getInt64(fields["feedbackAt"] as? [String: Any]),
                             closedAt: FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any]),
                             isAutoRated: FirestoreHelper.getBool(fields["isAutoRated"] as? [String: Any]),
                             isInvalid: FirestoreHelper.getBool(fields["isInvalid"] as? [String: Any])
@@ -499,7 +499,7 @@ public struct SupportRatingReportView: View {
                 if isClosedOrRated {
                     kSlaTotal += 1
                     if isHelpdesk {
-                        if !t.isResponseSlaBreached(targetMinutes: 30) {
+                        if !t.isResponseSlaBreached() {
                             kSlaOnTime += 1
                         }
                     } else {

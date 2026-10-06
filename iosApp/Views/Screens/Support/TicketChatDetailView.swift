@@ -638,11 +638,30 @@ public struct TicketChatDetailView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(Color.appTextSecondary)
 
-                if !ticket.donVi.isEmpty {
+                let contactEmail = (!ticket.creatorEmail.isEmpty ? ticket.creatorEmail : ticket.externalSenderId).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !contactEmail.isEmpty && contactEmail.contains("@") {
                     Text("•")
                         .foregroundColor(Color.appTextMuted)
                         .font(.system(size: 10))
-                    Text("🏬 \(ticket.donVi)")
+                    Text("📧 \(contactEmail)")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(hex: "#B91C1C"))
+                        .lineLimit(1)
+                }
+
+                let effectiveDonVi: String = {
+                    let cLower = ticket.creatorName.lowercased()
+                    if ticket.donVi.localizedCaseInsensitiveContains("Điện Biên Phủ") &&
+                        (cLower.contains("co.op") || cLower.contains("coop") || cLower.contains("chi nhánh") || cLower.contains("cửa hàng")) {
+                        return ticket.creatorName
+                    }
+                    return ticket.donVi
+                }()
+                if !effectiveDonVi.isEmpty {
+                    Text("•")
+                        .foregroundColor(Color.appTextMuted)
+                        .font(.system(size: 10))
+                    Text("🏬 \(effectiveDonVi)")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Color.appTextSecondary)
                         .lineLimit(1)

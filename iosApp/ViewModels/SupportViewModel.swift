@@ -162,37 +162,38 @@ public class SupportViewModel: ObservableObject {
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
                 var cfg = SlaConfig()
-                if let rDef = FirestoreHelper.getInt(fields["responseMinutesDefault"] as? [String: Any]), rDef > 0 {
+                let rDef = FirestoreHelper.getInt(fields["responseMinutesDefault"] as? [String: Any])\r\n                if rDef > 0 {
                     cfg.responseMinutesDefault = rDef
                 }
-                if let rUrg = FirestoreHelper.getInt(fields["resolveMinutesUrgent"] as? [String: Any]), rUrg > 0 {
+                let rUrg = FirestoreHelper.getInt(fields["resolveMinutesUrgent"] as? [String: Any])\r\n                if rUrg > 0 {
                     cfg.resolveMinutesUrgent = rUrg
                 }
-                if let rHigh = FirestoreHelper.getInt(fields["resolveMinutesHigh"] as? [String: Any]), rHigh > 0 {
+                let rHigh = FirestoreHelper.getInt(fields["resolveMinutesHigh"] as? [String: Any])\r\n                if rHigh > 0 {
                     cfg.resolveMinutesHigh = rHigh
                 }
-                if let rNorm = FirestoreHelper.getInt(fields["resolveMinutesNormal"] as? [String: Any]), rNorm > 0 {
+                let rNorm = FirestoreHelper.getInt(fields["resolveMinutesNormal"] as? [String: Any])\r\n                if rNorm > 0 {
                     cfg.resolveMinutesNormal = rNorm
                 }
-                if let rLow = FirestoreHelper.getInt(fields["resolveMinutesLow"] as? [String: Any]), rLow > 0 {
+                let rLow = FirestoreHelper.getInt(fields["resolveMinutesLow"] as? [String: Any])\r\n                if rLow > 0 {
                     cfg.resolveMinutesLow = rLow
                 }
-                if let qUrg = FirestoreHelper.getInt(fields["qualityTrackingHoursUrgent"] as? [String: Any]), qUrg > 0 {
+                let qUrg = FirestoreHelper.getInt(fields["qualityTrackingHoursUrgent"] as? [String: Any])\r\n                if qUrg > 0 {
                     cfg.qualityTrackingHoursUrgent = qUrg
                 }
-                if let qHigh = FirestoreHelper.getInt(fields["qualityTrackingHoursHigh"] as? [String: Any]), qHigh > 0 {
+                let qHigh = FirestoreHelper.getInt(fields["qualityTrackingHoursHigh"] as? [String: Any])\r\n                if qHigh > 0 {
                     cfg.qualityTrackingHoursHigh = qHigh
                 }
-                if let qNorm = FirestoreHelper.getInt(fields["qualityTrackingHoursNormal"] as? [String: Any]), qNorm > 0 {
+                let qNorm = FirestoreHelper.getInt(fields["qualityTrackingHoursNormal"] as? [String: Any])\r\n                if qNorm > 0 {
                     cfg.qualityTrackingHoursNormal = qNorm
                 }
-                if let qLow = FirestoreHelper.getInt(fields["qualityTrackingHoursLow"] as? [String: Any]), qLow > 0 {
+                let qLow = FirestoreHelper.getInt(fields["qualityTrackingHoursLow"] as? [String: Any])\r\n                if qLow > 0 {
                     cfg.qualityTrackingHoursLow = qLow
                 }
-                if let wMin = FirestoreHelper.getInt(fields["warningBeforeBreachMinutes"] as? [String: Any]), wMin > 0 {
+                let wMin = FirestoreHelper.getInt(fields["warningBeforeBreachMinutes"] as? [String: Any])\r\n                if wMin > 0 {
                     cfg.warningBeforeBreachMinutes = wMin
                 }
-                if let pen = FirestoreHelper.getInt(fields["slaPenaltyPercentDefault"] as? [String: Any]) {
+                if fields["slaPenaltyPercentDefault"] != nil {
+                    let pen = FirestoreHelper.getInt(fields["slaPenaltyPercentDefault"] as? [String: Any])
                     cfg.slaPenaltyPercentDefault = pen
                 }
                 if let eh = fields["enableHelpdeskSla"] as? [String: Any], let b = eh["booleanValue"] as? Bool {
@@ -2102,6 +2103,26 @@ public class SupportViewModel: ObservableObject {
 
             sendMessage(ticketId: ticketId, text: dispatchMsg, customSenderName: assignerName, isSystemMessage: true)
             self.fetchTickets()
+
+            // Tự động gửi email điều phối kèm nút 1-Click Resolve nếu có cấu hình
+            if !techEmail.isEmpty && techEmail.contains("@") {
+                Task {
+                    if let emailCfg = await self.fetchCompanyEmailConfig(), emailCfg.isConfigured {
+                        if let currentT = self.rawTickets.first(where: { $0.id == ticketId }) {
+                            _ = await IosEmailSender.sendDispatchNotificationEmail(
+                                ticket: currentT,
+                                config: emailCfg,
+                                targetEmail: techEmail,
+                                targetName: techName,
+                                isSpecialist: isSpecialist,
+                                dispatchNote: note,
+                                helpdeskName: assignerName
+                            )
+                        }
+                    }
+                }
+            }
+
             DispatchQueue.main.async { completion?(true) }
         }
     }
@@ -2861,7 +2882,11 @@ public class SupportViewModel: ObservableObject {
 
             let lastActiveAt = FirestoreHelper.getInt64(fields["lastActiveAt"] as? [String: Any])
             let rawOnline = FirestoreHelper.getBool(fields["isOnline"] as? [String: Any]) || FirestoreHelper.getBool(fields["online"] as? [String: Any])
-            let isOnline = rawOnline || (lastActiveAt > 0 && (nowMs - lastActiveAt < 15 * 60 * 1000))
+            let isOnDuty = FirestoreHelper.getBool(fields["isOnDuty"] as? [String: Any])
+            let onDutyShift = FirestoreHelper.getString(fields["onDutyShift"] as? [String: Any])
+            let onDutySource = FirestoreHelper.getString(fields["onDutySource"] as? [String: Any])
+            let onDutySince = FirestoreHelper.getInt64(fields["onDutySince"] as? [String: Any])
+            let isOnline = (rawOnline && (lastActiveAt > 0) && (nowMs - lastActiveAt <= 15 * 60 * 1000)) || isOnDuty
 
             return User(
                 maNhanVien: FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
@@ -2881,7 +2906,11 @@ public class SupportViewModel: ObservableObject {
                 lastActiveAt: lastActiveAt,
                 isOnline: isOnline,
                 permissions: FirestoreHelper.getStringArray(fields["permissions"] as? [String: Any]),
-                disabledReason: FirestoreHelper.getString(fields["disabledReason"] as? [String: Any])
+                disabledReason: FirestoreHelper.getString(fields["disabledReason"] as? [String: Any]),
+                isOnDuty: isOnDuty,
+                onDutyShift: onDutyShift,
+                onDutySource: onDutySource,
+                onDutySince: onDutySince
             )
         }
     }
@@ -3040,7 +3069,8 @@ public class SupportViewModel: ObservableObject {
 
                 let rawOnline = (fields["isOnline"] as? [String: Any])?["booleanValue"] as? Bool ?? false
                 let lastActiveAt = FirestoreHelper.getInt64(fields["lastActiveAt"] as? [String: Any])
-                let isOnline = rawOnline && (lastActiveAt > 0) && ((nowMs - lastActiveAt) < onlineWindowMs)
+                let isOnDuty = (fields["isOnDuty"] as? [String: Any])?["booleanValue"] as? Bool ?? false
+                let isOnline = (rawOnline && (lastActiveAt > 0) && ((nowMs - lastActiveAt) < onlineWindowMs)) || isOnDuty
 
                 let name = FirestoreHelper.getString(fields["fullName"] as? [String: Any]).isEmpty
                     ? FirestoreHelper.getString(fields["name"] as? [String: Any])

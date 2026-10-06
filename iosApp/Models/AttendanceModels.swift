@@ -116,6 +116,8 @@ public struct AttendanceRecord: Identifiable, Codable, Hashable {
     public var checkInDeviceName: String
     public var checkOutDeviceId: String
     public var checkOutDeviceName: String
+    public var checkInPlatform: String
+    public var clientIp: String
 
     public init(
         id: String = "",
@@ -147,7 +149,9 @@ public struct AttendanceRecord: Identifiable, Codable, Hashable {
         checkInDeviceId: String = "",
         checkInDeviceName: String = "",
         checkOutDeviceId: String = "",
-        checkOutDeviceName: String = ""
+        checkOutDeviceName: String = "",
+        checkInPlatform: String = "IOS",
+        clientIp: String = ""
     ) {
         self.id = id
         self.userEmail = userEmail
@@ -179,6 +183,8 @@ public struct AttendanceRecord: Identifiable, Codable, Hashable {
         self.checkInDeviceName = checkInDeviceName
         self.checkOutDeviceId = checkOutDeviceId
         self.checkOutDeviceName = checkOutDeviceName
+        self.checkInPlatform = checkInPlatform
+        self.clientIp = clientIp
     }
 
     public var isCheckedIn: Bool { checkInTime > 0 }

@@ -43,8 +43,13 @@ public struct DispatchTicketSheet: View {
         let initialRole = ticket.isSpecialistAssigned ? "SPECIALIST" : "TECH"
         _targetRole = State(initialValue: initialRole)
         _selectedTechEmail = State(initialValue: ticket.assignedToEmail)
-        _selectedTechName = State(initialValue: ticket.assignedToName)
-        _selectedCluster = State(initialValue: ticket.assignedCluster)
+        let initialCluster: String
+        if !ticket.assignedCluster.isEmpty {
+            initialCluster = WorkingHoursHelper.normalizeClusterCode(ticket.assignedCluster)
+        } else {
+            initialCluster = WorkingHoursHelper.resolveUnitCluster(units: viewModel.companyUnits, donViName: ticket.donVi)
+        }
+        _selectedCluster = State(initialValue: initialCluster)
         _selectedApp = State(initialValue: ticket.assignedApplication)
         _selectedSpecialistEmail = State(initialValue: ticket.isSpecialistAssigned ? ticket.assignedToEmail : "")
         _selectedSpecialistName = State(initialValue: ticket.isSpecialistAssigned ? ticket.assignedToName : "")
@@ -196,6 +201,29 @@ public struct DispatchTicketSheet: View {
                 viewModel.fetchKtvTechnicians()
                 viewModel.fetchStaffAndSpecialistTeams()
                 viewModel.fetchCompanyUnits()
+
+                let detected = ticketCluster
+                if !detected.isEmpty {
+                    if selectedCluster.isEmpty {
+                        selectedCluster = detected
+                    }
+                    if selectedTechEmail.isEmpty, let top = clusterSuggestion {
+                        selectedTechEmail = top.email
+                        selectedTechName = top.name
+                    }
+                }
+            }
+            .onChange(of: viewModel.companyUnits) { _ in
+                let detected = ticketCluster
+                if !detected.isEmpty && selectedCluster.isEmpty {
+                    selectedCluster = detected
+                }
+            }
+            .onChange(of: viewModel.ktvTechnicians) { _ in
+                if selectedTechEmail.isEmpty, let top = clusterSuggestion {
+                    selectedTechEmail = top.email
+                    selectedTechName = top.name
+                }
             }
         }
         .navigationViewStyle(StackNavigationViewStyle())
@@ -470,7 +498,7 @@ public struct DispatchTicketSheet: View {
                                                 .fill(tech.isOnline ? Color(hex: "#10B981") : Color.gray)
                                                 .frame(width: 7, height: 7)
 
-                                            Text(tech.isOnline ? "Online" : "Offline")
+                                            Text(tech.isOnDuty ? "🟢 Đang trực (\(tech.onDutyShift.isEmpty ? "Ca trực" : tech.onDutyShift))" : (tech.isOnline ? "Online" : "Offline"))
                                                 .font(.system(size: 11.5, weight: .medium))
                                                 .foregroundColor(tech.isOnline ? Color(hex: "#10B981") : Color.gray)
                                         }
@@ -668,7 +696,7 @@ public struct DispatchTicketSheet: View {
                 } else {
                     ForEach(specialistsInTeam, id: \.email) { spec in
                         let isSelected = selectedSpecialistEmail.caseInsensitiveCompare(spec.email) == .orderedSame
-                        let isOnline = spec.isOnline || (spec.lastActiveAt > 0 && (Int64(Date().timeIntervalSince1970 * 1000) - spec.lastActiveAt < 15 * 60 * 1000))
+                        let isOnline = spec.isOnline && (spec.lastActiveAt > 0) && (Int64(Date().timeIntervalSince1970 * 1000) - spec.lastActiveAt <= 15 * 60 * 1000)
                         let workload = viewModel.getActiveTicketCount(email: spec.email)
 
                         Button(action: {

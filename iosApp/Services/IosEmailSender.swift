@@ -111,6 +111,39 @@ public struct IosEmailSender {
         }
     }
 
+    public static func sendDispatchNotificationEmail(
+        ticket: SupportTicket,
+        config: CompanyEmailConfig,
+        targetEmail: String,
+        targetName: String,
+        isSpecialist: Bool,
+        dispatchNote: String = "",
+        helpdeskName: String = "Helpdesk"
+    ) async -> Result<Bool, Error> {
+        let recipientEmail = targetEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !recipientEmail.isEmpty, recipientEmail.contains("@") else {
+            return .failure(NSError(domain: "IosEmailSender", code: 400, userInfo: [NSLocalizedDescriptionKey: "Email người nhận không hợp lệ (\(recipientEmail))"]))
+        }
+
+        guard config.isConfigured else {
+            return .failure(NSError(domain: "IosEmailSender", code: 401, userInfo: [NSLocalizedDescriptionKey: "Chưa cấu hình Email Microsoft 365 hoặc SMTP cho doanh nghiệp."]))
+        }
+
+        let htmlBody = RatingTokenHelper.generateDispatchEmailHtml(
+            ticket: ticket,
+            recipientEmail: recipientEmail,
+            recipientName: targetName,
+            isSpecialist: isSpecialist,
+            dispatchNote: dispatchNote
+        )
+
+        let displayTicketCode = !ticket.ticketCode.isEmpty ? ticket.ticketCode : ticket.id.replacingOccurrences(of: "ticket_", with: "").replacingOccurrences(of: "TK_", with: "")
+        let titleAction = isSpecialist ? "Chuyển giao chuyên viên" : "Điều phối xử lý"
+        let subject = "[#\(displayTicketCode)] \(titleAction): \(!ticket.subject.isEmpty ? ticket.subject : "Yêu cầu hỗ trợ kỹ thuật")"
+
+        return await sendViaGraphApi(config: config, recipientEmail: recipientEmail, subject: subject, htmlBody: htmlBody)
+    }
+
     private static func sendViaGraphApi(
         config: CompanyEmailConfig,
         recipientEmail: String,

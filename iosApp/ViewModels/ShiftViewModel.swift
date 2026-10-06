@@ -191,11 +191,12 @@ public class ShiftViewModel: ObservableObject {
                         let empName = FirestoreHelper.getString(subFields["employeeName"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
                         let maKhuVuc = FirestoreHelper.getString(subFields["maKhuVuc"] as? [String: Any])
                         let donVi = FirestoreHelper.getString(subFields["donVi"] as? [String: Any])
+                        let empEmail = (FirestoreHelper.getString(subFields["employeeEmail"] as? [String: Any]).isEmpty ? FirestoreHelper.getString(subFields["email"] as? [String: Any]) : FirestoreHelper.getString(subFields["employeeEmail"] as? [String: Any])).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
                         // Standardize MNV if phone or empty
                         let isOldPhone = (empId.hasPrefix("0") && empId.count >= 9) || empId.range(of: "^[0-9]{10}$", options: .regularExpression) != nil
                         if isOldPhone || empId.isEmpty || empId.contains("@") {
-                            let std = lookupStandardKtvMnv(email: nil, fullName: empName)
+                            let std = lookupStandardKtvMnv(email: empEmail.isEmpty ? nil : empEmail, fullName: empName)
                             if !std.isEmpty { empId = std }
                         }
 
@@ -236,7 +237,8 @@ public class ShiftViewModel: ObservableObject {
                                 employeeName: empName,
                                 days: daysMap,
                                 maKhuVuc: maKhuVuc,
-                                donVi: donVi
+                                donVi: donVi,
+                                employeeEmail: empEmail
                             ))
                         }
                     }
@@ -537,6 +539,8 @@ public class ShiftViewModel: ObservableObject {
                     "fields": [
                         "employeeId": ["stringValue": entry.employeeId],
                         "employeeName": ["stringValue": entry.employeeName],
+                        "employeeEmail": ["stringValue": entry.employeeEmail],
+                        "email": ["stringValue": entry.employeeEmail],
                         "maKhuVuc": ["stringValue": entry.maKhuVuc],
                         "donVi": ["stringValue": entry.donVi],
                         "days": [

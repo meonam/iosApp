@@ -51,7 +51,8 @@ public struct AttendanceCheckInView: View {
                viewModel.user.isTechnician || viewModel.user.isSpecialist
     }
 
-    private var canAccessAttendance: Bool { true }
+    // Tạm thời khóa chấm công đối với role Nhân viên trên tất cả nền tảng theo yêu cầu
+    private var canAccessAttendance: Bool { isAdmin || isHelpDesk || isIncidentDept || viewModel.user.isSpecialist || viewModel.user.isTechnician }
     private var canAccessReport: Bool { isAdmin || isHelpDesk || isIncidentDept || viewModel.user.isSpecialist || viewModel.user.isTechnician }
 
     public var body: some View {
@@ -82,6 +83,9 @@ public struct AttendanceCheckInView: View {
 
                                 // 3. CẶP THẺ CHECK-IN / CHECK-OUT
                                 actionCardsView
+
+                                // 3b. THẺ TRỰC CA & SẴN SÀNG NHẬN VIỆC (CÁCH 2)
+                                onDutySwitchCard
 
                                 // 4. THẺ TỔNG KẾT CA HÔM NAY (KHI ĐÃ CHECK-OUT)
                                 if let rec = viewModel.todayRecord, rec.isCheckedOut {
@@ -657,6 +661,98 @@ public struct AttendanceCheckInView: View {
         }
     }
 
+    // MARK: - 3b. ON-DUTY SWITCH CARD (ĐỒNG BỘ 1:1 ANDROID CÁCH 2)
+    private var onDutySwitchCard: some View {
+        let isCheckedIn = viewModel.todayRecord?.isCheckedIn == true && viewModel.todayRecord?.isCheckedOut != true
+        let switchChecked = isCheckedIn ? true : viewModel.isOnDuty
+        let switchEnabled = !isCheckedIn && !viewModel.isSubmitting
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 10) {
+                // Icon tròn
+                ZStack {
+                    Circle()
+                        .fill(switchChecked ? (isCheckedIn ? Color(hex: "#16A34A").opacity(0.15) : Color(hex: "#EAB308").opacity(0.15)) : Color.gray.opacity(0.12))
+                        .frame(width: 38, height: 38)
+
+                    Image(systemName: switchChecked ? "headphones" : "headset.slash")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(switchChecked ? (isCheckedIn ? Color(hex: "#16A34A") : Color(hex: "#D97706")) : .gray)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text("Trực ca / Nhận việc")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(Color.appTextPrimary)
+
+                        if isCheckedIn {
+                            Text("🔒 Đang khóa theo ca")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(Color(hex: "#15803D"))
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(Color(hex: "#DCFCE7"))
+                                .cornerRadius(4)
+                        }
+                    }
+
+                    Text(
+                        isCheckedIn ? "🟢 Đang trong ca trực (\(viewModel.selectedShiftType))" :
+                        (viewModel.isOnDuty ? "⚡ Sẵn sàng nhận việc ngoài giờ" : "⚪ Đang nghỉ / Ngoài ca")
+                    )
+                    .font(.system(size: 11.5, weight: .semibold))
+                    .foregroundColor(
+                        isCheckedIn ? Color(hex: "#15803D") :
+                        (viewModel.isOnDuty ? Color(hex: "#D97706") : .gray)
+                    )
+                }
+
+                Spacer()
+
+                Toggle("", isOn: Binding(
+                    get: { switchChecked },
+                    set: { newVal in
+                        if switchEnabled {
+                            viewModel.setManualOnDuty(isOnDuty: newVal)
+                        }
+                    }
+                ))
+                .labelsHidden()
+                .tint(isCheckedIn ? Color(hex: "#16A34A") : Color(hex: "#EAB308"))
+                .disabled(!switchEnabled)
+            }
+
+            Divider()
+                .background(switchChecked ? Color(hex: "#16A34A").opacity(0.2) : Color.appCardBorder)
+
+            Text(
+                isCheckedIn ? "🔒 Bạn đã check-in vào ca trực. Chế độ nhận việc được duy trì liên tục đến khi hết ca." :
+                (viewModel.isOnDuty ? "⚡ Bạn đang bật chế độ trực tăng cường ngoài ca. HelpDesk và Hệ thống điều phối tự động vẫn nhận diện bạn đang trực để phân công sự cố." :
+                "💡 Bật nút gạt này nếu bạn muốn đăng ký trực tăng cường hoặc nhận việc ngoài giờ khi chưa tới ca hoặc sau khi đã tan ca.")
+            )
+            .font(.system(size: 11))
+            .foregroundColor(isCheckedIn ? Color(hex: "#166534") : Color.appTextSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .lineSpacing(2)
+        }
+        .padding(14)
+        .background(
+            switchChecked ?
+            Color.dynamic(light: "#F0FDF4", dark: "#064E3B").opacity(0.35) :
+            Color.appSurface
+        )
+        .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(
+                    switchChecked ? (isCheckedIn ? Color(hex: "#16A34A") : Color(hex: "#EAB308")) : Color.appCardBorder,
+                    lineWidth: 1.5
+                )
+        )
+        .opacity(switchEnabled ? 1.0 : 0.88)
+    }
+
     // MARK: - 4. SHIFT SUMMARY CARD
     private func shiftSummaryCard(record: AttendanceRecord) -> some View {
         VStack(spacing: 8) {
@@ -964,7 +1060,7 @@ public struct AttendanceCheckInView: View {
                 .foregroundColor(Color.appTextPrimary)
                 .multilineTextAlignment(.center)
 
-            Text("Chức năng chấm công GPS hiện chỉ áp dụng cho Quản trị viên, HelpDesk và Nhân viên / Kỹ thuật viên thuộc phòng ban tiếp nhận & xử lý sự cố kỹ thuật.")
+            Text("Chức năng điểm danh chấm công hiện đang tạm khóa đối với tài khoản Nhân viên (chỉ áp dụng cho Kỹ thuật viên, Chuyên viên, HelpDesk và Quản trị viên).")
                 .font(.system(size: 13.5))
                 .foregroundColor(Color.appTextSecondary)
                 .multilineTextAlignment(.center)

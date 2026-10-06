@@ -58,19 +58,22 @@ public struct ShiftEntry: Identifiable, Codable, Hashable {
     public var days: [String: String] // "mon" -> "S", "tue" -> "C", etc.
     public var maKhuVuc: String
     public var donVi: String
+    public var employeeEmail: String
 
     public init(
         employeeId: String = "",
         employeeName: String = "",
         days: [String: String] = [:],
         maKhuVuc: String = "",
-        donVi: String = ""
+        donVi: String = "",
+        employeeEmail: String = ""
     ) {
         self.employeeId = employeeId
         self.employeeName = employeeName
         self.days = days
         self.maKhuVuc = maKhuVuc
         self.donVi = donVi
+        self.employeeEmail = employeeEmail
     }
 }
 

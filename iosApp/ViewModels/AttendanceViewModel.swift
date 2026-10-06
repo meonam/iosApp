@@ -25,6 +25,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
     // Records & Active Shift (Đồng bộ Android lines 120-135)
     @Published public var todayRecord: AttendanceRecord? = nil
+    @Published public var isOnDuty: Bool = false
+    @Published public var onDutyShift: String = ""
+    @Published public var onDutySource: String = ""
     @Published public var selectedShiftType: String = "HC" {
         didSet {
             if oldValue != selectedShiftType {
@@ -852,6 +855,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 let role = FirestoreHelper.getString(fields["role"] as? [String: Any])
                 let avatar = FirestoreHelper.getString(fields["profileImageUrl"] as? [String: Any])
                     .isEmpty ? FirestoreHelper.getString(fields["avatarUrl"] as? [String: Any]) : FirestoreHelper.getString(fields["profileImageUrl"] as? [String: Any])
+                let onDuty = (fields["isOnDuty"] as? [String: Any])?["booleanValue"] as? Bool ?? false
+                let onDutyShift = FirestoreHelper.getString(fields["onDutyShift"] as? [String: Any])
+                let onDutySource = FirestoreHelper.getString(fields["onDutySource"] as? [String: Any])
 
                 await MainActor.run {
                     if !name.isEmpty { self.userName = name }
@@ -860,6 +866,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     if !donVi.isEmpty { self.userDonVi = donVi }
                     if !role.isEmpty { self.userRole = role }
                     if !avatar.isEmpty { self.profileImageUrl = avatar }
+                    self.isOnDuty = onDuty
+                    self.onDutyShift = onDutyShift
+                    self.onDutySource = onDutySource
                 }
             }
         }
@@ -1416,13 +1425,15 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     "note": ["stringValue": self.noteInput.trimmingCharacters(in: .whitespacesAndNewlines)],
                     "companyId": ["stringValue": self.companyId],
                     "checkInDeviceId": ["stringValue": self.currentDeviceId],
-                    "checkInDeviceName": ["stringValue": self.currentDeviceName]
+                    "checkInDeviceName": ["stringValue": self.currentDeviceName],
+                    "checkInPlatform": ["stringValue": "IOS"],
+                    "clientIp": ["stringValue": ""]
                 ]
             ]
             req.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
             if let (_, http) = await FirestoreHelper.executeSafeRequest(req), http.statusCode == 200 {
-
+                await self.syncUserOnDuty(isOnDuty: true, shift: self.selectedShiftType, source: "CHECK_IN")
                 await MainActor.run {
                     self.isSubmitting = false
                     self.totalMonthDays += 1
@@ -1623,7 +1634,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
             if let (_, http) = await FirestoreHelper.executeSafeRequest(patchReq),
                http.statusCode == 200 {
-
+                await self.syncUserOnDuty(isOnDuty: false, shift: "", source: "")
                 await MainActor.run {
                     self.isSubmitting = false
                     if checkOutStatus == "OVERTIME" {
@@ -1639,6 +1650,47 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     self.errorMessage = "Check-out thất bại, vui lòng thử lại!"
                 }
             }
+        }
+    }
+
+    // MARK: - SYNC ON DUTY STATUS (ĐỒNG BỘ CÁCH 2 VỚI ANDROID AttendanceRepository.kt)
+    public func syncUserOnDuty(isOnDuty: Bool, shift: String = "", source: String = "") async {
+        let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanComp.isEmpty, !cleanEmail.isEmpty else { return }
+
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let updateUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/users/\(cleanEmail)?updateMask.fieldPaths=isOnDuty&updateMask.fieldPaths=onDutyShift&updateMask.fieldPaths=onDutySource&updateMask.fieldPaths=onDutySince&updateMask.fieldPaths=isOnline&updateMask.fieldPaths=lastActiveAt"
+        guard let url = URL(string: updateUrlStr) else { return }
+
+        var patchReq = URLRequest(url: url)
+        patchReq.httpMethod = "PATCH"
+        if !idToken.isEmpty { patchReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+        patchReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let patchBody: [String: Any] = [
+            "fields": [
+                "isOnDuty": ["booleanValue": isOnDuty],
+                "onDutyShift": ["stringValue": shift],
+                "onDutySource": ["stringValue": source],
+                "onDutySince": ["integerValue": String(isOnDuty ? now : 0)],
+                "isOnline": ["booleanValue": isOnDuty ? true : self.user.isOnline],
+                "lastActiveAt": ["integerValue": String(now)]
+            ]
+        ]
+        patchReq.httpBody = try? JSONSerialization.data(withJSONObject: patchBody)
+        _ = await FirestoreHelper.executeSafeRequest(patchReq)
+
+        await MainActor.run {
+            self.isOnDuty = isOnDuty
+            self.onDutyShift = shift
+            self.onDutySource = source
+        }
+    }
+
+    public func setManualOnDuty(isOnDuty: Bool) {
+        Task {
+            await syncUserOnDuty(isOnDuty: isOnDuty, shift: isOnDuty ? "EXTRA" : "", source: isOnDuty ? "MANUAL" : "")
         }
     }
 

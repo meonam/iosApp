@@ -256,9 +256,9 @@ public enum WorkingHoursHelper {
 
         let now = Int64(Date().timeIntervalSince1970 * 1000)
 
-        // 1. Phân loại KTV Online (isOnline = true hoặc hoạt động < 5 phút)
+        // 1. Phân loại KTV Online (isOnline = true VÀ hoạt động trong vòng 15 phút)
         let onlineTechs = ktvList.filter { ktv in
-            ktv.isOnline || (now - ktv.lastActiveAt) < 300000
+            ktv.isOnline && ktv.lastActiveAt > 0 && (now - ktv.lastActiveAt) <= 15 * 60 * 1000
         }
 
         // Nhóm A: KTV Online cùng Cụm
@@ -267,11 +267,11 @@ public enum WorkingHoursHelper {
             return c == cleanCluster || c.contains(cleanCluster) || cleanCluster.contains(c)
         }
 
-        // Nhóm B: KTV thuộc Cụm vừa hoạt động trong vòng 15 phút (< 900.000ms)
+        // Nhóm B: KTV thuộc Cụm vừa hoạt động trong vòng 15 phút (<= 900.000ms)
         let recentClusterTechs = ktvList.filter { ktv in
             let c = normalizeClusterCode(ktv.maKhuVuc)
             let isSameCluster = (c == cleanCluster || c.contains(cleanCluster) || cleanCluster.contains(c))
-            return isSameCluster && (now - ktv.lastActiveAt) < 900000
+            return isSameCluster && ktv.lastActiveAt > 0 && (now - ktv.lastActiveAt) <= 15 * 60 * 1000
         }
 
         // Nhóm C: KTV Online trên toàn hệ thống
@@ -291,8 +291,8 @@ public enum WorkingHoursHelper {
             let loadA = workloadMap[a.email.lowercased()] ?? 0
             let loadB = workloadMap[b.email.lowercased()] ?? 0
             if loadA != loadB { return loadA < loadB }
-            let activeA = a.isOnline || (now - a.lastActiveAt) < 300000
-            let activeB = b.isOnline || (now - b.lastActiveAt) < 300000
+            let activeA = a.isOnline && a.lastActiveAt > 0 && (now - a.lastActiveAt) <= 15 * 60 * 1000
+            let activeB = b.isOnline && b.lastActiveAt > 0 && (now - b.lastActiveAt) <= 15 * 60 * 1000
             if activeA != activeB { return activeA && !activeB }
             return a.lastActiveAt > b.lastActiveAt
         }
@@ -302,7 +302,7 @@ public enum WorkingHoursHelper {
         let isSameCluster = onlineClusterTechs.contains(where: { $0.email == chosen.email }) ||
                             recentClusterTechs.contains(where: { $0.email == chosen.email })
         let clusterLabel = isSameCluster ? "Cụm \(cleanCluster)" : "Cụm \(chosen.maKhuVuc.isEmpty ? "khác" : chosen.maKhuVuc)"
-        let isActuallyOnline = chosen.isOnline || (now - chosen.lastActiveAt) < 300000
+        let isActuallyOnline = chosen.isOnline && chosen.lastActiveAt > 0 && (now - chosen.lastActiveAt) <= 15 * 60 * 1000
         let onlineStatusText = isActuallyOnline ? "Đang Online" : "Vừa hoạt động"
         let loadDesc = chosenLoad == 0 ? " • Đang rảnh (0 việc)" : " • Đang xử lý \(chosenLoad) việc (ít nhất)"
 
@@ -343,15 +343,15 @@ public enum WorkingHoursHelper {
             let loadA = workloadMap[a.email.lowercased()] ?? 0
             let loadB = workloadMap[b.email.lowercased()] ?? 0
             if loadA != loadB { return loadA < loadB }
-            let activeA = a.isOnline || (now - a.lastActiveAt) < 300000
-            let activeB = b.isOnline || (now - b.lastActiveAt) < 300000
+            let activeA = a.isOnline && a.lastActiveAt > 0 && (now - a.lastActiveAt) <= 15 * 60 * 1000
+            let activeB = b.isOnline && b.lastActiveAt > 0 && (now - b.lastActiveAt) <= 15 * 60 * 1000
             if activeA != activeB { return activeA && !activeB }
             return a.lastActiveAt > b.lastActiveAt
         }
 
         guard let top = sorted.first else { return nil }
         let load = workloadMap[top.email.lowercased()] ?? 0
-        let isOnline = top.isOnline || (now - top.lastActiveAt) < 300000
+        let isOnline = top.isOnline && top.lastActiveAt > 0 && (now - top.lastActiveAt) <= 15 * 60 * 1000
         let statusStr = isOnline ? "Đang Online" : "Vừa hoạt động"
         let reason = isSame
             ? "\(statusStr) • Cụm \(cleanCluster) • \(load) việc đang xử lý"
