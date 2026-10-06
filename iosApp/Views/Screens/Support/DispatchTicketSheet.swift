@@ -219,7 +219,7 @@ public struct DispatchTicketSheet: View {
                     selectedCluster = detected
                 }
             }
-            .onChange(of: viewModel.ktvTechnicians) { _ in
+            .onChange(of: viewModel.ktvTechnicians.map { $0.email }) { _ in
                 if selectedTechEmail.isEmpty, let top = clusterSuggestion {
                     selectedTechEmail = top.email
                     selectedTechName = top.name
@@ -454,7 +454,25 @@ public struct DispatchTicketSheet: View {
                         .padding(.vertical, 8)
                 } else {
                     VStack(spacing: 8) {
-                        ForEach(filteredTechs) { tech in
+                        ForEach(filteredTechs, id: \.email) { (tech: KtvOnlineLocation) in
+                            techRow(tech)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func dutyStatusText(_ tech: KtvOnlineLocation) -> String {
+        if tech.isOnDuty {
+            let shift: String = tech.onDutyShift.isEmpty ? "Ca trực" : tech.onDutyShift
+            return "🟢 Đang trực (" + shift + ")"
+        }
+        return tech.isOnline ? "Online" : "Offline"
+    }
+
+    @ViewBuilder
+    private func techRow(_ tech: KtvOnlineLocation) -> some View {
                             let isSelected = selectedTechEmail == tech.email
                             let workload = viewModel.getActiveTicketCount(email: tech.email)
                             let isMatchingCluster = !ticketCluster.isEmpty &&
@@ -498,7 +516,7 @@ public struct DispatchTicketSheet: View {
                                                 .fill(tech.isOnline ? Color(hex: "#10B981") : Color.gray)
                                                 .frame(width: 7, height: 7)
 
-                                            Text(tech.isOnDuty ? "🟢 Đang trực (\(tech.onDutyShift.isEmpty ? "Ca trực" : tech.onDutyShift))" : (tech.isOnline ? "Online" : "Offline"))
+                                            Text(dutyStatusText(tech))
                                                 .font(.system(size: 11.5, weight: .medium))
                                                 .foregroundColor(tech.isOnline ? Color(hex: "#10B981") : Color.gray)
                                         }
@@ -529,11 +547,6 @@ public struct DispatchTicketSheet: View {
                                 .padding(.horizontal, 4)
                             }
                             .buttonStyle(PlainButtonStyle())
-                        }
-                    }
-                }
-            }
-        }
     }
 
     // MARK: - 3. SPECIALIST SECTION
