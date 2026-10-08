@@ -848,6 +848,28 @@ struct SACompanyDetailsView: View {
 
 // MARK: - Models & ViewModel
 
+struct BillableUserDetail: Identifiable {
+    var id: String { email }
+    var email: String
+    var name: String
+    var role: String
+    var department: String
+    var isBillable: Bool
+    var isActive: Bool
+}
+
+struct CompanyBillingStats: Identifiable {
+    var id: String { companyId }
+    var companyId: String
+    var companyName: String
+    var totalUsers: Int
+    var adminUsers: Int
+    var billableUsers: Int
+    var pricePerUser: Int64
+    var monthlyRevenue: Int64
+    var usersList: [BillableUserDetail]
+}
+
 struct SACompany: Identifiable {
     var id: String
     var companyName: String

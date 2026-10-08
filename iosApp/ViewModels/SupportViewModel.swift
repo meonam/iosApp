@@ -3301,7 +3301,8 @@ public class SupportViewModel: ObservableObject {
            sResp.statusCode == 200,
            let sJson = try? JSONSerialization.jsonObject(with: sData) as? [String: Any],
            let sFields = sJson["fields"] as? [String: Any] {
-            if let ws = FirestoreHelper.getInt64(sFields["weekStart"] as? [String: Any]), ws > 0 {
+            let ws = FirestoreHelper.getInt64(sFields["weekStart"] as? [String: Any])
+            if ws > 0 {
                 existingWeekStart = ws
             }
             if let rawEntries = (sFields["entries"] as? [String: Any])?["arrayValue"] as? [String: Any],
@@ -3399,8 +3400,8 @@ public class SupportViewModel: ObservableObject {
         ]
         patchReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-        let (_, patchResp) = await FirestoreHelper.executeSafeRequest(patchReq)
-        let success = (patchResp?.statusCode == 200)
+        let patchResult = await FirestoreHelper.executeSafeRequest(patchReq)
+        let success = (patchResult?.1.statusCode == 200)
 
         if success {
             await MainActor.run {
