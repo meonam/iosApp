@@ -24,6 +24,11 @@ public class SupportViewModel: ObservableObject {
     @Published public var errorMessage: String? = nil
 
     @Published public var isTicketReopenEnabled: Bool = false
+    @Published public var enableKtvViolationTracking: Bool = true
+    @Published public var ktvOfflineViolationMinutes: Int = 15
+    @Published public var ktvKpiWarningThreshold: Int = 3
+    @Published public var ktvBlacklistThreshold: Int = 5
+    @Published public var ktvKpiDeductionPercent: Int = 10
     @Published public var slaConfig: SlaConfig = SlaConfig()
     @Published public var companyUnits: [DonVi] = []
 
@@ -35,6 +40,12 @@ public class SupportViewModel: ObservableObject {
     // KTV Online Monitor (đồng bộ OnlineKtvMonitorScreen.kt)
     @Published public var ktvTechnicians: [KtvOnlineLocation] = []
     @Published public var isLoadingKtvs: Bool = false
+    @Published public var shiftHours: [String: (inTime: String, outTime: String)] = [
+        "shift1": ("08:00", "15:00"),
+        "shift2": ("14:00", "22:00"),
+        "hc": ("08:00", "17:00"),
+        "night": ("22:00", "06:00")
+    ]
 
     // Staff & Specialist Teams (đồng bộ Android AndroidDispatchDialog)
     @Published public var allStaffList: [User] = []
@@ -116,6 +127,7 @@ public class SupportViewModel: ObservableObject {
         }
 
         fetchSystemToggleConfig()
+        fetchTravelExpenseConfig()
         fetchSlaConfig()
         fetchCompanyUnits()
         fetchKtvTechnicians()
@@ -136,12 +148,62 @@ public class SupportViewModel: ObservableObject {
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
                 let allowReopen = (fields["allowTicketReopen"] as? [String: Any])?["booleanValue"] as? Bool ?? false
+                let enableViolations = (fields["enableKtvViolationTracking"] as? [String: Any])?["booleanValue"] as? Bool ?? true
+                let offlineMinutes = Int((fields["ktvOfflineViolationMinutes"] as? [String: Any])?["integerValue"] as? String ?? "") ?? 15
+                let kpiWarnThresh = Int((fields["ktvKpiWarningThreshold"] as? [String: Any])?["integerValue"] as? String ?? "") ?? 3
+                let blThresh = Int((fields["ktvBlacklistThreshold"] as? [String: Any])?["integerValue"] as? String ?? "") ?? 5
+                let kpiDeduct = Int((fields["ktvKpiDeductionPercent"] as? [String: Any])?["integerValue"] as? String ?? "") ?? 10
                 await MainActor.run {
                     self.isTicketReopenEnabled = allowReopen
+                    self.enableKtvViolationTracking = enableViolations
+                    self.ktvOfflineViolationMinutes = offlineMinutes
+                    self.ktvKpiWarningThreshold = kpiWarnThresh
+                    self.ktvBlacklistThreshold = blThresh
+                    self.ktvKpiDeductionPercent = kpiDeduct
                 }
             } else {
                 await MainActor.run {
                     self.isTicketReopenEnabled = false
+                    self.enableKtvViolationTracking = true
+                    self.ktvOfflineViolationMinutes = 15
+                    self.ktvKpiWarningThreshold = 3
+                    self.ktvBlacklistThreshold = 5
+                    self.ktvKpiDeductionPercent = 10
+                }
+            }
+        }
+    }
+
+    // MARK: - TRAVEL EXPENSE CONFIG / CẤU HÌNH CA KÍP (ĐỒNG BỘ 1:1 VỚI ANDROID/WEB/DESKTOP)
+    public func fetchTravelExpenseConfig() {
+        guard !companyId.isEmpty else { return }
+        Task {
+            let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/travel_expense_config"
+            guard let url = URL(string: urlStr) else { return }
+            var req = URLRequest(url: url)
+            if !idToken.isEmpty {
+                req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            }
+            if let (data, httpResp) = await FirestoreHelper.executeSafeRequest(req), httpResp.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let fields = json["fields"] as? [String: Any] {
+                let s1In = FirestoreHelper.getString(fields["shift1CheckInTime"] as? [String: Any]).isEmpty ? "08:00" : FirestoreHelper.getString(fields["shift1CheckInTime"] as? [String: Any])
+                let s1Out = FirestoreHelper.getString(fields["shift1CheckOutTime"] as? [String: Any]).isEmpty ? "15:00" : FirestoreHelper.getString(fields["shift1CheckOutTime"] as? [String: Any])
+                let s2In = FirestoreHelper.getString(fields["shift2CheckInTime"] as? [String: Any]).isEmpty ? "14:00" : FirestoreHelper.getString(fields["shift2CheckInTime"] as? [String: Any])
+                let s2Out = FirestoreHelper.getString(fields["shift2CheckOutTime"] as? [String: Any]).isEmpty ? "22:00" : FirestoreHelper.getString(fields["shift2CheckOutTime"] as? [String: Any])
+                let hcIn = FirestoreHelper.getString(fields["standardCheckInTime"] as? [String: Any]).isEmpty ? "08:00" : FirestoreHelper.getString(fields["standardCheckInTime"] as? [String: Any])
+                let hcOut = FirestoreHelper.getString(fields["standardCheckOutTime"] as? [String: Any]).isEmpty ? "17:00" : FirestoreHelper.getString(fields["standardCheckOutTime"] as? [String: Any])
+                let nightIn = FirestoreHelper.getString(fields["nightCheckInTime"] as? [String: Any]).isEmpty ? "22:00" : FirestoreHelper.getString(fields["nightCheckInTime"] as? [String: Any])
+                let nightOut = FirestoreHelper.getString(fields["nightCheckOutTime"] as? [String: Any]).isEmpty ? "06:00" : FirestoreHelper.getString(fields["nightCheckOutTime"] as? [String: Any])
+
+                await MainActor.run {
+                    self.shiftHours = [
+                        "shift1": (s1In, s1Out),
+                        "shift2": (s2In, s2Out),
+                        "hc": (hcIn, hcOut),
+                        "night": (nightIn, nightOut)
+                    ]
                 }
             }
         }
@@ -3178,6 +3240,181 @@ public class SupportViewModel: ObservableObject {
             self.ktvTechnicians = result
             self.isLoadingKtvs = false
         }
+    }
+
+    // MARK: - GÁN / ĐỔI / XÓA CA TRỰC HÔM NAY CHO KTV (ĐỒNG BỘ 1:1 ANDROID/WEB/DESKTOP)
+    public func assignShiftForTech(tech: KtvOnlineLocation, newCode: String) async -> Bool {
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !cleanComp.isEmpty else { return false }
+
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2 // Thứ 2
+        cal.minimumDaysInFirstWeek = 4
+        let today = Date()
+        let weekday = cal.component(.weekday, from: today)
+        let daysFromMonday = (weekday + 5) % 7
+        let thisMonday = cal.date(byAdding: .day, value: -daysFromMonday, to: cal.startOfDay(for: today)) ?? today
+        let year = cal.component(.yearForWeekOfYear, from: thisMonday)
+        let week = cal.component(.weekOfYear, from: thisMonday)
+        let wId = String(format: "%04d-W%02d", year, week)
+
+        let dfDate = DateFormatter()
+        dfDate.dateFormat = "yyyy-MM-dd"
+        let todayDateKey = dfDate.string(from: today)
+
+        let dfDdMm = DateFormatter()
+        dfDdMm.dateFormat = "dd/MM/yyyy"
+        let todayDdMm = dfDdMm.string(from: today)
+
+        let weekdayIdx = (cal.component(.weekday, from: today) - 2 + 7) % 7
+        let shortDays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+        let todayKeyShort = shortDays[weekdayIdx]
+
+        let todayDdMmHyphen = todayDdMm.replacingOccurrences(of: "/", with: "-")
+        let todayMonthDay = String(todayDateKey.suffix(5))
+        let todayDdMmShort = String(todayDdMm.prefix(5))
+        let todayDdMmShortHyphen = todayDdMmShort.replacingOccurrences(of: "/", with: "-")
+
+        let allTodayKeys = [
+            todayDateKey,
+            todayKeyShort,
+            todayDdMm,
+            todayDdMmHyphen,
+            todayMonthDay,
+            todayDdMmShort,
+            todayDdMmShortHyphen
+        ].map { $0.lowercased() }
+
+        let cleanCode = newCode.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // 1. Fetch current week's schedule
+        let schedUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/shift_schedules/\(wId)"
+        guard let schedUrl = URL(string: schedUrlStr) else { return false }
+
+        var getReq = URLRequest(url: schedUrl)
+        if !idToken.isEmpty { getReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+
+        var currentEntries: [[String: Any]] = []
+        var existingWeekStart: Int64 = Int64(thisMonday.timeIntervalSince1970 * 1000)
+
+        if let (sData, sResp) = await FirestoreHelper.executeSafeRequest(getReq),
+           sResp.statusCode == 200,
+           let sJson = try? JSONSerialization.jsonObject(with: sData) as? [String: Any],
+           let sFields = sJson["fields"] as? [String: Any] {
+            if let ws = FirestoreHelper.getInt64(sFields["weekStart"] as? [String: Any]), ws > 0 {
+                existingWeekStart = ws
+            }
+            if let rawEntries = (sFields["entries"] as? [String: Any])?["arrayValue"] as? [String: Any],
+               let valList = rawEntries["values"] as? [[String: Any]] {
+                for v in valList {
+                    if let mapVal = v["mapValue"] as? [String: Any],
+                       let f = mapVal["fields"] as? [String: Any] {
+                        currentEntries.append(f)
+                    }
+                }
+            }
+        }
+
+        // 2. Tìm KTV trong entries
+        let targetId = tech.mnvDisplay.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let targetName = tech.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        let targetEmail = tech.email.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var foundIndex = -1
+        for (i, entryFields) in currentEntries.enumerated() {
+            let eId = FirestoreHelper.getString(entryFields["employeeId"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            let eName = FirestoreHelper.getString(entryFields["employeeName"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            let eEmail = FirestoreHelper.getString(entryFields["employeeEmail"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if (!targetId.isEmpty && eId == targetId) ||
+               (!targetName.isEmpty && eName == targetName) ||
+               (!targetEmail.isEmpty && (eEmail == targetEmail || eId == targetEmail)) {
+                foundIndex = i
+                break
+            }
+        }
+
+        if foundIndex >= 0 {
+            var entryFields = currentEntries[foundIndex]
+            var daysFields: [String: Any] = [:]
+            if let daysObj = (entryFields["days"] as? [String: Any])?["mapValue"] as? [String: Any],
+               let existingDays = daysObj["fields"] as? [String: Any] {
+                daysFields = existingDays
+            }
+
+            // Xóa sạch toàn bộ key của ngày hôm nay
+            for key in allTodayKeys {
+                daysFields.removeValue(forKey: key)
+                daysFields.removeValue(forKey: key.uppercased())
+            }
+
+            // Nếu có mã ca mới, thêm vào
+            if !cleanCode.isEmpty {
+                daysFields[todayDateKey] = ["stringValue": cleanCode]
+                daysFields[todayKeyShort] = ["stringValue": cleanCode]
+                daysFields[todayDdMm] = ["stringValue": cleanCode]
+            }
+
+            entryFields["days"] = ["mapValue": ["fields": daysFields]]
+            currentEntries[foundIndex] = entryFields
+        } else if !cleanCode.isEmpty {
+            // Thêm mới entry nếu KTV chưa có trong bảng
+            let newDays: [String: Any] = [
+                todayDateKey: ["stringValue": cleanCode],
+                todayKeyShort: ["stringValue": cleanCode],
+                todayDdMm: ["stringValue": cleanCode]
+            ]
+            let newEntryFields: [String: Any] = [
+                "employeeId": ["stringValue": tech.mnvDisplay.isEmpty ? tech.maNhanVien : tech.mnvDisplay],
+                "employeeName": ["stringValue": tech.name],
+                "employeeEmail": ["stringValue": tech.email],
+                "maKhuVuc": ["stringValue": tech.maKhuVuc],
+                "donVi": ["stringValue": tech.unitName],
+                "days": ["mapValue": ["fields": newDays]]
+            ]
+            currentEntries.append(newEntryFields)
+        }
+
+        // 3. Chuẩn bị payload lưu lại lên Firestore
+        let entryValues: [[String: Any]] = currentEntries.map { f in
+            ["mapValue": ["fields": f]]
+        }
+
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        let patchUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/shift_schedules/\(wId)?updateMask.fieldPaths=entries&updateMask.fieldPaths=updatedAt&updateMask.fieldPaths=updatedBy&updateMask.fieldPaths=weekStart"
+        guard let patchUrl = URL(string: patchUrlStr) else { return false }
+
+        var patchReq = URLRequest(url: patchUrl)
+        patchReq.httpMethod = "PATCH"
+        if !idToken.isEmpty { patchReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+        patchReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: Any] = [
+            "fields": [
+                "weekStart": ["integerValue": String(existingWeekStart)],
+                "updatedBy": ["stringValue": user.email],
+                "updatedAt": ["integerValue": String(now)],
+                "entries": ["arrayValue": ["values": entryValues]]
+            ]
+        ]
+        patchReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        let (_, patchResp) = await FirestoreHelper.executeSafeRequest(patchReq)
+        let success = (patchResp?.statusCode == 200)
+
+        if success {
+            await MainActor.run {
+                if let idx = self.ktvTechnicians.firstIndex(where: { $0.id == tech.id }) {
+                    var updated = self.ktvTechnicians[idx]
+                    updated.todayShiftCode = cleanCode
+                    let offCodes = Set(["OFF", "NC", "P", "NM", "NL"])
+                    updated.isScheduledOff = offCodes.contains(cleanCode.uppercased())
+                    self.ktvTechnicians[idx] = updated
+                }
+            }
+        }
+
+        return success
     }
 
     // MARK: - RATING REPORT KPIs (SupportRatingReportScreen.kt)

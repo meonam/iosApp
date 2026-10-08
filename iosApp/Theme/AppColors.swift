@@ -75,6 +75,7 @@ public extension Color {
     static let statusInStock = Color(hex: "#10B981")     // Trong kho (Sẵn sàng) - Xanh lá
     static let statusInUse = Color(hex: "#8B5CF6")       // Đang sử dụng - Tím
     static let statusOnLoan = Color(hex: "#EC4899")      // Đang cho mượn - Hồng đậm
+    static let statusInTransit = Color(hex: "#EA580C")   // Đang điều chuyển - Cam đậm
     static let statusRepair = Color(hex: "#F59E0B")      // Đang sửa chữa - Vàng cam
     static let statusBroken = Color(hex: "#EF4444")      // Hỏng / Chờ xử lý - Đỏ
     static let statusLiquidated = Color(hex: "#6B7280")  // Đã thanh lý - Xám

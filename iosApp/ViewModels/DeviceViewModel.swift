@@ -93,32 +93,73 @@ public class DeviceViewModel: ObservableObject {
                            ["HELPDESK", "HELP_DESK", "HD"].contains(r) || r.contains("HELPDESK") || d.contains("HELPDESK") ||
                            ["WAREHOUSE", "KHO", "THUKHO", "QUANLYKHO"].contains(r) || r.contains("WAREHOUSE") || r.contains("KHO") || d.contains("KHO")
 
-        // - Quản lý phòng ban (isDeptManager): Thấy thiết bị của TẤT CẢ các đơn vị thuộc phòng ban mình quản lý
+        // - Quản lý phòng ban (isDeptManager): Thấy thiết bị thuộc các đơn vị hoặc phòng ban mình quản lý
         let isDeptManager = !isFullAccess && (
             user.isManager ||
             ["PHONGBAN", "QUANLY", "MANAGER", "LEADER", "TRUONGPHONG", "PHOPHONG"].contains(r) ||
             r.contains("PHONG") || r.contains("QUANLY") || r.contains("TRUONG") || r.contains("MANAGER")
         )
 
+        // - Kỹ thuật viên / Chuyên viên (isTechnician)
+        let isTechnician = !isFullAccess && !isDeptManager && (
+            user.isTechnician || user.isSpecialist ||
+            ["KYTHUAT", "KTV", "TECHNICIAN", "TECH", "CHUYENVIEN", "SPECIALIST"].contains(r) ||
+            r.contains("KYTHUAT") || r.contains("KTV") || r.contains("TECH") || r.contains("SPECIALIST") || r.contains("CHUYENVIEN") ||
+            user.departmentId.uppercased().contains("KYTHUAT") || user.departmentId.uppercased().contains("IT")
+        )
+
         let myEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let myDept = user.departmentId.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let myUnit = user.donVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let myName = user.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let myUser = myEmail.components(separatedBy: "@").first ?? myEmail
 
-        // 2. Lọc danh sách theo vai trò
+        // 2. Lọc danh sách theo vai trò (RBAC đa nền tảng đồng bộ 100%)
         let baseList: [ThietBi]
         if isFullAccess {
-            // Admin, Warehouse, Helpdesk: Thấy tất cả thiết bị
+            // Admin, Warehouse, Helpdesk: Thấy tất cả thiết bị toàn hệ thống
             baseList = rawDevices
         } else if isDeptManager {
-            // Quản lý phòng ban: Thấy tất cả thiết bị thuộc các đơn vị do phòng ban mình quản lý
+            // Quản lý: Thấy tất cả thiết bị thuộc các đơn vị hoặc phòng ban mình quản lý
             baseList = rawDevices.filter { dev in
                 let devDept = (dev.phongBan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                return !myDept.isEmpty && (devDept == myDept || devDept.contains(myDept) || myDept.contains(devDept))
+                let devUnit = dev.tenDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let matchDept = !myDept.isEmpty && (devDept == myDept || devDept.contains(myDept) || myDept.contains(devDept))
+                let matchUnit = !myUnit.isEmpty && (devUnit == myUnit || devUnit.contains(myUnit) || myUnit.contains(devUnit))
+                return matchDept || matchUnit
+            }
+        } else if isTechnician {
+            // KTV / Chuyên viên: Thấy thiết bị IT toàn công ty (nếu là IT trung tâm) hoặc thiết bị đơn vị/phòng ban mình phụ trách, thiết bị do mình tạo/tiếp nhận/mượn
+            let isCentralIt = myUnit.isEmpty || myUnit.contains("it") || myUnit.contains("tập trung") || myDept.contains("it") || myDept.contains("kỹ thuật")
+            if isCentralIt && myUnit.isEmpty {
+                baseList = rawDevices
+            } else {
+                baseList = rawDevices.filter { dev in
+                    let devCreatedBy = (dev.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    let devNguoiMuon = (dev.nguoiMuon ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    let devDept = (dev.phongBan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    let devUnit = dev.tenDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+                    let matchMine = (!myEmail.isEmpty && (devCreatedBy == myEmail || devCreatedBy == myUser || devCreatedBy.contains(myEmail) || devNguoiMuon == myEmail || devNguoiMuon == myUser || devNguoiMuon.contains(myEmail))) ||
+                        (!myName.isEmpty && (devCreatedBy.contains(myName) || devNguoiMuon.contains(myName)))
+                    let matchDept = !myDept.isEmpty && (devDept == myDept || devDept.contains(myDept) || myDept.contains(devDept))
+                    let matchUnit = !myUnit.isEmpty && (devUnit == myUnit || devUnit.contains(myUnit) || myUnit.contains(devUnit))
+                    return matchMine || matchUnit || matchDept
+                }
             }
         } else {
-            // Nhân viên thường / KTV / Chuyên viên: CHỈ user nào thêm thiết bị, CHỈ người đó thấy thiết bị của mình
+            // Nhân viên thường: Xem thiết bị do mình tạo, mượn/được cấp phát (khớp email, username, họ tên), hoặc thiết bị thuộc phòng ban/đơn vị mình
             baseList = rawDevices.filter { dev in
                 let devCreatedBy = (dev.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                return !myEmail.isEmpty && devCreatedBy == myEmail
+                let devNguoiMuon = (dev.nguoiMuon ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let devDept = (dev.phongBan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let devUnit = dev.tenDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+                let matchMine = (!myEmail.isEmpty && (devCreatedBy == myEmail || devCreatedBy == myUser || devCreatedBy.contains(myEmail) || devNguoiMuon == myEmail || devNguoiMuon == myUser || devNguoiMuon.contains(myEmail))) ||
+                    (!myName.isEmpty && (devCreatedBy.contains(myName) || devNguoiMuon.contains(myName)))
+                let matchDept = !myDept.isEmpty && (devDept == myDept || devDept.contains(myDept) || myDept.contains(devDept))
+                let matchUnit = !myUnit.isEmpty && (devUnit == myUnit || devUnit.contains(myUnit) || myUnit.contains(devUnit))
+                return matchMine || matchDept || matchUnit
             }
         }
 
@@ -418,10 +459,15 @@ public class DeviceViewModel: ObservableObject {
                    (devDeptLoan == myDept || devDeptLoan.contains(myDept) || myDept.contains(devDeptLoan))
         }
 
-        // Regular employee: ONLY see device created by them
+        // Regular employee: see device created by them or loaned/assigned to them
         let myEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let myUser = myEmail.components(separatedBy: "@").first ?? myEmail
         let createdBy = (device.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return !myEmail.isEmpty && createdBy == myEmail
+        let nguoiMuon = (device.nguoiMuon ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return !myEmail.isEmpty && (
+            createdBy == myEmail || createdBy == myUser || createdBy.contains(myEmail) ||
+            nguoiMuon == myEmail || nguoiMuon == myUser || nguoiMuon.contains(myEmail)
+        )
     }
 
     // MARK: - GET DEVICE BY ID (WITH FULL RUNQUERY FALLBACK)
@@ -527,6 +573,9 @@ public class DeviceViewModel: ObservableObject {
     private func parseDeviceFromFields(_ id: String, fields: [String: Any], companyId: String) -> ThietBi {
         let moTa = FirestoreHelper.getString(fields, "moTa")
             .ifEmpty(FirestoreHelper.getString(fields, "description"))
+        let rawNguonGoc = FirestoreHelper.getString(fields, "nguonGoc")
+            .ifEmpty(FirestoreHelper.getString(fields, "origin"))
+        let nguonGoc = rawNguonGoc.isEmpty ? DeviceOriginConstants.originDept : rawNguonGoc
 
         return ThietBi(
             id: id,
@@ -552,7 +601,8 @@ public class DeviceViewModel: ObservableObject {
             ghiChu: FirestoreHelper.getString(fields, "ghiChu").ifEmpty(moTa),
             cauHinh: FirestoreHelper.getString(fields, "cauHinh").ifEmpty(FirestoreHelper.getString(fields, "description")),
             qrCodeUrl: FirestoreHelper.getString(fields, "qrCodeUrl"),
-            hinhAnh: FirestoreHelper.getString(fields, "hinhAnh")
+            hinhAnh: FirestoreHelper.getString(fields, "hinhAnh"),
+            nguonGoc: nguonGoc
         )
     }
 
@@ -778,6 +828,7 @@ public class DeviceViewModel: ObservableObject {
         phongBan: String,
         loai: String,
         customStatus: String,
+        nguonGoc: String? = DeviceOriginConstants.originDept,
         donViMuon: String? = nil,
         phongBanMuon: String? = nil,
         nguoiMuon: String? = nil,
@@ -793,6 +844,9 @@ public class DeviceViewModel: ObservableObject {
 
         let effectiveCompId = self.companyId.isEmpty ? "SGCOOP" : self.companyId
         let effectiveStatus = DeviceStatusConstants.normalize(customStatus, phongBan: phongBan, roleOrUser: user.role)
+        let effectiveOrigin = (nguonGoc?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+            ? DeviceOriginConstants.originDept
+            : (nguonGoc ?? DeviceOriginConstants.originDept)
         let isLoan = effectiveStatus == DeviceStatusConstants.statusOnLoan
         let now = Int64(Date().timeIntervalSince1970 * 1000)
         let dateFormatter = DateFormatter()
@@ -806,6 +860,7 @@ public class DeviceViewModel: ObservableObject {
             "phongBan": ["stringValue": phongBan],
             "loai": ["stringValue": loai.lowercased().replacingOccurrences(of: " ", with: "")],
             "trangThai": ["stringValue": effectiveStatus],
+            "nguonGoc": ["stringValue": effectiveOrigin],
             "companyId": ["stringValue": effectiveCompId],
             "createdAt": ["integerValue": "\(now)"],
             "updatedAt": ["integerValue": "\(now)"],
@@ -1024,6 +1079,12 @@ public class DeviceViewModel: ObservableObject {
                 updateMasks.append(contentsOf: ["donViMuon", "phongBanMuon", "nguoiMuon", "ngayMuon", "ngayHenTra"])
             }
 
+            let isAllocAction = upper.contains("CẤP PHÁT")
+            if isAllocAction {
+                devFields["nguonGoc"] = ["stringValue": DeviceOriginConstants.originDept]
+                updateMasks.append("nguonGoc")
+            }
+
             let maskQuery = updateMasks.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
             let devUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(deviceId)?\(maskQuery)"
             if let devUrl = URL(string: devUrlStr) {
@@ -1048,7 +1109,7 @@ public class DeviceViewModel: ObservableObject {
         )
     }
 
-    public func updateDeviceInfo(oldId: String, newTen: String, newId: String) {
+    public func updateDeviceInfo(oldId: String, newTen: String, newId: String, newNguonGoc: String? = nil) {
         let cleanOldId = oldId.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanNewId = newId.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanTen = newTen.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1059,18 +1120,24 @@ public class DeviceViewModel: ObservableObject {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             if cleanOldId == cleanNewId {
-                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(cleanOldId)?updateMask.fieldPaths=ten&updateMask.fieldPaths=updatedAt&updateMask.fieldPaths=ngayCapNhat"
+                var updateMasks = ["ten", "updatedAt", "ngayCapNhat"]
+                var bodyFields: [String: Any] = [
+                    "ten": ["stringValue": cleanTen],
+                    "updatedAt": ["integerValue": "\(now)"],
+                    "ngayCapNhat": ["integerValue": "\(now)"]
+                ]
+                if let org = newNguonGoc, !org.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    updateMasks.append("nguonGoc")
+                    bodyFields["nguonGoc"] = ["stringValue": org.trimmingCharacters(in: .whitespacesAndNewlines)]
+                }
+                let maskQuery = updateMasks.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
+                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(cleanOldId)?\(maskQuery)"
                 if let url = URL(string: urlStr) {
                     var req = URLRequest(url: url)
                     req.httpMethod = "PATCH"
                     req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
                     req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                    let body = ["fields": [
-                        "ten": ["stringValue": cleanTen],
-                        "updatedAt": ["integerValue": "\(now)"],
-                        "ngayCapNhat": ["integerValue": "\(now)"]
-                    ]]
-                    req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+                    req.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": bodyFields])
                     _ = await FirestoreHelper.executeSafeRequest(req)
                 }
             } else {
@@ -1091,7 +1158,8 @@ public class DeviceViewModel: ObservableObject {
                             "createdAt": ["integerValue": "\(oldDev.createdAt)"],
                             "updatedAt": ["integerValue": "\(now)"],
                             "ngayCapNhat": ["integerValue": "\(now)"],
-                            "companyId": ["stringValue": companyId]
+                            "companyId": ["stringValue": companyId],
+                            "nguonGoc": ["stringValue": newNguonGoc ?? oldDev.nguonGoc ?? DeviceOriginConstants.originDept]
                         ]
                         if let pb = oldDev.phongBan { fields["phongBan"] = ["stringValue": pb] }
                         if let l = oldDev.loai { fields["loai"] = ["stringValue": l] }

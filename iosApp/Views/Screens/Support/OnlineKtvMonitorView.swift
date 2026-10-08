@@ -336,9 +336,11 @@ public struct OnlineKtvMonitorView: View {
     @State private var selectedStatusFilter: String = "ALL"
     @State private var isMapVisible: Bool = true
 
-    // Selection
+    // Selection & Shift Assign
     @State private var selectedKtv: KtvOnlineLocation? = nil
     @State private var selectedTechForMap: KtvOnlineLocation? = nil
+    @State private var techToAssignShift: KtvOnlineLocation? = nil
+    @State private var isAssigningShift: Bool = false
 
     public init(supportVM: SupportViewModel, onBack: @escaping () -> Void) {
         self.supportVM = supportVM
@@ -346,6 +348,10 @@ public struct OnlineKtvMonitorView: View {
     }
 
     // MARK: - COMPUTED PROPERTIES
+    private var canAssignShift: Bool {
+        supportVM.user.isAdmin || supportVM.user.isSuperAdmin || supportVM.user.isHelpDesk
+    }
+
     private var onlineCount: Int {
         supportVM.ktvTechnicians.filter { $0.isOnline }.count
     }
@@ -520,10 +526,12 @@ public struct OnlineKtvMonitorView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
-                    // 3. TABS: TRỰC TUYẾN VS VI PHẠM / BLACKLIST
+                    // 3. TABS: TRỰC TUYẾN VS VI PHẠM / BLACKLIST (Chỉ hiện Tab 2 khi tính năng bật)
                     HStack(spacing: 0) {
                         tabButton(title: "Trực tuyến (\(onlineCount))", tabIndex: 0, isWarning: false)
-                        tabButton(title: "Vi phạm / Blacklist (\(violationList.count))", tabIndex: 1, isWarning: true)
+                        if supportVM.enableKtvViolationTracking {
+                            tabButton(title: "Vi phạm / Blacklist (\(violationList.count))", tabIndex: 1, isWarning: true)
+                        }
                     }
                     .background(Color.appSurface)
 
@@ -604,6 +612,11 @@ public struct OnlineKtvMonitorView: View {
         }
         .sheet(item: $selectedKtv) { ktv in
             KtvDetailSheet(ktv: ktv, supportVM: supportVM)
+        }
+        .sheet(item: $techToAssignShift) { ktv in
+            AssignShiftSheet(ktv: ktv, supportVM: supportVM, isAssigning: $isAssigningShift) {
+                techToAssignShift = nil
+            }
         }
     }
 
@@ -915,13 +928,39 @@ public struct OnlineKtvMonitorView: View {
 
                 // ROW 2: Shift badge & Last active time
                 HStack {
-                    Text("📅 \(shiftInfo.desc)")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(shiftInfo.fg)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(shiftInfo.bg)
-                        .cornerRadius(4)
+                    HStack(spacing: 6) {
+                        Text("📅 \(shiftInfo.desc)")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(shiftInfo.fg)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(shiftInfo.bg)
+                            .cornerRadius(4)
+                            .onTapGesture {
+                                if canAssignShift {
+                                    techToAssignShift = ktv
+                                }
+                            }
+
+                        if canAssignShift {
+                            Button(action: {
+                                techToAssignShift = ktv
+                            }) {
+                                Text(ktv.todayShiftCode.isEmpty ? "⚡ Gán ca" : "✏️ Đổi ca")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(ktv.todayShiftCode.isEmpty ? Color(hex: "#B45309") : Color.appTextSecondary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(ktv.todayShiftCode.isEmpty ? Color(hex: "#FEF3C7") : Color.appSurfaceVariant)
+                                    .cornerRadius(4)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .stroke(ktv.todayShiftCode.isEmpty ? Color(hex: "#F59E0B") : Color.appCardBorder, lineWidth: 1)
+                                    )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
 
                     Spacer()
 
@@ -1008,7 +1047,7 @@ public struct OnlineKtvMonitorView: View {
                     .font(.system(size: 12, weight: .bold))
                     .foregroundColor(Color.dynamic(light: "#92400E", dark: "#FCD34D"))
 
-                Text("• Offline > 15 phút: Cảnh báo vắng mặt.\n• ≥ 3 lần/tháng: Đề xuất trừ KPI định kỳ.\n• ≥ 5 lần/tháng: Đưa vào danh sách Blacklist.\n• Danh sách Blacklist chỉ gửi Lãnh đạo ra quyết định, không tự động khóa tài khoản app.")
+                Text("• Offline > \(supportVM.ktvOfflineViolationMinutes) phút: Cảnh báo vắng mặt.\n• ≥ \(supportVM.ktvKpiWarningThreshold) lần/tháng: Đề xuất trừ \(supportVM.ktvKpiDeductionPercent)% KPI định kỳ.\n• ≥ \(supportVM.ktvBlacklistThreshold) lần/tháng: Đưa vào danh sách Blacklist.\n• Danh sách Blacklist chỉ gửi Lãnh đạo ra quyết định, không tự động khóa tài khoản app.")
                     .font(.system(size: 11.5))
                     .foregroundColor(Color.dynamic(light: "#B45309", dark: "#FDE68A"))
                     .lineSpacing(2)
@@ -1112,11 +1151,17 @@ public struct OnlineKtvMonitorView: View {
     }
 
     private func getShiftInfo(for code: String) -> (desc: String, bg: Color, fg: Color) {
+        let s1 = supportVM.shiftHours["shift1"] ?? ("08:00", "15:00")
+        let s2 = supportVM.shiftHours["shift2"] ?? ("14:00", "22:00")
+        let hc = supportVM.shiftHours["hc"] ?? ("08:00", "17:00")
+        let night = supportVM.shiftHours["night"] ?? ("22:00", "06:00")
+
         switch code.uppercased() {
-        case "S": return ("Ca S (06-14h)", Color(hex: "#FEF3C7"), Color(hex: "#B45309"))
-        case "C": return ("Ca C (14-22h)", Color(hex: "#E0F2FE"), Color(hex: "#0284C7"))
-        case "HC": return ("Ca HC (08-17h)", Color(hex: "#F3E8FF"), Color(hex: "#7E22CE"))
-        case "TR": return ("Ca TRỰC", Color(hex: "#FFEDD5"), Color(hex: "#C2410C"))
+        case "S": return ("Ca 1 (\(s1.inTime)-\(s1.outTime))", Color(hex: "#FEF3C7"), Color(hex: "#B45309"))
+        case "C": return ("Ca 2 (\(s2.inTime)-\(s2.outTime))", Color(hex: "#E0F2FE"), Color(hex: "#0284C7"))
+        case "HC": return ("Hành chính (\(hc.inTime)-\(hc.outTime))", Color(hex: "#F3E8FF"), Color(hex: "#7E22CE"))
+        case "TR": return ("Ca Trực (\(night.inTime)-\(night.outTime))", Color(hex: "#FFEDD5"), Color(hex: "#C2410C"))
+        case "CT": return ("Công tác", Color(hex: "#E0E7FF"), Color(hex: "#4338CA"))
         case "OFF", "NC": return ("Nghỉ Ca", Color(hex: "#F1F5F9"), Color(hex: "#64748B"))
         case "P": return ("Nghỉ Phép", Color(hex: "#FCE7F3"), Color(hex: "#BE185D"))
         case "NM": return ("Nghỉ Mát", Color(hex: "#DCFCE7"), Color(hex: "#15803D"))
@@ -1261,3 +1306,154 @@ struct KtvDetailSheet: View {
         }
     }
 }
+
+// MARK: - ASSIGN SHIFT SHEET (GÁN / ĐỔI / XÓA CA HÔM NAY - ĐỒNG BỘ 1:1 VỚI ANDROID/WEB/DESKTOP)
+struct AssignShiftSheet: View {
+    let ktv: KtvOnlineLocation
+    @ObservedObject var supportVM: SupportViewModel
+    @Binding var isAssigning: Bool
+    var onDismiss: () -> Void
+
+    private var todayFormatted: String {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "vi_VN")
+        df.dateFormat = "EEEE, dd/MM/yyyy"
+        let str = df.string(from: Date())
+        return str.prefix(1).capitalized + str.dropFirst()
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header Handle
+            Capsule()
+                .fill(Color.gray.opacity(0.4))
+                .frame(width: 40, height: 5)
+                .padding(.top, 12)
+                .padding(.bottom, 16)
+
+            // Title
+            HStack(spacing: 10) {
+                Image(systemName: "bolt.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(Color.appPrimaryPink)
+                    .frame(width: 36, height: 36)
+                    .background(Color.appPrimaryPink.opacity(0.15))
+                    .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Gán ca hôm nay")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(Color.appTextPrimary)
+                    Text(todayFormatted)
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.appTextSecondary)
+                }
+
+                Spacer()
+
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(Color.gray.opacity(0.6))
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 12)
+
+            Divider()
+
+            ScrollView {
+                VStack(spacing: 12) {
+                    // Thông tin KTV
+                    HStack {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(ktv.name)
+                                .font(.system(size: 14.5, weight: .bold))
+                                .foregroundColor(Color.appTextPrimary)
+                            Text("MNV: \(ktv.mnvDisplay) • Cụm: \(ktv.maKhuVuc.isEmpty ? "Chưa gán" : ktv.maKhuVuc)")
+                                .font(.system(size: 11.5))
+                                .foregroundColor(Color.appTextSecondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(10)
+                    .background(Color.appSurfaceVariant)
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 0.8))
+
+                    Text("Chọn ca làm việc cần gán:")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundColor(Color.appTextPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    let s1 = supportVM.shiftHours["shift1"] ?? ("08:00", "15:00")
+                    let s2 = supportVM.shiftHours["shift2"] ?? ("14:00", "22:00")
+                    let hc = supportVM.shiftHours["hc"] ?? ("08:00", "17:00")
+                    let night = supportVM.shiftHours["night"] ?? ("22:00", "06:00")
+
+                    let shiftOptions: [(code: String, title: String, bg: Color, fg: Color)] = [
+                        ("S", "Ca Sáng (\(s1.inTime) - \(s1.outTime))", Color(hex: "#FEF3C7"), Color(hex: "#B45309")),
+                        ("C", "Ca Chiều (\(s2.inTime) - \(s2.outTime))", Color(hex: "#E0F2FE"), Color(hex: "#0284C7")),
+                        ("HC", "Ca Hành Chính (\(hc.inTime) - \(hc.outTime))", Color(hex: "#F3E8FF"), Color(hex: "#7E22CE")),
+                        ("TR", "Ca Trực đêm (\(night.inTime) - \(night.outTime))", Color(hex: "#FFEDD5"), Color(hex: "#C2410C")),
+                        ("CT", "Ca Công Tác (CT)", Color(hex: "#E0E7FF"), Color(hex: "#4338CA")),
+                        ("NC", "Nghỉ Ca (NC)", Color(hex: "#F1F5F9"), Color(hex: "#64748B")),
+                        ("P", "Nghỉ Phép (P)", Color(hex: "#FCE7F3"), Color(hex: "#BE185D")),
+                        ("", "❌ Hủy / Xóa phân ca hôm nay", Color(hex: "#FEE2E2"), Color(hex: "#DC2626"))
+                    ]
+
+                    ForEach(shiftOptions, id: \.code) { opt in
+                        let isSelected = ktv.todayShiftCode.caseInsensitiveCompare(opt.code) == .orderedSame
+
+                        Button(action: {
+                            selectShift(opt.code)
+                        }) {
+                            HStack {
+                                Text(opt.title)
+                                    .font(.system(size: 13, weight: isSelected ? .bold : .medium))
+                                    .foregroundColor(isSelected ? opt.fg : (opt.code.isEmpty ? Color(hex: "#DC2626") : Color.appTextPrimary))
+
+                                Spacer()
+
+                                if isSelected {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 17))
+                                        .foregroundColor(opt.fg)
+                                }
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 11)
+                            .background(isSelected ? opt.bg.opacity(0.8) : Color.appSurface)
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(isSelected ? opt.fg : (opt.code.isEmpty ? Color(hex: "#FECDD3") : Color.appCardBorder), lineWidth: isSelected ? 1.5 : 1)
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .disabled(isAssigning)
+                    }
+
+                    if isAssigning {
+                        ProgressView()
+                            .padding(.vertical, 8)
+                    }
+                }
+                .padding(16)
+            }
+        }
+        .background(Color.appSurface)
+    }
+
+    private func selectShift(_ code: String) {
+        isAssigning = true
+        Task {
+            _ = await supportVM.assignShiftForTech(tech: ktv, newCode: code)
+            await MainActor.run {
+                isAssigning = false
+                onDismiss()
+            }
+        }
+    }
+}
+

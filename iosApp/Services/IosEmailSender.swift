@@ -13,6 +13,7 @@ public struct CompanyEmailConfig {
     public var smtpPort: Int = 465
     public var ratingBaseUrl: String = "https://qltb-81f4c.web.app/rate"
     public var autoSendRatingEmailOnClose: Bool = true
+    public var webhookServerUrl: String = ""
 
     public init(
         providerType: String = "GRAPH_API",
@@ -25,7 +26,8 @@ public struct CompanyEmailConfig {
         smtpHost: String = "smtp.gmail.com",
         smtpPort: Int = 465,
         ratingBaseUrl: String = "https://qltb-81f4c.web.app/rate",
-        autoSendRatingEmailOnClose: Bool = true
+        autoSendRatingEmailOnClose: Bool = true,
+        webhookServerUrl: String = ""
     ) {
         self.providerType = providerType
         self.m365TenantId = m365TenantId
@@ -64,6 +66,7 @@ public struct CompanyEmailConfig {
         let sPort = FirestoreHelper.getInt(fields["smtpPort"] as? [String: Any])
         let rUrl = FirestoreHelper.getString(fields["ratingBaseUrl"] as? [String: Any])
         let autoSend = FirestoreHelper.getBool(fields["autoSendRatingEmailOnClose"] as? [String: Any], defaultValue: true)
+        let srvUrl = FirestoreHelper.getString(fields["webhookServerUrl"] as? [String: Any])
 
         return CompanyEmailConfig(
             providerType: provider.isEmpty ? "GRAPH_API" : provider,
@@ -76,7 +79,8 @@ public struct CompanyEmailConfig {
             smtpHost: sHost.isEmpty ? "smtp.gmail.com" : sHost,
             smtpPort: sPort > 0 ? sPort : 465,
             ratingBaseUrl: rUrl.isEmpty ? "https://qltb-81f4c.web.app/rate" : rUrl,
-            autoSendRatingEmailOnClose: autoSend
+            autoSendRatingEmailOnClose: autoSend,
+            webhookServerUrl: srvUrl
         )
     }
 }

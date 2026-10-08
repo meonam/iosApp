@@ -246,8 +246,14 @@ public class HomeViewModel: ObservableObject {
             self.totalDevicesCount = parsedDevices.count
         } else {
             let myEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            self.totalDevicesCount = parsedDevices.filter {
-                ($0.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == myEmail
+            let myUser = myEmail.components(separatedBy: "@").first ?? myEmail
+            self.totalDevicesCount = parsedDevices.filter { dev in
+                let devCreator = (dev.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let devBorrower = (dev.nguoiMuon ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                return !myEmail.isEmpty && (
+                    devCreator == myEmail || devCreator == myUser || devCreator.contains(myEmail) ||
+                    devBorrower == myEmail || devBorrower == myUser || devBorrower.contains(myEmail)
+                )
             }.count
         }
     }

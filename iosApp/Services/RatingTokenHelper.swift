@@ -257,7 +257,7 @@ public struct RatingTokenHelper {
                     </div>
                 </div>
                 <div style="background: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0;">
-                    © 2026 Hệ Thống Tiếp Nhận & Điều Phối Hỗ Trợ Kỹ Thuật
+                    © 2026 IT Service & Assets — Hệ Thống Tiếp Nhận & Điều Phối Hỗ Trợ Kỹ Thuật
                 </div>
             </div>
         </body>

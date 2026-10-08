@@ -20,6 +20,7 @@ public struct DeviceListView: View {
     @State private var editTargetDeviceId: String = ""
     @State private var editTen: String = ""
     @State private var editSerial: String = ""
+    @State private var editNguonGoc: String = DeviceOriginConstants.originDept
 
     // Delete Confirm Alert State
     @State private var showDeleteConfirmAlert: Bool = false
@@ -771,6 +772,7 @@ public struct DeviceListView: View {
                         editTargetDeviceId = device.id
                         editTen = device.ten
                         editSerial = device.id
+                        editNguonGoc = device.originDisplay
                         showEditDialog = true
                     }) {
                         Image(systemName: "pencil")
@@ -857,6 +859,26 @@ public struct DeviceListView: View {
                         return (Color(hex: "#DCFCE7"), Color(hex: "#15803D"))
                     }
                 }()
+
+                // 1.5 Badge Nguồn gốc tài sản
+                let (origBg, origFg): (Color, Color) = {
+                    let org = device.originDisplay
+                    if org == DeviceOriginConstants.originUnit {
+                        return (Color(hex: "#FEF3C7"), Color(hex: "#B45309"))
+                    } else if org == DeviceOriginConstants.originSponsor {
+                        return (Color(hex: "#EDE9FE"), Color(hex: "#6D28D9"))
+                    } else {
+                        return (Color(hex: "#CCFBF1"), Color(hex: "#0F766E"))
+                    }
+                }()
+
+                Text(device.originShortLabel)
+                    .font(.system(size: 10.5, weight: .bold))
+                    .foregroundColor(origFg)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3.5)
+                    .background(origBg)
+                    .cornerRadius(6)
 
                 Text(badgeText)
                     .font(.system(size: 11, weight: .bold))
@@ -968,10 +990,40 @@ public struct DeviceListView: View {
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                 }
 
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Nguồn gốc tài sản")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+
+                    Menu {
+                        ForEach(DeviceOriginConstants.allOrigins, id: \.self) { og in
+                            Button(action: { editNguonGoc = og }) {
+                                Text("\(DeviceOriginConstants.getIcon(for: og)) \(og)")
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text("\(DeviceOriginConstants.getIcon(for: editNguonGoc)) \(editNguonGoc)")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(Color.appTextPrimary)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(Color.appTextSecondary)
+                        }
+                        .padding(12)
+                        .background(Color.appSurface)
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                    }
+                }
+
                 Spacer()
 
                 Button(action: {
-                    viewModel.updateDeviceInfo(oldId: editTargetDeviceId, newTen: editTen, newId: editSerial)
+                    viewModel.updateDeviceInfo(oldId: editTargetDeviceId, newTen: editTen, newId: editSerial, newNguonGoc: editNguonGoc)
                     showEditDialog = false
                     showToast("✅ Đã cập nhật thiết bị")
                 }) {

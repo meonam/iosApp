@@ -50,7 +50,9 @@ struct AdminSettingsView: View {
     @State private var isUploadingLogo = false
     @State private var isShowingAlert = false
     @State private var messageText = ""
-    
+    @State private var webhookServerUrl = ""
+    @State private var isTestingServer = false
+
     @State private var showingImagePicker = false
     @State private var pickedLogoImage: UIImage? = nil
     
@@ -238,6 +240,86 @@ struct AdminSettingsView: View {
                         }
                     }
                     
+                    // 3. MÁY CHỦ WEBHOOK GATEWAY (IP / TÊN MIỀN SERVER)
+                    SettingsSectionView(title: "Máy Chủ Webhook Gateway", icon: "network", defaultExpanded: true) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Cấu hình IP / Tên miền khi chuyển đổi Gateway sang Server/VPS mới. Hệ thống sẽ trỏ Webhook Zalo & Email tới địa chỉ này.")
+                                .font(.system(size: 11.5))
+                                .foregroundColor(Color.appTextSecondary)
+                            
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Địa chỉ IP / Domain Máy Chủ Gateway")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(Color.appTextPrimary)
+                                
+                                HStack(spacing: 8) {
+                                    TextField("vd: 103.153.72.100:3000 hoặc webhook.domain.com", text: $webhookServerUrl)
+                                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                                        .autocapitalization(.none)
+                                        .disableAutocorrection(true)
+                                    
+                                    Button(action: testServerGateway) {
+                                        HStack(spacing: 4) {
+                                            if isTestingServer {
+                                                ProgressView().tint(.white)
+                                            } else {
+                                                Image(systemName: "bolt.horizontal.fill")
+                                                Text("Kiểm tra")
+                                            }
+                                        }
+                                        .font(.system(size: 12, weight: .bold))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 8)
+                                        .background(Color.blue)
+                                        .foregroundColor(.white)
+                                        .cornerRadius(8)
+                                    }
+                                    .disabled(isTestingServer)
+                                }
+                            }
+                            
+                            let cleanServer = webhookServerUrl.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "/+$", with: "", options: .regularExpression)
+                            let effectiveServer = cleanServer.isEmpty ? "http://IP_HOAC_DOMAIN:3000" : (cleanServer.hasPrefix("http") ? cleanServer : "http://\(cleanServer)")
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Đường dẫn Webhook tự sinh:")
+                                    .font(.system(size: 11.5, weight: .bold))
+                                    .foregroundColor(Color.appTextPrimary)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Zalo OA Webhook URL:")
+                                        .font(.system(size: 10.5, weight: .medium))
+                                        .foregroundColor(Color.appTextSecondary)
+                                    Text("\(effectiveServer)/api/webhook/zalo")
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundColor(.blue)
+                                        .textSelection(.enabled)
+                                        .padding(6)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(Color.gray.opacity(0.1))
+                                        .cornerRadius(6)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Email Gateway Webhook URL:")
+                                        .font(.system(size: 10.5, weight: .medium))
+                                        .foregroundColor(Color.appTextSecondary)
+                                    Text("\(effectiveServer)/api/webhook/email")
+                                        .font(.system(size: 11, design: .monospaced))
+                                        .foregroundColor(.green)
+                                        .textSelection(.enabled)
+                                        .padding(6)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(Color.gray.opacity(0.1))
+                                        .cornerRadius(6)
+                                }
+                            }
+                            .padding(10)
+                            .background(Color.appBackground)
+                            .cornerRadius(10)
+                        }
+                    }
+                    
                     Button(action: saveAllSettings) {
                         HStack {
                             if isSaving {
@@ -299,7 +381,72 @@ struct AdminSettingsView: View {
         } catch {
             print("Load error: \(error)")
         }
+        
+        // Load webhookServerUrl from config/email
+        let emailConfigUrl = "\(baseUrl)/companies/\(companyId)/config/email"
+        if let configUrl = URL(string: emailConfigUrl) {
+            do {
+                let (cData, _) = try await URLSession.shared.data(from: configUrl)
+                if let cJson = try JSONSerialization.jsonObject(with: cData) as? [String: Any],
+                   let cFields = cJson["fields"] as? [String: Any] {
+                    if let server = extractString(from: cFields["webhookServerUrl"]) {
+                        self.webhookServerUrl = server
+                    }
+                }
+            } catch {
+                print("Load email config error: \(error)")
+            }
+        }
         isLoading = false
+    }
+    
+    private func testServerGateway() {
+        let raw = webhookServerUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else {
+            showMessage(text: "Vui lòng nhập địa chỉ IP hoặc Tên miền máy chủ Webhook")
+            return
+        }
+        let formatted = raw.hasPrefix("http://") || raw.hasPrefix("https://") ? raw : "http://\(raw)"
+        guard let url = URL(string: "\(formatted)/health") else {
+            showMessage(text: "Địa chỉ URL không hợp lệ")
+            return
+        }
+        isTestingServer = true
+        Task {
+            var req = URLRequest(url: url)
+            req.timeoutInterval = 8
+            do {
+                let (data, response) = try await URLSession.shared.data(for: req)
+                if let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode) {
+                    let text = String(data: data, encoding: .utf8) ?? ""
+                    showMessage(text: "✅ Kết nối máy chủ Gateway thành công (HTTP \(httpRes.statusCode))!\nPhản hồi: \(text)")
+                } else {
+                    let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+                    showMessage(text: "⚠️ Máy chủ phản hồi mã HTTP \(code)")
+                }
+            } catch {
+                showMessage(text: "❌ Không thể kết nối tới máy chủ: \(error.localizedDescription)")
+            }
+            isTestingServer = false
+        }
+    }
+    
+    private func saveWebhookConfig(serverUrl: String) async {
+        let baseUrl = FirebaseConfig.firestoreBaseUrl
+        let urlString = "\(baseUrl)/companies/\(companyId)/config/email?updateMask.fieldPaths=webhookServerUrl"
+        guard let url = URL(string: urlString) else { return }
+        var req = URLRequest(url: url)
+        req.httpMethod = "PATCH"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = [
+            "fields": [
+                "webhookServerUrl": ["stringValue": serverUrl.trimmingCharacters(in: .whitespacesAndNewlines)]
+            ]
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: body) {
+            req.httpBody = data
+            let _ = try? await URLSession.shared.data(for: req)
+        }
     }
     
     private func extractString(from value: Any?) -> String? {
@@ -398,6 +545,7 @@ struct AdminSettingsView: View {
                 }
                 
                 try await updateMaintenanceConfig(isMaintenance: isMaintenance, message: maintenanceMsg)
+                await saveWebhookConfig(serverUrl: webhookServerUrl)
                 showMessage(text: "✅ Đã lưu cấu hình")
                 onBack()
             } catch {

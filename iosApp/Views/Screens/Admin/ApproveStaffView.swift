@@ -222,7 +222,8 @@ public struct ApproveStaffView: View {
 
                 Section(header: Text("Phân quyền vai trò")) {
                     Picker("Vai trò", selection: $selectedRole) {
-                        Text("Nhân viên (STAFF)").tag("STAFF")
+                        Text("Nhân viên đơn vị (STAFF)").tag("STAFF")
+                        Text("Nhân viên phòng ban (DEPT_STAFF)").tag("DEPT_STAFF")
                         Text("Kỹ thuật viên (TECHNICIAN)").tag("TECHNICIAN")
                         Text("HelpDesk (HELPDESK)").tag("HELPDESK")
                         Text("Quản lý phòng (MANAGER)").tag("MANAGER")

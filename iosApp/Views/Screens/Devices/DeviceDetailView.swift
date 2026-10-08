@@ -111,6 +111,28 @@ public struct DeviceDetailView: View {
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 12)
 
+                                    Divider().padding(.leading, 16)
+
+                                    // Nguồn gốc tài sản
+                                    HStack {
+                                        Text("Nguồn gốc")
+                                            .font(.system(size: 14))
+                                            .foregroundColor(Color.appTextSecondary)
+                                        Spacer()
+                                        HStack(spacing: 4) {
+                                            Text(dev.originIcon)
+                                            Text(dev.originDisplay)
+                                                .font(.system(size: 13, weight: .bold))
+                                                .foregroundColor(Color.appTextPrimary)
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 4)
+                                        .background(Color(hex: "#F1F5F9"))
+                                        .cornerRadius(8)
+                                    }
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+
                                     if let loai = dev.loai, !loai.isEmpty {
                                         Divider().padding(.leading, 16)
                                         detailRow(label: "Loại thiết bị", value: loai)

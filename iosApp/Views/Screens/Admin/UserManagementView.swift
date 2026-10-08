@@ -797,16 +797,37 @@ public struct UserManagementView: View {
                                     .lineLimit(1)
                                     .fixedSize(horizontal: true, vertical: false)
                             } else if !u.maKhuVuc.isEmpty {
-                                Text("Cụm: \(u.maKhuVuc)")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(Color(hex: "#1D4ED8"))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(Color(hex: "#EFF6FF"))
-                                    .cornerRadius(6)
-                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#BFDBFE"), lineWidth: 1))
-                                    .lineLimit(1)
-                                    .fixedSize(horizontal: true, vertical: false)
+                                let isClusterLeader = u.isClusterLeader || viewModel.regions.contains(where: {
+                                    $0.maKhuVuc == u.maKhuVuc && (
+                                        (!$0.nguoiPhuTrachEmail.isEmpty && $0.nguoiPhuTrachEmail.lowercased() == u.email.lowercased()) ||
+                                        (!$0.nguoiPhuTrach.isEmpty && ($0.nguoiPhuTrach.lowercased() == u.email.lowercased() || $0.nguoiPhuTrach.lowercased() == u.fullName.lowercased()))
+                                    )
+                                })
+                                HStack(spacing: 4) {
+                                    Text("🎯 Cụm: \(u.maKhuVuc)")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(Color(hex: "#1D4ED8"))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color(hex: "#EFF6FF"))
+                                        .cornerRadius(6)
+                                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#BFDBFE"), lineWidth: 1))
+                                        .lineLimit(1)
+                                        .fixedSize(horizontal: true, vertical: false)
+
+                                    if isClusterLeader {
+                                        Text("👑 Trưởng nhóm")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(Color(hex: "#78350F"))
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color(hex: "#FEF3C7"))
+                                            .cornerRadius(6)
+                                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#FCD34D"), lineWidth: 1))
+                                            .lineLimit(1)
+                                            .fixedSize(horizontal: true, vertical: false)
+                                    }
+                                }
                             }
                         }
                     }

@@ -67,7 +67,8 @@ public enum LabelPaperSize: String, CaseIterable, Identifiable {
         case .decal60_40: return 60
         case .decal70_50: return 70
         case .decal100_50: return 100
-        case .decal2, .decal3: return 35
+        case .decal2: return 35
+        case .decal3: return 33.5
         case .k80: return 80
         case .k58: return 58
         case .a4_65: return 38
@@ -84,7 +85,8 @@ public enum LabelPaperSize: String, CaseIterable, Identifiable {
         case .decal60_40: return 40
         case .decal70_50: return 50
         case .decal100_50: return 50
-        case .decal2, .decal3: return 22
+        case .decal2: return 22
+        case .decal3: return 20.5
         case .k80: return 80
         case .k58: return 50
         case .a4_65: return 21
@@ -117,6 +119,24 @@ public enum LabelLayoutMode: String, CaseIterable, Identifiable {
     }
 }
 
+public enum LabelPrintOrientation: String, CaseIterable, Identifiable {
+    case auto = "Tự động nhận diện"
+    case landscape = "In Ngang (0°)"
+    case portrait = "In Dọc (90°)"
+    case rotate180 = "Đảo ngược 180°"
+
+    public var id: String { rawValue }
+
+    public var description: String {
+        switch self {
+        case .auto: return "Tự động phát hiện theo kích thước tem W x H"
+        case .landscape: return "Chuẩn cho máy in tem cuộn Datamax, Citizen, Zebra"
+        case .portrait: return "Tem đứng hoặc in qua giấy decal A4"
+        case .rotate180: return "In lộn ngược hướng cuộn giấy cho Citizen / Datamax"
+        }
+    }
+}
+
 public enum ReportPageOrientation: String, CaseIterable, Identifiable {
     case portrait = "Khổ Dọc (A4)"
     case landscape = "Khổ Ngang (A4)"
@@ -144,17 +164,18 @@ public struct PrintQrLabelView: View {
     @State private var searchQuery: String = ""
 
     // TAB 0: CẤU HÌNH IN TEM NHÃN MÃ QR
-    @State private var labelPaperSize: LabelPaperSize = .decal1
+    @State private var labelPaperSize: LabelPaperSize = .decal3
     @State private var labelLayoutMode: LabelLayoutMode = .qrLeftTextRight
+    @State private var labelOrientation: LabelPrintOrientation = .auto
     @State private var labelShowQr: Bool = true
     @State private var labelShowDeviceId: Bool = true
     @State private var labelShowDeviceName: Bool = true
-    @State private var labelShowCompanyName: Bool = true
+    @State private var labelShowCompanyName: Bool = false // Mặc định tắt tiêu đề theo yêu cầu
     @State private var labelCustomCompanyHeader: String = ""
     @State private var labelShowUnit: Bool = false
     @State private var labelShowDepartment: Bool = false
     @State private var labelShowStatus: Bool = false
-    @State private var labelShowBorder: Bool = true
+    @State private var labelShowBorder: Bool = false // Mặc định không chọn khung viền
     @State private var labelFontSizeScale: Double = 1.0 // 0.85 (Nhỏ), 1.0 (Vừa), 1.15 (Lớn)
     @State private var printCopies: Int = 1
     @State private var selectedDevices = Set<String>()
@@ -1425,12 +1446,33 @@ public struct PrintQrLabelView: View {
         let printInfo = UIPrintInfo(dictionary: nil)
         printInfo.outputType = .general
         printInfo.jobName = "ITSA_TemNhan_\(displayCompanyName)"
+
+        // Nhận diện & gán chiều in chuẩn cho máy in tem Citizen, Datamax, AirPrint
+        switch labelOrientation {
+        case .landscape, .rotate180:
+            printInfo.orientation = .landscape
+        case .portrait:
+            printInfo.orientation = .portrait
+        case .auto:
+            printInfo.orientation = (labelPaperSize.itemWidthMm >= labelPaperSize.itemHeightMm) ? .landscape : .portrait
+        }
+
         printController.printInfo = printInfo
 
-        let images = generateImagesForSelected()
+        var images = generateImagesForSelected()
         if images.isEmpty {
             showToast("Không có tem nào để in!")
             return
+        }
+
+        // Hỗ trợ xoay 180 độ nếu chọn chế độ đảo ngược hướng cuộn Citizen / Datamax
+        if labelOrientation == .rotate180 {
+            images = images.map { img in
+                if let cgImage = img.cgImage {
+                    return UIImage(cgImage: cgImage, scale: img.scale, orientation: .down)
+                }
+                return img
+            }
         }
 
         printController.printingItems = images

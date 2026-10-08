@@ -88,6 +88,7 @@ public struct KhuVuc: Identifiable, Codable, Hashable {
     public var tenKhuVuc: String
     public var moTa: String
     public var nguoiPhuTrach: String
+    public var nguoiPhuTrachEmail: String
     public var sdtLienHe: String
     public var companyId: String
     public var createdAt: Int64
@@ -98,6 +99,7 @@ public struct KhuVuc: Identifiable, Codable, Hashable {
         tenKhuVuc: String,
         moTa: String = "",
         nguoiPhuTrach: String = "",
+        nguoiPhuTrachEmail: String = "",
         sdtLienHe: String = "",
         companyId: String = "",
         createdAt: Int64 = 0
@@ -106,6 +108,7 @@ public struct KhuVuc: Identifiable, Codable, Hashable {
         self.tenKhuVuc = tenKhuVuc
         self.moTa = moTa
         self.nguoiPhuTrach = nguoiPhuTrach
+        self.nguoiPhuTrachEmail = nguoiPhuTrachEmail
         self.sdtLienHe = sdtLienHe
         self.companyId = companyId
         self.createdAt = createdAt

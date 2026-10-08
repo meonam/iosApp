@@ -520,12 +520,7 @@ public class ShiftViewModel: ObservableObject {
 
         for entry in entries {
             var dayFields: [String: Any] = [:]
-            for (k, v) in entry.days {
-                if !v.isEmpty {
-                    dayFields[k.lowercased()] = ["stringValue": v]
-                }
-            }
-            // Ensure both shortKey ("mon") and fullDateKey ("2026-09-14") are present
+            // Chỉ ghi các ngày có ca trong 7 ngày của tuần (loại bỏ triệt để key cũ bị xóa)
             for (dIdx, sk) in shortKeys.enumerated() {
                 let fk = fKeys.indices.contains(dIdx) ? fKeys[dIdx] : ""
                 let code = entry.days[sk] ?? (!fk.isEmpty ? entry.days[fk] : nil) ?? ""

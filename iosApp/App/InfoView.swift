@@ -14,8 +14,8 @@ public struct InfoView: View {
     @State private var companyLicense = LicenseInfo(tier: .ENTERPRISE, companyName: "Saigon Co.op", activationCode: "QLTB-ENT-F8CF2F", expiresAt: 0, maxDevices: 999999, maxAssets: 999999)
 
     private var appVersion: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.2"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "132"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.3"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "133"
         return "v\(version) (Build \(build))"
     }
     private var deviceId: String {

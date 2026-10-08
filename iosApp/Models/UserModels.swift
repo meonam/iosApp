@@ -40,6 +40,7 @@ public struct User: Identifiable, Codable, Hashable {
     public var createdAt: Int64
     public var mustChangePassword: Bool
     public var maKhuVuc: String
+    public var isClusterLeader: Bool
     public var toNghiepVu: String
     public var lastActiveAt: Int64
     public var isOnline: Bool
@@ -71,6 +72,7 @@ public struct User: Identifiable, Codable, Hashable {
         createdAt: Int64 = 0,
         mustChangePassword: Bool = false,
         maKhuVuc: String = "",
+        isClusterLeader: Bool = false,
         toNghiepVu: String = "",
         lastActiveAt: Int64 = 0,
         isOnline: Bool = false,
@@ -101,6 +103,7 @@ public struct User: Identifiable, Codable, Hashable {
         self.createdAt = createdAt
         self.mustChangePassword = mustChangePassword
         self.maKhuVuc = maKhuVuc
+        self.isClusterLeader = isClusterLeader
         self.toNghiepVu = toNghiepVu
         self.lastActiveAt = lastActiveAt
         self.isOnline = isOnline
@@ -166,8 +169,20 @@ public struct User: Identifiable, Codable, Hashable {
                r.contains("KTV") || r.contains("KYTHUAT") || r.contains("TECHNICIAN") || r.contains("INCIDENT_HANDLER")
     }
 
+    public var isDeptStaff: Bool {
+        if isSuperAdmin || isAdmin || isHelpDesk || isWarehouse || isSpecialist || isManager || isTechnician { return false }
+        let r = role.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        return ["DEPT_STAFF", "NHANVIEN_PHONGBAN", "NHAN VIEN PHONG BAN", "NV_PHONGBAN", "PHONGBAN_STAFF"].contains(r) ||
+               r.contains("DEPT_STAFF") || r.contains("NHANVIEN_PHONGBAN")
+    }
+
     public var isStaff: Bool {
-        return !isSuperAdmin && !isAdmin && !isHelpDesk && !isWarehouse && !isManager && !isTechnician && !isSpecialist
+        return !isSuperAdmin && !isAdmin && !isHelpDesk && !isWarehouse && !isManager && !isTechnician && !isSpecialist && !isDeptStaff
+    }
+
+    public func hasPermission(_ permissionId: String) -> Bool {
+        if isAdmin || isSuperAdmin { return true }
+        return permissions.contains(permissionId)
     }
 
     /// Quyền tạo yêu cầu hỗ trợ mới: Chỉ dành cho Nhân viên (Staff/User) và Quản lý phòng ban (Manager).

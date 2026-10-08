@@ -98,11 +98,15 @@ public struct TicketItemView: View {
         }
     }
 
-    // Tổ hợp thông tin người gửi + đơn vị + phòng ban (chuẩn Android Image 3)
-    private var metaInfoString: String {
-        let creatorText = ticket.creatorName.isEmpty ? (ticket.creatorEmail.components(separatedBy: "@").first ?? ticket.creatorEmail) : ticket.creatorName
+    private var creatorText: String {
+        let text = ticket.creatorName.isEmpty ? (ticket.creatorEmail.components(separatedBy: "@").first ?? ticket.creatorEmail) : ticket.creatorName
+        return text.isEmpty ? "Người yêu cầu" : text
+    }
+
+    // Dòng phụ: Đơn vị • Phòng ban (chuẩn Android & Desktop)
+    private var unitDeptInfoString: String {
+        let cLower = ticket.creatorName.lowercased()
         let effectiveDonVi: String = {
-            let cLower = ticket.creatorName.lowercased()
             if ticket.donVi.localizedCaseInsensitiveContains("Điện Biên Phủ") &&
                 (cLower.contains("co.op") || cLower.contains("coop") || cLower.contains("chi nhánh") || cLower.contains("cửa hàng")) {
                 return ticket.creatorName
@@ -110,9 +114,12 @@ public struct TicketItemView: View {
             return ticket.donVi
         }()
         var parts: [String] = []
-        if !creatorText.isEmpty { parts.append(creatorText) }
-        if !effectiveDonVi.isEmpty { parts.append("🏬 \(effectiveDonVi)") }
-        if !ticket.departmentId.isEmpty { parts.append("🏢 \(ticket.departmentId)") }
+        if !effectiveDonVi.isEmpty && effectiveDonVi.caseInsensitiveCompare(creatorText) != .orderedSame {
+            parts.append("🏬 \(effectiveDonVi)")
+        }
+        if !ticket.departmentId.isEmpty && ticket.departmentId.caseInsensitiveCompare(creatorText) != .orderedSame {
+            parts.append("🏛️ \(ticket.departmentId)")
+        }
         return parts.joined(separator: " • ")
     }
 
@@ -124,9 +131,9 @@ public struct TicketItemView: View {
                     .fill(stripeColor)
                     .frame(width: 4)
 
-                // 2. Nội dung phân tầng chuẩn Android Image 3
-                VStack(alignment: .leading, spacing: 5) {
-                    // ── TẦNG 1: Meta Header (Avatar nhỏ + Người gửi • Đơn vị + Giờ + Nút Ẩn/Hiện) ──
+                // 2. Nội dung phân tầng chuẩn Android Image 3 & Desktop
+                VStack(alignment: .leading, spacing: 4) {
+                    // ── TẦNG 1: Avatar nhỏ + Tên người gửi (riêng 1 hàng) + Giờ + Nút Ẩn/Hiện / Xóa ──
                     HStack(spacing: 5) {
                         Circle()
                             .fill(isOpen ? Color.appPrimaryPink.opacity(0.12) : Color.appSurfaceVariant)
@@ -137,9 +144,9 @@ public struct TicketItemView: View {
                                     .foregroundColor(isOpen ? Color.appPrimaryPink : Color.appTextSecondary)
                             )
 
-                        Text(metaInfoString.isEmpty ? "Người yêu cầu" : metaInfoString)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(isOpen ? Color.appTextSecondary : Color.appTextMuted)
+                        Text(creatorText)
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundColor(isOpen ? Color.appTextPrimary : Color.appTextSecondary)
                             .lineLimit(1)
 
                         Spacer(minLength: 4)
@@ -167,10 +174,20 @@ public struct TicketItemView: View {
                         }
                     }
 
+                    // ── DÒNG PHỤ: Đơn vị & Phòng ban (dời xuống hàng dưới, thụt lề 23pt dưới tên người dùng) ──
+                    if !unitDeptInfoString.isEmpty {
+                        Text(unitDeptInfoString)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Color.appTextSecondary)
+                            .lineLimit(1)
+                            .padding(.leading, 23)
+                    }
+
                     // ── TẦNG 2: Hero Title chiếm trọn chiều ngang, chữ đậm #002A8F (hoặc sáng trong Dark mode) ──
                     HStack(spacing: 5) {
-                        if !ticket.ticketCode.isEmpty {
-                            Text("#\(ticket.ticketCode)")
+                        let displayCode = !ticket.ticketCode.isEmpty ? ticket.ticketCode : String(ticket.id.replacingOccurrences(of: "ticket_", with: "").replacingOccurrences(of: "TK_", with: "").prefix(8)).uppercased()
+                        if !displayCode.isEmpty {
+                            Text("#\(displayCode)")
                                 .font(.system(size: 10.5, weight: .black, design: .monospaced))
                                 .foregroundColor(Color.appTextSecondary)
                                 .padding(.horizontal, 4)

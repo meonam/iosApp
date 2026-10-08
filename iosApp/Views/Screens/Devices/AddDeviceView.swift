@@ -12,6 +12,7 @@ public struct AddDeviceView: View {
     @State private var ten: String = ""
     @State private var selectedLoaiThietBi: String = ""
     @State private var selectedStatus: String = DeviceStatusConstants.statusInStock
+    @State private var selectedNguonGoc: String = DeviceOriginConstants.originDept
 
     // Loan details (Đang cho mượn)
     @State private var donViMuon: String = ""
@@ -417,6 +418,37 @@ public struct AddDeviceView: View {
                 }
             }
 
+            // 4.1 NGUỒN GỐC TÀI SẢN
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Nguồn gốc tài sản")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+
+                Menu {
+                    ForEach(DeviceOriginConstants.allOrigins, id: \.self) { og in
+                        Button(action: { selectedNguonGoc = og }) {
+                            Text("\(DeviceOriginConstants.getIcon(for: og)) \(og)")
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Text("\(DeviceOriginConstants.getIcon(for: selectedNguonGoc)) \(selectedNguonGoc)")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color.appTextPrimary)
+
+                        Spacer()
+
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color.appTextSecondary)
+                    }
+                    .padding(12)
+                    .background(Color.appSurface)
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                }
+            }
+
             // 5. LOAN SECTION IF STATUS IS ON_LOAN
             if selectedStatus == DeviceStatusConstants.statusOnLoan {
                 VStack(alignment: .leading, spacing: 10) {
@@ -624,6 +656,7 @@ public struct AddDeviceView: View {
             phongBan: userPhongBan,
             loai: selectedLoaiThietBi,
             customStatus: selectedStatus,
+            nguonGoc: selectedNguonGoc,
             donViMuon: donViMuon.isEmpty ? nil : donViMuon,
             phongBanMuon: phongBanMuon.isEmpty ? nil : phongBanMuon,
             nguoiMuon: nguoiMuon.isEmpty ? nil : nguoiMuon,
@@ -641,6 +674,7 @@ public struct AddDeviceView: View {
                 self.nguoiMuon = ""
                 self.ngayHenTra = ""
                 self.selectedStatus = DeviceStatusConstants.statusInStock
+                self.selectedNguonGoc = DeviceOriginConstants.originDept
                 self.selectedLoaiThietBi = ""
                 self.isIdChecked = false
                 self.isIdExisting = false

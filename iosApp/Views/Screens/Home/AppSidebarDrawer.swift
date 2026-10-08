@@ -79,6 +79,7 @@ public struct AppSidebarDrawer: View {
     @State private var isDeviceExpanded: Bool = false
     @State private var isPersonnelExpanded: Bool = false
     @State private var isAttendanceExpanded: Bool = false
+    @State private var isReportExpanded: Bool = false
     @State private var isSystemExpanded: Bool = false
 
     public init(
@@ -146,6 +147,10 @@ public struct AppSidebarDrawer: View {
         )
     }
 
+    private var isDeptStaff: Bool {
+        user.isDeptStaff || cleanRole == "dept_staff" || cleanRole == "nhanvien_phongban"
+    }
+
     // Nhãn vai trò hiển thị (Badge tiếng Việt chuẩn với Emoji)
     private var roleDisplayBadge: String {
         if isSuperAdmin || isAdmin {
@@ -158,6 +163,8 @@ public struct AppSidebarDrawer: View {
             return "🛠️ KTV"
         } else if isManager {
             return "🏛️ Quản lý phòng"
+        } else if isDeptStaff {
+            return "🏛️ Nhân viên phòng ban"
         } else {
             return "👤 Nhân viên"
         }
@@ -299,22 +306,6 @@ public struct AppSidebarDrawer: View {
                                     onSelect(.deviceTypes)
                                 }
                                 drawerItemRow(
-                                    title: "In ấn & Tem nhãn QR",
-                                    icon: "printer.fill",
-                                    color: Color(hex: "#A855F7"),
-                                    isSelected: currentDestination == .printBarcode
-                                ) {
-                                    onSelect(.printBarcode)
-                                }
-                                drawerItemRow(
-                                    title: "Thống kê thiết bị",
-                                    icon: "chart.pie.fill",
-                                    color: Color(hex: "#14B8A6"),
-                                    isSelected: currentDestination == .statistics
-                                ) {
-                                    onSelect(.statistics)
-                                }
-                                drawerItemRow(
                                     title: "Nhật ký thiết bị",
                                     icon: "clock.arrow.circlepath",
                                     color: Color(hex: "#8B5CF6"),
@@ -408,15 +399,6 @@ public struct AppSidebarDrawer: View {
                                     ) {
                                         onSelect(.attendance)
                                     }
-                                    let reportTitle = ((isIncidentHandler || isSpecialist) && !isManagerOrAdmin) ? "Báo cáo chấm công của tôi" : "Báo cáo công & OSRM"
-                                    drawerItemRow(
-                                        title: reportTitle,
-                                        icon: "calendar.badge.clock",
-                                        color: Color(hex: "#FB923C"),
-                                        isSelected: currentDestination == .attendanceReport
-                                    ) {
-                                        onSelect(.attendanceReport)
-                                    }
                                     drawerItemRow(
                                         title: "Nhật ký chấm công",
                                         icon: "clock.arrow.circlepath",
@@ -443,22 +425,61 @@ public struct AppSidebarDrawer: View {
                                             onSelect(.ktvMonitor)
                                         }
                                     }
-                                    if isAdmin || isHelpDesk {
-                                        drawerItemRow(
-                                            title: "Báo cáo đánh giá SLA KTV",
-                                            icon: "star.fill",
-                                            color: Color(hex: "#F59E0B"),
-                                            isSelected: currentDestination == .supportRating
-                                        ) {
-                                            onSelect(.supportRating)
-                                        }
-                                    }
                                 }
                                 .padding(.leading, 6)
                             }
                         }
 
-                        // --- NHÓM 4: HỆ THỐNG & BẢN QUYỀN ---
+                        // --- NHÓM 4: BÁO CÁO & IN ẤN (TẬP TRUNG TOÀN BỘ BÁO CÁO VÀ IN ẤN) ---
+                        DrawerSectionHeader(
+                            title: "BÁO CÁO & IN ẤN",
+                            headerColor: Color(hex: "#FB7185"),
+                            isExpanded: $isReportExpanded
+                        )
+                        if isReportExpanded {
+                            VStack(spacing: 2) {
+                                drawerItemRow(
+                                    title: "Biểu mẫu & Báo cáo TB",
+                                    icon: "printer.fill",
+                                    color: Color(hex: "#FB7185"),
+                                    isSelected: currentDestination == .printBarcode
+                                ) {
+                                    onSelect(.printBarcode)
+                                }
+                                if isAdmin || isHelpDesk {
+                                    drawerItemRow(
+                                        title: "Báo cáo đánh giá SLA KTV",
+                                        icon: "star.fill",
+                                        color: Color(hex: "#F59E0B"),
+                                        isSelected: currentDestination == .supportRating
+                                    ) {
+                                        onSelect(.supportRating)
+                                    }
+                                }
+                                if isManagerOrAdmin || isIncidentHandler || isSpecialist {
+                                    let reportTitle = ((isIncidentHandler || isSpecialist) && !isManagerOrAdmin) ? "Báo cáo chấm công của tôi" : "Báo cáo công & OSRM"
+                                    drawerItemRow(
+                                        title: reportTitle,
+                                        icon: "calendar.badge.clock",
+                                        color: Color(hex: "#FB923C"),
+                                        isSelected: currentDestination == .attendanceReport
+                                    ) {
+                                        onSelect(.attendanceReport)
+                                    }
+                                }
+                                drawerItemRow(
+                                    title: "Thống kê thiết bị",
+                                    icon: "chart.pie.fill",
+                                    color: Color(hex: "#14B8A6"),
+                                    isSelected: currentDestination == .statistics
+                                ) {
+                                    onSelect(.statistics)
+                                }
+                            }
+                            .padding(.leading, 6)
+                        }
+
+                        // --- NHÓM 5: HỆ THỐNG & BẢN QUYỀN ---
                         DrawerSectionHeader(
                             title: "HỆ THỐNG & BẢN QUYỀN",
                             headerColor: Color(hex: "#64748B"),
@@ -551,7 +572,7 @@ public struct AppSidebarDrawer: View {
 
                     Spacer()
 
-                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.2")")
+                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.3")")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Color.appTextSecondary)
                 }

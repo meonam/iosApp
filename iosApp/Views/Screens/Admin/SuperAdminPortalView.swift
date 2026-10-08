@@ -8,7 +8,7 @@ public struct SuperAdminPortalView: View {
     @StateObject private var viewModel = SuperAdminViewModel()
     @State private var selectedTab = 0
     
-    let tabs = ["Tổng quan", "Công ty", "Tài khoản", "Cấu hình"]
+    let tabs = ["Tổng quan", "Công ty", "Doanh thu SaaS", "Tài khoản", "Cấu hình"]
     
     public init(authViewModel: AuthViewModel, onBack: @escaping () -> Void) {
         self.authViewModel = authViewModel
@@ -115,10 +115,12 @@ public struct SuperAdminPortalView: View {
                                 .tag(0)
                             CompaniesTab(viewModel: viewModel, token: authViewModel.currentIdToken)
                                 .tag(1)
-                            AccountsTab(viewModel: viewModel, token: authViewModel.currentIdToken)
+                            SaaSBillingTab(viewModel: viewModel, token: authViewModel.currentIdToken)
                                 .tag(2)
-                            ConfigTab(viewModel: viewModel, token: authViewModel.currentIdToken)
+                            AccountsTab(viewModel: viewModel, token: authViewModel.currentIdToken)
                                 .tag(3)
+                            ConfigTab(viewModel: viewModel, token: authViewModel.currentIdToken)
+                                .tag(4)
                         }
                         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                     }
@@ -224,6 +226,485 @@ struct CompaniesTab: View {
         }
         .sheet(item: $showingCompanyDetails) { company in
             SACompanyDetailsView(company: company, viewModel: viewModel, token: token)
+        }
+    }
+}
+
+// MARK: - SaaS Seat Billing Tab & Audit
+struct SaaSBillingTab: View {
+    @ObservedObject var viewModel: SuperAdminViewModel
+    let token: String
+    
+    @State private var selectedAuditStats: CompanyBillingStats? = nil
+    @State private var editingPriceCompany: SACompany? = nil
+    
+    private var totalBillable: Int {
+        viewModel.companyBillingMap.values.reduce(0) { $0 + $1.billableUsers }
+    }
+    private var totalFreeAdmins: Int {
+        viewModel.companyBillingMap.values.reduce(0) { $0 + $1.adminUsers }
+    }
+    private var totalMrr: Int64 {
+        viewModel.companyBillingMap.values.reduce(0) { $0 + $1.monthlyRevenue }
+    }
+    private var totalArr: Int64 {
+        totalMrr * 12
+    }
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                // Banner Chính Sách SaaS
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "dollarsign.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.title3)
+                        Text("Chính Sách SaaS Tính Phí Theo User Thực Tế")
+                            .font(.headline)
+                            .foregroundColor(Color(hex: "#15803D"))
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            viewModel.loadCompanyBillingStats(token: token)
+                        }) {
+                            HStack(spacing: 4) {
+                                if viewModel.isLoadingBilling {
+                                    ProgressView()
+                                        .scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "arrow.clockwise")
+                                }
+                                Text("Quét User Cloud")
+                                    .font(.caption)
+                                    .fontWeight(.bold)
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color(hex: "#16A34A"))
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                        }
+                        .disabled(viewModel.isLoadingBilling)
+                    }
+                    
+                    Text("• Người dùng tính phí (Seats): Chỉ tính các tài khoản thực tế đang hoạt động (không bị khóa/vô hiệu hóa).\n• Miễn phí 100% (0đ): Toàn bộ tài khoản Giám đốc, Quản trị viên (ADMIN, QUANTRI, SUPERADMIN) không tính phí.\n• Đơn giá linh hoạt: Mặc định 250.000 đ/user/tháng, cấu hình riêng cho từng khách hàng.")
+                        .font(.caption)
+                        .foregroundColor(Color(hex: "#166534"))
+                        .lineSpacing(3)
+                }
+                .padding()
+                .background(Color(hex: "#F0FDF4"))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color(hex: "#BBF7D0"), lineWidth: 1)
+                )
+                
+                // 4 Thẻ KPI
+                HStack(spacing: 10) {
+                    StatCard(title: "DOANH THU THÁNG (MRR)", value: formatCurrency(totalMrr), color: .green)
+                    StatCard(title: "DOANH THU NĂM (ARR)", value: formatCurrency(totalArr), color: .blue)
+                }
+                HStack(spacing: 10) {
+                    StatCard(title: "USER TÍNH PHÍ (SEATS)", value: "\(totalBillable)", color: .purple)
+                    StatCard(title: "ADMIN MIỄN PHÍ (0đ)", value: "\(totalFreeAdmins)", color: .orange)
+                }
+                
+                // Tiêu đề danh sách
+                HStack {
+                    Text("DANH SÁCH KHÁCH HÀNG & THU PHÍ SEATS")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .foregroundColor(Color(hex: "#334155"))
+                    Spacer()
+                }
+                .padding(.top, 4)
+                
+                if viewModel.companies.isEmpty {
+                    Text("Chưa có công ty nào.")
+                        .foregroundColor(.gray)
+                        .padding()
+                } else {
+                    LazyVStack(spacing: 12) {
+                        ForEach(viewModel.companies) { comp in
+                            let stats = viewModel.companyBillingMap[comp.id]
+                            let billableCount = stats?.billableUsers ?? 0
+                            let totalUserCount = stats?.totalUsers ?? 0
+                            let freeAdmins = stats?.adminUsers ?? 0
+                            let effPrice = comp.pricePerUserMonthly > 0 ? comp.pricePerUserMonthly : 250000
+                            let monthlyRev = stats?.monthlyRevenue ?? (Int64(billableCount) * effPrice)
+                            
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(comp.companyName)
+                                            .font(.headline)
+                                            .foregroundColor(Color(hex: "#1E293B"))
+                                        Text("Mã: \(comp.id)")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                    }
+                                    Spacer()
+                                    
+                                    Button(action: {
+                                        if let s = stats {
+                                            selectedAuditStats = s
+                                        } else {
+                                            selectedAuditStats = CompanyBillingStats(
+                                                companyId: comp.id,
+                                                companyName: comp.companyName,
+                                                totalUsers: totalUserCount,
+                                                adminUsers: freeAdmins,
+                                                billableUsers: billableCount,
+                                                pricePerUser: effPrice,
+                                                monthlyRevenue: monthlyRev,
+                                                usersList: []
+                                            )
+                                        }
+                                    }) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "person.2.fill")
+                                                .font(.caption)
+                                            Text("Soi User")
+                                                .font(.caption)
+                                                .fontWeight(.bold)
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(Color(hex: "#EEF2FF"))
+                                        .foregroundColor(Color(hex: "#4F46E5"))
+                                        .cornerRadius(8)
+                                    }
+                                }
+                                
+                                Divider()
+                                
+                                // Stats Row
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("User tính phí")
+                                            .font(.caption2)
+                                            .foregroundColor(.gray)
+                                        HStack(spacing: 2) {
+                                            Text("\(billableCount)")
+                                                .font(.subheadline)
+                                                .fontWeight(.bold)
+                                                .foregroundColor(.green)
+                                            Text(" / \(totalUserCount) user")
+                                                .font(.caption2)
+                                                .foregroundColor(.gray)
+                                        }
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    VStack(alignment: .center, spacing: 2) {
+                                        Text("Admin miễn phí")
+                                            .font(.caption2)
+                                            .foregroundColor(.gray)
+                                        Text("\(freeAdmins) (0đ)")
+                                            .font(.subheadline)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.orange)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text("Thành tiền/tháng")
+                                            .font(.caption2)
+                                            .foregroundColor(.gray)
+                                        Text(formatCurrency(monthlyRev))
+                                            .font(.subheadline)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.blue)
+                                    }
+                                }
+                                
+                                // Price Edit Bar
+                                HStack {
+                                    HStack(spacing: 4) {
+                                        Text("Đơn giá:")
+                                            .font(.caption)
+                                            .foregroundColor(.gray)
+                                        Text("\(formatCurrency(effPrice))/user/tháng")
+                                            .font(.caption)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(Color(hex: "#334155"))
+                                    }
+                                    Spacer()
+                                    Button(action: {
+                                        editingPriceCompany = comp
+                                    }) {
+                                        HStack(spacing: 2) {
+                                            Image(systemName: "pencil")
+                                                .font(.caption2)
+                                            Text("Sửa giá")
+                                                .font(.caption)
+                                                .fontWeight(.bold)
+                                        }
+                                        .foregroundColor(.blue)
+                                    }
+                                }
+                                .padding(8)
+                                .background(Color(hex: "#F8FAFC"))
+                                .cornerRadius(8)
+                            }
+                            .padding()
+                            .background(Color.white)
+                            .cornerRadius(12)
+                            .shadow(color: Color.black.opacity(0.05), radius: 3, x: 0, y: 1)
+                        }
+                    }
+                }
+            }
+            .padding()
+        }
+        .sheet(item: $editingPriceCompany) { comp in
+            SABillingEditPriceSheet(
+                company: comp,
+                viewModel: viewModel,
+                token: token,
+                isPresented: Binding(
+                    get: { editingPriceCompany != nil },
+                    set: { if !$0 { editingPriceCompany = nil } }
+                )
+            )
+        }
+        .sheet(item: $selectedAuditStats) { stats in
+            CompanyUserAuditSheet(
+                stats: stats,
+                isPresented: Binding(
+                    get: { selectedAuditStats != nil },
+                    set: { if !$0 { selectedAuditStats = nil } }
+                )
+            )
+        }
+        .onAppear {
+            if viewModel.companyBillingMap.isEmpty && !viewModel.companies.isEmpty {
+                viewModel.loadCompanyBillingStats(token: token)
+            }
+        }
+    }
+    
+    private func formatCurrency(_ amount: Int64) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = "."
+        return "\(formatter.string(from: NSNumber(value: amount)) ?? "\(amount)") đ"
+    }
+}
+
+struct SABillingEditPriceSheet: View {
+    let company: SACompany
+    @ObservedObject var viewModel: SuperAdminViewModel
+    let token: String
+    @Binding var isPresented: Bool
+    
+    @State private var priceInput: String = ""
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Cấu hình đơn giá / User / Tháng")) {
+                    Text("Công ty: \(company.companyName)")
+                        .font(.headline)
+                    Text("Mã: \(company.id)")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    
+                    TextField("Đơn giá VNĐ (ví dụ 250000)", text: $priceInput)
+                        .keyboardType(.numberPad)
+                    
+                    Text("Mặc định hệ thống là 250.000 đ/user/tháng. Đặt giá ưu đãi riêng cho khách hàng này.")
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+                
+                Button("Lưu Đơn Giá") {
+                    let cleaned = priceInput.replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: "")
+                    let newPrice = Int64(cleaned) ?? 250000
+                    viewModel.updateCompanyPrice(companyId: company.id, newPrice: newPrice, token: token)
+                    isPresented = false
+                }
+                .disabled(priceInput.isEmpty)
+            }
+            .navigationTitle("Sửa Đơn Giá SaaS")
+            .navigationBarItems(trailing: Button("Đóng") { isPresented = false })
+            .onAppear {
+                let current = company.pricePerUserMonthly > 0 ? company.pricePerUserMonthly : 250000
+                priceInput = "\(current)"
+            }
+        }
+    }
+}
+
+struct CompanyUserAuditSheet: View {
+    let stats: CompanyBillingStats
+    @Binding var isPresented: Bool
+    
+    @State private var searchQuery: String = ""
+    @State private var filterType: String = "ALL" // ALL, BILLABLE, FREE
+    
+    var filteredUsers: [BillableUserDetail] {
+        stats.usersList.filter { u in
+            let matchQuery = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                u.name.localizedCaseInsensitiveContains(searchQuery) ||
+                u.email.localizedCaseInsensitiveContains(searchQuery) ||
+                u.role.localizedCaseInsensitiveContains(searchQuery) ||
+                u.department.localizedCaseInsensitiveContains(searchQuery)
+            
+            let matchFilter: Bool
+            switch filterType {
+            case "BILLABLE": matchFilter = u.isBillable
+            case "FREE": matchFilter = !u.isBillable
+            default: matchFilter = true
+            }
+            return matchQuery && matchFilter
+        }
+    }
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 12) {
+                // Header Stats Bar
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(stats.companyName)
+                            .font(.headline)
+                        Text("Tổng \(stats.totalUsers) user | Tính phí: \(stats.billableUsers) | Miễn phí: \(stats.adminUsers)")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+                
+                // Search Bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.gray)
+                    TextField("Tìm theo tên, email, vai trò...", text: $searchQuery)
+                        .font(.subheadline)
+                    if !searchQuery.isEmpty {
+                        Button(action: { searchQuery = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
+                        }
+                    }
+                }
+                .padding(8)
+                .background(Color(hex: "#F1F5F9"))
+                .cornerRadius(8)
+                .padding(.horizontal)
+                
+                // Filter Tabs
+                HStack(spacing: 8) {
+                    FilterButton(title: "Tất cả (\(stats.usersList.count))", isSelected: filterType == "ALL") {
+                        filterType = "ALL"
+                    }
+                    FilterButton(title: "Tính phí (\(stats.billableUsers))", isSelected: filterType == "BILLABLE", activeColor: .green) {
+                        filterType = "BILLABLE"
+                    }
+                    FilterButton(title: "Admin 0đ (\(stats.adminUsers))", isSelected: filterType == "FREE", activeColor: .orange) {
+                        filterType = "FREE"
+                    }
+                }
+                .padding(.horizontal)
+                
+                Divider()
+                
+                // User List
+                if filteredUsers.isEmpty {
+                    Spacer()
+                    Text("Không tìm thấy user nào phù hợp.")
+                        .foregroundColor(.gray)
+                        .font(.subheadline)
+                    Spacer()
+                } else {
+                    List {
+                        ForEach(filteredUsers) { u in
+                            HStack(alignment: .center, spacing: 10) {
+                                Circle()
+                                    .fill(u.isBillable ? Color(hex: "#DCFCE7") : Color(hex: "#FEF3C7"))
+                                    .frame(width: 36, height: 36)
+                                    .overlay(
+                                        Text(String(u.name.prefix(1)).uppercased())
+                                            .font(.caption)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(u.isBillable ? Color(hex: "#15803D") : Color(hex: "#B45309"))
+                                    )
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(u.name)
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(Color(hex: "#1E293B"))
+                                    Text(u.email.isEmpty ? u.id : u.email)
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                    if !u.department.isEmpty {
+                                        Text("Phòng: \(u.department)")
+                                            .font(.caption2)
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    Text(u.isBillable ? "Tính phí (\(formatCurrency(stats.pricePerUser)))" : "Miễn phí (0 đ)")
+                                        .font(.caption2)
+                                        .fontWeight(.bold)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(u.isBillable ? Color(hex: "#DCFCE7") : Color(hex: "#FEF3C7"))
+                                        .foregroundColor(u.isBillable ? Color(hex: "#15803D") : Color(hex: "#B45309"))
+                                        .cornerRadius(4)
+                                    
+                                    Text("Vai trò: \(u.role)")
+                                        .font(.caption2)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    .listStyle(PlainListStyle())
+                }
+            }
+            .navigationTitle("Soi Tài Khoản")
+            .navigationBarItems(trailing: Button("Đóng") { isPresented = false })
+        }
+    }
+    
+    private func formatCurrency(_ amount: Int64) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.groupingSeparator = "."
+        return "\(formatter.string(from: NSNumber(value: amount)) ?? "\(amount)") đ"
+    }
+}
+
+struct FilterButton: View {
+    let title: String
+    let isSelected: Bool
+    var activeColor: Color = .blue
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption)
+                .fontWeight(isSelected ? .bold : .regular)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity)
+                .background(isSelected ? activeColor : Color(hex: "#F1F5F9"))
+                .foregroundColor(isSelected ? .white : Color(hex: "#475569"))
+                .cornerRadius(6)
         }
     }
 }
@@ -374,6 +855,7 @@ struct SACompany: Identifiable {
     var licenseTier: String
     var maxDevices: Int
     var createdAt: Int64
+    var pricePerUserMonthly: Int64 = 250000
 }
 
 class SuperAdminViewModel: ObservableObject {
@@ -385,6 +867,9 @@ class SuperAdminViewModel: ObservableObject {
     
     @Published var totalUsers: Int = 0
     @Published var totalDevices: Int = 0
+    
+    @Published var companyBillingMap: [String: CompanyBillingStats] = [:]
+    @Published var isLoadingBilling: Bool = false
     
     func checkSuperAdmin(email: String, token: String) {
         isLoading = true
@@ -446,13 +931,140 @@ class SuperAdminViewModel: ObservableObject {
                     let licenseTier = FirestoreHelper.getString(fields["licenseTier"] as? [String: Any])
                     let maxDevices = FirestoreHelper.getInt(fields["maxDevices"] as? [String: Any])
                     let createdAt = FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
+                    let rawPrice = FirestoreHelper.getInt64(fields["pricePerUserMonthly"] as? [String: Any])
+                    let pricePerUserMonthly: Int64 = rawPrice > 0 ? rawPrice : 250000
                     
-                    return SACompany(id: id, companyName: companyName.isEmpty ? "No Name" : companyName, isMaintenance: isMaintenance, licenseTier: licenseTier.isEmpty ? "PRO" : licenseTier, maxDevices: maxDevices == 0 ? 100 : maxDevices, createdAt: createdAt)
+                    return SACompany(
+                        id: id,
+                        companyName: companyName.isEmpty ? "No Name" : companyName,
+                        isMaintenance: isMaintenance,
+                        licenseTier: licenseTier.isEmpty ? "PRO" : licenseTier,
+                        maxDevices: maxDevices == 0 ? 100 : maxDevices,
+                        createdAt: createdAt,
+                        pricePerUserMonthly: pricePerUserMonthly
+                    )
                 }
                 
-                // Demo stats, in a real app you might need to query aggregation
+                // Demo stats
                 self.totalUsers = self.companies.count * 15
                 self.totalDevices = self.companies.count * 45
+                
+                // Tự động tải thống kê SaaS Seat Billing
+                self.loadCompanyBillingStats(token: token)
+            }
+        }.resume()
+    }
+    
+    func loadCompanyBillingStats(token: String) {
+        guard !companies.isEmpty else { return }
+        isLoadingBilling = true
+        let group = DispatchGroup()
+        var newMap: [String: CompanyBillingStats] = [:]
+        let lock = NSLock()
+        
+        for company in companies {
+            group.enter()
+            let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(company.id)/users?pageSize=300"
+            guard let reqUrl = URL(string: url) else {
+                group.leave()
+                continue
+            }
+            var request = URLRequest(url: reqUrl)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            
+            URLSession.shared.dataTask(with: request) { data, _, _ in
+                defer { group.leave() }
+                var uList: [BillableUserDetail] = []
+                let effectivePrice = company.pricePerUserMonthly > 0 ? company.pricePerUserMonthly : 250000
+                
+                if let data = data,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let documents = json["documents"] as? [[String: Any]] {
+                    for doc in documents {
+                        guard let fields = doc["fields"] as? [String: Any] else { continue }
+                        let email = FirestoreHelper.getString(fields["email"] as? [String: Any])
+                        let nameRaw = FirestoreHelper.getString(fields["name"] as? [String: Any])
+                        let fullNameRaw = FirestoreHelper.getString(fields["fullName"] as? [String: Any])
+                        let name = nameRaw.isEmpty ? (fullNameRaw.isEmpty ? "Chưa đặt tên" : fullNameRaw) : nameRaw
+                        let role = FirestoreHelper.getString(fields["role"] as? [String: Any]).uppercased()
+                        let deptRaw = FirestoreHelper.getString(fields["department"] as? [String: Any])
+                        let phongBanRaw = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
+                        let department = deptRaw.isEmpty ? phongBanRaw : deptRaw
+                        let status = FirestoreHelper.getString(fields["status"] as? [String: Any]).uppercased()
+                        let isActiveRaw = FirestoreHelper.getBool(fields["isActive"] as? [String: Any], defaultValue: true)
+                        
+                        let isActive = isActiveRaw && status != "LOCKED" && status != "DISABLED"
+                        let isAdmin = ["ADMIN", "QUANTRI", "SUPER_ADMIN", "SUPERADMIN"].contains(role)
+                        let isBillable = isActive && !isAdmin
+                        
+                        uList.append(BillableUserDetail(
+                            email: email,
+                            name: name,
+                            role: role.isEmpty ? "STAFF" : role,
+                            department: department,
+                            isBillable: isBillable,
+                            isActive: isActive
+                        ))
+                    }
+                }
+                
+                let activeUsers = uList.filter { $0.isActive }
+                let adminCount = activeUsers.filter { !$0.isBillable }.count
+                let billableCount = activeUsers.filter { $0.isBillable }.count
+                let monthlyRev = Int64(billableCount) * effectivePrice
+                
+                let stat = CompanyBillingStats(
+                    companyId: company.id,
+                    companyName: company.companyName,
+                    totalUsers: activeUsers.count,
+                    adminUsers: adminCount,
+                    billableUsers: billableCount,
+                    pricePerUser: effectivePrice,
+                    monthlyRevenue: monthlyRev,
+                    usersList: uList.sorted { $0.isBillable && !$1.isBillable }
+                )
+                
+                lock.lock()
+                newMap[company.id] = stat
+                lock.unlock()
+            }.resume()
+        }
+        
+        group.notify(queue: .main) {
+            self.companyBillingMap = newMap
+            self.isLoadingBilling = false
+        }
+    }
+    
+    func updateCompanyPrice(companyId: String, newPrice: Int64, token: String) {
+        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=pricePerUserMonthly"
+        guard let reqUrl = URL(string: url) else { return }
+        var request = URLRequest(url: reqUrl)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "fields": [
+                "pricePerUserMonthly": ["integerValue": "\(newPrice)"]
+            ]
+        ]
+        
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        URLSession.shared.dataTask(with: request) { _, response, _ in
+            if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
+                DispatchQueue.main.async {
+                    if let index = self.companies.firstIndex(where: { $0.id == companyId }) {
+                        self.companies[index].pricePerUserMonthly = newPrice
+                    }
+                    if var existing = self.companyBillingMap[companyId] {
+                        existing.pricePerUser = newPrice
+                        existing.monthlyRevenue = Int64(existing.billableUsers) * newPrice
+                        self.companyBillingMap[companyId] = existing
+                    }
+                }
             }
         }.resume()
     }
@@ -472,6 +1084,7 @@ class SuperAdminViewModel: ObservableObject {
                 "isMaintenance": ["booleanValue": false],
                 "licenseTier": ["stringValue": "TRIAL"],
                 "maxDevices": ["integerValue": "20"],
+                "pricePerUserMonthly": ["integerValue": "250000"],
                 "createdAt": ["integerValue": "\(Int64(Date().timeIntervalSince1970 * 1000))"]
             ]
         ]
