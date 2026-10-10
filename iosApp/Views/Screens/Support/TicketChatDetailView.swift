@@ -240,9 +240,8 @@ public struct TicketChatDetailView: View {
             startSlaTimer()
 
             chatPollTimer?.invalidate()
-            chatPollTimer = Timer.scheduledTimer(withTimeInterval: 2.5, repeats: true) { _ in
+            chatPollTimer = Timer.scheduledTimer(withTimeInterval: 8.0, repeats: true) { _ in
                 viewModel.fetchMessages(for: ticket.id)
-                viewModel.fetchTicketsSilent()
             }
         }
         .onDisappear {

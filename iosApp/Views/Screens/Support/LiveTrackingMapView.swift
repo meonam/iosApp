@@ -790,7 +790,7 @@ public struct LiveTrackingMapView: View {
     // MARK: - MAP AUTO POLLING (CẬP NHẬT TỌA ĐỘ VÀ TRẠNG THÁI REALTIME)
     private func startMapPolling() {
         stopMapPolling()
-        mapPollTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { _ in
+        mapPollTimer = Timer.scheduledTimer(withTimeInterval: 15.0, repeats: true) { _ in
             viewModel.fetchTicketsSilent()
         }
     }

@@ -40,11 +40,10 @@ public class HomeViewModel: ObservableObject {
 
     public func startRealtimeSync() {
         stopRealtimeSync()
-        syncTimer = Timer.scheduledTimer(withTimeInterval: 10.0, repeats: true) { [weak self] _ in
+        syncTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 await self.fetchUnreadNotifications()
-                await self.fetchCompanyBanner()
             }
         }
     }
