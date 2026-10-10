@@ -267,7 +267,7 @@ public struct HelpView: View {
                                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
                                     }
 
-                                    Text("Phiên bản ứng dụng v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.3") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "133"))")
+                                    Text("Phiên bản ứng dụng v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.4") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "134"))")
                                         .font(.system(size: 11.5))
                                         .foregroundColor(Color.appTextSecondary)
                                         .padding(.top, 4)

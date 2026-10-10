@@ -707,6 +707,55 @@ public struct DispatchTicketSheet: View {
                         .italic()
                         .padding(.vertical, 6)
                 } else {
+                    // Tùy chọn Phương án 1: Phân công chung cho cả Tổ (thành viên tự nhận)
+                    let isTeamSelected = selectedSpecialistEmail.isEmpty
+                    Button(action: {
+                        selectedSpecialistEmail = ""
+                        selectedSpecialistName = "Tổ \(currentSpecialistTeam.name)"
+                    }) {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle()
+                                    .stroke(isTeamSelected ? tealColor : Color.gray.opacity(0.5), lineWidth: 2)
+                                    .frame(width: 20, height: 20)
+                                if isTeamSelected {
+                                    Circle()
+                                        .fill(tealColor)
+                                        .frame(width: 10, height: 10)
+                                }
+                            }
+
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack(spacing: 6) {
+                                    Text("Phân công chung cho cả \(currentSpecialistTeam.name)")
+                                        .font(.system(size: 13.5, weight: .bold))
+                                        .foregroundColor(isTeamSelected ? tealColor : Color.appTextPrimary)
+
+                                    Text("🎯 Team Pool")
+                                        .font(.system(size: 10.5, weight: .bold))
+                                        .foregroundColor(Color(hex: "#0D9488"))
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1.5)
+                                        .background(Color(hex: "#CCFBF1"))
+                                        .cornerRadius(4)
+                                }
+
+                                Text("Toàn bộ chuyên viên trong tổ đều nhận thông báo, ai online trước sẽ nhận xử lý")
+                                    .font(.system(size: 11.5))
+                                    .foregroundColor(Color.appTextSecondary)
+                            }
+
+                            Spacer()
+                        }
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 4)
+                        .background(isTeamSelected ? Color(hex: "#F0FDFA") : Color.clear)
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+
+                    Divider().padding(.vertical, 2)
+
                     ForEach(specialistsInTeam, id: \.email) { spec in
                         let isSelected = selectedSpecialistEmail.caseInsensitiveCompare(spec.email) == .orderedSame
                         let isOnline = spec.isOnline && (spec.lastActiveAt > 0) && (Int64(Date().timeIntervalSince1970 * 1000) - spec.lastActiveAt <= 15 * 60 * 1000)

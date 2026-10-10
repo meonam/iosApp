@@ -62,7 +62,6 @@ public class HomeViewModel: ObservableObject {
             await fetchCompanyBanner()
             await fetchDevices()
             await fetchOpenTickets()
-            await fetchPendingStaff()
             await fetchUnreadNotifications()
             self.isLoading = false
             self.startRealtimeSync()
@@ -357,47 +356,6 @@ public class HomeViewModel: ObservableObject {
     }
 
     // MARK: - 4. TẢI NHÂN VIÊN CHỜ DUYỆT (PENDING STAFF)
-    private func fetchPendingStaff() async {
-        let isMgrOrAdmin = user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isManager
-        guard isMgrOrAdmin else {
-            self.pendingStaffCount = 0
-            return
-        }
-
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users?pageSize=100"
-        guard let url = URL(string: urlStr) else { return }
-
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-
-        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
-              httpResponse.statusCode == 200,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let documents = json["documents"] as? [[String: Any]] else {
-            return
-        }
-
-        let userRoleLower = user.role.lowercased()
-        let isGlobalAdmin = userRoleLower.contains("admin") || user.isSuperAdmin
-
-        let pendingList = documents.filter { doc in
-            guard let fields = doc["fields"] as? [String: Any] else { return false }
-            let status = FirestoreHelper.getString(fields["status"] as? [String: Any]).uppercased()
-            guard status == "PENDING" else { return false }
-
-            if isGlobalAdmin || user.departmentId.isEmpty {
-                return true
-            }
-
-            let dept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
-            let phongBan = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
-            return dept.caseInsensitiveCompare(user.departmentId) == .orderedSame ||
-                   phongBan.caseInsensitiveCompare(user.departmentId) == .orderedSame
-        }
-
-        self.pendingStaffCount = pendingList.count
-    }
-
     // MARK: - 5. TẢI THÔNG BÁO CHƯA ĐỌC
     @MainActor
     public func clearUnreadNotifications() {

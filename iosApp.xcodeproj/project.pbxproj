@@ -47,7 +47,6 @@
 		220010322C12345600000001 /* CompanyBannerTickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000322C12345600000001 /* CompanyBannerTickerView.swift */; };
 		220010332C12345600000001 /* AdminViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000332C12345600000001 /* AdminViewModel.swift */; };
 		220010342C12345600000001 /* UserManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000342C12345600000001 /* UserManagementView.swift */; };
-		220010352C12345600000001 /* ApproveStaffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000352C12345600000001 /* ApproveStaffView.swift */; };
 		220010362C12345600000001 /* DepartmentManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000362C12345600000001 /* DepartmentManagerView.swift */; };
 		220010372C12345600000001 /* UnitRegionManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000372C12345600000001 /* UnitRegionManagerView.swift */; };
 		220010592C12345600000001 /* UnitManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000592C12345600000001 /* UnitManagerView.swift */; };
@@ -58,7 +57,6 @@
 		220010412C12345600000001 /* SupportRatingReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000412C12345600000001 /* SupportRatingReportView.swift */; };
 		220010422C12345600000001 /* OnlineKtvMonitorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000422C12345600000001 /* OnlineKtvMonitorView.swift */; };
 		220010432C12345600000001 /* StaffSupportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000432C12345600000001 /* StaffSupportView.swift */; };
-		220010442C12345600000001 /* PendingApprovalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000442C12345600000001 /* PendingApprovalView.swift */; };
 		220010452C12345600000001 /* AttendanceHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000452C12345600000001 /* AttendanceHistoryView.swift */; };
 		220010462C12345600000001 /* InfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000462C12345600000001 /* InfoView.swift */; };
 		220010472C12345600000001 /* AttendanceReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 220000472C12345600000001 /* AttendanceReportView.swift */; };
@@ -135,7 +133,6 @@
 		220000322C12345600000001 /* CompanyBannerTickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanyBannerTickerView.swift; sourceTree = "<group>"; };
 		220000332C12345600000001 /* AdminViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdminViewModel.swift; sourceTree = "<group>"; };
 		220000342C12345600000001 /* UserManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserManagementView.swift; sourceTree = "<group>"; };
-		220000352C12345600000001 /* ApproveStaffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApproveStaffView.swift; sourceTree = "<group>"; };
 		220000362C12345600000001 /* DepartmentManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DepartmentManagerView.swift; sourceTree = "<group>"; };
 		220000372C12345600000001 /* UnitRegionManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitRegionManagerView.swift; sourceTree = "<group>"; };
 		220000592C12345600000001 /* UnitManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitManagerView.swift; sourceTree = "<group>"; };
@@ -146,7 +143,6 @@
 		220000412C12345600000001 /* SupportRatingReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportRatingReportView.swift; sourceTree = "<group>"; };
 		220000422C12345600000001 /* OnlineKtvMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineKtvMonitorView.swift; sourceTree = "<group>"; };
 		220000432C12345600000001 /* StaffSupportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StaffSupportView.swift; sourceTree = "<group>"; };
-		220000442C12345600000001 /* PendingApprovalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingApprovalView.swift; sourceTree = "<group>"; };
 		220000452C12345600000001 /* AttendanceHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceHistoryView.swift; sourceTree = "<group>"; };
 		220000462C12345600000001 /* InfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoView.swift; sourceTree = "<group>"; };
 		220000472C12345600000001 /* AttendanceReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttendanceReportView.swift; sourceTree = "<group>"; };
@@ -336,7 +332,6 @@
 			isa = PBXGroup;
 			children = (
 				220000172C12345600000001 /* LoginView.swift */,
-				220000442C12345600000001 /* PendingApprovalView.swift */,
 				2200004C2C12345600000001 /* ResetPasswordView.swift */,
 			);
 			path = Auth;
@@ -445,7 +440,6 @@
 			isa = PBXGroup;
 			children = (
 				220000342C12345600000001 /* UserManagementView.swift */,
-				220000352C12345600000001 /* ApproveStaffView.swift */,
 				220000362C12345600000001 /* DepartmentManagerView.swift */,
 				220000372C12345600000001 /* UnitRegionManagerView.swift */,
 				220000592C12345600000001 /* UnitManagerView.swift */,
@@ -581,7 +575,6 @@
 				220010322C12345600000001 /* CompanyBannerTickerView.swift in Sources */,
 				220010332C12345600000001 /* AdminViewModel.swift in Sources */,
 				220010342C12345600000001 /* UserManagementView.swift in Sources */,
-				220010352C12345600000001 /* ApproveStaffView.swift in Sources */,
 				220010362C12345600000001 /* DepartmentManagerView.swift in Sources */,
 				220010372C12345600000001 /* UnitRegionManagerView.swift in Sources */,
 				220010592C12345600000001 /* UnitManagerView.swift in Sources */,
@@ -592,7 +585,6 @@
 				220010412C12345600000001 /* SupportRatingReportView.swift in Sources */,
 				220010422C12345600000001 /* OnlineKtvMonitorView.swift in Sources */,
 				220010432C12345600000001 /* StaffSupportView.swift in Sources */,
-				220010442C12345600000001 /* PendingApprovalView.swift in Sources */,
 				220010452C12345600000001 /* AttendanceHistoryView.swift in Sources */,
 				220010462C12345600000001 /* InfoView.swift in Sources */,
 				220010472C12345600000001 /* AttendanceReportView.swift in Sources */,
@@ -752,7 +744,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 133;
+				CURRENT_PROJECT_VERSION = 134;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -766,7 +758,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.3;
+				MARKETING_VERSION = 1.3.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.huyenhan.qltb.iosApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -781,7 +773,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 133;
+				CURRENT_PROJECT_VERSION = 134;
 				DEVELOPMENT_ASSET_PATHS = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -795,7 +787,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.3;
+				MARKETING_VERSION = 1.3.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.huyenhan.qltb.iosApp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

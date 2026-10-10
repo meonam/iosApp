@@ -187,47 +187,6 @@ public class AdminViewModel: ObservableObject {
         }
     }
 
-    // MARK: - APPROVE USER (DUYỆT NHÂN VIÊN MỚI)
-    public func approveUser(email: String, role: String, donVi: String, departmentId: String) {
-        isLoading = true
-        Task {
-            let patchFields: [String: Any] = [
-                "status": FirestoreHelper.valueToFirestore("ACTIVE"),
-                "role": FirestoreHelper.valueToFirestore(role),
-                "donVi": FirestoreHelper.valueToFirestore(donVi),
-                "departmentId": FirestoreHelper.valueToFirestore(departmentId)
-            ]
-            await patchUserDocument(email: email, fields: patchFields, updateMasks: ["status", "role", "donVi", "departmentId"])
-
-            // Cập nhật local state ngay lập tức
-            if let idx = allUsers.firstIndex(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame }) {
-                allUsers[idx].status = "ACTIVE"
-                allUsers[idx].role = role
-                allUsers[idx].donVi = donVi
-                allUsers[idx].departmentId = departmentId
-            }
-            self.isLoading = false
-            self.successMessage = "✅ Đã phê duyệt nhân viên: \(email)"
-        }
-    }
-
-    // MARK: - REJECT USER (TỪ CHỐI NHÂN VIÊN)
-    public func rejectUser(email: String) {
-        isLoading = true
-        Task {
-            let patchFields: [String: Any] = [
-                "status": FirestoreHelper.valueToFirestore("REJECTED")
-            ]
-            await patchUserDocument(email: email, fields: patchFields, updateMasks: ["status"])
-
-            if let idx = allUsers.firstIndex(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame }) {
-                allUsers[idx].status = "REJECTED"
-            }
-            self.isLoading = false
-            self.successMessage = "Đã từ chối tài khoản: \(email)"
-        }
-    }
-
     // MARK: - TRANSFER USER (ĐIỀU CHUYỂN PHÒNG BAN / ĐƠN VỊ)
     public func transferUser(email: String, newUnit: String, newDept: String) {
         isLoading = true

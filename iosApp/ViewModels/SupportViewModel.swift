@@ -564,21 +564,19 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
-    // MARK: - REAL-TIME TICKET AUTO POLLING (ĐỒNG BỘ 1:1 VỚI FIRESTORE REALTIME LISTENER TRÊN ANDROID)
+    // MARK: - REAL-TIME TICKET AUTO POLLING (TỐI ƯU HÓA TIẾT KIỆM BỘ ĐỌC FIRESTORE & PIN)
     private var autoPollingTimer: Timer?
     private var pollingDispatchSource: DispatchSourceTimer?
     private var firestoreListenTask: Task<Void, Never>?
     private var isFetchingSilent: Bool = false
 
-    public func startAutoPolling(interval: TimeInterval = 3.0) {
+    public func startAutoPolling(interval: TimeInterval = 45.0) {
         stopAutoPolling()
-        // 1. Kích hoạt Keep-Alive âm thanh chạy nền 24/7 để iOS không bao giờ suspend tiến trình
-        BackgroundKeepAliveService.shared.start()
 
-        // 2. Sử dụng DispatchSourceTimer trên background queue để không phụ thuộc vào RunLoop mode
-        let queue = DispatchQueue.global(qos: .userInitiated)
+        // Sử dụng DispatchSourceTimer trên background queue với tần suất vừa phải (45s) khi người dùng đang mở App
+        let queue = DispatchQueue.global(qos: .utility)
         let timer = DispatchSource.makeTimerSource(queue: queue)
-        timer.schedule(deadline: .now(), repeating: interval, leeway: .milliseconds(200))
+        timer.schedule(deadline: .now() + interval, repeating: interval, leeway: .seconds(2))
         timer.setEventHandler { [weak self] in
             Task { @MainActor [weak self] in
                 self?.fetchTicketsSilent()
@@ -586,9 +584,6 @@ public class SupportViewModel: ObservableObject {
         }
         timer.resume()
         self.pollingDispatchSource = timer
-
-        // 3. Firestore Listen stream (gần realtime như addSnapshotListener Android)
-        startFirestoreListen()
     }
 
     public func stopAutoPolling() {
@@ -698,36 +693,20 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
-    // MARK: - GIỮ POLLING HOẠT ĐỘNG KHI APP CHẠY NỀN (KHÔNG LOGOUT)
+    // MARK: - GIỮ TRẠNG THÁI KHI APP CHẠY NỀN (TIẾT KIỆM TỐI ĐA BỘ ĐỌC VÀ PIN)
     private var bgPollingTaskId: UIBackgroundTaskIdentifier = .invalid
     private var bgPollingRenewalTask: Task<Void, Never>?
 
     public func keepPollingInBackground() {
-        // Kết thúc background task cũ nếu có
+        // Khi app xuống nền (Background), dừng triệt để polling và audio keep-alive
+        // Nhiệm vụ đánh thức khi có vé mới được bàn giao 100% cho Apple Push Notification (APNs/FCM)
+        stopAutoPolling()
+        BackgroundKeepAliveService.shared.stop()
         if bgPollingTaskId != .invalid {
             UIApplication.shared.endBackgroundTask(bgPollingTaskId)
             bgPollingTaskId = .invalid
         }
         bgPollingRenewalTask?.cancel()
-
-        // 1. Bắt đầu background execution ngắn hạn của iOS hỗ trợ quá trình chuyển trạng thái
-        bgPollingTaskId = UIApplication.shared.beginBackgroundTask(withName: "QLTB_KeepPolling") { [weak self] in
-            guard let self = self else { return }
-            if self.bgPollingTaskId != .invalid {
-                UIApplication.shared.endBackgroundTask(self.bgPollingTaskId)
-                self.bgPollingTaskId = .invalid
-            }
-        }
-
-        // 2. Kích hoạt dịch vụ Audio Keep-Alive duy trì chạy nền 24/7
-        BackgroundKeepAliveService.shared.start()
-
-        // 3. Đảm bảo timer polling 2s đang chạy
-        if pollingDispatchSource == nil && autoPollingTimer == nil {
-            startAutoPolling(interval: 2.0)
-        } else {
-            fetchTicketsSilent()
-        }
     }
 
     // MARK: - FETCH ALL TICKETS (FIRESTORE RUN QUERY & DIRECT FALLBACK)
@@ -756,7 +735,7 @@ public class SupportViewModel: ObservableObject {
             return
         }
 
-        let queryLimit = showSpinner ? 500 : 150
+        let queryLimit = 50
         let queryPayload: [String: Any] = [
             "structuredQuery": [
                 "from": [["collectionId": "support_tickets"]],

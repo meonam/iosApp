@@ -49,17 +49,25 @@ public struct MainContainerView: View {
                     let token = authViewModel.currentIdToken
 
                     if user.status == "PENDING" {
-                        PendingApprovalView(
-                            viewModel: authViewModel,
-                            onApproved: { role in
-                                authViewModel.currentUser?.status = "APPROVED"
-                                authViewModel.currentUser?.role = role
-                            },
-                            onLogout: {
+                        VStack(spacing: 16) {
+                            Image(systemName: "clock.badge.exclamationmark")
+                                .font(.system(size: 60))
+                                .foregroundColor(.orange)
+                            Text("Tài khoản chưa được kích hoạt")
+                                .font(.headline)
+                            Text("Vui lòng liên hệ Quản trị viên để được kích hoạt tài khoản.")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                            Button("Đăng xuất") {
                                 incomingCallManager.stopListening()
                                 authViewModel.logout()
                             }
-                        )
+                            .buttonStyle(.borderedProminent)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(.systemBackground))
                     } else {
                         ZStack(alignment: .leading) {
                             // MÀN HÌNH CHÍNH THEO DESTINATION + BOTTOM BAR + FAB
@@ -205,20 +213,19 @@ public struct MainContainerView: View {
                         guard authViewModel.isAuthenticated, let user = authViewModel.currentUser else { return }
                         switch newPhase {
                         case .active:
-                            // Foreground: cập nhật presence + restart stream
+                            // Foreground: Cập nhật trạng thái online và nạp lại vé mới nhất một lần
                             PresenceHelper.shared.setPresence(
                                 companyId: authViewModel.currentCompanyId,
                                 email: user.email,
                                 isOnline: true,
                                 idToken: authViewModel.currentIdToken
                             )
-                            // Khởi động lại polling nhanh 2s và kích hoạt keep-alive
-                            BackgroundKeepAliveService.shared.start()
-                            supportViewModel.startAutoPolling(interval: 2.0)
+                            supportViewModel.fetchTickets()
+                            supportViewModel.startAutoPolling(interval: 45.0)
                         case .background:
-                            // Background: giữ nguyên polling 2s — KeepAlive duy trì tiến trình 24/7
-                            // KHÔNG stopAutoPolling() — đây là yêu cầu bắt buộc: app nền vẫn nhận lệnh
-                            BackgroundKeepAliveService.shared.start()
+                            // Background: Dừng hoàn toàn polling và Keep-Alive âm thanh
+                            // Giúp máy ngủ sâu (Deep Sleep), không tiêu tốn pin và không đốt hạn mức đọc Firestore
+                            // Việc nhận lệnh khi app đóng/nền được đảm nhiệm 100% bởi Apple Push Notification (APNs/FCM)
                             supportViewModel.keepPollingInBackground()
                         case .inactive:
                             break
@@ -562,12 +569,6 @@ public struct MainContainerView: View {
 
         case .userManagement:
             UserManagementView(
-                viewModel: adminViewModel,
-                onBack: { currentDestination = .home }
-            )
-
-        case .approveStaff:
-            ApproveStaffView(
                 viewModel: adminViewModel,
                 onBack: { currentDestination = .home }
             )

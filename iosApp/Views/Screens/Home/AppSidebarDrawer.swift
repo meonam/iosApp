@@ -17,7 +17,6 @@ public enum DrawerDestination: Identifiable {
     case attendanceHistory
     case shiftSchedule
     case userManagement
-    case approveStaff
     case departmentManagement
     case unitManagement
     case regionManagement
@@ -48,7 +47,6 @@ public enum DrawerDestination: Identifiable {
         case .attendanceHistory: return "attendanceHistory"
         case .shiftSchedule: return "shiftSchedule"
         case .userManagement: return "userManagement"
-        case .approveStaff: return "approveStaff"
         case .departmentManagement: return "departmentManagement"
         case .unitManagement: return "unitManagement"
         case .regionManagement: return "regionManagement"
@@ -335,15 +333,6 @@ public struct AppSidebarDrawer: View {
                                         onSelect(.userManagement)
                                     }
                                     drawerItemRow(
-                                        title: "Duyệt nhân viên mới",
-                                        icon: "checkmark.shield.fill",
-                                        color: Color(hex: "#10B981"),
-                                        badge: pendingStaffCount > 0 ? "\(pendingStaffCount)" : nil,
-                                        isSelected: currentDestination == .approveStaff
-                                    ) {
-                                        onSelect(.approveStaff)
-                                    }
-                                    drawerItemRow(
                                         title: "Quản lý phòng ban",
                                         icon: "building.2.fill",
                                         color: Color(hex: "#818CF8"),
@@ -572,7 +561,7 @@ public struct AppSidebarDrawer: View {
 
                     Spacer()
 
-                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.3")")
+                    Text("v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.4")")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Color.appTextSecondary)
                 }

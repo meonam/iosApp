@@ -1419,6 +1419,11 @@ public struct PrintQrLabelView: View {
           <table class='sign-table'>
             <tr>
               <td>
+                <b>TRƯỞNG PHÒNG / GIÁM ĐỐC</b><br>
+                <i>(Ký và ghi rõ họ tên)</i><br><br><br><br>
+                <b>....................................</b>
+              </td>
+              <td>
                 <b>ĐẠI DIỆN TIẾP NHẬN</b><br>
                 <i>(Ký và ghi rõ họ tên)</i><br><br><br><br>
                 <b>\(receiptReceiverName)</b>
@@ -1427,11 +1432,6 @@ public struct PrintQrLabelView: View {
                 <b>NGƯỜI LẬP BÁO CÁO</b><br>
                 <i>(Ký và ghi rõ họ tên)</i><br><br><br><br>
                 <b>\(receiptGiverName)</b>
-              </td>
-              <td>
-                <b>TRƯỞNG PHÒNG / GIÁM ĐỐC</b><br>
-                <i>(Ký và ghi rõ họ tên)</i><br><br><br><br>
-                <b>....................................</b>
               </td>
             </tr>
           </table>

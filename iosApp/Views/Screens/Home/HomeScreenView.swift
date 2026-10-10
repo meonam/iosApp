@@ -300,7 +300,7 @@ public struct HomeScreenView: View {
         .alert("Thông tin ứng dụng", isPresented: $showAboutDialog) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("IT Service & Assets\nPhiên bản: v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.2.3") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "123"))\nSaigon Co.op - Bản quyền thuộc Trung tâm CNTT")
+            Text("IT Service & Assets\nPhiên bản: v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.4") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "134"))\nSaigon Co.op - Bản quyền thuộc Trung tâm CNTT")
         }
         // Alert Xác nhận đăng xuất
         .alert("Đăng xuất", isPresented: $showLogoutConfirmDialog) {
@@ -901,27 +901,13 @@ public struct HomeScreenView: View {
                     activeSheet = .statistics
                 }
 
-                // Thẻ thứ 4: Nếu có nhân viên chờ duyệt -> Hiện Duyệt NV; ngược lại hiện In tem QR
-                let isMgrOrAdm = viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk || viewModel.user.isManager
-                if isMgrOrAdm && viewModel.pendingStaffCount > 0 {
-                    quickAccessCard(
-                        icon: "person.badge.shield.checkmark.fill",
-                        label: "Duyệt NV",
-                        iconColor: Color(hex: "#DB2777"),
-                        bgColor: Color(hex: "#FCE7F3"),
-                        badgeCount: viewModel.pendingStaffCount
-                    ) {
-                        onNavigate(.approveStaff)
-                    }
-                } else {
-                    quickAccessCard(
-                        icon: "printer.fill",
-                        label: "In tem QR",
-                        iconColor: Color(hex: "#4F46E5"),
-                        bgColor: Color(hex: "#E0E7FF")
-                    ) {
-                        activeSheet = .printQr
-                    }
+                quickAccessCard(
+                    icon: "printer.fill",
+                    label: "In tem QR",
+                    iconColor: Color(hex: "#4F46E5"),
+                    bgColor: Color(hex: "#E0E7FF")
+                ) {
+                    activeSheet = .printQr
                 }
             }
         }
