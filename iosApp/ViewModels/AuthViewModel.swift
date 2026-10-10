@@ -174,6 +174,19 @@ public class AuthViewModel: ObservableObject {
         UserDefaults.standard.removeObject(forKey: "saved_auth_password")
         if let u = currentUser, let data = try? JSONEncoder().encode(u) {
             UserDefaults.standard.set(data, forKey: "saved_auth_user_data")
+
+            // Đồng thời lưu vào bộ nhớ đệm Offline để tra cứu đăng nhập bằng SĐT / Mã NV khi offline
+            var offlineList = (UserDefaults.standard.array(forKey: "qltb_offline_users_cache") as? [[String: String]]) ?? []
+            let cleanEmail = u.email.lowercased()
+            offlineList.removeAll { ($0["email"] ?? "").lowercased() == cleanEmail }
+            offlineList.insert([
+                "email": u.email,
+                "companyId": self.currentCompanyId,
+                "maNhanVien": u.maNhanVien,
+                "phone": u.phone
+            ], at: 0)
+            if offlineList.count > 50 { offlineList = Array(offlineList.prefix(50)) }
+            UserDefaults.standard.set(offlineList, forKey: "qltb_offline_users_cache")
         }
     }
 

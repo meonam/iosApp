@@ -65,6 +65,64 @@ public class AuthService {
     public static let shared = AuthService()
 
     private var identifierCache: [String: String] = [:]
+    private var cachedGuestToken: String? = nil
+    private var guestTokenExpiry: Date = .distantPast
+
+    // Lấy Guest Token ngầm (guest_lookup_qltb@gmail.com) tương tự Desktop/Android
+    public func ensureGuestToken() async -> String? {
+        if let token = cachedGuestToken, Date() < guestTokenExpiry {
+            return token
+        }
+        guard let url = URL(string: FirebaseConfig.authSignInUrl) else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let body: [String: Any] = [
+            "email": "guest_lookup_qltb@gmail.com",
+            "password": "GuestLookup@2026!",
+            "returnSecureToken": true
+        ]
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: body),
+              let (data, resp) = try? await URLSession.shared.upload(for: request, from: httpBody),
+              let http = resp as? HTTPURLResponse, http.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let idToken = json["idToken"] as? String else {
+            return nil
+        }
+        let expiresInSec = Double(json["expiresIn"] as? String ?? "3600") ?? 3600.0
+        self.cachedGuestToken = idToken
+        self.guestTokenExpiry = Date().addingTimeInterval(expiresInSec - 120.0)
+        return idToken
+    }
+
+    private func getPhoneVariations(_ rawPhone: String) -> [String] {
+        let trimmed = rawPhone.trimmingCharacters(in: .whitespacesAndNewlines)
+        var norm = trimmed.filter { $0.isNumber || $0 == "+" }
+        if norm.hasPrefix("+84") {
+            norm = "0" + norm.dropFirst(3)
+        } else if norm.hasPrefix("84") && norm.count >= 11 {
+            norm = "0" + norm.dropFirst(2)
+        }
+
+        var variations = Set<String>()
+        if !trimmed.isEmpty { variations.insert(trimmed) }
+        if !norm.isEmpty {
+            variations.insert(norm)
+            if norm.hasPrefix("0") {
+                let core = String(norm.dropFirst())
+                variations.insert("+84\(core)")
+                variations.insert("84\(core)")
+                if norm.count == 10 {
+                    let p1 = norm.prefix(4)
+                    let p2 = norm.dropFirst(4).prefix(3)
+                    let p3 = norm.suffix(3)
+                    variations.insert("\(p1) \(p2) \(p3)")
+                    variations.insert("\(p1).\(p2).\(p3)")
+                }
+            }
+        }
+        return Array(variations).filter { !$0.isEmpty }
+    }
 
     // Tra cứu Email từ Số điện thoại hoặc Mã nhân viên (Đồng bộ 1:1 Android UserCompanyResolver.kt)
     public func resolveEmailFromIdentifier(input: String) async -> String? {
@@ -79,6 +137,32 @@ public class AuthService {
 
         let cleanDigits = trimmed.filter { $0.isNumber }
         let isPhone = cleanDigits.count >= 8 && cleanDigits.count <= 12
+        let phoneVariations = isPhone ? getPhoneVariations(trimmed) : []
+        let targetDigitsSet = Set([cleanDigits] + phoneVariations.map { $0.filter { $0.isNumber } }.filter { !$0.isEmpty })
+
+        // 0. Kiểm tra bộ nhớ đệm Offline UserDefaults (nếu trước đó đã đăng nhập trên máy này)
+        if let offlineList = UserDefaults.standard.array(forKey: "qltb_offline_users_cache") as? [[String: String]] {
+            for u in offlineList {
+                guard let email = u["email"], email.contains("@") else { continue }
+                let uMnv = (u["maNhanVien"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+                if !uMnv.isEmpty && uMnv == upperInput {
+                    let resEmail = email.lowercased()
+                    identifierCache[trimmed] = resEmail
+                    return resEmail
+                }
+                if isPhone {
+                    let uPhoneDigits = (u["phone"] ?? "").filter { $0.isNumber }
+                    if targetDigitsSet.contains(uPhoneDigits) || (uPhoneDigits.count >= 9 && cleanDigits.count >= 9 && (uPhoneDigits.hasSuffix(cleanDigits) || cleanDigits.hasSuffix(uPhoneDigits))) {
+                        let resEmail = email.lowercased()
+                        identifierCache[trimmed] = resEmail
+                        return resEmail
+                    }
+                }
+            }
+        }
+
+        // Chuẩn bị token khách để xác thực nếu Firestore yêu cầu
+        let guestToken = await ensureGuestToken()
 
         // Helper so khớp DocumentSnapshot
         func matchesUser(fields: [String: Any], docId: String) -> String? {
@@ -86,7 +170,8 @@ public class AuthService {
                 FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
                 FirestoreHelper.getString(fields["employeeId"] as? [String: Any]),
                 FirestoreHelper.getString(fields["employeeCode"] as? [String: Any]),
-                FirestoreHelper.getString(fields["mnv"] as? [String: Any])
+                FirestoreHelper.getString(fields["mnv"] as? [String: Any]),
+                FirestoreHelper.getString(fields["mnvDisplay"] as? [String: Any])
             ].map { $0.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() }.filter { !$0.isEmpty }
 
             let cleanDocId = docId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -102,7 +187,7 @@ public class AuthService {
                 return !emailField.isEmpty ? emailField : (docId.contains("@") ? docId.lowercased() : nil)
             }
 
-            if isPhone && !cleanDigits.isEmpty {
+            if isPhone && !targetDigitsSet.isEmpty {
                 let pFields = [
                     FirestoreHelper.getString(fields["phone"] as? [String: Any]),
                     FirestoreHelper.getString(fields["soDienThoai"] as? [String: Any]),
@@ -112,7 +197,7 @@ public class AuthService {
                 ].map { $0.filter { $0.isNumber } }.filter { !$0.isEmpty }
 
                 for p in pFields {
-                    if p == cleanDigits || (p.hasSuffix(cleanDigits) && cleanDigits.count >= 9) || (cleanDigits.hasSuffix(p) && p.count >= 9) {
+                    if targetDigitsSet.contains(p) || (p.count >= 9 && cleanDigits.count >= 9 && (p.hasSuffix(cleanDigits) || cleanDigits.hasSuffix(p))) {
                         return !emailField.isEmpty ? emailField : (docId.contains("@") ? docId.lowercased() : nil)
                     }
                 }
@@ -121,10 +206,17 @@ public class AuthService {
             return nil
         }
 
+        func makeAuthorizedRequest(urlStr: String) -> URLRequest? {
+            guard let url = URL(string: urlStr) else { return nil }
+            var req = URLRequest(url: url)
+            if let token = guestToken, !token.isEmpty {
+                req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+            return req
+        }
+
         // 1. Quét nhanh trong companies/SGCOOP/users
-        let compUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/SGCOOP/users?pageSize=300"
-        if let compUrl = URL(string: compUrlStr) {
-            let req = URLRequest(url: compUrl)
+        if let req = makeAuthorizedRequest(urlStr: "\(FirebaseConfig.firestoreBaseUrl)/companies/SGCOOP/users?pageSize=300") {
             if let (data, resp) = await FirestoreHelper.executeSafeRequest(req),
                resp.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -144,10 +236,42 @@ public class AuthService {
             }
         }
 
-        // 2. Fallback quét qua root users
-        let rootUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/users?pageSize=300"
-        if let rootUrl = URL(string: rootUrlStr) {
-            let req = URLRequest(url: rootUrl)
+        // 2. Quét qua tất cả các công ty khác trong companies/ (hỗ trợ đa doanh nghiệp)
+        if let reqComps = makeAuthorizedRequest(urlStr: "\(FirebaseConfig.firestoreBaseUrl)/companies?pageSize=50") {
+            if let (data, resp) = await FirestoreHelper.executeSafeRequest(reqComps),
+               resp.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let compDocs = json["documents"] as? [[String: Any]] {
+                for cDoc in compDocs {
+                    guard let cName = cDoc["name"] as? String else { continue }
+                    let cId = cName.components(separatedBy: "/").last ?? ""
+                    if cId.isEmpty || cId.uppercased() == "SGCOOP" { continue }
+
+                    if let reqUsers = makeAuthorizedRequest(urlStr: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cId)/users?pageSize=300") {
+                        if let (uData, uResp) = await FirestoreHelper.executeSafeRequest(reqUsers),
+                           uResp.statusCode == 200,
+                           let uJson = try? JSONSerialization.jsonObject(with: uData) as? [String: Any],
+                           let uDocs = uJson["documents"] as? [[String: Any]] {
+                            for doc in uDocs {
+                                if let fields = doc["fields"] as? [String: Any],
+                                   let docName = doc["name"] as? String {
+                                    let docId = docName.components(separatedBy: "/").last ?? ""
+                                    if let foundEmail = matchesUser(fields: fields, docId: docId) {
+                                        identifierCache[trimmed] = foundEmail
+                                        identifierCache[upperInput] = foundEmail
+                                        if isPhone { identifierCache[cleanDigits] = foundEmail }
+                                        return foundEmail
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 3. Fallback quét qua root users/
+        if let req = makeAuthorizedRequest(urlStr: "\(FirebaseConfig.firestoreBaseUrl)/users?pageSize=300") {
             if let (data, resp) = await FirestoreHelper.executeSafeRequest(req),
                resp.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
