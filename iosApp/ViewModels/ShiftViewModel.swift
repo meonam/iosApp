@@ -35,7 +35,7 @@ public class ShiftViewModel: ObservableObject {
             id: wId,
             companyId: self.companyId,
             weekStart: Int64(thisMonday.timeIntervalSince1970 * 1000),
-            entries: DEFAULT_KTVS
+            entries: []
         )
     }
 
@@ -163,12 +163,12 @@ public class ShiftViewModel: ObservableObject {
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let fields = json["fields"] as? [String: Any] else {
                 self.isLoading = false
-                // Template mặc định nếu tuần chưa được tạo: lấy KTV từ default template
+                // Template mặc định nếu tuần chưa được tạo: để trống entries (không chèn KTV mẫu giả)
                 self.currentWeekSchedule = ShiftSchedule(
                     id: currentWeekId,
                     companyId: companyId,
                     weekStart: Int64(currentMondayDate.timeIntervalSince1970 * 1000),
-                    entries: DEFAULT_KTVS
+                    entries: []
                 )
                 return
             }
@@ -273,9 +273,7 @@ public class ShiftViewModel: ObservableObject {
                 }
             }
 
-            if parsedEntries.isEmpty {
-                parsedEntries = DEFAULT_KTVS
-            }
+            // Không gán DEFAULT_KTVS mẫu giả nếu parsedEntries rỗng
 
             self.currentWeekSchedule = ShiftSchedule(
                 id: currentWeekId,

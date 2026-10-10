@@ -421,7 +421,7 @@ public struct ShiftScheduleView: View {
 
     // MARK: - 5. SCHEDULE MATRIX GRID
     private var scheduleMatrixGrid: some View {
-        let entries = (viewModel.currentWeekSchedule?.entries.isEmpty == false) ? viewModel.currentWeekSchedule!.entries : DEFAULT_KTVS
+        let entries = viewModel.currentWeekSchedule?.entries ?? []
         let labels = viewModel.shortDateLabels
 
         return ScrollView([.horizontal, .vertical]) {
