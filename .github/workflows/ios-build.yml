@@ -65,8 +65,6 @@ jobs:
           echo "IPA_NAME=$IPA_NAME" >> $GITHUB_ENV
           cd build
           zip -r "$IPA_NAME" Payload
-          # Tạo thêm symlink/copy với tên chuẩn dễ tìm
-          cp "$IPA_NAME" "IT-Service-and-Assets_iOS_v${VERSION}.ipa"
           ls -lh *.ipa
 
       - name: 6. Xuất bản tệp cài đặt IPA lên GitHub Artifacts
