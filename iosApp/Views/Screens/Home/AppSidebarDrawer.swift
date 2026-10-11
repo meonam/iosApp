@@ -234,6 +234,18 @@ public struct AppSidebarDrawer: View {
                                 .foregroundColor(Color(hex: "#CBD5E1"))
                                 .lineLimit(1)
 
+                            if !user.phone.isEmpty {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "phone.fill")
+                                        .font(.system(size: 9))
+                                        .foregroundColor(Color.appPrimaryPink)
+                                    Text(user.phone)
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(.white.opacity(0.95))
+                                }
+                                .lineLimit(1)
+                            }
+
                             // Nhãn vai trò màu vàng nổi bật
                             Text(roleDisplayBadge)
                                 .font(.system(size: 10.5, weight: .semibold))

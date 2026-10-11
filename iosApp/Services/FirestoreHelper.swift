@@ -219,4 +219,22 @@ public struct FirestoreHelper {
         guard let (data, resp) = await executeSafeRequest(req) else { return nil }
         return (data, resp.statusCode)
     }
+
+    // MARK: - HÀM ĐỒNG BỘ ĐA BIẾN THỂ TRƯỜNG DỮ LIỆU
+    /// Trích xuất chuỗi đầu tiên có giá trị từ danh sách các khóa ưu tiên (hỗ trợ phone/phoneNumber/soDienThoai/sdt,...)
+    public static func getFirstNonEmptyString(_ fields: [String: Any]?, keys: [String]) -> String {
+        guard let fields = fields else { return "" }
+        for key in keys {
+            let val = getString(fields[key] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !val.isEmpty {
+                return val
+            }
+        }
+        return ""
+    }
+
+    /// Trích xuất số điện thoại chuẩn hỗ trợ tất cả các trường dữ liệu trên database: phone, phoneNumber, soDienThoai, sdt, soDT
+    public static func resolvePhone(_ fields: [String: Any]?) -> String {
+        return getFirstNonEmptyString(fields, keys: ["phone", "phoneNumber", "soDienThoai", "sdt", "soDT"])
+    }
 }

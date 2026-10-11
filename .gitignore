@@ -28,3 +28,4 @@ latest_build_log.txt
 new*.txt
 
 legacy_backup/
+download_ipa_*.ps1

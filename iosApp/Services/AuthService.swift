@@ -467,12 +467,20 @@ public class AuthService {
 
         // Nếu là admin@sgcoop.com, tự động khởi tạo hồ sơ Quản trị viên
         if cleanEmail.contains("admin") || cleanEmail == "admin@sgcoop.com" {
+            // Tra cứu xem trước đó đã từng lưu SĐT của admin này chưa
+            var cachedAdminPhone = ""
+            if let offlineList = UserDefaults.standard.array(forKey: "qltb_offline_users_cache") as? [[String: String]] {
+                if let matched = offlineList.first(where: { ($0["email"] ?? "").caseInsensitiveCompare(cleanEmail) == .orderedSame }) {
+                    cachedAdminPhone = matched["phone"] ?? ""
+                }
+            }
+
             let adminUser = User(
                 maNhanVien: "ADMIN",
                 email: cleanEmail,
                 role: "admin",
                 fullName: "admin",
-                phone: "",
+                phone: cachedAdminPhone,
                 donVi: "Toàn hệ thống Doanh nghiệp",
                 companyId: defaultCompId,
                 departmentId: "CNTT",
@@ -517,17 +525,20 @@ public class AuthService {
         let resolvedKhuVuc = FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any])
             .ifEmpty(FirestoreHelper.getString(fields["khuVuc"] as? [String: Any]))
 
+        let resolvedName = FirestoreHelper.getFirstNonEmptyString(fields, keys: ["fullName", "name", "hoTen"])
+        let resolvedPhone = FirestoreHelper.resolvePhone(fields)
+
         return User(
-            maNhanVien: FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
+            maNhanVien: FirestoreHelper.getFirstNonEmptyString(fields, keys: ["maNhanVien", "employeeId", "mnv"]),
             email: FirestoreHelper.getString(fields["email"] as? [String: Any]),
             role: FirestoreHelper.getString(fields["role"] as? [String: Any]),
-            fullName: FirestoreHelper.getString(fields["fullName"] as? [String: Any]),
-            phone: FirestoreHelper.getString(fields["phone"] as? [String: Any]),
+            fullName: resolvedName,
+            phone: resolvedPhone,
             donVi: resolvedDonVi,
             companyId: resolvedCompanyId,
             departmentId: resolvedDept,
             status: FirestoreHelper.getString(fields["status"] as? [String: Any]).ifEmpty("ACTIVE"),
-            avatarUrl: FirestoreHelper.getString(fields["avatarUrl"] as? [String: Any]),
+            avatarUrl: FirestoreHelper.getFirstNonEmptyString(fields, keys: ["profileImageUrl", "avatarUrl", "photoUrl"]),
             createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
             mustChangePassword: FirestoreHelper.getBool(fields["mustChangePassword"] as? [String: Any]),
             maKhuVuc: resolvedKhuVuc,

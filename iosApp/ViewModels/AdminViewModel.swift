@@ -130,20 +130,35 @@ public class AdminViewModel: ObservableObject {
             let rawPb = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
             let finalDept = rawDept.isEmpty ? rawPb : rawDept
 
+            let resolvedName = FirestoreHelper.getFirstNonEmptyString(fields, keys: ["fullName", "name", "hoTen"])
+            let resolvedPhone = FirestoreHelper.resolvePhone(fields)
+            let resolvedMnv = FirestoreHelper.getFirstNonEmptyString(fields, keys: ["maNhanVien", "employeeId", "mnv"])
+            let resolvedAvatar = FirestoreHelper.getFirstNonEmptyString(fields, keys: ["profileImageUrl", "avatarUrl", "photoUrl"])
+            let rawDonVi = FirestoreHelper.getFirstNonEmptyString(fields, keys: ["donVi", "tenDonVi"])
+            let rawUnitId = FirestoreHelper.getString(fields["unitId"] as? [String: Any])
+            var finalDonVi = rawDonVi
+            if !rawUnitId.isEmpty && !finalDonVi.isEmpty && finalDonVi != rawUnitId {
+                if !finalDonVi.contains(" - ") && !finalDonVi.hasPrefix(rawUnitId) {
+                    finalDonVi = "\(rawUnitId) - \(finalDonVi)"
+                }
+            } else if !rawUnitId.isEmpty && finalDonVi.isEmpty {
+                finalDonVi = rawUnitId
+            }
+
             return User(
-                maNhanVien: FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
+                maNhanVien: resolvedMnv,
                 email: email,
                 role: FirestoreHelper.getString(fields["role"] as? [String: Any]),
-                fullName: FirestoreHelper.getString(fields["fullName"] as? [String: Any]),
-                phone: FirestoreHelper.getString(fields["phone"] as? [String: Any]),
-                donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
+                fullName: resolvedName,
+                phone: resolvedPhone,
+                donVi: finalDonVi,
                 companyId: FirestoreHelper.getString(fields["companyId"] as? [String: Any]),
                 departmentId: finalDept,
-                status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
-                avatarUrl: FirestoreHelper.getString(fields["avatarUrl"] as? [String: Any]),
+                status: FirestoreHelper.getString(fields["status"] as? [String: Any]).ifEmpty("ACTIVE"),
+                avatarUrl: resolvedAvatar,
                 createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
                 mustChangePassword: FirestoreHelper.getBool(fields["mustChangePassword"] as? [String: Any]),
-                maKhuVuc: FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any]),
+                maKhuVuc: FirestoreHelper.getFirstNonEmptyString(fields, keys: ["maKhuVuc", "khuVuc"]),
                 toNghiepVu: FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any]),
                 lastActiveAt: FirestoreHelper.getInt64(fields["lastActiveAt"] as? [String: Any]),
                 isOnline: FirestoreHelper.getBool(fields["isOnline"] as? [String: Any]),
@@ -317,6 +332,7 @@ public class AdminViewModel: ObservableObject {
             "phone": FirestoreHelper.valueToFirestore(cleanPhone),
             "phoneNumber": FirestoreHelper.valueToFirestore(cleanPhone),
             "sdt": FirestoreHelper.valueToFirestore(cleanPhone),
+            "soDienThoai": FirestoreHelper.valueToFirestore(cleanPhone),
             "maNhanVien": FirestoreHelper.valueToFirestore(cleanMnv),
             "employeeId": FirestoreHelper.valueToFirestore(cleanMnv),
             "maKhuVuc": FirestoreHelper.valueToFirestore(cleanKv),
@@ -328,7 +344,7 @@ public class AdminViewModel: ObservableObject {
         ]
         let updateMasks = [
             "role", "permissions", "departmentId", "phongBan", "unitId", "donVi",
-            "phone", "phoneNumber", "sdt", "maNhanVien", "employeeId",
+            "phone", "phoneNumber", "sdt", "soDienThoai", "maNhanVien", "employeeId",
             "maKhuVuc", "khuVuc", "toNghiepVu", "fullName", "name", "updatedAt"
         ]
         await patchUserDocument(email: email, fields: patchFields, updateMasks: updateMasks)
@@ -410,6 +426,7 @@ public class AdminViewModel: ObservableObject {
             "phone": FirestoreHelper.valueToFirestore(cleanPhone),
             "phoneNumber": FirestoreHelper.valueToFirestore(cleanPhone),
             "sdt": FirestoreHelper.valueToFirestore(cleanPhone),
+            "soDienThoai": FirestoreHelper.valueToFirestore(cleanPhone),
             "role": FirestoreHelper.valueToFirestore(cleanRole),
             "unitId": FirestoreHelper.valueToFirestore(unitId),
             "donVi": FirestoreHelper.valueToFirestore(cleanUnit),

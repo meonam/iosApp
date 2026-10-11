@@ -17,9 +17,9 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.3.5</string>
+    <string>1.3.7</string>
     <key>CFBundleVersion</key>
-    <string>135</string>
+    <string>137</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>UIApplicationSceneManifest</key>
@@ -66,9 +66,11 @@
     <key>NSBluetoothPeripheralUsageDescription</key>
     <string>Ứng dụng cần quyền kết nối Bluetooth với máy in di động.</string>
 
-    <!-- CHO PHÉP KẾT NỐI TỚI EDGE TTS SERVER (speech.platform.bing.com) ĐỂ PHÁT GIỌNG ĐỌC HOÀI MY -->
+    <!-- CHO PHÉP KẾT NỐI TỚI EDGE TTS SERVER VÀ MÁY ẢO GOOGLE BACKEND (136.80.195.63) -->
     <key>NSAppTransportSecurity</key>
     <dict>
+        <key>NSAllowsArbitraryLoads</key>
+        <true/>
         <key>NSExceptionDomains</key>
         <dict>
             <key>speech.platform.bing.com</key>

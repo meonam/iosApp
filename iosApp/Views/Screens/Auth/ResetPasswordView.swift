@@ -101,7 +101,7 @@ struct ResetPasswordView: View {
         
         Task {
             do {
-                let url = URL(string: "https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=\(FirebaseConfig.apiKey)")!
+                let url = URL(string: FirebaseConfig.authSendOobUrl)!
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")

@@ -28,21 +28,25 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     private var localAudioTrack: RTCAudioTrack?
     private var remoteAudioTrack: RTCAudioTrack?
     
-    // Mặc định nạp sẵn STUN của Google & TURN Metered dự phòng (đồng bộ 1:1 Android)
+    // Mặc định nạp sẵn STUN/TURN của máy ảo Google Cloud VM (136.80.195.63) & Google STUN
     private var iceServers: [RTCIceServer] = [
         RTCIceServer(urlStrings: [
+            FirebaseConfig.stunServer,
             "stun:stun.l.google.com:19302",
-            "stun:stun1.l.google.com:19302",
-            "stun:stun2.l.google.com:19302",
-            "stun:stun3.l.google.com:19302",
-            "stun:stun4.l.google.com:19302"
+            "stun:stun1.l.google.com:19302"
         ]),
         RTCIceServer(
             urlStrings: [
+                "turn:136.80.195.63:3478?transport=udp",
+                "turn:136.80.195.63:3478?transport=tcp"
+            ],
+            username: FirebaseConfig.turnUsername,
+            credential: FirebaseConfig.turnPassword
+        ),
+        RTCIceServer(
+            urlStrings: [
                 "turn:global.relay.metered.ca:80",
-                "turn:global.relay.metered.ca:80?transport=tcp",
-                "turn:global.relay.metered.ca:443",
-                "turns:global.relay.metered.ca:443?transport=tcp"
+                "turn:global.relay.metered.ca:80?transport=tcp"
             ],
             username: "278a0280a1e018ea207a1f7d",
             credential: "qGneN028RkU9by65"
@@ -75,35 +79,31 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     }
     
     private func fetchIceServers() {
-        guard let url = URL(string: "https://sgcoop.metered.live/api/v1/turn/credentials?apiKey=0c0142caa7c19416eb65b713d658b7abe996") else { return }
+        guard let url = URL(string: "\(FirebaseConfig.serverBaseUrl)/api/webrtc/config") else { return }
         URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
             guard let self = self, let data = data else { return }
             do {
-                if let json = try JSONSerialization.jsonObject(with: data, options: []) as? [[String: Any]] {
+                if let dict = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+                   let json = dict["iceServers"] as? [[String: Any]] {
                     var servers: [RTCIceServer] = []
-                    // Luôn giữ STUN Google ở đầu
-                    servers.append(RTCIceServer(urlStrings: [
-                        "stun:stun.l.google.com:19302",
-                        "stun:stun1.l.google.com:19302"
-                    ]))
                     for item in json {
+                        let username = item["username"] as? String ?? ""
+                        let credential = item["credential"] as? String ?? ""
                         if let urls = item["urls"] as? String {
-                            let username = item["username"] as? String ?? ""
-                            let credential = item["credential"] as? String ?? ""
                             servers.append(RTCIceServer(urlStrings: [urls], username: username, credential: credential))
                         } else if let urlsArray = item["urls"] as? [String] {
-                            let username = item["username"] as? String ?? ""
-                            let credential = item["credential"] as? String ?? ""
                             servers.append(RTCIceServer(urlStrings: urlsArray, username: username, credential: credential))
                         }
                     }
-                    DispatchQueue.main.async {
-                        self.iceServers = servers
-                        print("[WebRtcCallManager] Loaded \(servers.count) ICE servers")
+                    if !servers.isEmpty {
+                        DispatchQueue.main.async {
+                            self.iceServers = servers
+                            print("[WebRtcCallManager] Loaded \(servers.count) ICE servers from Google Cloud VM")
+                        }
                     }
                 }
             } catch {
-                print("[WebRtcCallManager] Failed to parse ICE servers: \(error)")
+                print("[WebRtcCallManager] Using fallback ICE servers: \(error)")
             }
         }.resume()
     }

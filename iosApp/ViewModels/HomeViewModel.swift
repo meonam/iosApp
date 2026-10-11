@@ -142,59 +142,61 @@ public class HomeViewModel: ObservableObject {
         let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !cleanEmail.isEmpty else { return }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)"
-        guard let url = URL(string: urlStr) else { return }
+        let comp = companyId.isEmpty ? "SGCOOP" : companyId
+        let urls = [
+            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/users/\(cleanEmail)",
+            "\(FirebaseConfig.firestoreBaseUrl)/users/\(cleanEmail)"
+        ]
 
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-
-        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
-              httpResponse.statusCode == 200,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let fields = json["fields"] as? [String: Any] else {
-            return
-        }
-
-        let newName = FirestoreHelper.getString(fields["fullName"] as? [String: Any])
-        let altName = FirestoreHelper.getString(fields["name"] as? [String: Any])
-        if !newName.isEmpty { self.user.fullName = newName }
-        else if !altName.isEmpty { self.user.fullName = altName }
-
-        let newPhone = FirestoreHelper.getString(fields["phone"] as? [String: Any])
-        let altPhone = FirestoreHelper.getString(fields["phoneNumber"] as? [String: Any])
-        let sdt = FirestoreHelper.getString(fields["sdt"] as? [String: Any])
-        if !newPhone.isEmpty { self.user.phone = newPhone }
-        else if !altPhone.isEmpty { self.user.phone = altPhone }
-        else if !sdt.isEmpty { self.user.phone = sdt }
-
-        let newRole = FirestoreHelper.getString(fields["role"] as? [String: Any])
-        if !newRole.isEmpty { self.user.role = newRole }
-
-        let newDept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
-        let altDept = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
-        if !newDept.isEmpty { self.user.departmentId = newDept }
-        else if !altDept.isEmpty { self.user.departmentId = altDept }
-
-        let newDonVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
-        let altDonVi = FirestoreHelper.getString(fields["tenDonVi"] as? [String: Any])
-        let unitId = FirestoreHelper.getString(fields["unitId"] as? [String: Any])
-        var donViVal = !newDonVi.isEmpty ? newDonVi : altDonVi
-        if !unitId.isEmpty && !donViVal.isEmpty && donViVal != unitId {
-            if !donViVal.contains(" - ") && !donViVal.hasPrefix(unitId) {
-                donViVal = "\(unitId) - \(donViVal)"
+        for urlStr in urls {
+            guard let url = URL(string: urlStr) else { continue }
+            var request = URLRequest(url: url)
+            if !idToken.isEmpty {
+                request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
-        } else if !unitId.isEmpty && donViVal.isEmpty {
-            donViVal = unitId
+
+            guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+                  httpResponse.statusCode == 200,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let fields = json["fields"] as? [String: Any] else {
+                continue
+            }
+
+            let newName = FirestoreHelper.getFirstNonEmptyString(fields, keys: ["fullName", "name", "hoTen"])
+            if !newName.isEmpty { self.user.fullName = newName }
+
+            let resolvedPhone = FirestoreHelper.resolvePhone(fields)
+            if !resolvedPhone.isEmpty { self.user.phone = resolvedPhone }
+
+            let newRole = FirestoreHelper.getString(fields["role"] as? [String: Any])
+            if !newRole.isEmpty { self.user.role = newRole }
+
+            let newDept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
+            let altDept = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
+            if !newDept.isEmpty { self.user.departmentId = newDept }
+            else if !altDept.isEmpty { self.user.departmentId = altDept }
+
+            let newDonVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
+            let altDonVi = FirestoreHelper.getString(fields["tenDonVi"] as? [String: Any])
+            let unitId = FirestoreHelper.getString(fields["unitId"] as? [String: Any])
+            var donViVal = !newDonVi.isEmpty ? newDonVi : altDonVi
+            if !unitId.isEmpty && !donViVal.isEmpty && donViVal != unitId {
+                if !donViVal.contains(" - ") && !donViVal.hasPrefix(unitId) {
+                    donViVal = "\(unitId) - \(donViVal)"
+                }
+            } else if !unitId.isEmpty && donViVal.isEmpty {
+                donViVal = unitId
+            }
+            if !donViVal.isEmpty { self.user.donVi = donViVal }
+
+            let newAvatar = FirestoreHelper.getFirstNonEmptyString(fields, keys: ["profileImageUrl", "avatarUrl", "photoUrl"])
+            if !newAvatar.isEmpty { self.user.avatarUrl = newAvatar }
+
+            let newToNghiepVu = FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any])
+            if !newToNghiepVu.isEmpty { self.user.toNghiepVu = newToNghiepVu }
+
+            break
         }
-        if !donViVal.isEmpty { self.user.donVi = donViVal }
-
-        let newAvatar = FirestoreHelper.getString(fields["profileImageUrl"] as? [String: Any])
-        let altAvatar = FirestoreHelper.getString(fields["avatarUrl"] as? [String: Any])
-        if !newAvatar.isEmpty { self.user.avatarUrl = newAvatar }
-        else if !altAvatar.isEmpty { self.user.avatarUrl = altAvatar }
-
-        let newToNghiepVu = FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any])
-        if !newToNghiepVu.isEmpty { self.user.toNghiepVu = newToNghiepVu }
     }
 
     // MARK: - 2. TẢI DANH SÁCH THIẾT BỊ
@@ -533,26 +535,53 @@ public class HomeViewModel: ObservableObject {
             }
         }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=phone&updateMask.fieldPaths=phoneNumber&updateMask.fieldPaths=sdt"
-        guard let url = URL(string: urlStr) else { return }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "PATCH"
-        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let mask = "updateMask.fieldPaths=phone&updateMask.fieldPaths=phoneNumber&updateMask.fieldPaths=sdt&updateMask.fieldPaths=soDienThoai"
+        let urls = [
+            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?\(mask)",
+            "\(FirebaseConfig.firestoreBaseUrl)/users/\(cleanEmail)?\(mask)"
+        ]
 
         let payload: [String: Any] = [
             "fields": [
                 "phone": ["stringValue": cleanPhone],
                 "phoneNumber": ["stringValue": cleanPhone],
-                "sdt": ["stringValue": cleanPhone]
+                "sdt": ["stringValue": cleanPhone],
+                "soDienThoai": ["stringValue": cleanPhone]
             ]
         ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        let bodyData = try JSONSerialization.data(withJSONObject: payload)
 
-        if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
-           (200...299).contains(httpResponse.statusCode) {
+        var patchSuccess = false
+        for urlStr in urls {
+            guard let url = URL(string: urlStr) else { continue }
+            var request = URLRequest(url: url)
+            request.httpMethod = "PATCH"
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = bodyData
+
+            if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+               (200...299).contains(httpResponse.statusCode) {
+                patchSuccess = true
+            }
+        }
+
+        if patchSuccess {
             self.user.phone = cleanPhone
+
+            // Cập nhật bộ nhớ đệm offline
+            var offlineList = (UserDefaults.standard.array(forKey: "qltb_offline_users_cache") as? [[String: String]]) ?? []
+            if let idx = offlineList.firstIndex(where: { ($0["email"] ?? "").caseInsensitiveCompare(cleanEmail) == .orderedSame }) {
+                offlineList[idx]["phone"] = cleanPhone
+            } else {
+                offlineList.insert([
+                    "email": cleanEmail,
+                    "companyId": self.companyId,
+                    "maNhanVien": self.user.maNhanVien,
+                    "phone": cleanPhone
+                ], at: 0)
+            }
+            UserDefaults.standard.set(offlineList, forKey: "qltb_offline_users_cache")
 
             // Đồng bộ sang technician_locations
             Task {

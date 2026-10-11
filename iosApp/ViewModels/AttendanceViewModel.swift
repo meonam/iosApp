@@ -857,7 +857,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     .isEmpty ? FirestoreHelper.getString(fields["avatarUrl"] as? [String: Any]) : FirestoreHelper.getString(fields["profileImageUrl"] as? [String: Any])
                 let onDuty = (fields["isOnDuty"] as? [String: Any])?["booleanValue"] as? Bool ?? false
                 let onDutyShift = FirestoreHelper.getString(fields["onDutyShift"] as? [String: Any])
-                let onDutySource = FirestoreHelper.getString(fields["onDutySource"] as? [String: Any])
+                let phone = FirestoreHelper.resolvePhone(fields)
 
                 await MainActor.run {
                     if !name.isEmpty { self.userName = name }
@@ -866,6 +866,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     if !donVi.isEmpty { self.userDonVi = donVi }
                     if !role.isEmpty { self.userRole = role }
                     if !avatar.isEmpty { self.profileImageUrl = avatar }
+                    if !phone.isEmpty { self.user.phone = phone }
                     self.isOnDuty = onDuty
                     self.onDutyShift = onDutyShift
                     self.onDutySource = onDutySource
