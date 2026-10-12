@@ -373,11 +373,10 @@ public class SupportViewModel: ObservableObject {
                 return true
             }
 
-            // 2b. Chỉ Nhân viên thường thuộc đơn vị mới thấy ticket đơn vị mình
-            // KTV, Chuyên viên, Quản trị viên, HelpDesk: KHÔNG áp dụng quy tắc đơn vị này (vì KTV chỉ giải quyết ticket được giao đích danh hoặc cụm/phòng ban)
-            let isNormalStaff = !user.isAdmin && !user.isSuperAdmin && !user.isHelpDesk && !user.isTechnician && !user.isSpecialist && !user.isManager
-            if isNormalStaff {
-                if !cleanDonVi.isEmpty && (tDonVi == cleanDonVi || tDonVi.contains(cleanDonVi) || cleanDonVi.contains(tDonVi)) {
+            // 2b. Quản lý Đơn vị / Chi nhánh (Manager): mới được theo dõi ticket đơn vị mình
+            // (Bắt buộc cả cleanDonVi và tDonVi đều KHÔNG rỗng để tránh String.contains("") khớp chuỗi rỗng của ticket Email)
+            if user.isManager {
+                if !cleanDonVi.isEmpty && !tDonVi.isEmpty && (tDonVi == cleanDonVi || tDonVi.contains(cleanDonVi) || cleanDonVi.contains(tDonVi)) {
                     return true
                 }
             }
