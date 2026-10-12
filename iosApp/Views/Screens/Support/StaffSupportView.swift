@@ -565,6 +565,8 @@ public struct CreateTicketSheetView: View {
     @State private var message: String = ""
     @State private var donVi: String = ""
     @State private var isSubmitting: Bool = false
+    @State private var errorMessage: String? = nil
+    @State private var showErrorAlert: Bool = false
 
     // Đính kèm hình ảnh & tệp tài liệu (đồng bộ 100% Android)
     @State private var pendingImages: [UIImage] = []
@@ -659,7 +661,30 @@ public struct CreateTicketSheetView: View {
                 }
             }
         }
+        .alert(isPresented: $showErrorAlert) {
+            Alert(
+                title: Text("Không thể gửi yêu cầu"),
+                message: Text(errorMessage ?? "Đã có lỗi xảy ra khi tạo yêu cầu hỗ trợ. Vui lòng kiểm tra lại kết nối mạng."),
+                dismissButton: .default(Text("Đóng"))
+            )
+        }
         .onAppear {
+            if let authVM = authViewModel {
+                if !authVM.currentCompanyId.isEmpty {
+                    supportVM.companyId = authVM.currentCompanyId
+                }
+                if !authVM.currentIdToken.isEmpty {
+                    supportVM.idToken = authVM.currentIdToken
+                }
+                if let u = authVM.currentUser {
+                    supportVM.user = u
+                }
+            }
+            if supportVM.idToken.isEmpty {
+                if let saved = UserDefaults.standard.string(forKey: "saved_auth_token"), !saved.isEmpty {
+                    supportVM.idToken = saved
+                }
+            }
             let u = authViewModel?.currentUser ?? supportVM.user
             phone = u.phone
             donVi = u.donVi
@@ -909,6 +934,24 @@ public struct CreateTicketSheetView: View {
         guard !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
+        // Đồng bộ token, companyId và thông tin user mới nhất trước khi gửi
+        if let authVM = authViewModel {
+            if !authVM.currentCompanyId.isEmpty {
+                supportVM.companyId = authVM.currentCompanyId
+            }
+            if !authVM.currentIdToken.isEmpty {
+                supportVM.idToken = authVM.currentIdToken
+            }
+            if let u = authVM.currentUser {
+                supportVM.user = u
+            }
+        }
+        if supportVM.idToken.isEmpty {
+            if let saved = UserDefaults.standard.string(forKey: "saved_auth_token"), !saved.isEmpty {
+                supportVM.idToken = saved
+            }
+        }
+
         isSubmitting = true
         Task {
             // 1. Tải ảnh sự cố (đồng bộ Android StaffSupportScreen.kt & FirebaseStorageHelper.kt)
@@ -974,7 +1017,12 @@ public struct CreateTicketSheetView: View {
                 DispatchQueue.main.async {
                     self.isSubmitting = false
                     if success {
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
                         self.onSuccess()
+                    } else {
+                        UINotificationFeedbackGenerator().notificationOccurred(.error)
+                        self.errorMessage = "Không thể gửi yêu cầu hỗ trợ tới hệ thống. Vui lòng kiểm tra lại kết nối hoặc thử lại sau."
+                        self.showErrorAlert = true
                     }
                 }
             }

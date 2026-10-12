@@ -59,7 +59,7 @@ public enum FirebaseStorageService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue(contentType, forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 45
+        request.timeoutInterval = 2.5
 
         let trimmedToken = idToken.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedToken.isEmpty {

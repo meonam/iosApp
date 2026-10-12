@@ -1117,17 +1117,29 @@ public class SupportViewModel: ObservableObject {
         priority: String = "NORMAL",
         assetId: String = "",
         assetName: String = "",
+        phone: String = "",
         images: [String] = [],
         attachments: [AttachmentItem] = [],
-        donVi: String = ""
+        donVi: String = "",
+        gpsLat: Double = 0.0,
+        gpsLng: Double = 0.0,
+        scope: String = "UNIT"
     ) async -> String? {
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets"
-        guard let url = URL(string: urlStr) else { return nil }
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? (user.companyId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "SGCOOP" : user.companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased())
+            : companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        var token = self.idToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        if token.isEmpty || !token.hasPrefix("ey") {
+            if let saved = UserDefaults.standard.string(forKey: "saved_auth_token"), saved.hasPrefix("ey") {
+                token = saved
+            }
+        }
+        if token.isEmpty {
+            if let guest = await AuthService.shared.ensureGuestToken() {
+                token = guest
+            }
+        }
 
         let now = Int64(Date().timeIntervalSince1970 * 1000)
         let calendar = Calendar.current
@@ -1136,10 +1148,13 @@ public class SupportViewModel: ObservableObject {
         let yymm = String(format: "%02d%02d", year, month)
         let randNum = Int.random(in: 1000...9999)
         let generatedTicketCode = "APP-\(yymm)-\(randNum)"
+        let customTicketId = "ticket_\(now)_\(randNum)"
 
         let effectiveDonVi = !donVi.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? donVi : user.donVi
+        let effectivePhone = !phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? phone : user.phone
 
         var fields: [String: Any] = [
+            "id": ["stringValue": customTicketId],
             "ticketCode": ["stringValue": generatedTicketCode],
             "subject": ["stringValue": subject],
             "initialMessage": ["stringValue": initialMessage],
@@ -1147,19 +1162,24 @@ public class SupportViewModel: ObservableObject {
             "category": ["stringValue": category],
             "priority": ["stringValue": priority],
             "status": ["stringValue": "OPEN"],
+            "creatorUserId": ["stringValue": !user.id.isEmpty ? user.id : user.maNhanVien],
             "creatorEmail": ["stringValue": user.email],
             "creatorName": ["stringValue": !user.fullName.isEmpty ? user.fullName : user.email],
-            "creatorPhone": ["stringValue": user.phone],
+            "creatorPhone": ["stringValue": effectivePhone],
+            "phone": ["stringValue": effectivePhone],
             "donVi": ["stringValue": effectiveDonVi],
             "departmentId": ["stringValue": user.departmentId],
-            "companyId": ["stringValue": companyId],
+            "companyId": ["stringValue": cleanComp],
             "createdAt": ["integerValue": String(now)],
             "lastMessageAt": ["integerValue": String(now)],
-            "source": ["stringValue": "APP"]
+            "source": ["stringValue": "APP"],
+            "scope": ["stringValue": !scope.isEmpty ? scope : "UNIT"]
         ]
 
         if !assetId.isEmpty { fields["assetId"] = ["stringValue": assetId] }
         if !assetName.isEmpty { fields["assetName"] = ["stringValue": assetName] }
+        if gpsLat != 0.0 { fields["creatorLat"] = ["doubleValue": gpsLat] }
+        if gpsLng != 0.0 { fields["creatorLng"] = ["doubleValue": gpsLng] }
         if !images.isEmpty {
             fields["images"] = ["arrayValue": ["values": images.map { ["stringValue": $0] }]]
         }
@@ -1210,18 +1230,58 @@ public class SupportViewModel: ObservableObject {
         }
 
         let body: [String: Any] = ["fields": fields]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        let jsonBody = try? JSONSerialization.data(withJSONObject: body)
 
-        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
-              httpResponse.statusCode == 200,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let name = json["name"] as? String else { return nil }
+        // 1. Cố gắng tạo document bằng PATCH với customTicketId (đồng bộ 1:1 theo Android SupportRestRepository.kt)
+        let patchUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets/\(customTicketId)"
+        var finalTicketId = customTicketId
+        var creationSuccess = false
 
-        let id = name.components(separatedBy: "/").last ?? ""
+        if let patchUrl = URL(string: patchUrlStr) {
+            var patchRequest = URLRequest(url: patchUrl)
+            patchRequest.httpMethod = "PATCH"
+            patchRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            patchRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            patchRequest.httpBody = jsonBody
+
+            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(patchRequest),
+               (200...299).contains(httpResponse.statusCode) {
+                creationSuccess = true
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let name = json["name"] as? String {
+                    let parsed = name.components(separatedBy: "/").last ?? ""
+                    if !parsed.isEmpty { finalTicketId = parsed }
+                }
+            }
+        }
+
+        // 2. Fallback sang POST /companies/{cleanComp}/support_tickets nếu PATCH chưa thành công
+        if !creationSuccess, let postUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets") {
+            var postRequest = URLRequest(url: postUrl)
+            postRequest.httpMethod = "POST"
+            postRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            postRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            postRequest.httpBody = jsonBody
+
+            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(postRequest),
+               (200...299).contains(httpResponse.statusCode) {
+                creationSuccess = true
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let name = json["name"] as? String {
+                    let parsed = name.components(separatedBy: "/").last ?? ""
+                    if !parsed.isEmpty { finalTicketId = parsed }
+                }
+            }
+        }
+
+        guard creationSuccess else {
+            print("[SupportVM] ❌ Tạo ticket thất bại trên cả PATCH và POST")
+            return nil
+        }
 
         // Also add the first message into messages subcollection (earlier timestamp ensures it always shows above dispatch)
         let initTs = Int64(Date().timeIntervalSince1970 * 1000) - 1000
-        sendMessage(ticketId: id, text: initialMessage, customTimestamp: initTs)
+        sendMessage(ticketId: finalTicketId, text: initialMessage, customTimestamp: initTs)
 
         // Ghi nhận log tin nhắn hệ thống nếu ticket được tự động điều phối ngoài giờ
         if let auto = autoDispatchedTech {
@@ -1232,11 +1292,11 @@ public class SupportViewModel: ObservableObject {
             Hệ thống đã tự động gán vé cho KTV \(auto.name) thuộc Cụm \(auto.assignedCluster).
             ⏱️ Vui lòng xác nhận tiếp nhận trong vòng \(escMin) phút.
             """
-            sendMessage(ticketId: id, text: autoDispatchMsg, isSystemMessage: true, customTimestamp: now + 500)
+            sendMessage(ticketId: finalTicketId, text: autoDispatchMsg, isSystemMessage: true, customTimestamp: now + 500)
         }
 
         fetchTickets()
-        return id
+        return finalTicketId
     }
 
     public func createTicket(
@@ -1252,7 +1312,7 @@ public class SupportViewModel: ObservableObject {
         donVi: String = "",
         gpsLat: Double = 0.0,
         gpsLng: Double = 0.0,
-        scope: String = "GENERAL",
+        scope: String = "UNIT",
         attachments: [AttachmentItem] = [],
         completion: ((Bool) -> Void)? = nil
     ) {
@@ -1265,9 +1325,13 @@ public class SupportViewModel: ObservableObject {
                 priority: priority,
                 assetId: assetId,
                 assetName: assetName,
+                phone: phone,
                 images: images,
                 attachments: attachments,
-                donVi: donVi
+                donVi: donVi,
+                gpsLat: gpsLat,
+                gpsLng: gpsLng,
+                scope: scope
             )
             DispatchQueue.main.async {
                 completion?(res != nil)

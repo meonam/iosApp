@@ -149,16 +149,28 @@ public struct FirestoreHelper {
             }
 
             // 3. Fallback on 401 Unauthorized or 403 Forbidden:
-            // If the token was rejected (expired or invalid), retry WITHOUT Authorization header.
-            // Firestore rules allow public access ('allow read: if true;').
-            if (httpResponse.statusCode == 401 || httpResponse.statusCode == 403) && hadBearer {
-                var retryReq = originalRequest
-                retryReq.timeoutInterval = timeoutInterval
-                retryReq.setValue(nil, forHTTPHeaderField: "Authorization")
-                if let (retryData, retryResponse) = try? await URLSession.shared.data(for: retryReq),
-                   let retryHttp = retryResponse as? HTTPURLResponse,
-                   (200...299).contains(retryHttp.statusCode) {
-                    return (retryData, retryHttp)
+            // Thử cấp lại token hợp lệ qua AuthService trước, sau đó mới thử bỏ Authorization
+            if (httpResponse.statusCode == 401 || httpResponse.statusCode == 403) {
+                if let freshToken = await AuthService.shared.ensureGuestToken() {
+                    var retryReq = originalRequest
+                    retryReq.timeoutInterval = timeoutInterval
+                    retryReq.setValue("Bearer \(freshToken)", forHTTPHeaderField: "Authorization")
+                    if let (retryData, retryResponse) = try? await URLSession.shared.data(for: retryReq),
+                       let retryHttp = retryResponse as? HTTPURLResponse,
+                       (200...299).contains(retryHttp.statusCode) {
+                        return (retryData, retryHttp)
+                    }
+                }
+
+                if hadBearer {
+                    var retryReq = originalRequest
+                    retryReq.timeoutInterval = timeoutInterval
+                    retryReq.setValue(nil, forHTTPHeaderField: "Authorization")
+                    if let (retryData, retryResponse) = try? await URLSession.shared.data(for: retryReq),
+                       let retryHttp = retryResponse as? HTTPURLResponse,
+                       (200...299).contains(retryHttp.statusCode) {
+                        return (retryData, retryHttp)
+                    }
                 }
             }
 
