@@ -36,6 +36,7 @@ public class IncomingCallManager: NSObject, ObservableObject {
 
     private var currentUserEmail: String = ""
     private var isUserHelpDesk: Bool = false
+    private var isUserAdmin: Bool = false
     private var currentCompanyId: String = "SGCOOP"
     private var currentIdToken: String = ""
     private var isListening: Bool = false
@@ -61,12 +62,7 @@ public class IncomingCallManager: NSObject, ObservableObject {
     // MARK: - START / STOP LISTENING
     public func startListening(user: User, companyId: String, idToken: String) {
         self.currentUserEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let isAdminUser = user.isAdmin || user.role.lowercased().contains("admin") || user.role.lowercased().contains("quantri")
-        if isAdminUser {
-            print("[IncomingCallManager] Bỏ qua lắng nghe cuộc gọi vì tài khoản Quản trị viên (Admin) không nhận cuộc gọi của ai.")
-            stopListening()
-            return
-        }
+        self.isUserAdmin = user.isAdmin || user.role.lowercased().contains("admin") || user.role.lowercased().contains("quantri")
         self.isUserHelpDesk = user.isHelpDesk || user.role.lowercased().contains("helpdesk")
         self.currentCompanyId = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         self.currentIdToken = idToken
@@ -119,6 +115,13 @@ public class IncomingCallManager: NSObject, ObservableObject {
         )
 
         if isTargetToMe || isHelpdeskCall {
+            if isUserAdmin {
+                let isCallerHelpDesk = callerEmail.contains("helpdesk@") || callerRole.localizedCaseInsensitiveContains("helpdesk")
+                if !isCallerHelpDesk {
+                    print("[IncomingCallManager] Bỏ qua cuộc gọi đến Admin vì người gọi (\(callerRole) - \(callerEmail)) không phải là HelpDesk.")
+                    return
+                }
+            }
             DispatchQueue.main.async {
                 guard !self.handledCallIds.contains(callId),
                       !self.isCallPresented,
@@ -229,6 +232,12 @@ public class IncomingCallManager: NSObject, ObservableObject {
                 )
 
                 if isTargetToMe || isHelpdeskCall {
+                    if self.isUserAdmin {
+                        let isCallerHelpDesk = callerEmail.contains("helpdesk@") || callerRole.localizedCaseInsensitiveContains("helpdesk")
+                        if !isCallerHelpDesk {
+                            continue
+                        }
+                    }
                     var offerSdp = ""
                     if let offer = fields["offer"] as? [String: Any],
                        let mapValue = offer["mapValue"] as? [String: Any],

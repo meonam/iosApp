@@ -363,11 +363,7 @@ public struct TicketChatDetailView: View {
                 }
 
                 // Tiêu đề TopBar đồng bộ 1:1 với Android: "Đang hỗ trợ #APP-..."
-                let rawCode: String = {
-                    let code = currentTicket.ticketCode.trimmingCharacters(in: .whitespacesAndNewlines)
-                    return code.isEmpty ? "TK-\(currentTicket.id.prefix(8).uppercased())" : code
-                }()
-                let displayCode = rawCode.hasPrefix("#") ? rawCode : "#\(rawCode)"
+                let displayCode = "#\(currentTicket.cleanDisplayCode)"
 
                 Text("Đang hỗ trợ \(displayCode)")
                     .font(.system(size: 15, weight: .bold))
@@ -553,13 +549,9 @@ public struct TicketChatDetailView: View {
     // MARK: - TICKET SUMMARY CARD (ĐỒNG BỘ 1:1 VỚI ANDROID AdminSupportChatScreen.kt:736-879)
     private var ticketSummaryCard: some View {
         VStack(alignment: .leading, spacing: 3) {
-            // Hàng 1: #TK-TICKET_1 • NANG CAP APP SOAN HANG
+            // Hàng 1: Mã ticket chuẩn hoá • Tiêu đề sự cố
             HStack(spacing: 6) {
-                let rawCode: String = {
-                    let code = currentTicket.ticketCode.trimmingCharacters(in: .whitespacesAndNewlines)
-                    return code.isEmpty ? "TK-\(currentTicket.id.prefix(8).uppercased())" : code
-                }()
-                let displayCode = rawCode.hasPrefix("#") ? rawCode : "#\(rawCode)"
+                let displayCode = "#\(currentTicket.cleanDisplayCode)"
                 let subject = currentTicket.subject.isEmpty ? "Chi tiết hỗ trợ" : currentTicket.subject
                 Text("\(displayCode) • \(subject)")
                     .font(.system(size: 14, weight: .bold))

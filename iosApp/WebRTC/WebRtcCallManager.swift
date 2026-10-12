@@ -188,6 +188,14 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     ) {
         let cleanCallerEmail = callerEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let cleanTargetEmail = targetEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        // Phân quyền gọi In-App: Chỉ HelpDesk mới được gọi cho Admin, không ai được gọi trực tiếp cho Admin
+        let isTargetAdmin = cleanTargetEmail.contains("admin@") || targetName.localizedCaseInsensitiveContains("Admin")
+        let isCallerHelpDesk = callerRole.localizedCaseInsensitiveContains("HELPDESK") || cleanCallerEmail.contains("helpdesk@")
+        if isTargetAdmin && !isCallerHelpDesk {
+            print("[WebRtcCallManager] Blocked: Chỉ nhân viên HelpDesk mới có quyền gọi cho Quản trị viên (Admin).")
+            return
+        }
         
         AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
             DispatchQueue.main.async {

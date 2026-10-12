@@ -740,7 +740,7 @@ public class SupportViewModel: ObservableObject {
             return
         }
 
-        let queryLimit = 50
+        let queryLimit = 500
         let queryPayload: [String: Any] = [
             "structuredQuery": [
                 "from": [["collectionId": "support_tickets"]],
@@ -777,7 +777,7 @@ public class SupportViewModel: ObservableObject {
 
         // Fallback: Nếu runQuery bị lỗi hoặc không có dữ liệu, dùng trực tiếp document listing
         if !isSuccess || responseData == nil {
-            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=100"
+            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=500"
             if let listUrl = URL(string: listUrlStr) {
                 var listReq = URLRequest(url: listUrl)
                 if !idToken.isEmpty {

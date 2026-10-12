@@ -471,6 +471,20 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         self.toNghiepVu = toNghiepVu
     }
 
+    public var cleanDisplayCode: String {
+        let code = ticketCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !code.isEmpty && !code.contains("TICKET_") && !code.contains("TK-TICKET") {
+            return code.replacingOccurrences(of: "#", with: "")
+        }
+        let cleanId = id.replacingOccurrences(of: "ticket_", with: "")
+            .replacingOccurrences(of: "ticket-", with: "")
+            .replacingOccurrences(of: "TK_", with: "")
+            .replacingOccurrences(of: "TK-", with: "")
+        let sub = cleanId.count >= 8 ? String(cleanId.prefix(8)).uppercased() : cleanId.uppercased()
+        let prefix = (source.uppercased() == "EMAIL") ? "EML" : ((departmentId.isEmpty) ? "APP" : "DEP")
+        return "\(prefix)-\(sub)"
+    }
+
     public var isRejected: Bool {
         isInvalid || !invalidReason.isEmpty || status.uppercased() == "REJECTED" || status.uppercased() == "TU_CHOI"
     }

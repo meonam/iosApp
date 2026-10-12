@@ -651,8 +651,7 @@ public struct LiveTrackingMapView: View {
 
     private var displaySub: String {
         if isAssignedTech {
-            let code = !currentTicket.ticketCode.isEmpty ? currentTicket.ticketCode : "TK-\(currentTicket.id.prefix(8).uppercased())"
-            let cleanCode = code.replacingOccurrences(of: "#", with: "")
+            let cleanCode = currentTicket.cleanDisplayCode
             return currentTicket.donVi.isEmpty ? "Yêu cầu #\(cleanCode)" : "Đơn vị: \(currentTicket.donVi)"
         } else {
             return "Phụ trách: \(currentTicket.assignedDepartmentName.isEmpty ? (isSpecialist ? "Tổ nghiệp vụ / Chuyên viên" : "Bộ phận Kỹ thuật") : currentTicket.assignedDepartmentName)"
@@ -916,7 +915,7 @@ public struct LiveTrackingMapView: View {
                     .font(.system(size: 15, weight: .bold))
                     .foregroundColor(.white)
 
-                let headerCode = (!currentTicket.ticketCode.isEmpty ? currentTicket.ticketCode : "TK-\(currentTicket.id.prefix(8).uppercased())").replacingOccurrences(of: "#", with: "")
+                let headerCode = currentTicket.cleanDisplayCode
                 Text("Ticket #\(headerCode) • \(currentTicket.subject)")
                     .font(.system(size: 11))
                     .foregroundColor(Color.white.opacity(0.85))

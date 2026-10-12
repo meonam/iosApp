@@ -189,7 +189,7 @@ public struct TicketItemView: View {
 
                     // ── TẦNG 2: Hero Title chiếm trọn chiều ngang, chữ đậm #002A8F (hoặc sáng trong Dark mode) ──
                     HStack(spacing: 5) {
-                        let displayCode = !ticket.ticketCode.isEmpty ? ticket.ticketCode : String(ticket.id.replacingOccurrences(of: "ticket_", with: "").replacingOccurrences(of: "TK_", with: "").prefix(8)).uppercased()
+                        let displayCode = ticket.cleanDisplayCode
                         if !displayCode.isEmpty {
                             Text("#\(displayCode)")
                                 .font(.system(size: 10.5, weight: .black, design: .monospaced))

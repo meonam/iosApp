@@ -141,7 +141,7 @@ public struct IosEmailSender {
             dispatchNote: dispatchNote
         )
 
-        let displayTicketCode = !ticket.ticketCode.isEmpty ? ticket.ticketCode : ticket.id.replacingOccurrences(of: "ticket_", with: "").replacingOccurrences(of: "TK_", with: "")
+        let displayTicketCode = ticket.cleanDisplayCode
         let titleAction = isSpecialist ? "Chuyển giao chuyên viên" : "Điều phối xử lý"
         let subject = "[#\(displayTicketCode)] \(titleAction): \(!ticket.subject.isEmpty ? ticket.subject : "Yêu cầu hỗ trợ kỹ thuật")"
 
