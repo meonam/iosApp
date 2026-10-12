@@ -616,7 +616,7 @@ public struct TicketChatDetailView: View {
                 }
             }
 
-            // Hàng 2: Nhóm thông tin Kênh tiếp nhận, Đơn vị & Người gửi (Badge pills + Scroll)
+            // Hàng 2: Nhóm thông tin Kênh tiếp nhận, Đơn vị, Người gửi & Bộ phận (Badge pills + Scroll)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     let channelText: String = {
@@ -631,7 +631,7 @@ public struct TicketChatDetailView: View {
                         .foregroundColor(Color.appTextSecondary)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2.5)
-                        .background(Color(hex: "#F1F5F9"))
+                        .background(Color.appSurfaceVariant)
                         .cornerRadius(4)
                         .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.appCardBorder, lineWidth: 0.5))
 
@@ -649,7 +649,7 @@ public struct TicketChatDetailView: View {
                             .foregroundColor(Color.appTextSecondary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2.5)
-                            .background(Color(hex: "#F1F5F9"))
+                            .background(Color.appSurfaceVariant)
                             .cornerRadius(4)
                             .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.appCardBorder, lineWidth: 0.5))
                     }
@@ -661,53 +661,39 @@ public struct TicketChatDetailView: View {
                             .foregroundColor(Color.appTextSecondary)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2.5)
-                            .background(Color(hex: "#F1F5F9"))
+                            .background(Color.appSurfaceVariant)
                             .cornerRadius(4)
                             .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.appCardBorder, lineWidth: 0.5))
                     }
-                }
-            }
 
-            // Hàng 3: Nhóm liên hệ & Bộ phận / KTV xử lý (Badge pills + Scroll)
-            let contactEmail = (!ticket.creatorEmail.isEmpty ? ticket.creatorEmail : ticket.externalSenderId).trimmingCharacters(in: .whitespacesAndNewlines)
-            let techDisplay = (!ticket.assignedToName.isEmpty ? ticket.assignedToName : ticket.assignedToEmail).trimmingCharacters(in: .whitespacesAndNewlines)
-            let hasRow3 = (!contactEmail.isEmpty && contactEmail.contains("@")) || !ticket.assignedDepartmentName.isEmpty || !techDisplay.isEmpty
+                    if !ticket.assignedDepartmentName.isEmpty {
+                        Text("➡️ \(ticket.assignedDepartmentName)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Color.appTextSecondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2.5)
+                            .background(Color.appSurfaceVariant)
+                            .cornerRadius(4)
+                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.appCardBorder, lineWidth: 0.5))
+                    }
 
-            if hasRow3 {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        if !contactEmail.isEmpty && contactEmail.contains("@") {
-                            Text("📧 \(contactEmail)")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(Color(hex: "#B91C1C"))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2.5)
-                                .background(Color(hex: "#FEF2F2"))
-                                .cornerRadius(4)
-                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(hex: "#FECACA"), lineWidth: 0.5))
-                        }
+                    // Trên màn hình KTV/Chuyên viên: Bỏ phần KTV:.... phía trên cho gọn
+                    let isTechOrSpecialist = viewModel.user.isTechnician || viewModel.user.isSpecialist || isAssignedOrAckTech ||
+                        viewModel.user.role.localizedCaseInsensitiveContains("tech") ||
+                        viewModel.user.role.localizedCaseInsensitiveContains("ktv") ||
+                        viewModel.user.role.localizedCaseInsensitiveContains("specialist") ||
+                        viewModel.user.role.localizedCaseInsensitiveContains("chuyenvien")
 
-                        if !ticket.assignedDepartmentName.isEmpty {
-                            Text("➡️ \(ticket.assignedDepartmentName)")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(Color.appTextSecondary)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2.5)
-                                .background(Color(hex: "#F1F5F9"))
-                                .cornerRadius(4)
-                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.appCardBorder, lineWidth: 0.5))
-                        }
-
-                        if !techDisplay.isEmpty {
-                            Text("🛠️ KTV: \(techDisplay)")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(Color(hex: "#0369A1"))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2.5)
-                                .background(Color(hex: "#E0F2FE"))
-                                .cornerRadius(4)
-                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(hex: "#BAE6FD"), lineWidth: 0.5))
-                        }
+                    let techDisplay = (!ticket.assignedToName.isEmpty ? ticket.assignedToName : ticket.assignedToEmail).trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !techDisplay.isEmpty && !isTechOrSpecialist {
+                        Text("🛠️ KTV: \(techDisplay)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Color.dynamic(light: "#0369A1", dark: "#38BDF8"))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2.5)
+                            .background(Color.dynamic(light: "#E0F2FE", dark: "#0C4A6E"))
+                            .cornerRadius(4)
+                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.dynamic(light: "#BAE6FD", dark: "#0284C7"), lineWidth: 0.5))
                     }
                 }
             }

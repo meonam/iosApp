@@ -148,18 +148,14 @@ public class DeviceViewModel: ObservableObject {
                 }
             }
         } else {
-            // Nhân viên thường: Xem thiết bị do mình tạo, mượn/được cấp phát (khớp email, username, họ tên), hoặc thiết bị thuộc phòng ban/đơn vị mình
+            // Nhân viên thường: Chỉ xem thiết bị do mình tạo HOẶC do mình mượn/được cấp phát (Đồng bộ 100% Android / Web / Desktop)
             baseList = rawDevices.filter { dev in
                 let devCreatedBy = (dev.createdBy ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 let devNguoiMuon = (dev.nguoiMuon ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let devDept = (dev.phongBan ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let devUnit = dev.tenDonVi.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
                 let matchMine = (!myEmail.isEmpty && (devCreatedBy == myEmail || devCreatedBy == myUser || devCreatedBy.contains(myEmail) || devNguoiMuon == myEmail || devNguoiMuon == myUser || devNguoiMuon.contains(myEmail))) ||
                     (!myName.isEmpty && (devCreatedBy.contains(myName) || devNguoiMuon.contains(myName)))
-                let matchDept = !myDept.isEmpty && (devDept == myDept || devDept.contains(myDept) || myDept.contains(devDept))
-                let matchUnit = !myUnit.isEmpty && (devUnit == myUnit || devUnit.contains(myUnit) || myUnit.contains(devUnit))
-                return matchMine || matchDept || matchUnit
+                return matchMine
             }
         }
 

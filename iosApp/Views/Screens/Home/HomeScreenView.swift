@@ -816,13 +816,13 @@ public struct HomeScreenView: View {
                     .font(.system(size: 14, weight: .bold))
                     .foregroundColor(Color.appSecondaryDarkBlue)
                 Spacer()
-                Text("8 lối tắt chính")
+                Text("6 lối tắt chính")
                     .font(.system(size: 11))
                     .foregroundColor(Color.gray)
             }
             .padding(.horizontal, 4)
 
-            // Hàng 1: Quét QR | Thêm TB | Thiết bị | Hỗ trợ
+            // Hàng 1: Quét QR | Thêm TB | In tem QR
             HStack(spacing: 8) {
                 quickAccessCard(
                     icon: "qrcode.viewfinder",
@@ -843,25 +843,16 @@ public struct HomeScreenView: View {
                 }
 
                 quickAccessCard(
-                    icon: "desktopcomputer",
-                    label: "Thiết bị",
-                    iconColor: Color(hex: "#0D9488"),
-                    bgColor: Color(hex: "#CCFBF1")
+                    icon: "printer.fill",
+                    label: "In tem QR",
+                    iconColor: Color(hex: "#4F46E5"),
+                    bgColor: Color(hex: "#E0E7FF")
                 ) {
-                    onNavigate(.deviceList)
-                }
-
-                quickAccessCard(
-                    icon: "headphones",
-                    label: "Hỗ trợ",
-                    iconColor: Color(hex: "#EA580C"),
-                    bgColor: Color(hex: "#FFEDD5")
-                ) {
-                    onNavigate(.supportHub)
+                    activeSheet = .printQr
                 }
             }
 
-            // Hàng 2: Chấm công | Phân ca | Thống kê | Duyệt NV / In tem QR
+            // Hàng 2: Chấm công | Phân ca | Thống kê
             HStack(spacing: 8) {
                 // Chấm công (KTV, Chuyên viên, Quản lý, Admin được truy cập)
                 quickAccessCard(
@@ -899,15 +890,6 @@ public struct HomeScreenView: View {
                     bgColor: Color(hex: "#FEF3C7")
                 ) {
                     activeSheet = .statistics
-                }
-
-                quickAccessCard(
-                    icon: "printer.fill",
-                    label: "In tem QR",
-                    iconColor: Color(hex: "#4F46E5"),
-                    bgColor: Color(hex: "#E0E7FF")
-                ) {
-                    activeSheet = .printQr
                 }
             }
         }
