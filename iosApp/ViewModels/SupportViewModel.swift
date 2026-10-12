@@ -439,53 +439,53 @@ public class SupportViewModel: ObservableObject {
         scopedTickets.filter { isTicketHidden($0) }.count
     }
 
+    public func isEmailTicket(_ t: SupportTicket) -> Bool {
+        t.source.uppercased() == "EMAIL" || t.externalSenderId.contains("@")
+    }
+
+    public func isZaloTicket(_ t: SupportTicket) -> Bool {
+        t.source.uppercased() == "ZALO" || t.externalChannelName.localizedCaseInsensitiveContains("zalo")
+    }
+
     public func isDeptTicket(_ t: SupportTicket) -> Bool {
-        t.scope.uppercased() == "DEPARTMENT" ||
-        t.source.uppercased() == "DEPARTMENT" ||
-        t.isSpecialistAssigned ||
-        t.assignedRole.uppercased() == "SPECIALIST" ||
-        t.assignedDepartmentId.uppercased().hasPrefix("TO_") ||
-        t.assignedDepartmentName.localizedCaseInsensitiveContains("ứng dụng") ||
-        t.assignedDepartmentName.localizedCaseInsensitiveContains("nghiệp vụ") ||
-        t.departmentId.localizedCaseInsensitiveContains("phòng ban") ||
-        t.subject.localizedCaseInsensitiveContains("phòng ban")
+        if isEmailTicket(t) || isZaloTicket(t) { return false }
+        return t.scope.uppercased() == "DEPARTMENT" ||
+            t.source.uppercased() == "DEPARTMENT" ||
+            t.isSpecialistAssigned ||
+            t.assignedRole.uppercased() == "SPECIALIST" ||
+            t.assignedDepartmentId.uppercased().hasPrefix("TO_") ||
+            t.assignedDepartmentName.localizedCaseInsensitiveContains("ứng dụng") ||
+            t.assignedDepartmentName.localizedCaseInsensitiveContains("nghiệp vụ") ||
+            t.subject.localizedCaseInsensitiveContains("kênh phòng ban")
     }
 
     public var appCount: Int {
         scopedTickets.filter { t in
-            !isTicketHidden(t) &&
-            (t.source.isEmpty || t.source.uppercased() == "APP") &&
-            !isDeptTicket(t)
+            !isTicketHidden(t) && !isEmailTicket(t) && !isZaloTicket(t) && !isDeptTicket(t)
         }.count
     }
 
     public var emailCount: Int {
         scopedTickets.filter { t in
-            !isTicketHidden(t) &&
-            (t.source.uppercased() == "EMAIL" || t.externalSenderId.contains("@")) &&
-            !isDeptTicket(t)
+            !isTicketHidden(t) && isEmailTicket(t)
+        }.count
+    }
+
+    public var zaloCount: Int {
+        scopedTickets.filter { t in
+            !isTicketHidden(t) && isZaloTicket(t)
         }.count
     }
 
     public var deptCount: Int {
         scopedTickets.filter { t in
-            !isTicketHidden(t) &&
-            isDeptTicket(t)
+            !isTicketHidden(t) && !isEmailTicket(t) && !isZaloTicket(t) && isDeptTicket(t)
         }.count
     }
 
     // MARK: - FILTERED TICKETS BY STATUS, CHANNEL & SEARCH
     public var filteredTickets: [SupportTicket] {
         let baseList = scopedTickets
-        let isDeptFilter: (SupportTicket) -> Bool = { t in
-            t.scope.uppercased() == "DEPARTMENT" ||
-            t.source.uppercased() == "DEPARTMENT" ||
-            t.isSpecialistAssigned ||
-            t.assignedRole.uppercased() == "SPECIALIST" ||
-            t.assignedDepartmentId.uppercased().hasPrefix("TO_") ||
-            t.assignedDepartmentName.localizedCaseInsensitiveContains("ứng dụng") ||
-            t.assignedDepartmentName.localizedCaseInsensitiveContains("nghiệp vụ")
-        }
 
         let statusFiltered = baseList.filter { t in
             let hidden = isTicketHidden(t)
@@ -502,11 +502,16 @@ public class SupportViewModel: ObservableObject {
         }
 
         let channelFiltered = statusFiltered.filter { t in
+            let isEm = isEmailTicket(t)
+            let isZa = isZaloTicket(t)
+            let isDep = !isEm && !isZa && isDeptTicket(t)
+            let isAp = !isEm && !isZa && !isDep
+
             switch filterSource {
-            case "APP": return (t.source.isEmpty || t.source.uppercased() == "APP") && !isDeptFilter(t)
-            case "ZALO": return t.source.uppercased() == "ZALO" && !isDeptFilter(t)
-            case "EMAIL": return t.source.uppercased() == "EMAIL" && !isDeptFilter(t)
-            case "DEPARTMENT": return isDeptFilter(t)
+            case "APP": return isAp
+            case "ZALO": return isZa
+            case "EMAIL": return isEm
+            case "DEPARTMENT": return isDep
             default: return true // "ALL"
             }
         }
@@ -771,8 +776,8 @@ public class SupportViewModel: ObservableObject {
         }
 
         // Fallback: Nếu runQuery bị lỗi hoặc không có dữ liệu, dùng trực tiếp document listing
-        if !isSuccess {
-            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=300"
+        if !isSuccess || responseData == nil {
+            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=100"
             if let listUrl = URL(string: listUrlStr) {
                 var listReq = URLRequest(url: listUrl)
                 if !idToken.isEmpty {

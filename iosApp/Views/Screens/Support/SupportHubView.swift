@@ -342,6 +342,20 @@ public struct SupportHubView: View {
                     borderColor: Color(hex: "#FECDD3")
                 )
 
+                // Zalo (nếu có dữ liệu)
+                if viewModel.zaloCount > 0 {
+                    channelChip(
+                        title: "Zalo (\(viewModel.zaloCount))",
+                        icon: "message.fill",
+                        tag: "ZALO",
+                        activeBg: Color(hex: "#0068FF"),
+                        activeFg: .white,
+                        inactiveBg: Color(hex: "#EFF6FF"),
+                        inactiveFg: Color(hex: "#0068FF"),
+                        borderColor: Color(hex: "#BFDBFE")
+                    )
+                }
+
                 // Phòng ban
                 channelChip(
                     title: "Phòng ban (\(viewModel.deptCount))",

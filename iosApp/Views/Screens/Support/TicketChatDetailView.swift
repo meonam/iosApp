@@ -624,70 +624,100 @@ public struct TicketChatDetailView: View {
                 }
             }
 
-            // Hàng 2: Submeta: 📱 App • 🏬 Co.opmart Phú Lâm • 👤 Co.opmart Phú Lâm • ➡️ IT Tập...
-            HStack(spacing: 5) {
-                let channelText: String = {
-                    switch ticket.source.uppercased() {
-                    case "ZALO": return "💬 Zalo"
-                    case "EMAIL": return "✉️ Email"
-                    default: return "📱 App"
+            // Hàng 2: Nhóm thông tin Kênh tiếp nhận, Đơn vị & Người gửi (Badge pills + Scroll)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    let channelText: String = {
+                        switch ticket.source.uppercased() {
+                        case "ZALO": return "💬 Zalo"
+                        case "EMAIL": return "✉️ Email"
+                        default: return "📱 App"
+                        }
+                    }()
+                    Text(channelText)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color.appTextSecondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2.5)
+                        .background(Color(hex: "#F1F5F9"))
+                        .cornerRadius(4)
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.appCardBorder, lineWidth: 0.5))
+
+                    let effectiveDonVi: String = {
+                        let cLower = ticket.creatorName.lowercased()
+                        if ticket.donVi.localizedCaseInsensitiveContains("Điện Biên Phủ") &&
+                            (cLower.contains("co.op") || cLower.contains("coop") || cLower.contains("chi nhánh") || cLower.contains("cửa hàng")) {
+                            return ticket.creatorName
+                        }
+                        return ticket.donVi
+                    }()
+                    if !effectiveDonVi.isEmpty {
+                        Text("🏬 \(effectiveDonVi)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Color.appTextSecondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2.5)
+                            .background(Color(hex: "#F1F5F9"))
+                            .cornerRadius(4)
+                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.appCardBorder, lineWidth: 0.5))
                     }
-                }()
-                Text(channelText)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(Color.appTextSecondary)
 
-                let contactEmail = (!ticket.creatorEmail.isEmpty ? ticket.creatorEmail : ticket.externalSenderId).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !contactEmail.isEmpty && contactEmail.contains("@") {
-                    Text("•")
-                        .foregroundColor(Color.appTextMuted)
-                        .font(.system(size: 10))
-                    Text("📧 \(contactEmail)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color(hex: "#B91C1C"))
-                        .lineLimit(1)
-                }
-
-                let effectiveDonVi: String = {
-                    let cLower = ticket.creatorName.lowercased()
-                    if ticket.donVi.localizedCaseInsensitiveContains("Điện Biên Phủ") &&
-                        (cLower.contains("co.op") || cLower.contains("coop") || cLower.contains("chi nhánh") || cLower.contains("cửa hàng")) {
-                        return ticket.creatorName
+                    let creatorDisp = ticket.creatorName.isEmpty ? (ticket.creatorEmail.components(separatedBy: "@").first ?? ticket.creatorEmail) : ticket.creatorName
+                    if !creatorDisp.isEmpty {
+                        Text("👤 \(creatorDisp)")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(Color.appTextSecondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2.5)
+                            .background(Color(hex: "#F1F5F9"))
+                            .cornerRadius(4)
+                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.appCardBorder, lineWidth: 0.5))
                     }
-                    return ticket.donVi
-                }()
-                if !effectiveDonVi.isEmpty {
-                    Text("•")
-                        .foregroundColor(Color.appTextMuted)
-                        .font(.system(size: 10))
-                    Text("🏬 \(effectiveDonVi)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color.appTextSecondary)
-                        .lineLimit(1)
                 }
+            }
 
-                let creatorDisp = ticket.creatorName.isEmpty ? (ticket.creatorEmail.components(separatedBy: "@").first ?? ticket.creatorEmail) : ticket.creatorName
-                if !creatorDisp.isEmpty {
-                    Text("•")
-                        .foregroundColor(Color.appTextMuted)
-                        .font(.system(size: 10))
-                    Text("👤 \(creatorDisp)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color.appTextSecondary)
-                        .lineLimit(1)
+            // Hàng 3: Nhóm liên hệ & Bộ phận / KTV xử lý (Badge pills + Scroll)
+            let contactEmail = (!ticket.creatorEmail.isEmpty ? ticket.creatorEmail : ticket.externalSenderId).trimmingCharacters(in: .whitespacesAndNewlines)
+            let techDisplay = (!ticket.assignedToName.isEmpty ? ticket.assignedToName : ticket.assignedToEmail).trimmingCharacters(in: .whitespacesAndNewlines)
+            let hasRow3 = (!contactEmail.isEmpty && contactEmail.contains("@")) || !ticket.assignedDepartmentName.isEmpty || !techDisplay.isEmpty
+
+            if hasRow3 {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        if !contactEmail.isEmpty && contactEmail.contains("@") {
+                            Text("📧 \(contactEmail)")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(Color(hex: "#B91C1C"))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2.5)
+                                .background(Color(hex: "#FEF2F2"))
+                                .cornerRadius(4)
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(hex: "#FECACA"), lineWidth: 0.5))
+                        }
+
+                        if !ticket.assignedDepartmentName.isEmpty {
+                            Text("➡️ \(ticket.assignedDepartmentName)")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(Color.appTextSecondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2.5)
+                                .background(Color(hex: "#F1F5F9"))
+                                .cornerRadius(4)
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.appCardBorder, lineWidth: 0.5))
+                        }
+
+                        if !techDisplay.isEmpty {
+                            Text("🛠️ KTV: \(techDisplay)")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(Color(hex: "#0369A1"))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2.5)
+                                .background(Color(hex: "#E0F2FE"))
+                                .cornerRadius(4)
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(hex: "#BAE6FD"), lineWidth: 0.5))
+                        }
+                    }
                 }
-
-                if !ticket.assignedDepartmentName.isEmpty {
-                    Text("•")
-                        .foregroundColor(Color.appTextMuted)
-                        .font(.system(size: 10))
-                    Text("➡️ \(ticket.assignedDepartmentName)")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color.appTextSecondary)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 0)
             }
         }
         .padding(.horizontal, 14)
@@ -1125,7 +1155,8 @@ public struct TicketChatDetailView: View {
             ScrollView {
                 LazyVStack(spacing: 10) {
                     // Mô tả ban đầu (kèm hình ảnh, tệp đính kèm, thông tin thiết bị)
-                    if !currentTicket.initialMessage.isEmpty || !currentTicket.images.isEmpty || !currentTicket.attachments.isEmpty {
+                    let hasInitContent = !currentTicket.initialMessage.isEmpty || !currentTicket.lastMessage.isEmpty || !currentTicket.images.isEmpty || !currentTicket.attachments.isEmpty
+                    if hasInitContent {
                         initialMessageCard
                     }
 
@@ -1229,14 +1260,15 @@ public struct TicketChatDetailView: View {
             }
 
             // Nội dung mô tả sự cố
-            if !currentTicket.initialMessage.isEmpty {
-                Text("📝 Vấn đề: \(currentTicket.initialMessage)")
+            let effectiveInitialMsg = !currentTicket.initialMessage.isEmpty ? currentTicket.initialMessage : currentTicket.lastMessage
+            if !effectiveInitialMsg.isEmpty {
+                Text("📝 Vấn đề: \(effectiveInitialMsg)")
                     .font(.system(size: 12))
                     .foregroundColor(Color.appTextPrimary)
                     .textSelection(.enabled)
                     .contextMenu {
                         Button {
-                            UIPasteboard.general.string = currentTicket.initialMessage
+                            UIPasteboard.general.string = effectiveInitialMsg
                         } label: {
                             Label("Sao chép", systemImage: "doc.on.doc")
                         }

@@ -83,12 +83,15 @@ public struct StaffSupportView: View {
             }
 
             // Channel filter
-            if selectedChannel != "ALL" {
-                let src = ticket.source.uppercased()
-                if selectedChannel == "ZALO" && src != "ZALO" { return false }
-                if selectedChannel == "EMAIL" && src != "EMAIL" { return false }
-                if selectedChannel == "APP" && (src == "ZALO" || src == "EMAIL") { return false }
-            }
+            let isEm = ticket.source.uppercased() == "EMAIL" || ticket.externalSenderId.contains("@")
+            let isZa = ticket.source.uppercased() == "ZALO" || ticket.externalChannelName.localizedCaseInsensitiveContains("zalo")
+            let isDept = !isEm && !isZa && supportVM.isDeptTicket(ticket)
+            let isAp = !isEm && !isZa && !isDept
+
+            if selectedChannel == "APP" && !isAp { return false }
+            if selectedChannel == "ZALO" && !isZa { return false }
+            if selectedChannel == "EMAIL" && !isEm { return false }
+            if selectedChannel == "DEPARTMENT" && !isDept { return false }
 
             // Search query
             if !searchQuery.isEmpty {
@@ -300,12 +303,26 @@ public struct StaffSupportView: View {
 
     // MARK: - CHANNEL FILTER CHIPS
     private var channelFilterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        let isEm = { (t: SupportTicket) in t.source.uppercased() == "EMAIL" || t.externalSenderId.contains("@") }
+        let isZa = { (t: SupportTicket) in t.source.uppercased() == "ZALO" || t.externalChannelName.localizedCaseInsensitiveContains("zalo") }
+        let isDept = { (t: SupportTicket) in !isEm(t) && !isZa(t) && supportVM.isDeptTicket(t) }
+        let isAp = { (t: SupportTicket) in !isEm(t) && !isZa(t) && !isDept(t) }
+
+        let activeTickets = myScopedTickets.filter { !deletedTicketIds.contains($0.id) }
+        let appCount = activeTickets.filter { isAp($0) }.count
+        let zaloCount = activeTickets.filter { isZa($0) }.count
+        let emailCount = activeTickets.filter { isEm($0) }.count
+        let deptCount = activeTickets.filter { isDept($0) }.count
+
+        return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 6) {
-                channelChip(title: "Tất cả kênh", tag: "ALL")
-                channelChip(title: "📱 Ứng dụng", tag: "APP")
-                channelChip(title: "💬 Zalo", tag: "ZALO")
-                channelChip(title: "✉️ Email", tag: "EMAIL")
+                channelChip(title: "Tất cả (\(activeTickets.count))", tag: "ALL")
+                channelChip(title: "📱 Ứng dụng (\(appCount))", tag: "APP")
+                if zaloCount > 0 {
+                    channelChip(title: "💬 Zalo (\(zaloCount))", tag: "ZALO")
+                }
+                channelChip(title: "✉️ Email (\(emailCount))", tag: "EMAIL")
+                channelChip(title: "🏢 Phòng ban (\(deptCount))", tag: "DEPARTMENT")
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)

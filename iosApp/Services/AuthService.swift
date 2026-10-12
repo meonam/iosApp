@@ -508,6 +508,9 @@ public class AuthService {
         }
 
         let resolvedDept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
+            .ifEmpty(FirestoreHelper.getString(fields["department"] as? [String: Any]))
+            .ifEmpty(FirestoreHelper.getString(fields["departmentName"] as? [String: Any]))
+            .ifEmpty(FirestoreHelper.getString(fields["deptName"] as? [String: Any]))
             .ifEmpty(FirestoreHelper.getString(fields["phongBan"] as? [String: Any]))
         let rawDonVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
             .ifEmpty(FirestoreHelper.getString(fields["tenDonVi"] as? [String: Any]))
@@ -524,12 +527,13 @@ public class AuthService {
             .ifEmpty("SGCOOP")
         let resolvedKhuVuc = FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any])
             .ifEmpty(FirestoreHelper.getString(fields["khuVuc"] as? [String: Any]))
+            .ifEmpty(FirestoreHelper.getString(fields["cum"] as? [String: Any]))
 
-        let resolvedName = FirestoreHelper.getFirstNonEmptyString(fields, keys: ["fullName", "name", "hoTen"])
+        let resolvedName = FirestoreHelper.getFirstNonEmptyString(fields, keys: ["fullName", "displayName", "name", "hoTen"])
         let resolvedPhone = FirestoreHelper.resolvePhone(fields)
 
         return User(
-            maNhanVien: FirestoreHelper.getFirstNonEmptyString(fields, keys: ["maNhanVien", "employeeId", "mnv"]),
+            maNhanVien: FirestoreHelper.getFirstNonEmptyString(fields, keys: ["maNhanVien", "employeeId", "employeeCode", "mnv"]),
             email: FirestoreHelper.getString(fields["email"] as? [String: Any]),
             role: FirestoreHelper.getString(fields["role"] as? [String: Any]),
             fullName: resolvedName,

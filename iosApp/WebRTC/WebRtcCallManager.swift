@@ -60,6 +60,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     private var signalingTimer: AnyCancellable?
     private var isCaller: Bool = false
     private var processedCandidateIds: Set<String> = []
+    private var pendingRemoteCandidates: [RTCIceCandidate] = []
     
     private override init() {
         super.init()
@@ -397,6 +398,17 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         }
     }
     
+    private func drainPendingIceCandidates() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, let pc = self.peerConnection, pc.remoteDescription != nil else { return }
+            print("[WebRtcCallManager] Draining \(self.pendingRemoteCandidates.count) pending ICE candidates...")
+            for candidate in self.pendingRemoteCandidates {
+                pc.add(candidate)
+            }
+            self.pendingRemoteCandidates.removeAll()
+        }
+    }
+
     private func proceedAnswerWithOfferSdp(_ sdp: String) {
         let sessionDescription = RTCSessionDescription(type: .offer, sdp: sdp)
         self.peerConnection?.setRemoteDescription(sessionDescription) { [weak self] error in
@@ -405,6 +417,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                 print("[WebRtcCallManager] Error setting remote description (offer): \(error)")
                 return
             }
+            self.drainPendingIceCandidates()
             
             let constraints = RTCMediaConstraints(
                 mandatoryConstraints: [
@@ -446,6 +459,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         self.signalingTimer?.cancel()
         self.signalingTimer = nil
         self.processedCandidateIds.removeAll()
+        self.pendingRemoteCandidates.removeAll()
         
         if let callId = currentCallId {
             updateCallStateEnded(callId: callId)
@@ -701,6 +715,8 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                         } else if (statusUpper == "CONNECTED" || statusUpper == "ACCEPTED") && self.callState != .connected {
                             DispatchQueue.main.async {
                                 self.callState = .connected
+                                let rtcAudioSession = RTCAudioSession.sharedInstance()
+                                rtcAudioSession.isAudioEnabled = true
                             }
                         }
                     }
@@ -714,11 +730,12 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                        let sdpString = sdpObj["stringValue"] as? String {
                         
                         let sessionDesc = RTCSessionDescription(type: .answer, sdp: sdpString)
-                        self.peerConnection?.setRemoteDescription(sessionDesc) { error in
+                        self.peerConnection?.setRemoteDescription(sessionDesc) { [weak self] error in
                             if let error = error {
                                 print("[WebRtcCallManager] Error setting remote description (answer): \(error)")
                             } else {
                                 print("[WebRtcCallManager] Caller remote description set successfully")
+                                self?.drainPendingIceCandidates()
                             }
                         }
                     }
@@ -760,7 +777,11 @@ public class WebRtcCallManager: NSObject, ObservableObject {
                             }
                             
                             let candidate = RTCIceCandidate(sdp: candidateStr, sdpMLineIndex: sdpMLineIndex, sdpMid: sdpMid)
-                            self.peerConnection?.add(candidate)
+                            if self.peerConnection?.remoteDescription != nil {
+                                self.peerConnection?.add(candidate)
+                            } else {
+                                self.pendingRemoteCandidates.append(candidate)
+                            }
                             self.processedCandidateIds.insert(docId)
                         }
                     }
@@ -776,11 +797,29 @@ extension WebRtcCallManager: RTCPeerConnectionDelegate {
         print("[WebRtcCallManager] SignalingState changed: \(stateChanged.rawValue)")
     }
     
+    // Unified Plan Audio Track handling
+    public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd rtpReceiver: RTCRtpReceiver, streams: [RTCMediaStream]) {
+        print("[WebRtcCallManager] didAdd rtpReceiver: trackKind=\(String(describing: rtpReceiver.track?.kind))")
+        if let audioTrack = rtpReceiver.track as? RTCAudioTrack {
+            DispatchQueue.main.async {
+                self.remoteAudioTrack = audioTrack
+                audioTrack.isEnabled = true
+                let rtcAudioSession = RTCAudioSession.sharedInstance()
+                rtcAudioSession.isAudioEnabled = true
+                print("[WebRtcCallManager] Unified Plan remoteAudioTrack attached and enabled!")
+            }
+        }
+    }
+    
     public func peerConnection(_ peerConnection: RTCPeerConnection, didAdd stream: RTCMediaStream) {
         print("[WebRtcCallManager] didAdd stream: audioTracks=\(stream.audioTracks.count)")
         if let audioTrack = stream.audioTracks.first {
-            self.remoteAudioTrack = audioTrack
-            audioTrack.isEnabled = true
+            DispatchQueue.main.async {
+                self.remoteAudioTrack = audioTrack
+                audioTrack.isEnabled = true
+                let rtcAudioSession = RTCAudioSession.sharedInstance()
+                rtcAudioSession.isAudioEnabled = true
+            }
         }
     }
     
@@ -795,6 +834,8 @@ extension WebRtcCallManager: RTCPeerConnectionDelegate {
         if newState == .connected || newState == .completed {
             DispatchQueue.main.async {
                 self.callState = .connected
+                let rtcAudioSession = RTCAudioSession.sharedInstance()
+                rtcAudioSession.isAudioEnabled = true
             }
         }
     }

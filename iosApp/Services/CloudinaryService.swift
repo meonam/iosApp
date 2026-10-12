@@ -1,11 +1,10 @@
 import Foundation
 import UIKit
 
-// MARK: - CLOUDINARY SERVICE (ĐỒNG BỘ 1:1 THEO CLOUDINARYHELPER.KT TRÊN ANDROID)
+// MARK: - CLOUDINARY SERVICE (ĐÃ CHUYỂN HƯỚNG 100% SANG Ổ CỨNG MÁY CHỦ NỘI BỘ QLTB SERVER 136.80.195.63)
 public enum CloudinaryService {
-    public static let cloudName = "nhxhhbqf"
-    public static let uploadPreset = "qltb_preset"
-    public static let uploadUrl = "https://api.cloudinary.com/v1_1/nhxhhbqf/image/upload"
+    public static let uploadUrl = "https://136.80.195.63.sslip.io/api/storage/upload"
+    public static let fallbackUploadUrl = "http://136.80.195.63/api/storage/upload"
 
     public static func uploadImage(
         _ image: UIImage,
@@ -32,17 +31,12 @@ public enum CloudinaryService {
 
         var body = Data()
 
-        // 1. upload_preset
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"upload_preset\"\r\n\r\n".data(using: .utf8)!)
-        body.append("\(uploadPreset)\r\n".data(using: .utf8)!)
-
-        // 2. folder
+        // 1. folder
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"folder\"\r\n\r\n".data(using: .utf8)!)
         body.append("\(folder)\r\n".data(using: .utf8)!)
 
-        // 3. file
+        // 2. file
         let filename = "img_\(Int(Date().timeIntervalSince1970)).jpg"
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n\r\n".data(using: .utf8)!)
@@ -59,26 +53,26 @@ public enum CloudinaryService {
                 return nil
             }
 
-            guard let json = try JSONSerialization.jsonObject(with: respData) as? [String: Any],
-                  let secureUrl = json["secure_url"] as? String else {
+            guard let json = try JSONSerialization.jsonObject(with: respData) as? [String: Any] else {
                 return nil
             }
-            return secureUrl
+            if let secureUrl = json["secure_url"] as? String {
+                return secureUrl
+            }
+            return json["url"] as? String
         } catch {
             return nil
         }
     }
 
-    /// Tải tệp tài liệu, văn bản (PDF, Word, Excel, CSV, Text...) lên Cloudinary (raw upload), đồng bộ CloudinaryHelper.kt
+    /// Tải tệp tài liệu, văn bản (PDF, Word, Excel, CSV, Text...) lên ổ cứng máy chủ nội bộ
     public static func uploadRawData(
         _ data: Data,
         folder: String = "support_tickets",
         fileName: String = "attachment.dat"
     ) async -> String? {
         let safeFileName = fileName.replacingOccurrences(of: "[^a-zA-Z0-9._-]", with: "_", options: .regularExpression)
-        let isImage = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"].contains { safeFileName.lowercased().hasSuffix($0) }
-        let endpoint = isImage ? "image/upload" : "raw/upload"
-        guard let url = URL(string: "https://api.cloudinary.com/v1_1/\(cloudName)/\(endpoint)") else { return nil }
+        guard let url = URL(string: uploadUrl) else { return nil }
 
         let boundary = "Boundary-\(UUID().uuidString)"
         var request = URLRequest(url: url)
@@ -87,14 +81,13 @@ public enum CloudinaryService {
         request.timeoutInterval = 45
 
         var body = Data()
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"upload_preset\"\r\n\r\n".data(using: .utf8)!)
-        body.append("\(uploadPreset)\r\n".data(using: .utf8)!)
 
+        // 1. folder
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"folder\"\r\n\r\n".data(using: .utf8)!)
         body.append("\(folder)\r\n".data(using: .utf8)!)
 
+        // 2. file
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(safeFileName)\"\r\n\r\n".data(using: .utf8)!)
         body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)

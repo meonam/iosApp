@@ -48,13 +48,17 @@ public struct TicketItemView: View {
     }
 
     private var isDeptTicket: Bool {
-        ticket.scope.uppercased() == "DEPARTMENT" ||
-        ticket.source.uppercased() == "DEPARTMENT" ||
-        ticket.isSpecialistAssigned ||
-        ticket.assignedRole.uppercased() == "SPECIALIST" ||
-        ticket.assignedDepartmentId.uppercased().hasPrefix("TO_") ||
-        ticket.assignedDepartmentName.localizedCaseInsensitiveContains("ứng dụng") ||
-        ticket.assignedDepartmentName.localizedCaseInsensitiveContains("nghiệp vụ")
+        if ticket.source.uppercased() == "EMAIL" || ticket.source.uppercased() == "ZALO" || ticket.externalSenderId.contains("@") {
+            return false
+        }
+        return ticket.scope.uppercased() == "DEPARTMENT" ||
+            ticket.source.uppercased() == "DEPARTMENT" ||
+            ticket.isSpecialistAssigned ||
+            ticket.assignedRole.uppercased() == "SPECIALIST" ||
+            ticket.assignedDepartmentId.uppercased().hasPrefix("TO_") ||
+            ticket.assignedDepartmentName.localizedCaseInsensitiveContains("ứng dụng") ||
+            ticket.assignedDepartmentName.localizedCaseInsensitiveContains("nghiệp vụ") ||
+            ticket.subject.localizedCaseInsensitiveContains("kênh phòng ban")
     }
 
     // Stripe color (4dp left border đồng bộ 1:1 Android)
@@ -270,19 +274,28 @@ public struct TicketItemView: View {
                     // ── TẦNG 4: Badges Row 2 (Kênh, Loại sự cố, Mức ưu tiên SLA, Giám sát lộ trình) ──
                     HStack(spacing: 4.5) {
                         // Channel Badge
-                        if isDeptTicket {
-                            badgeItem(
-                                text: "🏢 Phòng ban",
-                                bgColor: Color(hex: "#0D9488").opacity(0.12),
-                                textColor: Color(hex: "#0D9488"),
-                                borderColor: Color(hex: "#0D9488").opacity(0.35)
-                            )
-                        } else if ticket.source.uppercased() == "EMAIL" || ticket.externalSenderId.contains("@") {
+                        let isEmail = ticket.source.uppercased() == "EMAIL" || ticket.externalSenderId.contains("@")
+                        let isZalo = ticket.source.uppercased() == "ZALO" || ticket.externalChannelName.localizedCaseInsensitiveContains("zalo")
+                        if isEmail {
                             badgeItem(
                                 text: "✉️ Email",
                                 bgColor: Color(hex: "#EA4335").opacity(0.12),
                                 textColor: Color(hex: "#EA4335"),
                                 borderColor: Color(hex: "#EA4335").opacity(0.35)
+                            )
+                        } else if isZalo {
+                            badgeItem(
+                                text: "💬 Zalo OA",
+                                bgColor: Color(hex: "#0068FF").opacity(0.12),
+                                textColor: Color(hex: "#0068FF"),
+                                borderColor: Color(hex: "#0068FF").opacity(0.35)
+                            )
+                        } else if isDeptTicket {
+                            badgeItem(
+                                text: "🏢 Phòng ban",
+                                bgColor: Color(hex: "#0D9488").opacity(0.12),
+                                textColor: Color(hex: "#0D9488"),
+                                borderColor: Color(hex: "#0D9488").opacity(0.35)
                             )
                         } else {
                             badgeItem(
