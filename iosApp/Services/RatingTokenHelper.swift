@@ -184,6 +184,7 @@ public struct RatingTokenHelper {
         dispatchNote: String
     ) -> String {
         let displayTicketCode = !ticket.ticketCode.isEmpty ? ticket.ticketCode : ticket.id.replacingOccurrences(of: "ticket_", with: "").replacingOccurrences(of: "TK_", with: "")
+        let subject = !ticket.subject.isEmpty ? ticket.subject : "Yêu cầu hỗ trợ"
         let roleTitle = isSpecialist ? "Chuyên viên" : "Kỹ thuật viên"
         let headerTitle = isSpecialist ? "CHUYỂN GIAO PHIẾU NGHIỆP VỤ & ỨNG DỤNG" : "ĐIỀU PHỐI XỬ LÝ SỰ CỐ KỸ THUẬT"
         let headerGradient = isSpecialist ? "linear-gradient(135deg, #1E1B4B 0%, #4338CA 100%)" : "linear-gradient(135deg, #0F172A 0%, #0284C7 100%)"

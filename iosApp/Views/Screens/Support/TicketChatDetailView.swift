@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import PhotosUI
 import UniformTypeIdentifiers
@@ -229,14 +230,14 @@ public struct TicketChatDetailView: View {
         }
         // 2. Tìm tin nhắn đầu tiên của chính người tạo yêu cầu (không phải hệ thống, không phải admin/điều phối)
         if let firstUserMsg = viewModel.messages.first(where: { m in
-            !m.isSystem && !isDispatchOrSystemText(m.message) &&
+            !m.isSystemMessage && !isDispatchOrSystemText(m.message) &&
             (!currentTicket.creatorEmail.isEmpty ? m.senderEmail.caseInsensitiveCompare(currentTicket.creatorEmail) == .orderedSame : true)
         }) {
             let text = firstUserMsg.message.trimmingCharacters(in: .whitespacesAndNewlines)
             if !text.isEmpty { return text }
         }
         // 3. Tin nhắn người dùng đầu tiên bất kỳ không phải hệ thống
-        if let anyUserMsg = viewModel.messages.first(where: { m in !m.isSystem && !isDispatchOrSystemText(m.message) }) {
+        if let anyUserMsg = viewModel.messages.first(where: { m in !m.isSystemMessage && !isDispatchOrSystemText(m.message) }) {
             let text = anyUserMsg.message.trimmingCharacters(in: .whitespacesAndNewlines)
             if !text.isEmpty { return text }
         }

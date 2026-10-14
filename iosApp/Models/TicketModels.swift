@@ -854,6 +854,11 @@ public struct SupportMessage: Identifiable, Codable, Hashable {
         set { message = newValue }
     }
 
+    public var isSystem: Bool {
+        get { isSystemMessage }
+        set { isSystemMessage = newValue }
+    }
+
     public init(
         id: String = UUID().uuidString,
         senderEmail: String = "",
