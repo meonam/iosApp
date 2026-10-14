@@ -1,10 +1,10 @@
 import Foundation
 import UIKit
 
-// MARK: - CLOUDINARY SERVICE (ĐÃ CHUYỂN HƯỚNG 100% SANG Ổ CỨNG MÁY CHỦ NỘI BỘ QLTB SERVER 136.80.195.63)
+// MARK: - CLOUDINARY SERVICE (ĐÃ CHUYỂN HƯỚNG 100% SANG Ổ CỨNG MÁY CHỦ NỘI BỘ QLTB SERVER 103.179.172.229)
 public enum CloudinaryService {
-    public static let uploadUrl = "https://136.80.195.63.sslip.io/api/storage/upload"
-    public static let fallbackUploadUrl = "http://136.80.195.63/api/storage/upload"
+    public static let uploadUrl = "https://103.179.172.229.sslip.io/api/storage/upload"
+    public static let fallbackUploadUrl = "http://103.179.172.229/api/storage/upload"
 
     public static func uploadImage(
         _ image: UIImage,

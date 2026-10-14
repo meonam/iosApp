@@ -1,6 +1,8 @@
 import Foundation
 
-// MARK: - FIRESTORE REST VALUE HELPER
+// MARK: - DATABASE REST VALUE HELPER (Drop-in alias for self-hosted backend)
+public typealias DbHelper = FirestoreHelper
+
 public struct FirestoreHelper {
     public static func getString(_ field: [String: Any]?) -> String {
         return field?["stringValue"] as? String ?? ""

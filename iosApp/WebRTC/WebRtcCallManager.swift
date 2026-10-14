@@ -28,7 +28,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     private var localAudioTrack: RTCAudioTrack?
     private var remoteAudioTrack: RTCAudioTrack?
     
-    // Mặc định nạp sẵn STUN/TURN của máy ảo Google Cloud VM (136.80.195.63) & Google STUN
+    // Mặc định nạp sẵn STUN/TURN của máy chủ Cloud & Google STUN
     private var iceServers: [RTCIceServer] = [
         RTCIceServer(urlStrings: [
             FirebaseConfig.stunServer,
@@ -37,8 +37,8 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         ]),
         RTCIceServer(
             urlStrings: [
-                "turn:136.80.195.63:3478?transport=udp",
-                "turn:136.80.195.63:3478?transport=tcp"
+                "turn:\(FirebaseConfig.serverHost):3478?transport=udp",
+                "turn:\(FirebaseConfig.serverHost):3478?transport=tcp"
             ],
             username: FirebaseConfig.turnUsername,
             credential: FirebaseConfig.turnPassword

@@ -168,7 +168,7 @@ class PaywallLicenseViewModel: ObservableObject {
 
             // 2. Ghi nhận thiết bị vào license_codes/{cleanCode} nếu là key bản quyền
             if cleanCode.hasPrefix("QLTB-") {
-                let licUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/license_codes/\(cleanCode)?updateMask.fieldPaths=devicesDetail.\(deviceId).name&updateMask.fieldPaths=devicesDetail.\(deviceId).activatedAt&updateMask.fieldPaths=devicesDetail.\(deviceId).lastActive&updateMask.fieldPaths=devicesDetail.\(deviceId).isRevoked&updateMask.fieldPaths=lastActive"
+                let licUrlStr = "\(FirebaseConfig.resolveFirestoreUrl(for: "license_codes/\(cleanCode)"))?updateMask.fieldPaths=devicesDetail.\(deviceId).name&updateMask.fieldPaths=devicesDetail.\(deviceId).activatedAt&updateMask.fieldPaths=devicesDetail.\(deviceId).lastActive&updateMask.fieldPaths=devicesDetail.\(deviceId).isRevoked&updateMask.fieldPaths=lastActive"
                 if let licUrl = URL(string: licUrlStr) {
                     var licReq = URLRequest(url: licUrl)
                     licReq.httpMethod = "PATCH"

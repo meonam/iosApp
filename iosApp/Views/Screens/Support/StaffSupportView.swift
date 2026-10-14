@@ -20,6 +20,9 @@ public struct StaffSupportView: View {
         return Set(saved)
     }()
 
+    @Environment(\.scenePhase) private var scenePhase
+    private let autoRefreshTimer = Timer.publish(every: 6.0, on: .main, in: .common).autoconnect()
+
     public init(
         authViewModel: AuthViewModel,
         onBack: @escaping () -> Void,
@@ -183,8 +186,19 @@ public struct StaffSupportView: View {
             .ignoresSafeArea(edges: .top)
         }
         .onAppear {
-            if supportVM.tickets.isEmpty {
-                supportVM.fetchTickets()
+            supportVM.fetchTickets()
+        }
+        .refreshable {
+            supportVM.fetchTickets()
+        }
+        .onReceive(autoRefreshTimer) { _ in
+            if scenePhase == .active {
+                supportVM.fetchTicketsSilently()
+            }
+        }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active {
+                supportVM.fetchTicketsSilently()
             }
         }
         .sheet(isPresented: $showingCreateSheet) {

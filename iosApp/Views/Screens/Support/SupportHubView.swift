@@ -23,6 +23,9 @@ public struct SupportHubView: View {
     var onSelectTicket: (SupportTicket) -> Void
     var onOpenRatingReport: () -> Void
 
+    @Environment(\.scenePhase) private var scenePhase
+    private let autoRefreshTimer = Timer.publish(every: 6.0, on: .main, in: .common).autoconnect()
+
     // Dialog & Sheet States
     @State private var activeSheet: SupportHubActiveSheet? = nil
     @State private var showConfirmCleanClosed: Bool = false
@@ -132,6 +135,16 @@ public struct SupportHubView: View {
         }
         .refreshable {
             viewModel.fetchTickets()
+        }
+        .onReceive(autoRefreshTimer) { _ in
+            if scenePhase == .active {
+                viewModel.fetchTicketsSilently()
+            }
+        }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active {
+                viewModel.fetchTicketsSilently()
+            }
         }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {

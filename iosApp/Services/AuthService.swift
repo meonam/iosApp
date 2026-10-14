@@ -601,12 +601,12 @@ public class AuthService {
         }
     }
 
-    // 5. Làm mới Firebase ID Token khi hết hạn (Đồng bộ máy chủ VM 136.80.195.63 & Google securetoken)
+    // 5. Làm mới Firebase ID Token khi hết hạn (Đồng bộ máy chủ VM 103.179.172.229 & Google securetoken)
     public func refreshToken(refreshToken: String) async -> (idToken: String, newRefreshToken: String)? {
         let clean = refreshToken.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty, !clean.starts(with: "refresh_") else { return nil }
 
-        // 1. Thử máy chủ chính 136.80.195.63 /v1/token (Custom JWT Token)
+        // 1. Thử máy chủ chính 103.179.172.229 /v1/token (Custom JWT Token)
         if let serverUrl = URL(string: "\(FirebaseConfig.serverBaseUrl)/v1/token") {
             var req = URLRequest(url: serverUrl)
             req.httpMethod = "POST"
@@ -620,24 +620,6 @@ public class AuthService {
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let newId = (json["id_token"] ?? json["idToken"]) as? String, !newId.isEmpty {
                 let nextRefresh = ((json["refresh_token"] ?? json["refreshToken"]) as? String) ?? clean
-                return (newId, nextRefresh)
-            }
-        }
-
-        // 2. Fallback Google securetoken (nếu dùng tài khoản Firebase Auth thuần)
-        if let url = URL(string: "https://securetoken.googleapis.com/v1/token?key=\(FirebaseConfig.apiKey)") {
-            var req = URLRequest(url: url)
-            req.httpMethod = "POST"
-            req.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-            req.timeoutInterval = 10
-            let bodyString = "grant_type=refresh_token&refresh_token=\(clean)"
-            req.httpBody = bodyString.data(using: .utf8)
-
-            if let (data, resp) = try? await URLSession.shared.data(for: req),
-               let http = resp as? HTTPURLResponse, http.statusCode == 200,
-               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let newId = json["id_token"] as? String {
-                let nextRefresh = (json["refresh_token"] as? String) ?? clean
                 return (newId, nextRefresh)
             }
         }

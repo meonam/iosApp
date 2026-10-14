@@ -117,9 +117,7 @@ public struct DispatchTicketSheet: View {
                    (isSpec && selectedSpecialistTeamId.isEmpty)
         }
 
-        if !matched.isEmpty { return matched }
-
-        return allStaff.filter { u in
+        let list = !matched.isEmpty ? matched : allStaff.filter { u in
             let uEmail = u.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             let isValidEmail = uEmail.contains("@") && !uEmail.hasPrefix("device_")
             if !isValidEmail { return false }
@@ -135,6 +133,17 @@ public struct DispatchTicketSheet: View {
                    r.contains("CHUYENVIEN") ||
                    r.contains("SPECIALIST") ||
                    r.contains("STAFF")
+        }
+
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        return list.sorted { a, b in
+            let aOnline = a.isOnDuty || (a.isOnline && a.lastActiveAt > 0 && (nowMs - a.lastActiveAt <= 15 * 60 * 1000))
+            let bOnline = b.isOnDuty || (b.isOnline && b.lastActiveAt > 0 && (nowMs - b.lastActiveAt <= 15 * 60 * 1000))
+            if aOnline != bOnline { return aOnline && !bOnline }
+            let aWork = viewModel.getActiveTicketCount(email: a.email)
+            let bWork = viewModel.getActiveTicketCount(email: b.email)
+            if aWork != bWork { return aWork < bWork }
+            return a.fullName < b.fullName
         }
     }
 
@@ -758,7 +767,8 @@ public struct DispatchTicketSheet: View {
 
                     ForEach(specialistsInTeam, id: \.email) { spec in
                         let isSelected = selectedSpecialistEmail.caseInsensitiveCompare(spec.email) == .orderedSame
-                        let isOnline = spec.isOnline && (spec.lastActiveAt > 0) && (Int64(Date().timeIntervalSince1970 * 1000) - spec.lastActiveAt <= 15 * 60 * 1000)
+                        let isAppOnline = spec.isOnline && (spec.lastActiveAt > 0) && (Int64(Date().timeIntervalSince1970 * 1000) - spec.lastActiveAt <= 15 * 60 * 1000)
+                        let isOnline = isAppOnline || spec.isOnDuty
                         let workload = viewModel.getActiveTicketCount(email: spec.email)
 
                         Button(action: {
@@ -784,12 +794,13 @@ public struct DispatchTicketSheet: View {
                                             .foregroundColor(Color.appTextPrimary)
 
                                         Circle()
-                                            .fill(isOnline ? Color(hex: "#10B981") : Color.gray)
+                                            .fill(spec.isOnDuty ? Color(hex: "#2563EB") : (isOnline ? Color(hex: "#10B981") : Color.gray))
                                             .frame(width: 7, height: 7)
 
-                                        Text(isOnline ? "Online" : "Offline")
+                                        let onlineBadge = spec.isOnDuty ? "Đang trực (\(spec.onDutyShift.isEmpty ? "Ca" : spec.onDutyShift))" : (isOnline ? "Online" : "Offline")
+                                        Text(onlineBadge)
                                             .font(.system(size: 11))
-                                            .foregroundColor(isOnline ? Color(hex: "#10B981") : Color.gray)
+                                            .foregroundColor(spec.isOnDuty ? Color(hex: "#2563EB") : (isOnline ? Color(hex: "#10B981") : Color.gray))
                                     }
 
                                     let statusText = isOnline

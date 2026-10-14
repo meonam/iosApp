@@ -721,6 +721,14 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
+    /// Tải vé ngầm tự động (không hiện vòng quay loading spinner, không gián đoạn cuộn trang)
+    public func fetchTicketsSilently() {
+        guard !companyId.isEmpty else { return }
+        Task {
+            await self.executeFetchTickets(showSpinner: false)
+        }
+    }
+
 
     private func executeFetchTickets(showSpinner: Bool) async {
         if showSpinner {

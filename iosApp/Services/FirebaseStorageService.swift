@@ -23,7 +23,7 @@ public enum FirebaseStorageService {
         let storagePath = "companies/\(cleanComp)/ticket_attachments/\(cleanTicketId)/\(timestamp)_\(cleanFileName)"
         let resolvedContentType = resolveMimeType(fileName: fileName, customMime: mimeType)
 
-        // Chuyển hướng lưu trữ 100% sang ổ cứng máy chủ nội bộ QLTB Server (136.80.195.63)
+        // Chuyển hướng lưu trữ 100% sang ổ cứng máy chủ nội bộ QLTB Server (103.179.172.229)
         let isImage = ["jpg", "jpeg", "png", "webp", "gif", "bmp"].contains((fileName as NSString).pathExtension.lowercased())
         if isImage {
             return await CloudinaryService.uploadImageData(data, folder: "ticket_attachments")

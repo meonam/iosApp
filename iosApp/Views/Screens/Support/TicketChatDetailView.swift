@@ -58,6 +58,8 @@ public struct TicketChatDetailView: View {
     @State private var slaTimer: Timer? = nil
     @State private var slaIsOverdue: Bool = false
     @State private var chatPollTimer: Timer? = nil
+    @State private var prevMessageCount: Int = 0
+    @State private var hasInitialScrolled: Bool = false
 
     // MARK: - File Attachment State (đồng bộ Android AndroidPendingAttachment)
     /// Tối đa 5 tệp, mỗi tệp tối đa 10MB
@@ -73,6 +75,41 @@ public struct TicketChatDetailView: View {
 
     private var currentTicket: SupportTicket {
         viewModel.tickets.first(where: { $0.id == ticket.id }) ?? ticket
+    }
+
+    // Gom tất cả ảnh & tệp đính kèm về 1 nơi duy nhất ở phía trên (Stage 1 & Stage 2 & Hội thoại)
+    private var allUnifiedAttachments: [AttachmentItem] {
+        var list: [AttachmentItem] = []
+        var seenUrls = Set<String>()
+
+        for att in currentTicket.attachments {
+            if !att.url.isEmpty && seenUrls.insert(att.url).inserted {
+                list.append(att)
+            }
+        }
+
+        for imgUrl in currentTicket.getLegitimateImages() {
+            if !imgUrl.isEmpty && seenUrls.insert(imgUrl).inserted {
+                list.append(AttachmentItem(id: imgUrl, name: "Ảnh sự cố ban đầu", url: imgUrl, type: "image"))
+            }
+        }
+
+        for msg in viewModel.messages {
+            for att in msg.attachments {
+                if !att.url.isEmpty && seenUrls.insert(att.url).inserted {
+                    list.append(att)
+                }
+            }
+            let trimmed = msg.message.trimmingCharacters(in: .whitespacesAndNewlines)
+            let isImg = (trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://")) &&
+                (trimmed.contains("res.cloudinary.com") || trimmed.contains("firebasestorage") ||
+                 trimmed.hasSuffix(".jpg") || trimmed.hasSuffix(".jpeg") || trimmed.hasSuffix(".png") || trimmed.hasSuffix(".webp"))
+            if isImg && seenUrls.insert(trimmed).inserted {
+                list.append(AttachmentItem(id: trimmed, name: "Ảnh từ tin nhắn", url: trimmed, type: "image", uploadedAt: msg.timestamp))
+            }
+        }
+
+        return list
     }
 
     private var myEmail: String {
@@ -240,7 +277,7 @@ public struct TicketChatDetailView: View {
             startSlaTimer()
 
             chatPollTimer?.invalidate()
-            chatPollTimer = Timer.scheduledTimer(withTimeInterval: 8.0, repeats: true) { _ in
+            chatPollTimer = Timer.scheduledTimer(withTimeInterval: 3.5, repeats: true) { _ in
                 viewModel.fetchMessages(for: ticket.id)
             }
         }
@@ -676,25 +713,6 @@ public struct TicketChatDetailView: View {
                             .cornerRadius(4)
                             .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.appCardBorder, lineWidth: 0.5))
                     }
-
-                    // Trên màn hình KTV/Chuyên viên: Bỏ phần KTV:.... phía trên cho gọn
-                    let isTechOrSpecialist = viewModel.user.isTechnician || viewModel.user.isSpecialist || isAssignedOrAckTech ||
-                        viewModel.user.role.localizedCaseInsensitiveContains("tech") ||
-                        viewModel.user.role.localizedCaseInsensitiveContains("ktv") ||
-                        viewModel.user.role.localizedCaseInsensitiveContains("specialist") ||
-                        viewModel.user.role.localizedCaseInsensitiveContains("chuyenvien")
-
-                    let techDisplay = (!ticket.assignedToName.isEmpty ? ticket.assignedToName : ticket.assignedToEmail).trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !techDisplay.isEmpty && !isTechOrSpecialist {
-                        Text("🛠️ KTV: \(techDisplay)")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(Color.dynamic(light: "#0369A1", dark: "#38BDF8"))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2.5)
-                            .background(Color.dynamic(light: "#E0F2FE", dark: "#0C4A6E"))
-                            .cornerRadius(4)
-                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.dynamic(light: "#BAE6FD", dark: "#0284C7"), lineWidth: 0.5))
-                    }
                 }
             }
         }
@@ -1129,23 +1147,26 @@ public struct TicketChatDetailView: View {
 
     // MARK: - MESSAGES LIST VIEW
     private var messagesListView: some View {
-        ScrollViewReader { proxy in
+        let displayMessages = viewModel.messages.filter { msg in
+            let text = msg.message
+            let isRatingMsg = text.contains("Người dùng đã nghiệm thu và đánh giá") ||
+                              text.contains("Khách hàng đánh giá") ||
+                              text.contains("đã nghiệm thu và đánh giá")
+            return !isRatingMsg
+        }
+
+        return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 10) {
                     // Mô tả ban đầu (kèm hình ảnh, tệp đính kèm, thông tin thiết bị)
                     let hasInitContent = !currentTicket.initialMessage.isEmpty || !currentTicket.lastMessage.isEmpty || !currentTicket.images.isEmpty || !currentTicket.attachments.isEmpty
                     if hasInitContent {
                         initialMessageCard
+                            .id("topTicketHeader")
                     }
 
                     // Danh sách tin nhắn trao đổi (ẩn tin nhắn text tự động của đánh giá để không bị trùng lặp)
-                    ForEach(viewModel.messages.filter { msg in
-                        let text = msg.message
-                        let isRatingMsg = text.contains("Người dùng đã nghiệm thu và đánh giá") ||
-                                          text.contains("Khách hàng đánh giá") ||
-                                          text.contains("đã nghiệm thu và đánh giá")
-                        return !isRatingMsg
-                    }) { msg in
+                    ForEach(displayMessages) { msg in
                         messageBubbleView(msg)
                             .id(msg.id)
                     }
@@ -1157,10 +1178,31 @@ public struct TicketChatDetailView: View {
                 }
                 .padding(12)
             }
-            .onChange(of: viewModel.messages.count) { _ in
-                if let lastId = viewModel.messages.last?.id {
-                    withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
+            .onAppear {
+                if displayMessages.isEmpty {
+                    proxy.scrollTo("topTicketHeader", anchor: .top)
+                } else if let lastId = displayMessages.last?.id {
+                    proxy.scrollTo(lastId, anchor: .bottom)
+                    hasInitialScrolled = true
                 }
+                prevMessageCount = displayMessages.count
+            }
+            .onChange(of: displayMessages.count) { newCount in
+                if newCount == 0 {
+                    proxy.scrollTo("topTicketHeader", anchor: .top)
+                } else {
+                    if !hasInitialScrolled {
+                        if let lastId = displayMessages.last?.id {
+                            proxy.scrollTo(lastId, anchor: .bottom)
+                            hasInitialScrolled = true
+                        }
+                    } else if newCount > prevMessageCount {
+                        if let lastId = displayMessages.last?.id {
+                            withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
+                        }
+                    }
+                }
+                prevMessageCount = newCount
             }
         }
     }
@@ -1253,82 +1295,91 @@ public struct TicketChatDetailView: View {
                     }
             }
 
-            // Hình ảnh chụp hiện trường ban đầu
-            if !currentTicket.images.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("📷 Ảnh sự cố ban đầu:")
-                        .font(.system(size: 10.5, weight: .bold))
-                        .foregroundColor(Color.appTextSecondary)
+            // Tệp & ảnh đính kèm (Gom tại 1 nơi duy nhất ở phía trên)
+            if !allUnifiedAttachments.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "paperclip")
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                            .font(.system(size: 12))
+                        Text("📎 Tệp & ảnh đính kèm (\(allUnifiedAttachments.count)):")
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundColor(Color.appTextPrimary)
+                    }
 
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(currentTicket.images, id: \.self) { imgUrl in
-                                Button(action: {
-                                    selectedPreviewImageUrl = imgUrl
-                                }) {
-                                    if let url = URL(string: imgUrl) {
-                                        AsyncImage(url: url) { phase in
-                                            switch phase {
-                                            case .empty:
-                                                Rectangle().fill(Color.gray.opacity(0.2)).frame(width: 72, height: 72)
-                                            case .success(let image):
-                                                image.resizable().scaledToFill().frame(width: 72, height: 72).clipped()
-                                            case .failure:
-                                                Image(systemName: "photo").frame(width: 72, height: 72).background(Color.gray.opacity(0.1))
-                                            @unknown default:
-                                                EmptyView()
+                    // Nhóm hình ảnh (thumbnail horizontal scroll)
+                    let imageAtts = allUnifiedAttachments.filter { $0.type.lowercased() == "image" || $0.url.contains("image") }
+                    if !imageAtts.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(imageAtts) { att in
+                                    Button(action: {
+                                        selectedPreviewImageUrl = att.url
+                                    }) {
+                                        if let url = URL(string: att.url) {
+                                            AsyncImage(url: url) { phase in
+                                                switch phase {
+                                                case .empty:
+                                                    Rectangle().fill(Color.gray.opacity(0.2)).frame(width: 72, height: 72)
+                                                case .success(let image):
+                                                    image.resizable().scaledToFill().frame(width: 72, height: 72).clipped()
+                                                case .failure:
+                                                    Image(systemName: "photo").frame(width: 72, height: 72).background(Color.gray.opacity(0.1))
+                                                @unknown default:
+                                                    EmptyView()
+                                                }
                                             }
+                                            .cornerRadius(8)
+                                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
                                         }
-                                        .cornerRadius(8)
-                                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
                                     }
                                 }
                             }
                         }
                     }
-                }
-                .padding(.top, 2)
-            }
 
-            // Tệp tài liệu đính kèm ban đầu
-            if !currentTicket.attachments.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("📎 Tệp đính kèm:")
-                        .font(.system(size: 10.5, weight: .bold))
-                        .foregroundColor(Color.appTextSecondary)
-
-                    ForEach(currentTicket.attachments) { att in
-                        Button(action: {
-                            if let url = URL(string: att.url) {
-                                UIApplication.shared.open(url)
-                            }
-                        }) {
-                            HStack(spacing: 6) {
-                                Image(systemName: documentIconName(att.type))
-                                    .foregroundColor(Color.appSecondaryDarkBlue)
-                                    .font(.system(size: 13))
-                                Text(att.name)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(Color.appTextPrimary)
-                                    .lineLimit(1)
-                                Spacer()
-                                if att.size > 0 {
-                                    Text("\(max(1, att.size / 1024)) KB")
-                                        .font(.system(size: 9.5))
-                                        .foregroundColor(Color.gray)
+                    // Nhóm tệp tin & tài liệu khác
+                    let fileAtts = allUnifiedAttachments.filter { $0.type.lowercased() != "image" && !$0.url.contains("image") }
+                    if !fileAtts.isEmpty {
+                        VStack(spacing: 4) {
+                            ForEach(fileAtts) { att in
+                                Button(action: {
+                                    if let url = URL(string: att.url) {
+                                        UIApplication.shared.open(url)
+                                    }
+                                }) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: documentIconName(att.type))
+                                            .foregroundColor(Color.appSecondaryDarkBlue)
+                                            .font(.system(size: 13))
+                                        Text(att.name)
+                                            .font(.system(size: 11, weight: .medium))
+                                            .foregroundColor(Color.appTextPrimary)
+                                            .lineLimit(1)
+                                        Spacer()
+                                        if att.size > 0 {
+                                            Text("\(max(1, att.size / 1024)) KB")
+                                                .font(.system(size: 9.5))
+                                                .foregroundColor(Color.gray)
+                                        }
+                                        Image(systemName: "arrow.down.circle")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(Color.appPrimaryPink)
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 5)
+                                    .background(Color.appSurfaceVariant)
+                                    .cornerRadius(6)
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
                                 }
-                                Image(systemName: "arrow.down.circle")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(Color.appPrimaryPink)
                             }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(Color.appSurfaceVariant)
-                            .cornerRadius(6)
-                            .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.appCardBorder, lineWidth: 1))
                         }
                     }
                 }
+                .padding(8)
+                .background(Color.appSurfaceVariant.opacity(0.5))
+                .cornerRadius(8)
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
                 .padding(.top, 2)
             }
 
@@ -1443,47 +1494,21 @@ public struct TicketChatDetailView: View {
                             .foregroundColor(Color.gray)
                     }
 
-                    // Hiển thị ảnh/file đính kèm (nếu có)
+                    // Huy hiệu thông báo tệp đính kèm gọn gàng (xem tập trung tại 1 nơi bên trên)
                     if !msg.attachments.isEmpty {
-                        ForEach(msg.attachments) { att in
-                            if att.type == "image", let imgUrl = URL(string: att.url) {
-                                AsyncImage(url: imgUrl) { phase in
-                                    switch phase {
-                                    case .success(let image):
-                                        image
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(maxWidth: 200)
-                                            .cornerRadius(10)
-                                    case .failure:
-                                        Label("Không tải được ảnh", systemImage: "photo.badge.exclamationmark")
-                                            .font(.system(size: 11))
-                                            .foregroundColor(.gray)
-                                    default:
-                                        ProgressView()
-                                            .frame(width: 120, height: 80)
-                                    }
-                                }
-                            } else if let fileUrl = URL(string: att.url) {
-                                Link(destination: fileUrl) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "doc.fill")
-                                            .foregroundColor(Color.appPrimaryPink)
-                                        Text(att.name.isEmpty ? "Tệp đính kèm" : att.name)
-                                            .font(.system(size: 12))
-                                            .lineLimit(1)
-                                        Image(systemName: "arrow.down.circle")
-                                            .font(.system(size: 12))
-                                    }
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(Color(hex: "#F1F5F9"))
-                                    .cornerRadius(8)
-                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
-                                }
-                                .foregroundColor(Color.appSecondaryDarkBlue)
-                            }
+                        HStack(spacing: 4) {
+                            Image(systemName: "paperclip")
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(hex: "#1D4ED8"))
+                            Text("Đã đính kèm \(msg.attachments.count) tệp (xem tại mục tệp đính kèm bên trên)")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(Color(hex: "#1D4ED8"))
                         }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(hex: "#EFF6FF"))
+                        .cornerRadius(6)
+                        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#BFDBFE"), lineWidth: 0.5))
                     }
                 }
 

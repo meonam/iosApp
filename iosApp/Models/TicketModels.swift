@@ -584,11 +584,16 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
             "signature", "sign", "sigimg", "mysig", "chuky", "chu_ky", "chu-ky", "chữ ký",
             "logo", "icon", "facebook", "zalo", "linkedin", "twitter", "instagram", "youtube",
             "footer", "banner", "divider", "spacer", "pixel", "avatar", "hotline",
-            "image001", "image002", "image003", "clip_image", "outlook-", "outlookemoji"
+            "image001", "image002", "image003", "clip_image", "outlook-", "outlookemoji",
+            "saigonco-op", "saigoncoop", "coopmart", "coopfood", "vcard"
         ]
         return images.filter { url in
             let clean = url.lowercased().components(separatedBy: "/").last?.components(separatedBy: "?").first ?? ""
-            return !signatureKeywords.contains { clean.contains($0) }
+            let cleanNoPrefix = clean.replacingOccurrences(of: "^(email|att)_\\d+_\\d+_", with: "", options: .regularExpression)
+            if cleanNoPrefix == "image.png" || cleanNoPrefix == "image.jpg" || cleanNoPrefix == "image.jpeg" {
+                return false
+            }
+            return !signatureKeywords.contains { cleanNoPrefix.contains($0) }
         }
     }
 
