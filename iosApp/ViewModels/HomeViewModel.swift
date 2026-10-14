@@ -311,7 +311,6 @@ public class HomeViewModel: ObservableObject {
             }
         }
 
-        let deletedTicketIds = Set(UserDefaults.standard.stringArray(forKey: "support_prefs_deleted_ids") ?? [])
         let isFullAdminOrHelpDesk = user.isAdmin || user.isSuperAdmin || user.isHelpDesk
         let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let emailPrefix = cleanEmail.contains("@") ? String(cleanEmail.split(separator: "@").first ?? "") : cleanEmail
@@ -327,17 +326,15 @@ public class HomeViewModel: ObservableObject {
         let openCount = docsList.filter { doc in
             guard let fields = doc["fields"] as? [String: Any] else { return false }
 
-            let name = doc["name"] as? String ?? ""
-            let id = name.components(separatedBy: "/").last ?? ""
             let status = FirestoreHelper.getString(fields["status"] as? [String: Any]).uppercased()
             let closedAt = FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any])
             let isInvalid = FirestoreHelper.getBool(fields["isInvalid"] as? [String: Any])
 
             let isClosed = status == "CLOSED" || status == "RESOLVED" || closedAt > 0
-            let isDeleted = deletedTicketIds.contains(id)
-            let isInvalidOrCanceled = isInvalid || status == "CANCELED"
+            let isRejected = status == "REJECTED" || status == "TU_CHOI"
+            let isInvalidOrCanceled = isInvalid || status == "CANCELED" || isRejected
 
-            if isClosed || isDeleted || isInvalidOrCanceled { return false }
+            if isClosed || isInvalidOrCanceled { return false }
 
             if isFullAdminOrHelpDesk {
                 return true

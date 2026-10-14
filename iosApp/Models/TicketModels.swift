@@ -292,6 +292,13 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
     public var assignedRole: String
     public var scope: String // UNIT, DEPARTMENT
     public var toNghiepVu: String
+    public var messageCount: Int
+    public var hasNewReply: Bool
+    public var isThreadActive: Bool
+    public var lastSenderName: String
+    public var lastSenderEmail: String
+    public var conversationId: String
+    public var normalizedSubject: String
 
     public init(
         id: String = "",
@@ -380,7 +387,14 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         assignedApplication: String = "",
         assignedRole: String = "TECH",
         scope: String = "UNIT",
-        toNghiepVu: String = ""
+        toNghiepVu: String = "",
+        messageCount: Int = 1,
+        hasNewReply: Bool = false,
+        isThreadActive: Bool = false,
+        lastSenderName: String = "",
+        lastSenderEmail: String = "",
+        conversationId: String = "",
+        normalizedSubject: String = ""
     ) {
         self.id = id
         self.ticketCode = ticketCode
@@ -469,6 +483,17 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
         self.assignedRole = assignedRole
         self.scope = scope
         self.toNghiepVu = toNghiepVu
+        self.messageCount = messageCount
+        self.hasNewReply = hasNewReply
+        self.isThreadActive = isThreadActive
+        self.lastSenderName = lastSenderName
+        self.lastSenderEmail = lastSenderEmail
+        self.conversationId = conversationId
+        self.normalizedSubject = normalizedSubject
+    }
+
+    public var hasReplies: Bool {
+        return messageCount > 1 || hasNewReply || isThreadActive || (lastMessageAt > createdAt + 60000)
     }
 
     public var cleanDisplayCode: String {
@@ -494,7 +519,7 @@ public struct SupportTicket: Identifiable, Codable, Hashable {
     }
 
     public var isClosed: Bool {
-        !isRejected && (status.uppercased() == "CLOSED" || closedAt > 0)
+        status.uppercased() == "CLOSED" || closedAt > 0 || isRejected
     }
 
     public var isReopenedActive: Bool {

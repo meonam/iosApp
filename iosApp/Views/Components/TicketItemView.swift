@@ -25,8 +25,16 @@ public struct TicketItemView: View {
         self.onOpenTracking = onOpenTracking
     }
 
+    private var isRejected: Bool {
+        ticket.isRejected || ticket.status.uppercased() == "REJECTED" || ticket.status.uppercased() == "TU_CHOI"
+    }
+
+    private var isInvalid: Bool {
+        ticket.isInvalid || !ticket.invalidReason.isEmpty
+    }
+
     private var isClosed: Bool {
-        ticket.status.uppercased() == "CLOSED" || ticket.closedAt > 0
+        ticket.isClosed || ticket.status.uppercased() == "CLOSED" || ticket.closedAt > 0 || isRejected || isInvalid
     }
 
     private var isReopenedActive: Bool {
@@ -170,12 +178,7 @@ public struct TicketItemView: View {
                             }
                         }
 
-                        Button(action: onToggleHide) {
-                            Image(systemName: isHidden ? "eye" : "eye.slash")
-                                .font(.system(size: 11))
-                                .foregroundColor(isHidden ? Color(hex: "#10B981") : Color.appTextMuted)
-                                .frame(width: 20, height: 20)
-                        }
+
                     }
 
                     // ── DÒNG PHỤ: Đơn vị & Phòng ban (dời xuống hàng dưới, thụt lề 23pt dưới tên người dùng) ──
@@ -214,11 +217,27 @@ public struct TicketItemView: View {
                     // ── TẦNG 3: Badges Row 1 (Trạng thái, Phân công KTV/Chuyên viên, NEW / Mở lại / Báo xong) ──
                     HStack(spacing: 4.5) {
                         // 1. Status Badge
-                        badgeItem(
-                            text: isClosed ? "ĐÃ ĐÓNG" : "ĐANG MỞ",
-                            bgColor: isClosed ? Color.appSurfaceVariant : Color(hex: "#DCFCE7"),
-                            textColor: isClosed ? Color.appTextSecondary : Color(hex: "#15803D")
-                        )
+                        if isRejected {
+                            badgeItem(
+                                text: "🚫 ĐÃ TỪ CHỐI",
+                                bgColor: Color(hex: "#FFE4E6"),
+                                textColor: Color(hex: "#E11D48"),
+                                borderColor: Color(hex: "#FECDD3")
+                            )
+                        } else if isInvalid {
+                            badgeItem(
+                                text: "⚠️ KHÔNG HỢP LỆ",
+                                bgColor: Color(hex: "#FEF3C7"),
+                                textColor: Color(hex: "#D97706"),
+                                borderColor: Color(hex: "#FDE68A")
+                            )
+                        } else {
+                            badgeItem(
+                                text: isClosed ? "ĐÃ ĐÓNG" : "ĐANG MỞ",
+                                bgColor: isClosed ? Color.appSurfaceVariant : Color(hex: "#DCFCE7"),
+                                textColor: isClosed ? Color.appTextSecondary : Color(hex: "#15803D")
+                            )
+                        }
 
                         // 2. Assignment Badge
                         let hasTech = !ticket.assignedToName.isEmpty || !ticket.assignedToEmail.isEmpty
@@ -255,6 +274,21 @@ public struct TicketItemView: View {
                                 textColor: Color(hex: "#15803D"),
                                 borderColor: Color(hex: "#86EFAC")
                             )
+                        } else if ticket.hasReplies {
+                            badgeItem(
+                                text: ticket.messageCount > 1 ? "🔄 Đang trao đổi (\(ticket.messageCount))" : "🔄 Đang trao đổi",
+                                bgColor: Color(hex: "#E0F2FE"),
+                                textColor: Color(hex: "#0369A1"),
+                                borderColor: Color(hex: "#BAE6FD")
+                            )
+                            if ticket.hasNewReply {
+                                badgeItem(
+                                    text: "💬 Phản hồi mới",
+                                    bgColor: Color(hex: "#FEF3C7"),
+                                    textColor: Color(hex: "#B45309"),
+                                    borderColor: Color(hex: "#FDE68A")
+                                )
+                            }
                         } else if isOpen && !ticket.isAcknowledged && ticket.assignedToEmail.isEmpty {
                             HStack(spacing: 2.5) {
                                 Circle().fill(Color(hex: "#EF4444")).frame(width: 3.5, height: 3.5)
@@ -374,7 +408,8 @@ public struct TicketItemView: View {
                     // ── TẦNG 5: Footer Message Preview (11.5sp) chuẩn Android Image 3 ──
                     let previewMsg = ticket.lastMessage.isEmpty ? ticket.initialMessage : ticket.lastMessage
                     if !previewMsg.isEmpty {
-                        Text("💬 \(previewMsg)")
+                        let displayText = (!ticket.lastSenderName.isEmpty && ticket.hasReplies) ? "✉️ \(ticket.lastSenderName): \(previewMsg)" : "💬 \(previewMsg)"
+                        Text(displayText)
                             .font(.system(size: 11.5))
                             .foregroundColor(isOpen ? Color.appTextSecondary : Color.appTextMuted)
                             .lineLimit(1)

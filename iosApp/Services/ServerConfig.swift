@@ -1,6 +1,8 @@
 import Foundation
 
 // MARK: - TRUNG TÂM CẤU HÌNH MÁY CHỦ QLTB (POSTGRESQL + NODE.JS + WEBRTC)
+// QUY TẮC BẮT BUỘC: 100% kết nối qua URLSession REST API của máy chủ Backend PostgreSQL.
+// TUYỆT ĐỐI KHÔNG dùng Firebase SDK hay Google Cloud Firestore SDK.
 // Khi chuyển sang máy chủ mới, chỉ cần đổi duy nhất hằng số `serverHost` bên dưới (hoặc chạy switch_server.bat).
 public struct ServerConfig {
     public static let serverHost = "103.179.172.229"

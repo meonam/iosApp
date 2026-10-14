@@ -155,8 +155,53 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
         }
     }
 
-    // MARK: - 2. TỔNG HỢP QUA MICROSOFT EDGE TTS (GIỌNG NỮ BTV VTV vi-VN-HoaiMyNeural)
+    // MARK: - 2. TỔNG HỢP QUA SERVER BACKEND HOẶC MICROSOFT EDGE TTS (GIỌNG NỮ BTV VTV vi-VN-HoaiMyNeural)
+    public func fetchTtsFromServer(text: String, outputFile: URL, voice: String = "vi-VN-HoaiMyNeural") async -> Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+
+        guard let encodedText = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let encodedVoice = voice.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            return false
+        }
+
+        // Gọi Backend server QLTB (có sẵn edge-tts và cache trên CloudFly VPS 103.179.172.229)
+        let serverUrlStr = "https://103.179.172.229.sslip.io/api/tts?text=\(encodedText)&voice=\(encodedVoice)"
+        guard let url = URL(string: serverUrlStr) else { return false }
+
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 8.0
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200, data.count > 500 {
+                let parent = outputFile.deletingLastPathComponent()
+                try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+                let tmpFile = parent.appendingPathComponent("\(outputFile.lastPathComponent).tmp")
+                try data.write(to: tmpFile)
+                if FileManager.default.fileExists(atPath: outputFile.path) {
+                    try FileManager.default.removeItem(at: outputFile)
+                }
+                try FileManager.default.moveItem(at: tmpFile, to: outputFile)
+                print("[EdgeTtsClient] 🎙️ Tổng hợp giọng VTV thành công qua Server Backend (\(data.count) bytes)")
+                return true
+            }
+        } catch {
+            print("[EdgeTtsClient] ⚠️ Server TTS error: \(error.localizedDescription)")
+        }
+        return false
+    }
+
     public func synthesizeToFile(text: String, outputFile: URL, voice: String = "vi-VN-HoaiMyNeural") async -> Bool {
+        // 1. Ưu tiên Server Backend (CloudFly VPS 103.179.172.229) - 100% chuẩn giọng VTV, có cache
+        if await fetchTtsFromServer(text: text, outputFile: outputFile, voice: voice) {
+            return true
+        }
+        // 2. Dự phòng trực tiếp Microsoft Edge TTS WebSocket
+        return await synthesizeViaWebSocket(text: text, outputFile: outputFile, voice: voice)
+    }
+
+    public func synthesizeViaWebSocket(text: String, outputFile: URL, voice: String = "vi-VN-HoaiMyNeural") async -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return false }
 

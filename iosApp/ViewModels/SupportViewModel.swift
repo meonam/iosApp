@@ -13,7 +13,7 @@ public class SupportViewModel: ObservableObject {
         get { rawTickets }
         set { rawTickets = newValue }
     }
-    @Published public var filterStatus: String = "ALL" // "ALL", "OPEN", "CLOSED", "HIDDEN"
+    @Published public var filterStatus: String = "ALL" // "ALL", "OPEN", "CLOSED"
     public var filterTab: String {
         get { filterStatus }
         set { filterStatus = newValue }
@@ -61,8 +61,6 @@ public class SupportViewModel: ObservableObject {
     @Published public var dissatisfactionRate: Double = 0.0
     @Published public var totalRatedTickets: Int = 0
     @Published public var isLoadingStats: Bool = false
-
-    @Published public var deletedTicketIds: Set<String> = []
 
     public func getActiveTicketCount(email: String) -> Int {
         guard !email.isEmpty else { return 0 }
@@ -114,8 +112,6 @@ public class SupportViewModel: ObservableObject {
         let resolvedComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? user.companyId : companyId
         self.companyId = resolvedComp.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         self.idToken = idToken
-        let saved = UserDefaults.standard.stringArray(forKey: "support_prefs_deleted_ids") ?? []
-        self.deletedTicketIds = Set(saved)
 
         // Lắng nghe tín hiệu background fetch / silent push từ AppDelegate → fetch ngay lập tức
         NotificationCenter.default.addObserver(
@@ -325,31 +321,24 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
-    // MARK: - HIDE / CLEAN CLOSED TICKETS
-    public func hideTicket(id: String) {
-        deletedTicketIds.insert(id)
-        UserDefaults.standard.set(Array(deletedTicketIds), forKey: "support_prefs_deleted_ids")
-    }
+    // MARK: - XÓA VĨNH VIỄN KHỎI DATABASE (ADMIN ONLY)
+    public func deleteTicketPermanently(id: String) {
+        guard !id.isEmpty, !companyId.isEmpty else { return }
+        let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/tickets/\(id)"
+        guard let url = URL(string: urlStr) else { return }
 
-    public func unhideTicket(id: String) {
-        deletedTicketIds.remove(id)
-        UserDefaults.standard.set(Array(deletedTicketIds), forKey: "support_prefs_deleted_ids")
-    }
-
-    public func toggleHideTicket(_ id: String) {
-        if deletedTicketIds.contains(id) {
-            unhideTicket(id: id)
-        } else {
-            hideTicket(id: id)
+        var req = URLRequest(url: url)
+        req.httpMethod = "DELETE"
+        if !idToken.isEmpty {
+            req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         }
-    }
 
-    public func cleanClosedTickets() {
-        let closedIds = scopedTickets.filter { $0.isClosed || $0.isRejected }.map { $0.id }
-        for id in closedIds {
-            deletedTicketIds.insert(id)
-        }
-        UserDefaults.standard.set(Array(deletedTicketIds), forKey: "support_prefs_deleted_ids")
+        URLSession.shared.dataTask(with: req) { [weak self] _, _, _ in
+            DispatchQueue.main.async {
+                self?.rawTickets.removeAll { $0.id == id }
+            }
+        }.resume()
     }
 
     // MARK: - SCOPED TICKETS FILTERING (ĐỒNG BỘ 1:1 VỚI isTicketVisible TRONG ADMINSUPPORTVIEWMODEL.KT)
@@ -416,26 +405,17 @@ public class SupportViewModel: ObservableObject {
         }
     }
 
-    // MARK: - CHECK TICKET HIDDEN (BỊ XÓA HOẶC TỪ CHỐI/KHÔNG PHÙ HỢP)
-    public func isTicketHidden(_ t: SupportTicket) -> Bool {
-        deletedTicketIds.contains(t.id) || t.isRejected
-    }
-
-    // MARK: - TAB COUNTS
+    // MARK: - TAB COUNTS (3 TABS: ALL, OPEN, CLOSED)
     public var allCount: Int {
-        scopedTickets.filter { !isTicketHidden($0) }.count
+        scopedTickets.count
     }
 
     public var openCount: Int {
-        scopedTickets.filter { !isTicketHidden($0) && $0.isOpen }.count
+        scopedTickets.filter { $0.isOpen }.count
     }
 
     public var closedCount: Int {
-        scopedTickets.filter { !isTicketHidden($0) && $0.isClosed }.count
-    }
-
-    public var hiddenCount: Int {
-        scopedTickets.filter { isTicketHidden($0) }.count
+        scopedTickets.filter { $0.isClosed }.count
     }
 
     public func isEmailTicket(_ t: SupportTicket) -> Bool {
@@ -460,25 +440,25 @@ public class SupportViewModel: ObservableObject {
 
     public var appCount: Int {
         scopedTickets.filter { t in
-            !isTicketHidden(t) && !isEmailTicket(t) && !isZaloTicket(t) && !isDeptTicket(t)
+            !isEmailTicket(t) && !isZaloTicket(t) && !isDeptTicket(t)
         }.count
     }
 
     public var emailCount: Int {
         scopedTickets.filter { t in
-            !isTicketHidden(t) && isEmailTicket(t)
+            isEmailTicket(t)
         }.count
     }
 
     public var zaloCount: Int {
         scopedTickets.filter { t in
-            !isTicketHidden(t) && isZaloTicket(t)
+            isZaloTicket(t)
         }.count
     }
 
     public var deptCount: Int {
         scopedTickets.filter { t in
-            !isTicketHidden(t) && !isEmailTicket(t) && !isZaloTicket(t) && isDeptTicket(t)
+            !isEmailTicket(t) && !isZaloTicket(t) && isDeptTicket(t)
         }.count
     }
 
@@ -487,16 +467,10 @@ public class SupportViewModel: ObservableObject {
         let baseList = scopedTickets
 
         let statusFiltered = baseList.filter { t in
-            let hidden = isTicketHidden(t)
-            if filterStatus == "HIDDEN" {
-                return hidden
-            } else {
-                if hidden { return false }
-                switch filterStatus {
-                case "OPEN": return t.isOpen
-                case "CLOSED": return t.isClosed
-                default: return true // "ALL"
-                }
+            switch filterStatus {
+            case "OPEN": return t.isOpen
+            case "CLOSED": return t.isClosed
+            default: return true // "ALL"
             }
         }
 
@@ -515,20 +489,22 @@ public class SupportViewModel: ObservableObject {
             }
         }
 
+        let result: [SupportTicket]
         if searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return channelFiltered
+            result = channelFiltered
+        } else {
+            let q = searchQuery.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            result = channelFiltered.filter { t in
+                t.subject.lowercased().contains(q) ||
+                t.id.lowercased().contains(q) ||
+                t.creatorName.lowercased().contains(q) ||
+                t.creatorEmail.lowercased().contains(q) ||
+                t.donVi.lowercased().contains(q) ||
+                t.assignedToName.lowercased().contains(q) ||
+                t.assetName.lowercased().contains(q)
+            }
         }
-
-        let q = searchQuery.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-        return channelFiltered.filter { t in
-            t.subject.lowercased().contains(q) ||
-            t.id.lowercased().contains(q) ||
-            t.creatorName.lowercased().contains(q) ||
-            t.creatorEmail.lowercased().contains(q) ||
-            t.donVi.lowercased().contains(q) ||
-            t.assignedToName.lowercased().contains(q) ||
-            t.assetName.lowercased().contains(q)
-        }
+        return result.sorted { $0.createdAt > $1.createdAt }
     }
 
     // MARK: - DATE GROUPING HELPER (ĐỒNG BỘ GROUPED BY "Hôm nay", "Hôm qua", "dd/MM/yyyy")
@@ -553,13 +529,15 @@ public class SupportViewModel: ObservableObject {
             }
         }
 
-        // Sort keys: "Hôm nay" first, "Hôm qua" second, then by date descending
+        // Sort keys: "Hôm nay" first, "Hôm qua" second, then by date descending (newest date first)
         let sortedKeys = grouped.keys.sorted { k1, k2 in
             if k1 == "Hôm nay" { return true }
             if k2 == "Hôm nay" { return false }
             if k1 == "Hôm qua" { return true }
             if k2 == "Hôm qua" { return false }
-            return k1 > k2
+            let d1 = dateFormatter.date(from: k1) ?? Date.distantPast
+            let d2 = dateFormatter.date(from: k2) ?? Date.distantPast
+            return d1 > d2
         }
 
         return sortedKeys.map { key in
@@ -1008,6 +986,17 @@ public class SupportViewModel: ObservableObject {
                     }
                 }
 
+                var parsedInitMsg = FirestoreHelper.getString(fields["initialMessage"] as? [String: Any])
+                if parsedInitMsg.isEmpty {
+                    parsedInitMsg = FirestoreHelper.getString(fields["description"] as? [String: Any])
+                }
+                if parsedInitMsg.isEmpty {
+                    parsedInitMsg = FirestoreHelper.getString(fields["moTa"] as? [String: Any])
+                }
+                if parsedInitMsg.isEmpty {
+                    parsedInitMsg = FirestoreHelper.getString(fields["content"] as? [String: Any])
+                }
+
                 return SupportTicket(
                     id: id,
                     ticketCode: FirestoreHelper.getString(fields["ticketCode"] as? [String: Any]),
@@ -1032,7 +1021,7 @@ public class SupportViewModel: ObservableObject {
                     companyId: FirestoreHelper.getString(fields["companyId"] as? [String: Any]),
                     departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
                     donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
-                    initialMessage: FirestoreHelper.getString(fields["initialMessage"] as? [String: Any]),
+                    initialMessage: parsedInitMsg,
                     rating: FirestoreHelper.getInt(fields["rating"] as? [String: Any]),
                     feedback: FirestoreHelper.getString(fields["feedback"] as? [String: Any]),
                     feedbackAt: FirestoreHelper.getInt64(fields["feedbackAt"] as? [String: Any]),
@@ -1088,7 +1077,17 @@ public class SupportViewModel: ObservableObject {
                     assignedApplication: FirestoreHelper.getString(fields["assignedApplication"] as? [String: Any]),
                     assignedRole: FirestoreHelper.getString(fields["assignedRole"] as? [String: Any]),
                     scope: FirestoreHelper.getString(fields["scope"] as? [String: Any]),
-                    toNghiepVu: FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any])
+                    toNghiepVu: FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any]),
+                    messageCount: {
+                        let c = FirestoreHelper.getInt(fields["messageCount"] as? [String: Any])
+                        return c > 0 ? c : 1
+                    }(),
+                    hasNewReply: FirestoreHelper.getBool(fields["hasNewReply"] as? [String: Any]),
+                    isThreadActive: FirestoreHelper.getBool(fields["isThreadActive"] as? [String: Any]),
+                    lastSenderName: FirestoreHelper.getString(fields["lastSenderName"] as? [String: Any]),
+                    lastSenderEmail: FirestoreHelper.getString(fields["lastSenderEmail"] as? [String: Any]),
+                    conversationId: FirestoreHelper.getString(fields["conversationId"] as? [String: Any]),
+                    normalizedSubject: FirestoreHelper.getString(fields["normalizedSubject"] as? [String: Any])
                 )
             }
 
@@ -1291,9 +1290,7 @@ public class SupportViewModel: ObservableObject {
             return nil
         }
 
-        // Also add the first message into messages subcollection (earlier timestamp ensures it always shows above dispatch)
-        let initTs = Int64(Date().timeIntervalSince1970 * 1000) - 1000
-        sendMessage(ticketId: finalTicketId, text: initialMessage, customTimestamp: initTs)
+        // Nội dung ban đầu của sự cố được lưu tại ticket.initialMessage để hiển thị tại mục "📝 Vấn đề:", không gửi trùng vào messages subcollection
 
         // Ghi nhận log tin nhắn hệ thống nếu ticket được tự động điều phối ngoài giờ
         if let auto = autoDispatchedTech {

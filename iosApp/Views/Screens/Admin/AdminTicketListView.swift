@@ -65,7 +65,7 @@ public struct AdminTicketListView: View {
         }
     }
 
-    // Grouping by Date: "Hôm nay", "Hôm qua", "dd/MM/yyyy"
+    // Grouping by Date: "Hôm nay", "Hôm qua", "dd/MM/yyyy" (Ngày mới nhất hiển thị phía trên)
     private var groupedTickets: [(String, [SupportTicket])] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -73,10 +73,10 @@ public struct AdminTicketListView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "dd/MM/yyyy"
 
+        let sorted = visibleTickets.sorted { $0.createdAt > $1.createdAt }
         var dict: [String: [SupportTicket]] = [:]
-        var order: [String] = []
 
-        for ticket in visibleTickets {
+        for ticket in sorted {
             let tDate = Date(timeIntervalSince1970: TimeInterval(ticket.createdAt) / 1000)
             let start = calendar.startOfDay(for: tDate)
 
@@ -91,13 +91,24 @@ public struct AdminTicketListView: View {
 
             if dict[groupKey] == nil {
                 dict[groupKey] = []
-                order.append(groupKey)
             }
             dict[groupKey]?.append(ticket)
         }
 
-        return order.map { key in
-            (key, dict[key] ?? [])
+        // Sắp xếp nhóm: Hôm nay -> Hôm qua -> dd/MM/yyyy mới nhất đến cũ hơn
+        let sortedKeys = dict.keys.sorted { k1, k2 in
+            if k1 == "Hôm nay" { return true }
+            if k2 == "Hôm nay" { return false }
+            if k1 == "Hôm qua" { return true }
+            if k2 == "Hôm qua" { return false }
+            let d1 = formatter.date(from: k1) ?? Date.distantPast
+            let d2 = formatter.date(from: k2) ?? Date.distantPast
+            return d1 > d2
+        }
+
+        return sortedKeys.map { key in
+            let sortedTickets = (dict[key] ?? []).sorted { $0.createdAt > $1.createdAt }
+            return (key, sortedTickets)
         }
     }
 

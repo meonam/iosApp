@@ -7,18 +7,13 @@ public struct StaffSupportView: View {
     var onBack: () -> Void
     var onTicketClick: ((String, String) -> Void)?
 
-    @State private var filterStatus: String = "ALL" // "ALL", "OPEN", "CLOSED", "HIDDEN"
+    @State private var filterStatus: String = "ALL" // "ALL", "OPEN", "CLOSED"
     @State private var selectedChannel: String = "ALL" // "ALL", "APP", "ZALO", "EMAIL"
     @State private var searchQuery: String = ""
     @State private var collapsedGroups: Set<String> = []
     @State private var showingCreateSheet: Bool = false
-    @State private var showConfirmCleanClosed: Bool = false
     @State private var selectedTicketForChat: SupportTicket? = nil
     @State private var selectedTrackingTicket: SupportTicket? = nil
-    @State private var deletedTicketIds: Set<String> = {
-        let saved = UserDefaults.standard.stringArray(forKey: "support_staff_deleted_ids") ?? []
-        return Set(saved)
-    }()
 
     @Environment(\.scenePhase) private var scenePhase
     private let autoRefreshTimer = Timer.publish(every: 6.0, on: .main, in: .common).autoconnect()
@@ -69,21 +64,15 @@ public struct StaffSupportView: View {
         }
     }
 
-    private func isTicketHidden(_ t: SupportTicket) -> Bool {
-        deletedTicketIds.contains(t.id) || t.isRejected
+    private func isClosedTicket(_ t: SupportTicket) -> Bool {
+        t.isClosed || t.isRejected || t.status.uppercased() == "CLOSED" || t.status.uppercased() == "REJECTED" || t.status.uppercased() == "TU_CHOI" || t.isInvalid || !t.invalidReason.isEmpty
     }
 
     private var visibleTickets: [SupportTicket] {
         myScopedTickets.filter { ticket in
-            let hidden = isTicketHidden(ticket)
-            // Filter by hidden
-            if filterStatus == "HIDDEN" {
-                if !hidden { return false }
-            } else {
-                if hidden { return false }
-                if filterStatus == "OPEN" && !ticket.isOpen { return false }
-                if filterStatus == "CLOSED" && !ticket.isClosed { return false }
-            }
+            let isClosed = isClosedTicket(ticket)
+            if filterStatus == "OPEN" && isClosed { return false }
+            if filterStatus == "CLOSED" && !isClosed { return false }
 
             // Channel filter
             let isEm = ticket.source.uppercased() == "EMAIL" || ticket.externalSenderId.contains("@")
@@ -111,14 +100,7 @@ public struct StaffSupportView: View {
         }
     }
 
-    private var closedTicketsToClean: [SupportTicket] {
-        myScopedTickets.filter { t in
-            !deletedTicketIds.contains(t.id) &&
-            (t.status.uppercased() == "CLOSED" || t.closedAt > 0)
-        }
-    }
-
-    // Date grouping
+    // Date grouping (Ngày mới nhất hiển thị phía trên)
     private var groupedTickets: [(String, [SupportTicket])] {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
@@ -126,10 +108,10 @@ public struct StaffSupportView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "dd/MM/yyyy"
 
+        let sorted = visibleTickets.sorted { $0.createdAt > $1.createdAt }
         var dict: [String: [SupportTicket]] = [:]
-        var order: [String] = []
 
-        for ticket in visibleTickets {
+        for ticket in sorted {
             let tDate = Date(timeIntervalSince1970: TimeInterval(ticket.createdAt) / 1000)
             let start = calendar.startOfDay(for: tDate)
 
@@ -144,12 +126,25 @@ public struct StaffSupportView: View {
 
             if dict[groupKey] == nil {
                 dict[groupKey] = []
-                order.append(groupKey)
             }
             dict[groupKey]?.append(ticket)
         }
 
-        return order.map { ($0, dict[$0] ?? []) }
+        // Sắp xếp nhóm: Hôm nay -> Hôm qua -> dd/MM/yyyy mới nhất đến cũ hơn
+        let sortedKeys = dict.keys.sorted { k1, k2 in
+            if k1 == "Hôm nay" { return true }
+            if k2 == "Hôm nay" { return false }
+            if k1 == "Hôm qua" { return true }
+            if k2 == "Hôm qua" { return false }
+            let d1 = formatter.date(from: k1) ?? Date.distantPast
+            let d2 = formatter.date(from: k2) ?? Date.distantPast
+            return d1 > d2
+        }
+
+        return sortedKeys.map { key in
+            let sortedTickets = (dict[key] ?? []).sorted { $0.createdAt > $1.createdAt }
+            return (key, sortedTickets)
+        }
     }
 
     public var body: some View {
@@ -236,16 +231,6 @@ public struct StaffSupportView: View {
                 }
             )
         }
-        .alert(isPresented: $showConfirmCleanClosed) {
-            Alert(
-                title: Text("Dọn dẹp các yêu cầu đã đóng?"),
-                message: Text("Hệ thống sẽ ẩn \(closedTicketsToClean.count) yêu cầu hỗ trợ ĐÃ ĐÓNG khỏi danh sách. Bạn có thể xem lại hoặc hiện lại bất cứ lúc nào trong tab 'Đã ẩn'."),
-                primaryButton: .destructive(Text("Dọn dẹp ngay (\(closedTicketsToClean.count))")) {
-                    cleanClosedTickets()
-                },
-                secondaryButton: .cancel(Text("Hủy"))
-            )
-        }
     }
 
     // MARK: - TOP BAR
@@ -281,17 +266,6 @@ public struct StaffSupportView: View {
                     }
                 }
 
-                // Nút Dọn dẹp ticket đã đóng
-                if !closedTicketsToClean.isEmpty {
-                    Button(action: { showConfirmCleanClosed = true }) {
-                        Image(systemName: "trash.circle.fill")
-                            .font(.system(size: 19))
-                            .foregroundColor(.white)
-                            .frame(width: 40, height: 40)
-                            .contentShape(Rectangle())
-                    }
-                }
-
                 // Nút Gửi yêu cầu mới (Chỉ hiển thị cho Người dùng/Nhân viên/Quản lý, ẩn đối với Admin, HelpDesk, KTV, Chuyên viên)
                 if supportVM.user.canCreateTicket {
                     Button(action: { showingCreateSheet = true }) {
@@ -322,7 +296,7 @@ public struct StaffSupportView: View {
         let isDept = { (t: SupportTicket) in !isEm(t) && !isZa(t) && supportVM.isDeptTicket(t) }
         let isAp = { (t: SupportTicket) in !isEm(t) && !isZa(t) && !isDept(t) }
 
-        let activeTickets = myScopedTickets.filter { !deletedTicketIds.contains($0.id) }
+        let activeTickets = myScopedTickets
         let appCount = activeTickets.filter { isAp($0) }.count
         let zaloCount = activeTickets.filter { isZa($0) }.count
         let emailCount = activeTickets.filter { isEm($0) }.count
@@ -364,25 +338,18 @@ public struct StaffSupportView: View {
     // MARK: - SEGMENTED TABS BAR
     private var segmentedTabsBar: some View {
         HStack(spacing: 4) {
-            tabButton(title: "Tất cả", count: myScopedTickets.filter { !isTicketHidden($0) }.count, tag: "ALL")
+            tabButton(title: "Tất cả", count: myScopedTickets.count, tag: "ALL")
             tabButton(
                 title: "Đang mở",
-                count: myScopedTickets.filter { !isTicketHidden($0) && $0.isOpen }.count,
+                count: myScopedTickets.filter { !isClosedTicket($0) }.count,
                 tag: "OPEN",
                 activeColor: Color(hex: "#16A34A"),
                 activeBg: Color(hex: "#DCFCE7")
             )
             tabButton(
                 title: "Đã đóng",
-                count: myScopedTickets.filter { !isTicketHidden($0) && $0.isClosed }.count,
+                count: myScopedTickets.filter { isClosedTicket($0) }.count,
                 tag: "CLOSED"
-            )
-            tabButton(
-                title: "Đã ẩn",
-                count: myScopedTickets.filter { isTicketHidden($0) }.count,
-                tag: "HIDDEN",
-                activeColor: Color(hex: "#B91C1C"),
-                activeBg: Color(hex: "#FEE2E2")
             )
         }
         .padding(4)
@@ -461,16 +428,12 @@ public struct StaffSupportView: View {
                             ForEach(ticketsInGroup) { ticket in
                                 TicketItemView(
                                     ticket: ticket,
-                                    isHidden: filterStatus == "HIDDEN",
                                     onClick: {
                                         if let onTicketClick = onTicketClick {
                                             onTicketClick(ticket.id, ticket.subject)
                                         } else {
                                             selectedTicketForChat = ticket
                                         }
-                                    },
-                                    onToggleHide: {
-                                        toggleHideTicket(ticket.id)
                                     },
                                     onOpenTracking: (ticket.tracking?.status == "EN_ROUTE" || ticket.tracking?.status == "ARRIVED") ? {
                                         selectedTrackingTicket = ticket
@@ -540,21 +503,7 @@ public struct StaffSupportView: View {
         .padding(24)
     }
 
-    private func cleanClosedTickets() {
-        let idsToHide = closedTicketsToClean.map { $0.id }
-        deletedTicketIds.formUnion(idsToHide)
-        UserDefaults.standard.set(Array(deletedTicketIds), forKey: "support_staff_deleted_ids")
-        showConfirmCleanClosed = false
-    }
 
-    private func toggleHideTicket(_ ticketId: String) {
-        if deletedTicketIds.contains(ticketId) {
-            deletedTicketIds.remove(ticketId)
-        } else {
-            deletedTicketIds.insert(ticketId)
-        }
-        UserDefaults.standard.set(Array(deletedTicketIds), forKey: "support_staff_deleted_ids")
-    }
 }
 
 // MARK: - SHEET TẠO YÊU CẦU HỖ TRỢ MỚI ĐẦY ĐỦ 1:1 VỚI ANDROID

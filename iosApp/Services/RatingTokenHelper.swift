@@ -191,8 +191,9 @@ public struct RatingTokenHelper {
         let donVi = !ticket.donVi.isEmpty ? ticket.donVi : "Chi nhánh / Phòng ban"
         let creatorName = !ticket.creatorName.isEmpty ? ticket.creatorName : "Nhân viên"
         let creatorPhone = !ticket.creatorPhone.isEmpty ? ticket.creatorPhone : "Chưa cung cấp"
-        let subject = !ticket.subject.isEmpty ? ticket.subject : "Cần hỗ trợ kỹ thuật thiết bị"
-        let description = !ticket.initialMessage.isEmpty ? ticket.initialMessage : (!ticket.lastMessage.isEmpty ? ticket.lastMessage : "Không có mô tả chi tiết")
+        let isDispatch = ticket.lastMessage.contains("Điều phối") || ticket.lastMessage.hasPrefix("🔄") || ticket.lastMessage.contains("[Hệ thống")
+        let cleanLast = !isDispatch ? ticket.lastMessage : ""
+        let description = !ticket.initialMessage.isEmpty ? ticket.initialMessage : (!cleanLast.isEmpty ? cleanLast : (!ticket.subject.isEmpty ? ticket.subject : "Không có mô tả chi tiết"))
         let appOrDevice = isSpecialist ? (!ticket.assignedDepartmentName.isEmpty ? ticket.assignedDepartmentName : "Nghiệp vụ / Ứng dụng chuyên môn") : (!ticket.assetName.isEmpty ? ticket.assetName : "Thiết bị tại chỗ")
         let resolveUrl = generateResolveUrl(
             companyId: !ticket.companyId.isEmpty ? ticket.companyId : "SGCOOP",

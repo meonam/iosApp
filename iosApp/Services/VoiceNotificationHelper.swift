@@ -382,11 +382,11 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                         await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: item.fallbackBundledName)
                     }
                 } else if item.type == "TICKET_RESOLVED" {
-                    // KTV Báo xử lý xong: Phát trực tiếp câu hoàn chỉnh, không lồng intro mp3
-                    await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
+                    // KTV Báo xử lý xong: Phát trực tiếp câu hoàn chỉnh, nếu offline fallback về file VTV gốc trong bundle
+                    await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: "voice_ticket_resolved")
                     if mode == "REPEAT" {
                         try? await Task.sleep(nanoseconds: 600_000_000)
-                        await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: nil)
+                        await EdgeTtsClient.shared.speakSuspend(text: cleanSpeech, fallbackBundledName: "voice_ticket_resolved")
                     }
                 } else {
                     // CÂU 1: Đọc và CHỜ HOÀN TẤT
@@ -929,7 +929,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             // 1. Đích danh (isPrimary): Người được gán trực tiếp luôn nhận (kể cả admin/quản lý)
             // 2. Phân bổ Cụm/Tổ (broadcast): KTV hoặc Chuyên viên của cụm/tổ đó nhận
             let isUserAck = t.isUserAcknowledged(email: cleanEmail)
-            let isActuallyDispatched = t.assignedAt > 0 && ["ASSIGNED", "IN_PROGRESS"].contains(t.status.uppercased()) && (
+            let isActuallyDispatched = t.assignedAt > 0 && ["OPEN", "ASSIGNED", "IN_PROGRESS"].contains(t.status.uppercased()) && (
                 !t.assignedTo.isEmpty || !t.assignedToEmail.isEmpty || !t.assignedCluster.isEmpty || !t.assignedDepartmentId.isEmpty || t.isSpecialistAssigned || t.assignedRole.uppercased() == "SPECIALIST"
             )
 

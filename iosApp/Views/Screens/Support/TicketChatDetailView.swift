@@ -215,6 +215,39 @@ public struct TicketChatDetailView: View {
         viewModel.isTicketReopenEnabled && isClosed && ticket.reopenCount < 2 && (ticket.isWithinQualityTrackingWindow || isAdminOrHelpDesk) && (isCreator || isAdminOrHelpDesk)
     }
 
+    private var effectiveInitialMsg: String {
+        let isDispatchOrSystemText: (String) -> Bool = { str in
+            let t = str.trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.hasPrefix("🔄") || t.hasPrefix("📢") || t.contains("[Điều phối") || t.contains("Điều phối") ||
+                   t.contains("chuyển giao yêu cầu") || t.contains("Chuyển giao tới") || t.contains("[Hệ thống") ||
+                   t.contains("tự động điều phối") || t.contains("điều phối ngoài giờ")
+        }
+        // 1. Ưu tiên initialMessage nếu có và không phải tin điều phối
+        let initMsg = currentTicket.initialMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !initMsg.isEmpty && !isDispatchOrSystemText(initMsg) {
+            return initMsg
+        }
+        // 2. Tìm tin nhắn đầu tiên của chính người tạo yêu cầu (không phải hệ thống, không phải admin/điều phối)
+        if let firstUserMsg = viewModel.messages.first(where: { m in
+            !m.isSystem && !isDispatchOrSystemText(m.message) &&
+            (!currentTicket.creatorEmail.isEmpty ? m.senderEmail.caseInsensitiveCompare(currentTicket.creatorEmail) == .orderedSame : true)
+        }) {
+            let text = firstUserMsg.message.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !text.isEmpty { return text }
+        }
+        // 3. Tin nhắn người dùng đầu tiên bất kỳ không phải hệ thống
+        if let anyUserMsg = viewModel.messages.first(where: { m in !m.isSystem && !isDispatchOrSystemText(m.message) }) {
+            let text = anyUserMsg.message.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !text.isEmpty { return text }
+        }
+        // 4. Tiêu đề yêu cầu (subject) nếu không phải tin điều phối
+        let subj = currentTicket.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !subj.isEmpty && !isDispatchOrSystemText(subj) {
+            return subj
+        }
+        return ""
+    }
+
     public var body: some View {
         GeometryReader { geometry in
             ZStack {
@@ -597,27 +630,30 @@ public struct TicketChatDetailView: View {
 
                 Spacer(minLength: 4)
 
-                // Badge Mức độ ưu tiên (SLA Priority)
-                Button(action: {
-                    if !isClosed && (isAdminOrHelpDesk || isAssignedOrAckTech) {
-                        showChangePriorityDialog = true
-                    }
-                }) {
-                    HStack(spacing: 3) {
-                        Text(priorityLabel(currentTicket.priority))
-                            .font(.system(size: 9.5, weight: .bold))
+                // Badge Mức độ ưu tiên: Chỉ hiển thị trên dòng tiêu đề khi KHÔNG có thanh đếm ngược SLA
+                // (Khi có thanh SLA, mức ưu tiên đã được hiển thị trên thanh SLA để tránh trùng lặp 2 mục)
+                if isTicketDone || currentTicket.slaTargetMinutes <= 0 {
+                    Button(action: {
                         if !isClosed && (isAdminOrHelpDesk || isAssignedOrAckTech) {
-                            Image(systemName: "pencil")
-                                .font(.system(size: 8))
+                            showChangePriorityDialog = true
                         }
+                    }) {
+                        HStack(spacing: 3) {
+                            Text(priorityLabel(currentTicket.priority))
+                                .font(.system(size: 9.5, weight: .bold))
+                            if !isClosed && (isAdminOrHelpDesk || isAssignedOrAckTech) {
+                                Image(systemName: "pencil")
+                                    .font(.system(size: 8))
+                            }
+                        }
+                        .foregroundColor(priorityColor(currentTicket.priority))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(priorityColor(currentTicket.priority).opacity(0.12))
+                        .cornerRadius(4)
                     }
-                    .foregroundColor(priorityColor(currentTicket.priority))
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(priorityColor(currentTicket.priority).opacity(0.12))
-                    .cornerRadius(4)
+                    .buttonStyle(PlainButtonStyle())
                 }
-                .buttonStyle(PlainButtonStyle())
 
                 // Badge Trạng thái
                 if isClosed {
@@ -1147,12 +1183,18 @@ public struct TicketChatDetailView: View {
 
     // MARK: - MESSAGES LIST VIEW
     private var messagesListView: some View {
+        let normalizedProblem = effectiveInitialMsg.trimmingCharacters(in: .whitespacesAndNewlines)
         let displayMessages = viewModel.messages.filter { msg in
-            let text = msg.message
+            let text = msg.message.trimmingCharacters(in: .whitespacesAndNewlines)
             let isRatingMsg = text.contains("Người dùng đã nghiệm thu và đánh giá") ||
                               text.contains("Khách hàng đánh giá") ||
                               text.contains("đã nghiệm thu và đánh giá")
-            return !isRatingMsg
+            if isRatingMsg { return false }
+            // Lọc bỏ tin nhắn trùng với nội dung sự cố đã hiển thị tại thẻ 'Vấn đề' ở trên
+            if !normalizedProblem.isEmpty && text.caseInsensitiveCompare(normalizedProblem) == .orderedSame {
+                return false
+            }
+            return true
         }
 
         return ScrollViewReader { proxy in
@@ -1279,8 +1321,8 @@ public struct TicketChatDetailView: View {
                     .cornerRadius(4)
             }
 
-            // Nội dung mô tả sự cố
-            let effectiveInitialMsg = !currentTicket.initialMessage.isEmpty ? currentTicket.initialMessage : currentTicket.lastMessage
+            // Nội dung mô tả sự cố (LẤY NỘI DUNG GỐC CỦA NGƯỜI YÊU CẦU, TUYỆT ĐỐI KHÔNG LẤY TIN ĐIỀU PHỐI / HỆ THỐNG)
+
             if !effectiveInitialMsg.isEmpty {
                 Text("📝 Vấn đề: \(effectiveInitialMsg)")
                     .font(.system(size: 12))
@@ -2037,7 +2079,7 @@ public struct TicketChatDetailView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "info.circle.fill")
                         .foregroundColor(Color(hex: "#D97706"))
-                    Text("Phiếu sẽ chuyển ngay vào tab 'Đã ẩn'. Hệ thống KHÔNG tự động tính 5★ sau 24h và miễn trừ khỏi KPI.")
+                    Text("Phiếu sẽ được đánh dấu không hợp lệ và chuyển vào tab 'Đã đóng'. Hệ thống KHÔNG tự động tính 5★ sau 24h và miễn trừ khỏi KPI.")
                         .font(.system(size: 11))
                         .foregroundColor(Color.dynamic(light: "#92400E", dark: "#FDE68A"))
                 }

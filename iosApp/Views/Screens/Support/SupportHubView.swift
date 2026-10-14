@@ -28,7 +28,6 @@ public struct SupportHubView: View {
 
     // Dialog & Sheet States
     @State private var activeSheet: SupportHubActiveSheet? = nil
-    @State private var showConfirmCleanClosed: Bool = false
     @State private var showGuideAlert: Bool = false
     @State private var manuallyExpandedGroups: Set<String> = []
     @State private var manuallyCollapsedGroups: Set<String> = []
@@ -49,13 +48,6 @@ public struct SupportHubView: View {
         self.onOpenRatingReport = onOpenRatingReport
     }
 
-    // Số vé đã đóng chưa bị ẩn (để dọn dẹp)
-    private var closedTicketsToCleanCount: Int {
-        viewModel.scopedTickets.filter {
-            !viewModel.deletedTicketIds.contains($0.id) && (!$0.isOpen || $0.closedAt > 0)
-        }.count
-    }
-
     // MARK: - DATE GROUPING HELPER
     private func dateGroupKey(for timestamp: Int64) -> String {
         guard timestamp > 0 else { return "Khác" }
@@ -73,21 +65,31 @@ public struct SupportHubView: View {
     }
 
     private var groupedTickets: [(key: String, tickets: [SupportTicket])] {
-        let filtered = viewModel.filteredTickets
+        let filtered = viewModel.filteredTickets.sorted { $0.createdAt > $1.createdAt }
         let groups = Dictionary(grouping: filtered) { t in
             dateGroupKey(for: t.createdAt)
         }
 
-        // Sắp xếp nhóm: Hôm nay -> Hôm qua -> dd/MM/yyyy mới nhất
+        let df = DateFormatter()
+        df.dateFormat = "dd/MM/yyyy"
+
+        // Sắp xếp nhóm: Hôm nay -> Hôm qua -> dd/MM/yyyy mới nhất hiển thị phía trên
         let sortedKeys = groups.keys.sorted { k1, k2 in
             if k1 == "Hôm nay" { return true }
             if k2 == "Hôm nay" { return false }
             if k1 == "Hôm qua" { return true }
             if k2 == "Hôm qua" { return false }
-            return k1 > k2
+            if k1 == "Khác" { return false }
+            if k2 == "Khác" { return true }
+            let d1 = df.date(from: k1) ?? Date.distantPast
+            let d2 = df.date(from: k2) ?? Date.distantPast
+            return d1 > d2
         }
 
-        return sortedKeys.map { ($0, groups[$0] ?? []) }
+        return sortedKeys.map { key in
+            let sortedTickets = (groups[key] ?? []).sorted { $0.createdAt > $1.createdAt }
+            return (key, sortedTickets)
+        }
     }
 
     private func isGroupCollapsed(key: String, openCountInGroup: Int) -> Bool {
@@ -184,36 +186,23 @@ public struct SupportHubView: View {
                 )
             }
         }
-        // Alert xác nhận dọn dẹp các yêu cầu đã đóng
-        .alert(isPresented: $showConfirmCleanClosed) {
-            Alert(
-                title: Text("Dọn dẹp các yêu cầu đã đóng?"),
-                message: Text("Hệ thống sẽ ẩn \(closedTicketsToCleanCount) yêu cầu hỗ trợ ĐÃ ĐÓNG khỏi danh sách để màn hình luôn gọn gàng.\n\n• Các yêu cầu đang mở (OPEN) được giữ nguyên để theo dõi tiếp.\n• Dữ liệu đánh giá, lịch sử sự cố vẫn được lưu trữ đầy đủ 100% trên hệ thống cho các báo cáo.\n• Bạn có thể xem lại hoặc hiện lại bất cứ lúc nào tại tab 'Đã ẩn'."),
-                primaryButton: .destructive(Text("Dọn dẹp")) {
-                    withAnimation {
-                        viewModel.cleanClosedTickets()
-                    }
-                },
-                secondaryButton: .cancel(Text("Hủy"))
-            )
-        }
-        // Alert xóa 1 ticket
-        .alert("Xóa yêu cầu hỗ trợ?", isPresented: $showDeleteSingleConfirm) {
+        // Alert xóa 1 ticket (Admin database permanent delete)
+        .alert("Xác nhận xóa vĩnh viễn yêu cầu?", isPresented: $showDeleteSingleConfirm) {
             Button("Hủy", role: .cancel) { ticketToDelete = nil }
-            Button("Xóa", role: .destructive) {
+            Button("Xóa vĩnh viễn", role: .destructive) {
                 if let t = ticketToDelete {
-                    viewModel.hideTicket(id: t.id)
+                    viewModel.deleteTicketPermanently(id: t.id)
                     ticketToDelete = nil
                 }
             }
         } message: {
-            Text("Bạn có chắc chắn muốn xóa yêu cầu '\(ticketToDelete?.subject ?? "")' khỏi danh sách không?")
+            Text("Hành động này sẽ xóa vĩnh viễn yêu cầu '\(ticketToDelete?.subject ?? "")' khỏi hệ thống Database. Bạn có chắc chắn không?")
         }
         // Alert hướng dẫn
         .alert("Hướng dẫn Quản lý Phiếu Hỗ trợ", isPresented: $showGuideAlert) {
             Button("Đã hiểu", role: .cancel) {}
         } message: {
-            Text("• Bộ Lọc 4 Tab: Tất cả, Đang mở, Đã đóng, Đã ẩn.\n• Kênh tiếp nhận: App, Email, Phòng ban.\n• Nhóm theo ngày: Chạm tiêu đề ngày để thu gọn/mở rộng.\n• Chạm vào từng phiếu để mở khung chat 2 chiều, điều phối Kỹ thuật viên và xem hình ảnh đính kèm.")
+            Text("• Bộ Lọc 3 Tab: Tất cả, Đang mở, Đã đóng.\n• Kênh tiếp nhận: App, Email, Phòng ban.\n• Nhóm theo ngày: Chạm tiêu đề ngày để thu gọn/mở rộng.\n• Chạm vào từng phiếu để mở khung chat 2 chiều, điều phối Kỹ thuật viên và xem hình ảnh đính kèm.")
         }
     }
 
@@ -221,7 +210,6 @@ public struct SupportHubView: View {
         switch viewModel.filterTab {
         case "OPEN": return "Không có sự cố nào đang chờ xử lý"
         case "CLOSED": return "Chưa có sự cố nào được đóng"
-        case "HIDDEN": return "Danh sách phiếu ẩn trống"
         default: return "Không tìm thấy yêu cầu hỗ trợ phù hợp"
         }
     }
@@ -264,12 +252,12 @@ public struct SupportHubView: View {
     }
 
     // MARK: - 4 STATUS TABS (ĐỒNG BỘ 1:1 ANDROID IMAGE 3)
+    // MARK: - 3 STATUS TABS
     private var statusTabsRow: some View {
         HStack(spacing: 4) {
             statusTabButton(title: "Tất cả", count: viewModel.allCount, tag: "ALL")
             statusTabButton(title: "Đang mở", count: viewModel.openCount, tag: "OPEN")
             statusTabButton(title: "Đã đóng", count: viewModel.closedCount, tag: "CLOSED")
-            statusTabButton(title: "Đã ẩn", count: viewModel.hiddenCount, tag: "HIDDEN")
         }
         .padding(3)
         .background(Color.appSurfaceVariant)
@@ -283,7 +271,6 @@ public struct SupportHubView: View {
             switch tag {
             case "OPEN": return Color(hex: "#DCFCE7")
             case "CLOSED": return Color.appSurface
-            case "HIDDEN": return Color(hex: "#FEE2E2")
             default: return Color.appSurface
             }
         }()
@@ -291,7 +278,6 @@ public struct SupportHubView: View {
             switch tag {
             case "OPEN": return Color(hex: "#16A34A")
             case "CLOSED": return Color.appTextPrimary
-            case "HIDDEN": return Color(hex: "#DC2626")
             default: return Color.appSecondaryDarkBlue
             }
         }()
@@ -528,20 +514,7 @@ public struct SupportHubView: View {
                     }
                 }
 
-                // Nút 3: Xóa / Dọn dẹp tất cả các phiếu đã đóng 🗑️ (Đồng bộ 1:1 Android Image 3)
-                if isManagerOrAdmin {
-                    Button(action: {
-                        if closedTicketsToCleanCount > 0 {
-                            showConfirmCleanClosed = true
-                        }
-                    }) {
-                        Image(systemName: "trash")
-                            .font(.system(size: 16))
-                            .foregroundColor(closedTicketsToCleanCount > 0 ? Color(hex: "#FCA5A5") : Color.white.opacity(0.45))
-                            .frame(width: 38, height: 40)
-                            .contentShape(Rectangle())
-                    }
-                }
+
 
                 // Nút 4: Báo cáo SLA / Đánh giá 📊 (Chỉ dành cho Admin, HelpDesk, Quản lý, KTV / Chuyên viên)
                 let canViewRatingReport = viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isHelpDesk || viewModel.user.isManager || viewModel.user.isTechnician || viewModel.user.isSpecialist
@@ -613,12 +586,8 @@ public struct SupportHubView: View {
                                 ForEach(group.tickets) { ticket in
                                     TicketItemView(
                                         ticket: ticket,
-                                        isHidden: viewModel.filterTab == "HIDDEN",
                                         onClick: {
                                             onSelectTicket(ticket)
-                                        },
-                                        onToggleHide: {
-                                            viewModel.toggleHideTicket(ticket.id)
                                         },
                                         onDelete: (viewModel.user.isAdmin || viewModel.user.isSuperAdmin || viewModel.user.isManager) ? {
                                             ticketToDelete = ticket
