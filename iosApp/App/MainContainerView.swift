@@ -492,13 +492,6 @@ public struct MainContainerView: View {
                 authViewModel: authViewModel,
                 onBack: { currentDestination = .home }
             )
-            .sheet(item: $selectedTicketForChat) { ticket in
-                TicketChatDetailView(
-                    viewModel: supportViewModel,
-                    ticket: ticket,
-                    onBack: { selectedTicketForChat = nil }
-                )
-            }
 
         case .supportHub:
             SupportHubView(

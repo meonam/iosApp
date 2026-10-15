@@ -1351,16 +1351,25 @@ public class SupportViewModel: ObservableObject {
     // MARK: - CHAT MESSAGES
     public func fetchMessages(for ticketId: String) {
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)/messages?pageSize=100"
+            let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let safeToken = idToken.isEmpty ? "default_token" : idToken
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets/\(ticketId)/messages?pageSize=100"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
-            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("Bearer \(safeToken)", forHTTPHeaderField: "Authorization")
 
             guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
                   httpResponse.statusCode == 200,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let documents = json["documents"] as? [[String: Any]] else {
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                return
+            }
+
+            let documents = (json["documents"] as? [[String: Any]]) ?? []
+            if documents.isEmpty {
+                await MainActor.run {
+                    self.messages = []
+                }
                 return
             }
 
@@ -1369,17 +1378,36 @@ public class SupportViewModel: ObservableObject {
                       let fields = doc["fields"] as? [String: Any] else { return nil }
                 let id = name.components(separatedBy: "/").last ?? ""
 
-                // Parse attachments (arrayValue của URL strings từ Cloudinary)
+                // Parse attachments (hỗ trợ cả mapValue chuẩn và stringValue fallback)
                 let attachmentItems: [AttachmentItem] = {
                     guard let arrVal = fields["attachments"] as? [String: Any],
                           let arr = arrVal["arrayValue"] as? [String: Any],
                           let vals = arr["values"] as? [[String: Any]] else { return [] }
                     return vals.compactMap { item -> AttachmentItem? in
-                        let urlStr = FirestoreHelper.getString(item["stringValue"] as? [String: Any] ?? item)
-                        guard !urlStr.isEmpty, let _ = URL(string: urlStr) else { return nil }
-                        let ext = (urlStr as NSString).pathExtension.lowercased()
-                        let isImg = ["png", "jpg", "jpeg", "webp", "bmp"].contains(ext)
-                        return AttachmentItem(name: urlStr.components(separatedBy: "/").last ?? "file", url: urlStr, type: isImg ? "image" : "file")
+                        if let mapVal = item["mapValue"] as? [String: Any],
+                           let mv = mapVal["fields"] as? [String: Any] {
+                            let urlStr = FirestoreHelper.getString(mv["url"] as? [String: Any])
+                            guard !urlStr.isEmpty else { return nil }
+                            let nameStr = FirestoreHelper.getString(mv["name"] as? [String: Any])
+                            let typeStr = FirestoreHelper.getString(mv["type"] as? [String: Any])
+                            let sizeVal = FirestoreHelper.getInt64(mv["size"] as? [String: Any])
+                            let idStr = FirestoreHelper.getString(mv["id"] as? [String: Any])
+                            let ext = (urlStr as NSString).pathExtension.lowercased()
+                            let isImg = ["png", "jpg", "jpeg", "webp", "bmp"].contains(ext) || typeStr.lowercased() == "image"
+                            return AttachmentItem(
+                                id: idStr.isEmpty ? "att_\(urlStr.hashValue)" : idStr,
+                                name: nameStr.isEmpty ? (urlStr.components(separatedBy: "/").last ?? "file") : nameStr,
+                                url: urlStr,
+                                size: sizeVal,
+                                type: isImg ? "image" : (typeStr.isEmpty ? "file" : typeStr)
+                            )
+                        } else {
+                            let urlStr = FirestoreHelper.getString(item["stringValue"] as? [String: Any] ?? item)
+                            guard !urlStr.isEmpty, let _ = URL(string: urlStr) else { return nil }
+                            let ext = (urlStr as NSString).pathExtension.lowercased()
+                            let isImg = ["png", "jpg", "jpeg", "webp", "bmp"].contains(ext)
+                            return AttachmentItem(name: urlStr.components(separatedBy: "/").last ?? "file", url: urlStr, type: isImg ? "image" : "file")
+                        }
                     }
                 }()
 
@@ -1509,20 +1537,37 @@ public class SupportViewModel: ObservableObject {
 
         isSendingMessage = true
         Task {
+            let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            let safeToken = idToken.isEmpty ? "default_token" : idToken
             let now = customTimestamp ?? Int64(Date().timeIntervalSince1970 * 1000)
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)/messages"
+            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets/\(ticketId)/messages"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
-            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("Bearer \(safeToken)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-            // Build attachments arrayValue nếu có file đính kèm
+            // Build attachments arrayValue nếu có file đính kèm dưới dạng mapValue đồng bộ với Web & Android
             let attachmentsField: [String: Any] = attachmentUrls.isEmpty ? [:] : [
                 "attachments": [
                     "arrayValue": [
-                        "values": attachmentUrls.map { ["stringValue": $0] }
+                        "values": attachmentUrls.map { url in
+                            let ext = (url as NSString).pathExtension.lowercased()
+                            let isImg = ["png", "jpg", "jpeg", "webp", "bmp"].contains(ext)
+                            let fileName = url.components(separatedBy: "/").last ?? "file"
+                            return [
+                                "mapValue": [
+                                    "fields": [
+                                        "id": ["stringValue": "att_\(Int64(Date().timeIntervalSince1970 * 1000))_\(Int.random(in: 1000...9999))"],
+                                        "name": ["stringValue": fileName],
+                                        "url": ["stringValue": url],
+                                        "type": ["stringValue": isImg ? "image" : "file"],
+                                        "size": ["integerValue": "0"]
+                                    ]
+                                ]
+                            ]
+                        }
                     ]
                 ]
             ]
@@ -1546,19 +1591,24 @@ public class SupportViewModel: ObservableObject {
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
             _ = await FirestoreHelper.executeSafeRequest(request)
 
-            // Update ticket lastMessage & lastMessageAt
+            // Update ticket lastMessage & lastMessageAt (chỉ cập nhật lastMessage nếu không phải ghi chú nội bộ)
             let lastMsg = cleanText.isEmpty ? "📎 Đính kèm \(attachmentUrls.count) tệp" : cleanText
-            let patchUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
+            let patchUrlStr = isInternal
+                ? "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets/\(ticketId)?updateMask.fieldPaths=lastMessageAt"
+                : "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets/\(ticketId)?updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
             if let patchUrl = URL(string: patchUrlStr) {
                 var pReq = URLRequest(url: patchUrl)
                 pReq.httpMethod = "PATCH"
-                pReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+                pReq.setValue("Bearer \(safeToken)", forHTTPHeaderField: "Authorization")
                 pReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                var patchFields: [String: Any] = [
+                    "lastMessageAt": ["integerValue": String(now)]
+                ]
+                if !isInternal {
+                    patchFields["lastMessage"] = ["stringValue": lastMsg]
+                }
                 let pBody: [String: Any] = [
-                    "fields": [
-                        "lastMessage": ["stringValue": lastMsg],
-                        "lastMessageAt": ["integerValue": String(now)]
-                    ]
+                    "fields": patchFields
                 ]
                 pReq.httpBody = try? JSONSerialization.data(withJSONObject: pBody)
                 _ = await FirestoreHelper.executeSafeRequest(pReq)

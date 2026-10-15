@@ -228,20 +228,7 @@ public struct TicketChatDetailView: View {
         if !initMsg.isEmpty && !isDispatchOrSystemText(initMsg) {
             return initMsg
         }
-        // 2. Tìm tin nhắn đầu tiên của chính người tạo yêu cầu (không phải hệ thống, không phải admin/điều phối)
-        if let firstUserMsg = viewModel.messages.first(where: { m in
-            !m.isSystemMessage && !isDispatchOrSystemText(m.message) &&
-            (!currentTicket.creatorEmail.isEmpty ? m.senderEmail.caseInsensitiveCompare(currentTicket.creatorEmail) == .orderedSame : true)
-        }) {
-            let text = firstUserMsg.message.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !text.isEmpty { return text }
-        }
-        // 3. Tin nhắn người dùng đầu tiên bất kỳ không phải hệ thống
-        if let anyUserMsg = viewModel.messages.first(where: { m in !m.isSystemMessage && !isDispatchOrSystemText(m.message) }) {
-            let text = anyUserMsg.message.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !text.isEmpty { return text }
-        }
-        // 4. Tiêu đề yêu cầu (subject) nếu không phải tin điều phối
+        // 2. Tiêu đề yêu cầu (subject) nếu không phải tin điều phối
         let subj = currentTicket.subject.trimmingCharacters(in: .whitespacesAndNewlines)
         if !subj.isEmpty && !isDispatchOrSystemText(subj) {
             return subj
@@ -1184,15 +1171,14 @@ public struct TicketChatDetailView: View {
 
     // MARK: - MESSAGES LIST VIEW
     private var messagesListView: some View {
-        let normalizedProblem = effectiveInitialMsg.trimmingCharacters(in: .whitespacesAndNewlines)
         let displayMessages = viewModel.messages.filter { msg in
             let text = msg.message.trimmingCharacters(in: .whitespacesAndNewlines)
             let isRatingMsg = text.contains("Người dùng đã nghiệm thu và đánh giá") ||
                               text.contains("Khách hàng đánh giá") ||
                               text.contains("đã nghiệm thu và đánh giá")
             if isRatingMsg { return false }
-            // Lọc bỏ tin nhắn trùng với nội dung sự cố đã hiển thị tại thẻ 'Vấn đề' ở trên
-            if !normalizedProblem.isEmpty && text.caseInsensitiveCompare(normalizedProblem) == .orderedSame {
+            // Chỉ ẩn thông điệp khởi tạo kỹ thuật nếu có, không ẩn tin nhắn người dùng
+            if !currentTicket.id.isEmpty && (msg.id == "msg_init_\(currentTicket.id)" || msg.id.hasPrefix("msg_init_")) {
                 return false
             }
             return true
@@ -1511,25 +1497,7 @@ public struct TicketChatDetailView: View {
                             .foregroundColor(Color.gray)
                     }
 
-                    Text(msg.text)
-                        .font(.system(size: 13.5))
-                        .foregroundColor(isMine ? Color.white : Color.appTextPrimary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(isMine ? Color.appPrimaryPink : Color.appSurface)
-                        .cornerRadius(14)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(isMine ? Color.clear : Color.appCardBorder, lineWidth: 1)
-                        )
-                        .textSelection(.enabled)
-                        .contextMenu {
-                            Button {
-                                UIPasteboard.general.string = msg.text
-                            } label: {
-                                Label("Sao chép", systemImage: "doc.on.doc")
-                            }
-                        }
+                    TicketMessageBubbleContentView(text: msg.text, isMine: isMine)
 
                     if msg.timestamp > 0 {
                         Text(formatMessageTime(msg.timestamp))
@@ -2527,3 +2495,90 @@ public struct TicketChatDetailView: View {
         return "doc.fill"
     }
 }
+
+// MARK: - EMAIL QUOTE SPLITTER & MESSAGE BUBBLE VIEW
+fileprivate func splitEmailMessage(_ raw: String) -> (reply: String, quote: String) {
+    let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    if text.isEmpty { return ("", "") }
+
+    let pattern = #"(?:\r?\n|\r)\s*(?:_{5,}|-{5,}(?:Original Message|Thư gốc|Forwarded Message)-{5,}|(?:From|Từ):\s+[^\n\r]+(?:\r?\n|\r)\s*(?:Sent|Ngày gửi|Date):|Vào\s+[^\n\r]+đã\s+viết:|On\s+[^\n\r]+wrote:)"#
+
+    if let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]) {
+        let nsString = text as NSString
+        let results = regex.matches(in: text, options: [], range: NSRange(location: 0, length: nsString.length))
+        if let firstMatch = results.first, firstMatch.range.location > 0 {
+            let reply = nsString.substring(to: firstMatch.range.location).trimmingCharacters(in: .whitespacesAndNewlines)
+            let quote = nsString.substring(from: firstMatch.range.location).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !reply.isEmpty {
+                return (reply, quote)
+            }
+        }
+    }
+    return (text, "")
+}
+
+fileprivate struct TicketMessageBubbleContentView: View {
+    let text: String
+    let isMine: Bool
+    @State private var isQuoteExpanded: Bool = false
+
+    var body: some View {
+        let (reply, quote) = splitEmailMessage(text)
+
+        VStack(alignment: .leading, spacing: 6) {
+            Text(reply)
+                .font(.system(size: 13.5))
+                .foregroundColor(isMine ? Color.white : Color.appTextPrimary)
+                .textSelection(.enabled)
+
+            if !quote.isEmpty {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isQuoteExpanded.toggle()
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: isQuoteExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .bold))
+                        Text(isQuoteExpanded ? "Thu gọn trích dẫn" : "Xem trích dẫn thư trước")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundColor(isMine ? Color.white.opacity(0.85) : Color(hex: "#64748B"))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(isMine ? Color.white.opacity(0.18) : Color(hex: "#F1F5F9"))
+                    .cornerRadius(6)
+                }
+                .buttonStyle(PlainButtonStyle())
+
+                if isQuoteExpanded {
+                    Text(quote)
+                        .font(.system(size: 11.5))
+                        .foregroundColor(isMine ? Color.white.opacity(0.8) : Color(hex: "#64748B"))
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(isMine ? Color.black.opacity(0.15) : Color(hex: "#F8FAFC"))
+                        .cornerRadius(6)
+                        .textSelection(.enabled)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(minWidth: 140, maxWidth: 300, alignment: isMine ? .trailing : .leading)
+        .background(isMine ? Color.appPrimaryPink : Color.appSurface)
+        .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(isMine ? Color.clear : Color.appCardBorder, lineWidth: 1)
+        )
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = text
+            } label: {
+                Label("Sao chép", systemImage: "doc.on.doc")
+            }
+        }
+    }
+}
+
