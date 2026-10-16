@@ -462,156 +462,85 @@ public struct AttendanceHistoryView: View {
     }
 
     private func loadDataAsync() async {
-        let comp = authViewModel.currentCompanyId.uppercased()
+        let rawComp = authViewModel.currentCompanyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let comp = rawComp.isEmpty ? (authViewModel.currentUser?.companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() ?? "SGCOOP") : rawComp
         let token = authViewModel.currentIdToken ?? ""
-        let email = authViewModel.currentUser?.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
-        guard !comp.isEmpty, !token.isEmpty, !email.isEmpty else { return }
+        let rawEmail = authViewModel.currentUser?.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        let email = rawEmail.isEmpty ? authViewModel.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() : rawEmail
+        let myName = authViewModel.currentUser?.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
 
-        DispatchQueue.main.async { self.isLoading = true }
-
-        let queryUrlStr = "\(FirebaseConfig.firestoreBaseUrl):runQuery"
-        guard let queryUrl = URL(string: queryUrlStr) else {
-            DispatchQueue.main.async { self.isLoading = false }
+        guard !comp.isEmpty, (!email.isEmpty || !myName.isEmpty) else {
+            await MainActor.run { self.isLoading = false }
             return
         }
 
-        var req = URLRequest(url: queryUrl)
-        req.httpMethod = "POST"
-        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-        let body: [String: Any] = [
-            "structuredQuery": [
-                "from": [["collectionId": "attendances"]],
-                "where": [
-                    "compositeFilter": [
-                        "op": "AND",
-                        "filters": [
-                            [
-                                "fieldFilter": [
-                                    "field": ["fieldPath": "userEmail"],
-                                    "op": "EQUAL",
-                                    "value": ["stringValue": email]
-                                ]
-                            ]
-                        ]
-                    ]
-                ],
-                "orderBy": [
-                    [
-                        "field": ["fieldPath": "date"],
-                        "direction": "DESCENDING"
-                    ]
-                ]
-            ],
-            "parent": "projects/\(FirebaseConfig.projectId)/databases/(default)/documents/companies/\(comp)"
-        ]
-        req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        await MainActor.run { self.isLoading = true }
 
         var list: [AttendanceRecord] = []
-        if let (data, resp) = try? await URLSession.shared.data(for: req),
-           let http = resp as? HTTPURLResponse, http.statusCode == 200,
-           let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+        let listUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(comp)/attendances?pageSize=500"
+        if let listUrl = URL(string: listUrlStr) {
+            var listReq = URLRequest(url: listUrl)
+            if !token.isEmpty { listReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+            if let (data, http) = await DatabaseHelper.executeSafeRequest(listReq),
+               http.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let docs = json["documents"] as? [[String: Any]] {
 
-            for item in arr {
-                if let doc = item["document"] as? [String: Any],
-                   let f = doc["fields"] as? [String: Any],
-                   let docName = doc["name"] as? String {
+                let df = DateFormatter()
+                df.dateFormat = "yyyy-MM-dd"
 
-                    let d = FirestoreHelper.getString(f["date"] as? [String: Any])
-                    if d.hasPrefix(selectedMonth) {
-                        let docId = docName.components(separatedBy: "/").last ?? ""
-                        let rec = AttendanceRecord(
-                            id: docId,
-                            userEmail: FirestoreHelper.getString(f["userEmail"] as? [String: Any]),
-                            userName: FirestoreHelper.getString(f["userName"] as? [String: Any]),
-                            userPhone: FirestoreHelper.getString(f["userPhone"] as? [String: Any]),
-                            maNhanVien: FirestoreHelper.getString(f["maNhanVien"] as? [String: Any]),
-                            employeeId: FirestoreHelper.getString(f["employeeId"] as? [String: Any]),
-                            departmentId: FirestoreHelper.getString(f["departmentId"] as? [String: Any]),
-                            departmentName: FirestoreHelper.getString(f["departmentName"] as? [String: Any]),
-                            donVi: FirestoreHelper.getString(f["donVi"] as? [String: Any]),
-                            date: d,
-                            checkInTime: FirestoreHelper.getInt64(f["checkInTime"] as? [String: Any]),
-                            checkInLat: FirestoreHelper.getDouble(f["checkInLat"] as? [String: Any]),
-                            checkInLng: FirestoreHelper.getDouble(f["checkInLng"] as? [String: Any]),
-                            checkInAddress: FirestoreHelper.getString(f["checkInAddress"] as? [String: Any]),
-                            checkInStatus: FirestoreHelper.getString(f["checkInStatus"] as? [String: Any]),
-                            checkOutTime: FirestoreHelper.getInt64(f["checkOutTime"] as? [String: Any]),
-                            checkOutLat: FirestoreHelper.getDouble(f["checkOutLat"] as? [String: Any]),
-                            checkOutLng: FirestoreHelper.getDouble(f["checkOutLng"] as? [String: Any]),
-                            checkOutAddress: FirestoreHelper.getString(f["checkOutAddress"] as? [String: Any]),
-                            checkOutStatus: FirestoreHelper.getString(f["checkOutStatus"] as? [String: Any]),
-                            totalWorkMinutes: FirestoreHelper.getInt(f["totalWorkMinutes"] as? [String: Any]),
-                            note: FirestoreHelper.getString(f["note"] as? [String: Any]),
-                            companyId: comp,
-                            shiftType: FirestoreHelper.getString(f["shiftType"] as? [String: Any]),
-                            scheduledShiftCode: FirestoreHelper.getString(f["scheduledShiftCode"] as? [String: Any]),
-                            isUnscheduled: (f["isUnscheduled"] as? [String: Any])?["booleanValue"] as? Bool ?? false
-                        )
-                        list.append(rec)
-                    }
-                }
-            }
-        }
-
-        // Fallback đọc trực tiếp
-        if list.isEmpty {
-            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/attendances?pageSize=300"
-            if let listUrl = URL(string: listUrlStr) {
-                var listReq = URLRequest(url: listUrl)
-                listReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                if let (data, resp) = try? await URLSession.shared.data(for: listReq),
-                   let http = resp as? HTTPURLResponse, http.statusCode == 200,
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let docs = json["documents"] as? [[String: Any]] {
-
-                    for doc in docs {
-                        if let f = doc["fields"] as? [String: Any],
-                           let docName = doc["name"] as? String {
-                            let docEmail = FirestoreHelper.getString(f["userEmail"] as? [String: Any])
-                            let d = FirestoreHelper.getString(f["date"] as? [String: Any])
-                            if docEmail.caseInsensitiveCompare(email) == .orderedSame && d.hasPrefix(selectedMonth) {
-                                let docId = docName.components(separatedBy: "/").last ?? ""
-                                let rec = AttendanceRecord(
-                                    id: docId,
-                                    userEmail: docEmail,
-                                    userName: FirestoreHelper.getString(f["userName"] as? [String: Any]),
-                                    userPhone: FirestoreHelper.getString(f["userPhone"] as? [String: Any]),
-                                    maNhanVien: FirestoreHelper.getString(f["maNhanVien"] as? [String: Any]),
-                                    employeeId: FirestoreHelper.getString(f["employeeId"] as? [String: Any]),
-                                    departmentId: FirestoreHelper.getString(f["departmentId"] as? [String: Any]),
-                                    departmentName: FirestoreHelper.getString(f["departmentName"] as? [String: Any]),
-                                    donVi: FirestoreHelper.getString(f["donVi"] as? [String: Any]),
-                                    date: d,
-                                    checkInTime: FirestoreHelper.getInt64(f["checkInTime"] as? [String: Any]),
-                                    checkInLat: FirestoreHelper.getDouble(f["checkInLat"] as? [String: Any]),
-                                    checkInLng: FirestoreHelper.getDouble(f["checkInLng"] as? [String: Any]),
-                                    checkInAddress: FirestoreHelper.getString(f["checkInAddress"] as? [String: Any]),
-                                    checkInStatus: FirestoreHelper.getString(f["checkInStatus"] as? [String: Any]),
-                                    checkOutTime: FirestoreHelper.getInt64(f["checkOutTime"] as? [String: Any]),
-                                    checkOutLat: FirestoreHelper.getDouble(f["checkOutLat"] as? [String: Any]),
-                                    checkOutLng: FirestoreHelper.getDouble(f["checkOutLng"] as? [String: Any]),
-                                    checkOutAddress: FirestoreHelper.getString(f["checkOutAddress"] as? [String: Any]),
-                                    checkOutStatus: FirestoreHelper.getString(f["checkOutStatus"] as? [String: Any]),
-                                    totalWorkMinutes: FirestoreHelper.getInt(f["totalWorkMinutes"] as? [String: Any]),
-                                    note: FirestoreHelper.getString(f["note"] as? [String: Any]),
-                                    companyId: comp,
-                                    shiftType: FirestoreHelper.getString(f["shiftType"] as? [String: Any]),
-                                    scheduledShiftCode: FirestoreHelper.getString(f["scheduledShiftCode"] as? [String: Any]),
-                                    isUnscheduled: (f["isUnscheduled"] as? [String: Any])?["booleanValue"] as? Bool ?? false
-                                )
-                                list.append(rec)
-                            }
+                for doc in docs {
+                    if let f = doc["fields"] as? [String: Any],
+                       let docName = doc["name"] as? String {
+                        let docEmail = DatabaseHelper.getString(f["userEmail"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        let docNameStr = DatabaseHelper.getString(f["userName"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
+                        var d = DatabaseHelper.getString(f["date"] as? [String: Any])
+                        let checkInTs = DatabaseHelper.getInt64(f["checkInTime"] as? [String: Any])
+                        if d.isEmpty && checkInTs > 0 {
+                            d = df.string(from: Date(timeIntervalSince1970: TimeInterval(checkInTs) / 1000.0))
+                        }
+                        let emailMatch = !email.isEmpty && (docEmail.caseInsensitiveCompare(email) == .orderedSame || docNameStr.caseInsensitiveCompare(email) == .orderedSame)
+                        let nameMatch = !myName.isEmpty && !docNameStr.isEmpty && docNameStr.lowercased() == myName
+                        if (emailMatch || nameMatch) && d.hasPrefix(selectedMonth) {
+                            let docId = docName.components(separatedBy: "/").last ?? ""
+                            let rec = AttendanceRecord(
+                                id: docId,
+                                userEmail: docEmail.isEmpty ? email : docEmail,
+                                userName: docNameStr,
+                                userPhone: DatabaseHelper.getString(f["userPhone"] as? [String: Any]),
+                                maNhanVien: DatabaseHelper.getString(f["maNhanVien"] as? [String: Any]),
+                                employeeId: DatabaseHelper.getString(f["employeeId"] as? [String: Any]),
+                                departmentId: DatabaseHelper.getString(f["departmentId"] as? [String: Any]),
+                                departmentName: DatabaseHelper.getString(f["departmentName"] as? [String: Any]),
+                                donVi: DatabaseHelper.getString(f["donVi"] as? [String: Any]),
+                                date: d,
+                                checkInTime: checkInTs,
+                                checkInLat: DatabaseHelper.getDouble(f["checkInLat"] as? [String: Any]),
+                                checkInLng: DatabaseHelper.getDouble(f["checkInLng"] as? [String: Any]),
+                                checkInAddress: DatabaseHelper.getString(f["checkInAddress"] as? [String: Any]),
+                                checkInStatus: DatabaseHelper.getString(f["checkInStatus"] as? [String: Any]),
+                                checkOutTime: DatabaseHelper.getInt64(f["checkOutTime"] as? [String: Any]),
+                                checkOutLat: DatabaseHelper.getDouble(f["checkOutLat"] as? [String: Any]),
+                                checkOutLng: DatabaseHelper.getDouble(f["checkOutLng"] as? [String: Any]),
+                                checkOutAddress: DatabaseHelper.getString(f["checkOutAddress"] as? [String: Any]),
+                                checkOutStatus: DatabaseHelper.getString(f["checkOutStatus"] as? [String: Any]),
+                                totalWorkMinutes: DatabaseHelper.getInt(f["totalWorkMinutes"] as? [String: Any]),
+                                note: DatabaseHelper.getString(f["note"] as? [String: Any]),
+                                companyId: comp,
+                                shiftType: DatabaseHelper.getString(f["shiftType"] as? [String: Any]),
+                                scheduledShiftCode: DatabaseHelper.getString(f["scheduledShiftCode"] as? [String: Any]),
+                                isUnscheduled: (f["isUnscheduled"] as? [String: Any])?["booleanValue"] as? Bool ?? false
+                            )
+                            list.append(rec)
                         }
                     }
                 }
             }
         }
 
-        list.sort { $0.date > $1.date }
+        list.sort { max($0.checkInTime, $0.checkOutTime) > max($1.checkInTime, $1.checkOutTime) }
 
-        DispatchQueue.main.async {
+        await MainActor.run {
             self.records = list
             self.isLoading = false
         }

@@ -106,6 +106,7 @@ public struct MainContainerView: View {
 
                             AppSidebarDrawer(
                                 user: homeViewModel.user.email.isEmpty ? user : homeViewModel.user,
+                                allowHelpdeskUserManagement: homeViewModel.allowHelpdeskUserManagement,
                                 pendingStaffCount: homeViewModel.pendingStaffCount,
                                 openTicketsCount: homeViewModel.openTicketsCount,
                                 currentDestination: currentDestination,

@@ -66,6 +66,7 @@ public enum DrawerDestination: Identifiable {
 // MARK: - APP SIDEBAR DRAWER (ĐỒNG BỘ 1:1 THEO APPSIDEBARDRAWER.KT TRÊN ANDROID)
 public struct AppSidebarDrawer: View {
     var user: User
+    var allowHelpdeskUserManagement: Bool = false
     var pendingStaffCount: Int
     var openTicketsCount: Int = 0
     var currentDestination: DrawerDestination = .home
@@ -82,6 +83,7 @@ public struct AppSidebarDrawer: View {
 
     public init(
         user: User,
+        allowHelpdeskUserManagement: Bool = false,
         pendingStaffCount: Int = 0,
         openTicketsCount: Int = 0,
         currentDestination: DrawerDestination = .home,
@@ -90,6 +92,7 @@ public struct AppSidebarDrawer: View {
         onCloseDrawer: @escaping () -> Void = {}
     ) {
         self.user = user
+        self.allowHelpdeskUserManagement = allowHelpdeskUserManagement
         self.pendingStaffCount = pendingStaffCount
         self.openTicketsCount = openTicketsCount
         self.currentDestination = currentDestination
@@ -113,6 +116,10 @@ public struct AppSidebarDrawer: View {
 
     private var isHelpDesk: Bool {
         user.isHelpDesk
+    }
+
+    private var isHelpdeskReadOnly: Bool {
+        isHelpDesk && !allowHelpdeskUserManagement
     }
 
     private var isManager: Bool {
@@ -327,55 +334,57 @@ public struct AppSidebarDrawer: View {
                             .padding(.leading, 6)
                         }
 
-                        // --- NHÓM 2: QUẢN LÝ NHÂN SỰ & TỔ CHỨC (ADMIN & QUẢN LÝ) ---
+                        // --- NHÓM 2: QUẢN LÝ NHÂN SỰ & TỔ CHỨC / DANH BẠ NHÂN SỰ ---
                         if isManagerOrAdmin {
                             DrawerSectionHeader(
-                                title: "QUẢN LÝ NHÂN SỰ & TỔ CHỨC",
-                                headerColor: Color(hex: "#6366F1"),
+                                title: isHelpdeskReadOnly ? "DANH BẠ NHÂN SỰ" : "QUẢN LÝ NHÂN SỰ & TỔ CHỨC",
+                                headerColor: isHelpdeskReadOnly ? Color(hex: "#0284C7") : Color(hex: "#6366F1"),
                                 isExpanded: $isPersonnelExpanded
                             )
                             if isPersonnelExpanded {
                                 VStack(spacing: 2) {
                                     drawerItemRow(
-                                        title: "Quản lý người dùng",
-                                        icon: "person.2.fill",
-                                        color: Color(hex: "#3B82F6"),
+                                        title: isHelpdeskReadOnly ? "Danh bạ nhân sự (Chỉ xem)" : "Quản lý người dùng",
+                                        icon: isHelpdeskReadOnly ? "person.crop.rectangle.stack.fill" : "person.2.fill",
+                                        color: isHelpdeskReadOnly ? Color(hex: "#0284C7") : Color(hex: "#3B82F6"),
                                         isSelected: currentDestination == .userManagement
                                     ) {
                                         onSelect(.userManagement)
                                     }
-                                    drawerItemRow(
-                                        title: "Quản lý phòng ban",
-                                        icon: "building.2.fill",
-                                        color: Color(hex: "#818CF8"),
-                                        isSelected: currentDestination == .departmentManagement
-                                    ) {
-                                        onSelect(.departmentManagement)
-                                    }
-                                    drawerItemRow(
-                                        title: "Quản lý đơn vị",
-                                        icon: "building.columns.fill",
-                                        color: Color(hex: "#6366F1"),
-                                        isSelected: currentDestination == .unitManagement
-                                    ) {
-                                        onSelect(.unitManagement)
-                                    }
-                                    if isAdmin || isHelpDesk {
+                                    if !isHelpdeskReadOnly {
                                         drawerItemRow(
-                                            title: "Quản lý khu vực",
-                                            icon: "map.circle.fill",
-                                            color: Color(hex: "#F59E0B"),
-                                            isSelected: currentDestination == .regionManagement
+                                            title: "Quản lý phòng ban",
+                                            icon: "building.2.fill",
+                                            color: Color(hex: "#818CF8"),
+                                            isSelected: currentDestination == .departmentManagement
                                         ) {
-                                            onSelect(.regionManagement)
+                                            onSelect(.departmentManagement)
                                         }
                                         drawerItemRow(
-                                            title: "Quản lý tổ nghiệp vụ",
-                                            icon: "person.3.fill",
-                                            color: Color(hex: "#8B5CF6"),
-                                            isSelected: currentDestination == .specialistTeams
+                                            title: "Quản lý đơn vị",
+                                            icon: "building.columns.fill",
+                                            color: Color(hex: "#6366F1"),
+                                            isSelected: currentDestination == .unitManagement
                                         ) {
-                                            onSelect(.specialistTeams)
+                                            onSelect(.unitManagement)
+                                        }
+                                        if isAdmin || isHelpDesk {
+                                            drawerItemRow(
+                                                title: "Quản lý khu vực",
+                                                icon: "map.circle.fill",
+                                                color: Color(hex: "#F59E0B"),
+                                                isSelected: currentDestination == .regionManagement
+                                            ) {
+                                                onSelect(.regionManagement)
+                                            }
+                                            drawerItemRow(
+                                                title: "Quản lý tổ nghiệp vụ",
+                                                icon: "person.3.fill",
+                                                color: Color(hex: "#8B5CF6"),
+                                                isSelected: currentDestination == .specialistTeams
+                                            ) {
+                                                onSelect(.specialistTeams)
+                                            }
                                         }
                                     }
                                 }

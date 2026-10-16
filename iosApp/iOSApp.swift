@@ -134,7 +134,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let encodedEmail = cleanEmail.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? cleanEmail
 
         // PATCH apnsToken vào document user trong Firestore
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/users/\(encodedEmail)?updateMask.fieldPaths=apnsToken&updateMask.fieldPaths=platform"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/users/\(encodedEmail)?updateMask.fieldPaths=apnsToken&updateMask.fieldPaths=platform"
         guard let url = URL(string: urlStr) else { return }
 
         let body: [String: Any] = [

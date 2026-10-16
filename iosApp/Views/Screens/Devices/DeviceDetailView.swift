@@ -172,18 +172,20 @@ public struct DeviceDetailView: View {
 
                                 // 3. Action Buttons
                                 VStack(spacing: 10) {
-                                    // 🚨 BÁO HỎNG / TẠO YÊU CẦU HỖ TRỢ (ĐỒNG BỘ 100% VỚI ANDROID)
-                                    Button(action: { showCreateTicketSheet = true }) {
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "exclamationmark.triangle.fill")
-                                            Text("🚨 Báo hỏng / Tạo yêu cầu hỗ trợ")
+                                    // 🚨 BÁO HỎNG / TẠO YÊU CẦU HỖ TRỢ (Chỉ người dùng đơn vị được phép)
+                                    if viewModel.user.canCreateTicket {
+                                        Button(action: { showCreateTicketSheet = true }) {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: "exclamationmark.triangle.fill")
+                                                Text("🚨 Báo hỏng / Tạo yêu cầu hỗ trợ")
+                                            }
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 46)
+                                            .background(Color.appPrimaryPink)
+                                            .cornerRadius(12)
                                         }
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 46)
-                                        .background(Color.appPrimaryPink)
-                                        .cornerRadius(12)
                                     }
 
                                     // 🖨️ IN TEM / CHIA SẺ MÃ QR

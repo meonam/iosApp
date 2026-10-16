@@ -298,8 +298,9 @@ public struct TicketChatDetailView: View {
             startSlaTimer()
 
             chatPollTimer?.invalidate()
-            chatPollTimer = Timer.scheduledTimer(withTimeInterval: 3.5, repeats: true) { _ in
+            chatPollTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { _ in
                 viewModel.fetchMessages(for: ticket.id)
+                viewModel.fetchTicketsSilent()
             }
         }
         .onDisappear {
@@ -1171,15 +1172,29 @@ public struct TicketChatDetailView: View {
 
     // MARK: - MESSAGES LIST VIEW
     private var messagesListView: some View {
+        let initMsg = currentTicket.initialMessage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let subjMsg = currentTicket.subject.trimmingCharacters(in: .whitespacesAndNewlines)
+        let creatorEmail = currentTicket.creatorEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
         let displayMessages = viewModel.messages.filter { msg in
             let text = msg.message.trimmingCharacters(in: .whitespacesAndNewlines)
             let isRatingMsg = text.contains("Người dùng đã nghiệm thu và đánh giá") ||
                               text.contains("Khách hàng đánh giá") ||
                               text.contains("đã nghiệm thu và đánh giá")
             if isRatingMsg { return false }
-            // Chỉ ẩn thông điệp khởi tạo kỹ thuật nếu có, không ẩn tin nhắn người dùng
+            // Ẩn thông điệp kỹ thuật khởi tạo ticket
             if !currentTicket.id.isEmpty && (msg.id == "msg_init_\(currentTicket.id)" || msg.id.hasPrefix("msg_init_")) {
                 return false
+            }
+            // Ẩn nội dung yêu cầu ban đầu khỏi khung chat (vì đã đưa lên mục "Vấn đề:" tại thẻ thông tin sự cố)
+            let isCreator = !creatorEmail.isEmpty && msg.senderEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == creatorEmail
+            if isCreator {
+                if !initMsg.isEmpty && text.caseInsensitiveCompare(initMsg) == .orderedSame {
+                    return false
+                }
+                if !subjMsg.isEmpty && text.caseInsensitiveCompare(subjMsg) == .orderedSame {
+                    return false
+                }
             }
             return true
         }
@@ -1195,9 +1210,21 @@ public struct TicketChatDetailView: View {
                     }
 
                     // Danh sách tin nhắn trao đổi (ẩn tin nhắn text tự động của đánh giá để không bị trùng lặp)
-                    ForEach(displayMessages) { msg in
-                        messageBubbleView(msg)
-                            .id(msg.id)
+                    if displayMessages.isEmpty {
+                        VStack(spacing: 6) {
+                            Text("Chưa có tin nhắn trao đổi mới. Vấn đề ban đầu được hiển thị tại thẻ thông tin phía trên.")
+                                .font(.system(size: 12))
+                                .foregroundColor(Color.appTextMuted)
+                                .multilineTextAlignment(.center)
+                                .padding(.vertical, 20)
+                                .padding(.horizontal, 16)
+                        }
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        ForEach(displayMessages) { msg in
+                            messageBubbleView(msg)
+                                .id(msg.id)
+                        }
                     }
 
                     // Thẻ Đánh giá chất lượng hỗ trợ: Chỉ hiển thị form đánh giá nhanh khi KTV đã xử lý xong và CHƯA đánh giá
@@ -1308,21 +1335,43 @@ public struct TicketChatDetailView: View {
                     .cornerRadius(4)
             }
 
-            // Nội dung mô tả sự cố (LẤY NỘI DUNG GỐC CỦA NGƯỜI YÊU CẦU, TUYỆT ĐỐI KHÔNG LẤY TIN ĐIỀU PHỐI / HỆ THỐNG)
-
-            if !effectiveInitialMsg.isEmpty {
-                Text("📝 Vấn đề: \(effectiveInitialMsg)")
-                    .font(.system(size: 12))
-                    .foregroundColor(Color.appTextPrimary)
-                    .textSelection(.enabled)
-                    .contextMenu {
-                        Button {
-                            UIPasteboard.general.string = effectiveInitialMsg
-                        } label: {
-                            Label("Sao chép", systemImage: "doc.on.doc")
-                        }
+            // Tiêu đề & Nội dung mô tả sự cố (LẤY NỘI DUNG GỐC CỦA NGƯỜI YÊU CẦU, TUYỆT ĐỐI KHÔNG LẤY TIN ĐIỀU PHỐI / HỆ THỐNG)
+            VStack(alignment: .leading, spacing: 4) {
+                if !currentTicket.subject.isEmpty {
+                    HStack(alignment: .top, spacing: 6) {
+                        Text("📌 Tiêu đề:")
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                        Text(currentTicket.subject)
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundColor(Color.appTextPrimary)
                     }
+                }
+                if !effectiveInitialMsg.isEmpty {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("📝 Vấn đề:")
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundColor(Color(hex: "#D97706"))
+                        Text(effectiveInitialMsg)
+                            .font(.system(size: 11.5))
+                            .foregroundColor(Color.appTextPrimary)
+                            .lineSpacing(3)
+                            .textSelection(.enabled)
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = effectiveInitialMsg
+                                } label: {
+                                    Label("Sao chép", systemImage: "doc.on.doc")
+                                }
+                            }
+                    }
+                }
             }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.appSurfaceVariant.opacity(0.6))
+            .cornerRadius(8)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appCardBorder, lineWidth: 1))
 
             // Tệp & ảnh đính kèm (Gom tại 1 nơi duy nhất ở phía trên)
             if !allUnifiedAttachments.isEmpty {

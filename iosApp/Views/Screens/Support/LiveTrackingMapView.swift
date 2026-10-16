@@ -850,7 +850,7 @@ public struct LiveTrackingMapView: View {
         let techEmail = currentTicket.assignedToEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !techEmail.isEmpty, !viewModel.companyId.isEmpty else { return }
         let cleanEmail = techEmail.lowercased().replacingOccurrences(of: "[^a-zA-Z0-9_]", with: "_")
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.companyId)/technician_locations/\(cleanEmail)"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(viewModel.companyId)/technician_locations/\(cleanEmail)"
         guard let url = URL(string: urlStr) else { return }
 
         Task {
@@ -864,8 +864,8 @@ public struct LiveTrackingMapView: View {
                let http = resp as? HTTPURLResponse, http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
-                let lat = FirestoreHelper.getDouble(fields["lat"] as? [String: Any])
-                let lng = FirestoreHelper.getDouble(fields["lng"] as? [String: Any])
+                let lat = DatabaseHelper.getDouble(fields["lat"] as? [String: Any])
+                let lng = DatabaseHelper.getDouble(fields["lng"] as? [String: Any])
                 if lat != 0 && lng != 0 {
                     await MainActor.run {
                         self.techLastKnownCoordinate = CLLocationCoordinate2D(latitude: lat, longitude: lng)

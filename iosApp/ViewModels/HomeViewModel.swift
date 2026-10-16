@@ -22,6 +22,9 @@ public class HomeViewModel: ObservableObject {
     @Published public var companyBannerText: String = ""
     @Published public var companyBannerType: String = "INFO"
 
+    // Cấu hình tính năng phân quyền Helpdesk
+    @Published public var allowHelpdeskUserManagement: Bool = false
+
     // Modal đổi mật khẩu
     @Published public var showChangePasswordModal: Bool = false
     @Published public var showOverflowMenu: Bool = false
@@ -44,6 +47,7 @@ public class HomeViewModel: ObservableObject {
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 await self.fetchUnreadNotifications()
+                await self.fetchSystemToggleConfig()
             }
         }
     }
@@ -59,6 +63,7 @@ public class HomeViewModel: ObservableObject {
         Task {
             await fetchUserProfileRealtime()
             await fetchCompanyBanner()
+            await fetchSystemToggleConfig()
             await fetchDevices()
             await fetchOpenTickets()
             await fetchUnreadNotifications()
@@ -68,10 +73,9 @@ public class HomeViewModel: ObservableObject {
     }
 
     // MARK: - TẢI CẤU HÌNH BANNER DOANH NGHIỆP
-    // MARK: - TẢI CẤU HÌNH BANNER DOANH NGHIỆP
     public func fetchCompanyBanner() async {
         guard !companyId.isEmpty else { return }
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -79,20 +83,42 @@ public class HomeViewModel: ObservableObject {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         }
 
-        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+        guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
               httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let fields = json["fields"] as? [String: Any] else {
             return
         }
 
-        let active = FirestoreHelper.getBool(fields["isBannerActive"] as? [String: Any])
-        let text = FirestoreHelper.getString(fields["bannerText"] as? [String: Any])
-        let type = FirestoreHelper.getString(fields["bannerType"] as? [String: Any])
+        let active = DatabaseHelper.getBool(fields["isBannerActive"] as? [String: Any])
+        let text = DatabaseHelper.getString(fields["bannerText"] as? [String: Any])
+        let type = DatabaseHelper.getString(fields["bannerType"] as? [String: Any])
 
         self.isCompanyBannerActive = active
         self.companyBannerText = text
         self.companyBannerType = type.isEmpty ? "INFO" : type
+    }
+
+    // MARK: - TẢI CẤU HÌNH PHÂN QUYỀN HELPDESK (SYSTEM_TOGGLE_CONFIG)
+    public func fetchSystemToggleConfig() async {
+        guard !companyId.isEmpty else { return }
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/system_config/system_toggle_config"
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        if !idToken.isEmpty {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let fields = json["fields"] as? [String: Any] else {
+            self.allowHelpdeskUserManagement = false
+            return
+        }
+
+        self.allowHelpdeskUserManagement = DatabaseHelper.getBool(fields["allowHelpdeskUserManagement"] as? [String: Any])
     }
 
     // MARK: - CẬP NHẬT BANNER DOANH NGHIỆP
@@ -104,7 +130,7 @@ public class HomeViewModel: ObservableObject {
             .replacingOccurrences(of: "\n", with: "  •  ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)?updateMask.fieldPaths=bannerText&updateMask.fieldPaths=bannerType&updateMask.fieldPaths=isBannerActive&updateMask.fieldPaths=bannerUpdatedAt"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(comp)?updateMask.fieldPaths=bannerText&updateMask.fieldPaths=bannerType&updateMask.fieldPaths=isBannerActive&updateMask.fieldPaths=bannerUpdatedAt"
         guard let url = URL(string: urlStr) else { return }
 
         let now = Int64(Date().timeIntervalSince1970 * 1000)
@@ -127,7 +153,7 @@ public class HomeViewModel: ObservableObject {
         }
         request.httpBody = jsonData
 
-        if let (_, response) = await FirestoreHelper.executeSafeRequest(request),
+        if let (_, response) = await DatabaseHelper.executeSafeRequest(request),
            (200...299).contains(response.statusCode) {
             await MainActor.run {
                 self.companyBannerText = cleanText
@@ -144,8 +170,8 @@ public class HomeViewModel: ObservableObject {
 
         let comp = companyId.isEmpty ? "SGCOOP" : companyId
         let urls = [
-            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/users/\(cleanEmail)",
-            "\(FirebaseConfig.firestoreBaseUrl)/users/\(cleanEmail)"
+            "\(ServerConfig.documentsBaseUrl)/companies/\(comp)/users/\(cleanEmail)",
+            "\(ServerConfig.documentsBaseUrl)/users/\(cleanEmail)"
         ]
 
         for urlStr in urls {
@@ -155,30 +181,30 @@ public class HomeViewModel: ObservableObject {
                 request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
 
-            guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+            guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
                   httpResponse.statusCode == 200,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let fields = json["fields"] as? [String: Any] else {
                 continue
             }
 
-            let newName = FirestoreHelper.getFirstNonEmptyString(fields, keys: ["fullName", "name", "hoTen"])
+            let newName = DatabaseHelper.getFirstNonEmptyString(fields, keys: ["fullName", "name", "hoTen"])
             if !newName.isEmpty { self.user.fullName = newName }
 
-            let resolvedPhone = FirestoreHelper.resolvePhone(fields)
+            let resolvedPhone = DatabaseHelper.resolvePhone(fields)
             if !resolvedPhone.isEmpty { self.user.phone = resolvedPhone }
 
-            let newRole = FirestoreHelper.getString(fields["role"] as? [String: Any])
+            let newRole = DatabaseHelper.getString(fields["role"] as? [String: Any])
             if !newRole.isEmpty { self.user.role = newRole }
 
-            let newDept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
-            let altDept = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
+            let newDept = DatabaseHelper.getString(fields["departmentId"] as? [String: Any])
+            let altDept = DatabaseHelper.getString(fields["phongBan"] as? [String: Any])
             if !newDept.isEmpty { self.user.departmentId = newDept }
             else if !altDept.isEmpty { self.user.departmentId = altDept }
 
-            let newDonVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
-            let altDonVi = FirestoreHelper.getString(fields["tenDonVi"] as? [String: Any])
-            let unitId = FirestoreHelper.getString(fields["unitId"] as? [String: Any])
+            let newDonVi = DatabaseHelper.getString(fields["donVi"] as? [String: Any])
+            let altDonVi = DatabaseHelper.getString(fields["tenDonVi"] as? [String: Any])
+            let unitId = DatabaseHelper.getString(fields["unitId"] as? [String: Any])
             var donViVal = !newDonVi.isEmpty ? newDonVi : altDonVi
             if !unitId.isEmpty && !donViVal.isEmpty && donViVal != unitId {
                 if !donViVal.contains(" - ") && !donViVal.hasPrefix(unitId) {
@@ -189,10 +215,10 @@ public class HomeViewModel: ObservableObject {
             }
             if !donViVal.isEmpty { self.user.donVi = donViVal }
 
-            let newAvatar = FirestoreHelper.getFirstNonEmptyString(fields, keys: ["profileImageUrl", "avatarUrl", "photoUrl"])
+            let newAvatar = DatabaseHelper.getFirstNonEmptyString(fields, keys: ["profileImageUrl", "avatarUrl", "photoUrl"])
             if !newAvatar.isEmpty { self.user.avatarUrl = newAvatar }
 
-            let newToNghiepVu = FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any])
+            let newToNghiepVu = DatabaseHelper.getString(fields["toNghiepVu"] as? [String: Any])
             if !newToNghiepVu.isEmpty { self.user.toNghiepVu = newToNghiepVu }
 
             break
@@ -202,13 +228,13 @@ public class HomeViewModel: ObservableObject {
     // MARK: - 2. TẢI DANH SÁCH THIẾT BỊ
     private func fetchDevices() async {
         let isFullAccess = user.isAdmin || user.isSuperAdmin || user.isHelpDesk || user.isWarehouse
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices?pageSize=100"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/devices?pageSize=100"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+        guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
               httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let documents = json["documents"] as? [[String: Any]] else {
@@ -221,22 +247,22 @@ public class HomeViewModel: ObservableObject {
             let id = name.components(separatedBy: "/").last ?? ""
             return ThietBi(
                 id: id,
-                ten: FirestoreHelper.getString(fields["ten"] as? [String: Any]),
-                tenDonVi: FirestoreHelper.getString(fields["tenDonVi"] as? [String: Any]),
-                trangThai: FirestoreHelper.getString(fields["trangThai"] as? [String: Any]),
-                createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
-                role: FirestoreHelper.getString(fields["role"] as? [String: Any]),
-                loai: FirestoreHelper.getString(fields["loai"] as? [String: Any]),
-                phongBan: FirestoreHelper.getString(fields["phongBan"] as? [String: Any]),
-                moTa: FirestoreHelper.getString(fields["moTa"] as? [String: Any]),
-                createdBy: FirestoreHelper.getString(fields["createdBy"] as? [String: Any]),
-                companyId: FirestoreHelper.getString(fields["companyId"] as? [String: Any]),
+                ten: DatabaseHelper.getString(fields["ten"] as? [String: Any]),
+                tenDonVi: DatabaseHelper.getString(fields["tenDonVi"] as? [String: Any]),
+                trangThai: DatabaseHelper.getString(fields["trangThai"] as? [String: Any]),
+                createdAt: DatabaseHelper.getInt64(fields["createdAt"] as? [String: Any]),
+                role: DatabaseHelper.getString(fields["role"] as? [String: Any]),
+                loai: DatabaseHelper.getString(fields["loai"] as? [String: Any]),
+                phongBan: DatabaseHelper.getString(fields["phongBan"] as? [String: Any]),
+                moTa: DatabaseHelper.getString(fields["moTa"] as? [String: Any]),
+                createdBy: DatabaseHelper.getString(fields["createdBy"] as? [String: Any]),
+                companyId: DatabaseHelper.getString(fields["companyId"] as? [String: Any]),
                 synced: true,
-                donViMuon: FirestoreHelper.getString(fields["donViMuon"] as? [String: Any]),
-                phongBanMuon: FirestoreHelper.getString(fields["phongBanMuon"] as? [String: Any]),
-                nguoiMuon: FirestoreHelper.getString(fields["nguoiMuon"] as? [String: Any]),
-                ngayMuon: FirestoreHelper.getString(fields["ngayMuon"] as? [String: Any]),
-                ngayHenTra: FirestoreHelper.getString(fields["ngayHenTra"] as? [String: Any])
+                donViMuon: DatabaseHelper.getString(fields["donViMuon"] as? [String: Any]),
+                phongBanMuon: DatabaseHelper.getString(fields["phongBanMuon"] as? [String: Any]),
+                nguoiMuon: DatabaseHelper.getString(fields["nguoiMuon"] as? [String: Any]),
+                ngayMuon: DatabaseHelper.getString(fields["ngayMuon"] as? [String: Any]),
+                ngayHenTra: DatabaseHelper.getString(fields["ngayHenTra"] as? [String: Any])
             )
         }
 
@@ -263,7 +289,7 @@ public class HomeViewModel: ObservableObject {
         var docsList: [[String: Any]] = []
 
         // Thử lấy qua :runQuery trước
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId):runQuery"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId):runQuery"
         if let url = URL(string: urlStr) {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
@@ -282,7 +308,7 @@ public class HomeViewModel: ObservableObject {
 
             if let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) {
                 request.httpBody = bodyData
-                if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+                if let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
                    httpResponse.statusCode == 200,
                    let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
                     for item in results {
@@ -296,13 +322,13 @@ public class HomeViewModel: ObservableObject {
 
         // Fallback sang document listing nếu runQuery không có kết quả
         if docsList.isEmpty {
-            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets?pageSize=300"
+            let listUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets?pageSize=300"
             if let listUrl = URL(string: listUrlStr) {
                 var listReq = URLRequest(url: listUrl)
                 if !idToken.isEmpty {
                     listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
                 }
-                if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(listReq),
+                if let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(listReq),
                    httpResponse.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let documents = json["documents"] as? [[String: Any]] {
@@ -326,9 +352,9 @@ public class HomeViewModel: ObservableObject {
         let openCount = docsList.filter { doc in
             guard let fields = doc["fields"] as? [String: Any] else { return false }
 
-            let status = FirestoreHelper.getString(fields["status"] as? [String: Any]).uppercased()
-            let closedAt = FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any])
-            let isInvalid = FirestoreHelper.getBool(fields["isInvalid"] as? [String: Any])
+            let status = DatabaseHelper.getString(fields["status"] as? [String: Any]).uppercased()
+            let closedAt = DatabaseHelper.getInt64(fields["closedAt"] as? [String: Any])
+            let isInvalid = DatabaseHelper.getBool(fields["isInvalid"] as? [String: Any])
 
             let isClosed = status == "CLOSED" || status == "RESOLVED" || closedAt > 0
             let isRejected = status == "REJECTED" || status == "TU_CHOI"
@@ -339,10 +365,10 @@ public class HomeViewModel: ObservableObject {
             if isFullAdminOrHelpDesk {
                 return true
             } else {
-                let assignedToEmail = FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any])
-                let assignedTo = FirestoreHelper.getString(fields["assignedTo"] as? [String: Any])
-                let creatorEmail = FirestoreHelper.getString(fields["creatorEmail"] as? [String: Any])
-                let creatorUserId = FirestoreHelper.getString(fields["creatorUserId"] as? [String: Any])
+                let assignedToEmail = DatabaseHelper.getString(fields["assignedToEmail"] as? [String: Any])
+                let assignedTo = DatabaseHelper.getString(fields["assignedTo"] as? [String: Any])
+                let creatorEmail = DatabaseHelper.getString(fields["creatorEmail"] as? [String: Any])
+                let creatorUserId = DatabaseHelper.getString(fields["creatorUserId"] as? [String: Any])
 
                 let isAssigned = isSameUser(assignedToEmail) || isSameUser(assignedTo)
                 let isCreator = isSameUser(creatorEmail) || isSameUser(creatorUserId)
@@ -366,13 +392,13 @@ public class HomeViewModel: ObservableObject {
 
     @MainActor
     public func fetchUnreadNotifications() async {
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/notifications?pageSize=30"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/notifications?pageSize=30"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+        guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
               httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let documents = json["documents"] as? [[String: Any]] else {
@@ -389,16 +415,16 @@ public class HomeViewModel: ObservableObject {
             let id = name.components(separatedBy: "/").last ?? ""
             if deletedIds.contains(id) || readIds.contains(id) { return false }
 
-            let readByList = FirestoreHelper.getStringArray(fields["readBy"] as? [String: Any]).map { $0.lowercased() }
+            let readByList = DatabaseHelper.getStringArray(fields["readBy"] as? [String: Any]).map { $0.lowercased() }
             if readByList.contains(myEmail) { return false }
 
             // Lọc quyền xem thông báo chuẩn xác theo vai trò & phòng ban
-            let tg = FirestoreHelper.getString(fields["targetGroup"] as? [String: Any]).uppercased()
-            let tp = FirestoreHelper.getString(fields["type"] as? [String: Any]).uppercased()
-            let title = FirestoreHelper.getString(fields["title"] as? [String: Any]).lowercased()
-            let msg = FirestoreHelper.getString(fields["message"] as? [String: Any]).isEmpty
-                ? FirestoreHelper.getString(fields["body"] as? [String: Any]).lowercased()
-                : FirestoreHelper.getString(fields["message"] as? [String: Any]).lowercased()
+            let tg = DatabaseHelper.getString(fields["targetGroup"] as? [String: Any]).uppercased()
+            let tp = DatabaseHelper.getString(fields["type"] as? [String: Any]).uppercased()
+            let title = DatabaseHelper.getString(fields["title"] as? [String: Any]).lowercased()
+            let msg = DatabaseHelper.getString(fields["message"] as? [String: Any]).isEmpty
+                ? DatabaseHelper.getString(fields["body"] as? [String: Any]).lowercased()
+                : DatabaseHelper.getString(fields["message"] as? [String: Any]).lowercased()
 
             let isJoinRequest = tg == "ADMIN" || tp == "JOIN_REQUEST" ||
                 title.contains("yêu cầu gia nhập") || title.contains("xin gia nhập") ||
@@ -432,7 +458,7 @@ public class HomeViewModel: ObservableObject {
             }
             if tg.caseInsensitiveCompare(cleanDept) == .orderedSame { return true }
 
-            let senderEmail = FirestoreHelper.getString(fields["senderEmail"] as? [String: Any]).lowercased()
+            let senderEmail = DatabaseHelper.getString(fields["senderEmail"] as? [String: Any]).lowercased()
             if !myEmail.isEmpty && senderEmail == myEmail { return true }
             if !myEmail.isEmpty && msg.contains(myEmail) { return true }
 
@@ -452,13 +478,13 @@ public class HomeViewModel: ObservableObject {
         guard !digitsOnly.isEmpty else { return (false, nil) }
 
         let cleanExclude = excludeEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users?pageSize=150"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/users?pageSize=150"
         guard let url = URL(string: urlStr) else { return (false, nil) }
 
         var request = URLRequest(url: url)
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+        guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
               httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let documents = json["documents"] as? [[String: Any]] else {
@@ -467,12 +493,12 @@ public class HomeViewModel: ObservableObject {
 
         for doc in documents {
             guard let fields = doc["fields"] as? [String: Any] else { continue }
-            let email = FirestoreHelper.getString(fields["email"] as? [String: Any]).lowercased()
+            let email = DatabaseHelper.getString(fields["email"] as? [String: Any]).lowercased()
             if !cleanExclude.isEmpty && email == cleanExclude { continue }
 
-            let p1 = FirestoreHelper.getString(fields["phone"] as? [String: Any]).filter { $0.isNumber }
-            let p2 = FirestoreHelper.getString(fields["phoneNumber"] as? [String: Any]).filter { $0.isNumber }
-            let p3 = FirestoreHelper.getString(fields["sdt"] as? [String: Any]).filter { $0.isNumber }
+            let p1 = DatabaseHelper.getString(fields["phone"] as? [String: Any]).filter { $0.isNumber }
+            let p2 = DatabaseHelper.getString(fields["phoneNumber"] as? [String: Any]).filter { $0.isNumber }
+            let p3 = DatabaseHelper.getString(fields["sdt"] as? [String: Any]).filter { $0.isNumber }
 
             if p1 == digitsOnly || p2 == digitsOnly || p3 == digitsOnly {
                 return (true, email)
@@ -490,7 +516,7 @@ public class HomeViewModel: ObservableObject {
         }
         let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=fullName&updateMask.fieldPaths=name"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=fullName&updateMask.fieldPaths=name"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -506,7 +532,7 @@ public class HomeViewModel: ObservableObject {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
-        if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+        if let (_, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
            (200...299).contains(httpResponse.statusCode) {
             self.user.fullName = cleanName
         }
@@ -534,8 +560,8 @@ public class HomeViewModel: ObservableObject {
 
         let mask = "updateMask.fieldPaths=phone&updateMask.fieldPaths=phoneNumber&updateMask.fieldPaths=sdt&updateMask.fieldPaths=soDienThoai"
         let urls = [
-            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?\(mask)",
-            "\(FirebaseConfig.firestoreBaseUrl)/users/\(cleanEmail)?\(mask)"
+            "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?\(mask)",
+            "\(ServerConfig.documentsBaseUrl)/users/\(cleanEmail)?\(mask)"
         ]
 
         let payload: [String: Any] = [
@@ -557,7 +583,7 @@ public class HomeViewModel: ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = bodyData
 
-            if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+            if let (_, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
                (200...299).contains(httpResponse.statusCode) {
                 patchSuccess = true
             }
@@ -582,7 +608,7 @@ public class HomeViewModel: ObservableObject {
 
             // Đồng bộ sang technician_locations
             Task {
-                let locUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/technician_locations/\(cleanEmail)?updateMask.fieldPaths=phone&updateMask.fieldPaths=lastUpdatedAt"
+                let locUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/technician_locations/\(cleanEmail)?updateMask.fieldPaths=phone&updateMask.fieldPaths=lastUpdatedAt"
                 guard let locUrl = URL(string: locUrlStr) else { return }
                 var locReq = URLRequest(url: locUrl)
                 locReq.httpMethod = "PATCH"
@@ -595,7 +621,7 @@ public class HomeViewModel: ObservableObject {
                     ]
                 ]
                 locReq.httpBody = try? JSONSerialization.data(withJSONObject: locPayload)
-                _ = await FirestoreHelper.executeSafeRequest(locReq)
+                _ = await DatabaseHelper.executeSafeRequest(locReq)
             }
         }
     }
@@ -610,7 +636,7 @@ public class HomeViewModel: ObservableObject {
         }
 
         let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=profileImageUrl&updateMask.fieldPaths=avatarUrl"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=profileImageUrl&updateMask.fieldPaths=avatarUrl"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -626,7 +652,7 @@ public class HomeViewModel: ObservableObject {
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
-        if let (_, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+        if let (_, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
            (200...299).contains(httpResponse.statusCode) {
             self.user.avatarUrl = uploadedUrl
         }
@@ -659,7 +685,7 @@ public class HomeViewModel: ObservableObject {
 
         // 3. Cập nhật thông tin mật khẩu trong Firestore
         let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=password&updateMask.fieldPaths=newPassword&updateMask.fieldPaths=mustChangePassword&updateMask.fieldPaths=updatedAt"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/users/\(cleanEmail)?updateMask.fieldPaths=password&updateMask.fieldPaths=newPassword&updateMask.fieldPaths=mustChangePassword&updateMask.fieldPaths=updatedAt"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -676,6 +702,6 @@ public class HomeViewModel: ObservableObject {
             ]
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
-        _ = await FirestoreHelper.executeSafeRequest(request)
+        _ = await DatabaseHelper.executeSafeRequest(request)
     }
 }

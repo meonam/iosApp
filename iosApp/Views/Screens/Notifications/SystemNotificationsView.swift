@@ -580,20 +580,20 @@ public struct SystemNotificationsView: View {
         let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard !cleanComp.isEmpty else { return }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
         if !idToken.isEmpty { request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-        guard let (data, resp) = await FirestoreHelper.executeSafeRequest(request),
+        guard let (data, resp) = await DatabaseHelper.executeSafeRequest(request),
               resp.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let fields = json["fields"] as? [String: Any] else { return }
 
-        let active = FirestoreHelper.getBool(fields["isBannerActive"] as? [String: Any])
-        let text = FirestoreHelper.getString(fields["bannerText"] as? [String: Any])
-        let type = FirestoreHelper.getString(fields["bannerType"] as? [String: Any])
+        let active = DatabaseHelper.getBool(fields["isBannerActive"] as? [String: Any])
+        let text = DatabaseHelper.getString(fields["bannerText"] as? [String: Any])
+        let type = DatabaseHelper.getString(fields["bannerType"] as? [String: Any])
 
         await MainActor.run {
             self.isCompanyBannerActive = active
@@ -611,7 +611,7 @@ public struct SystemNotificationsView: View {
             return
         }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/notifications?pageSize=100"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/notifications?pageSize=100"
         guard let url = URL(string: urlStr) else {
             await MainActor.run { isLoading = false }
             return
@@ -623,7 +623,7 @@ public struct SystemNotificationsView: View {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         }
 
-        guard let (data, response) = await FirestoreHelper.executeSafeRequest(request),
+        guard let (data, response) = await DatabaseHelper.executeSafeRequest(request),
               response.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let documents = json["documents"] as? [[String: Any]] else {
@@ -639,34 +639,34 @@ public struct SystemNotificationsView: View {
             let docName = doc["name"] as? String ?? ""
             let id = docName.components(separatedBy: "/").last ?? ""
 
-            let msg = FirestoreHelper.getString(fields["message"] as? [String: Any])
-            let finalMsg = msg.isEmpty ? FirestoreHelper.getString(fields["body"] as? [String: Any]) : msg
+            let msg = DatabaseHelper.getString(fields["message"] as? [String: Any])
+            let finalMsg = msg.isEmpty ? DatabaseHelper.getString(fields["body"] as? [String: Any]) : msg
 
-            let rawTs = FirestoreHelper.getInt64(fields["timestamp"] as? [String: Any])
-            let finalTs = rawTs > 0 ? rawTs : FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
+            let rawTs = DatabaseHelper.getInt64(fields["timestamp"] as? [String: Any])
+            let finalTs = rawTs > 0 ? rawTs : DatabaseHelper.getInt64(fields["createdAt"] as? [String: Any])
 
-            let readByList = FirestoreHelper.getStringArray(fields["readBy"] as? [String: Any]).map { $0.lowercased() }
+            let readByList = DatabaseHelper.getStringArray(fields["readBy"] as? [String: Any]).map { $0.lowercased() }
             let isReadFinal = readByList.contains(myEmail) || readIds.contains(id)
 
-            let targetGroup = FirestoreHelper.getString(fields["targetGroup"] as? [String: Any]).isEmpty
-                ? FirestoreHelper.getString(fields["targetRole"] as? [String: Any])
-                : FirestoreHelper.getString(fields["targetGroup"] as? [String: Any])
+            let targetGroup = DatabaseHelper.getString(fields["targetGroup"] as? [String: Any]).isEmpty
+                ? DatabaseHelper.getString(fields["targetRole"] as? [String: Any])
+                : DatabaseHelper.getString(fields["targetGroup"] as? [String: Any])
 
-            let senderEmail = FirestoreHelper.getString(fields["senderEmail"] as? [String: Any]).isEmpty
-                ? FirestoreHelper.getString(fields["createdByEmail"] as? [String: Any])
-                : FirestoreHelper.getString(fields["senderEmail"] as? [String: Any])
+            let senderEmail = DatabaseHelper.getString(fields["senderEmail"] as? [String: Any]).isEmpty
+                ? DatabaseHelper.getString(fields["createdByEmail"] as? [String: Any])
+                : DatabaseHelper.getString(fields["senderEmail"] as? [String: Any])
 
-            let nType = FirestoreHelper.getString(fields["type"] as? [String: Any])
+            let nType = DatabaseHelper.getString(fields["type"] as? [String: Any])
 
             loaded.append(SysNotification(
                 id: id,
-                title: FirestoreHelper.getString(fields["title"] as? [String: Any]),
+                title: DatabaseHelper.getString(fields["title"] as? [String: Any]),
                 message: finalMsg,
                 type: nType.isEmpty ? "INFO" : nType,
                 targetGroup: targetGroup.isEmpty ? "ALL" : targetGroup,
                 senderEmail: senderEmail,
-                senderName: FirestoreHelper.getString(fields["senderName"] as? [String: Any]),
-                senderRole: FirestoreHelper.getString(fields["senderRole"] as? [String: Any]),
+                senderName: DatabaseHelper.getString(fields["senderName"] as? [String: Any]),
+                senderRole: DatabaseHelper.getString(fields["senderRole"] as? [String: Any]),
                 isRead: isReadFinal,
                 timestamp: finalTs,
                 readBy: readByList
@@ -699,12 +699,12 @@ public struct SystemNotificationsView: View {
             let newReadBy = notifications[idx].readBy
             guard !cleanComp.isEmpty else { return }
 
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/notifications/\(id)?updateMask.fieldPaths=readBy&updateMask.fieldPaths=isRead"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/notifications/\(id)?updateMask.fieldPaths=readBy&updateMask.fieldPaths=isRead"
             guard let url = URL(string: urlStr) else { return }
 
             let body: [String: Any] = [
                 "fields": [
-                    "readBy": FirestoreHelper.valueToFirestore(newReadBy),
+                    "readBy": DatabaseHelper.valueToFirestore(newReadBy),
                     "isRead": ["booleanValue": true]
                 ]
             ]
@@ -716,7 +716,7 @@ public struct SystemNotificationsView: View {
                 req.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
                 req.httpBody = jsonData
-                _ = await FirestoreHelper.executeSafeRequest(req)
+                _ = await DatabaseHelper.executeSafeRequest(req)
             }
         }
     }
@@ -745,11 +745,11 @@ public struct SystemNotificationsView: View {
         Task {
             for item in targetItems {
                 let newReadBy = notifications.first(where: { $0.id == item.id })?.readBy ?? (myEmail.isEmpty ? [] : [myEmail])
-                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/notifications/\(item.id)?updateMask.fieldPaths=readBy"
+                let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/notifications/\(item.id)?updateMask.fieldPaths=readBy"
                 guard let url = URL(string: urlStr) else { continue }
                 let body: [String: Any] = [
                     "fields": [
-                        "readBy": FirestoreHelper.valueToFirestore(newReadBy)
+                        "readBy": DatabaseHelper.valueToFirestore(newReadBy)
                     ]
                 ]
                 if let jsonData = try? JSONSerialization.data(withJSONObject: body) {
@@ -758,7 +758,7 @@ public struct SystemNotificationsView: View {
                     req.setValue("application/json", forHTTPHeaderField: "Content-Type")
                     if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
                     req.httpBody = jsonData
-                    _ = await FirestoreHelper.executeSafeRequest(req)
+                    _ = await DatabaseHelper.executeSafeRequest(req)
                 }
             }
         }
@@ -773,14 +773,14 @@ public struct SystemNotificationsView: View {
         let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard !cleanComp.isEmpty else { return }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/notifications/\(id)"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/notifications/\(id)"
         guard let url = URL(string: urlStr) else { return }
 
         Task {
             var req = URLRequest(url: url)
             req.httpMethod = "DELETE"
             if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-            _ = await FirestoreHelper.executeSafeRequest(req)
+            _ = await DatabaseHelper.executeSafeRequest(req)
         }
     }
 
@@ -938,18 +938,18 @@ public struct BroadcastNotificationSheetView: View {
                 Task {
                     let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
                     guard !cleanComp.isEmpty else { return }
-                    let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/departments?pageSize=100"
+                    let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/departments?pageSize=100"
                     guard let url = URL(string: urlStr) else { return }
                     var req = URLRequest(url: url)
                     if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                    guard let (data, resp) = await FirestoreHelper.executeSafeRequest(req),
+                    guard let (data, resp) = await DatabaseHelper.executeSafeRequest(req),
                           resp.statusCode == 200,
                           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                           let docs = json["documents"] as? [[String: Any]] else { return }
                     let depts = docs.compactMap { doc -> String? in
                         guard let fields = doc["fields"] as? [String: Any] else { return nil }
-                        let name = FirestoreHelper.getString(fields["name"] as? [String: Any])
-                        let alt = FirestoreHelper.getString(fields["departmentName"] as? [String: Any])
+                        let name = DatabaseHelper.getString(fields["name"] as? [String: Any])
+                        let alt = DatabaseHelper.getString(fields["departmentName"] as? [String: Any])
                         let val = !name.isEmpty ? name : alt
                         return val.isEmpty ? nil : val
                     }
@@ -1242,7 +1242,7 @@ public struct BroadcastNotificationSheetView: View {
         isSending = true
         sendErrorMessage = nil
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/notifications"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/notifications"
         guard let url = URL(string: urlStr) else {
             isSending = false
             return
@@ -1283,7 +1283,7 @@ public struct BroadcastNotificationSheetView: View {
             if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
             req.httpBody = jsonData
 
-            if let (_, resp) = await FirestoreHelper.executeSafeRequest(req),
+            if let (_, resp) = await DatabaseHelper.executeSafeRequest(req),
                (200...299).contains(resp.statusCode) {
                 await MainActor.run {
                     isSending = false
@@ -1312,7 +1312,7 @@ public struct BroadcastNotificationSheetView: View {
         isSavingBanner = true
         bannerErrorMessage = nil
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)?updateMask.fieldPaths=bannerText&updateMask.fieldPaths=bannerType&updateMask.fieldPaths=isBannerActive&updateMask.fieldPaths=bannerUpdatedAt"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)?updateMask.fieldPaths=bannerText&updateMask.fieldPaths=bannerType&updateMask.fieldPaths=isBannerActive&updateMask.fieldPaths=bannerUpdatedAt"
         guard let url = URL(string: urlStr) else {
             isSavingBanner = false
             return
@@ -1340,7 +1340,7 @@ public struct BroadcastNotificationSheetView: View {
             if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
             req.httpBody = jsonData
 
-            if let (_, resp) = await FirestoreHelper.executeSafeRequest(req),
+            if let (_, resp) = await DatabaseHelper.executeSafeRequest(req),
                (200...299).contains(resp.statusCode) {
                 await MainActor.run {
                     isSavingBanner = false

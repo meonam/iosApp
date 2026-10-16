@@ -73,7 +73,7 @@ public class AuthService {
         if let token = cachedGuestToken, Date() < guestTokenExpiry {
             return token
         }
-        guard let url = URL(string: FirebaseConfig.authSignInUrl) else { return nil }
+        guard let url = URL(string: ServerConfig.authSignInUrl) else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -167,16 +167,16 @@ public class AuthService {
         // Helper so khớp DocumentSnapshot
         func matchesUser(fields: [String: Any], docId: String) -> String? {
             let mnvFields = [
-                FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
-                FirestoreHelper.getString(fields["employeeId"] as? [String: Any]),
-                FirestoreHelper.getString(fields["employeeCode"] as? [String: Any]),
-                FirestoreHelper.getString(fields["mnv"] as? [String: Any]),
-                FirestoreHelper.getString(fields["mnvDisplay"] as? [String: Any])
+                DatabaseHelper.getString(fields["maNhanVien"] as? [String: Any]),
+                DatabaseHelper.getString(fields["employeeId"] as? [String: Any]),
+                DatabaseHelper.getString(fields["employeeCode"] as? [String: Any]),
+                DatabaseHelper.getString(fields["mnv"] as? [String: Any]),
+                DatabaseHelper.getString(fields["mnvDisplay"] as? [String: Any])
             ].map { $0.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() }.filter { !$0.isEmpty }
 
             let cleanDocId = docId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            let emailField = FirestoreHelper.getString(fields["email"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let fullName = FirestoreHelper.getString(fields["fullName"] as? [String: Any])
+            let emailField = DatabaseHelper.getString(fields["email"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let fullName = DatabaseHelper.getString(fields["fullName"] as? [String: Any])
 
             if mnvFields.contains(upperInput) || cleanDocId == upperInput {
                 return !emailField.isEmpty ? emailField : (docId.contains("@") ? docId.lowercased() : nil)
@@ -189,11 +189,11 @@ public class AuthService {
 
             if isPhone && !targetDigitsSet.isEmpty {
                 let pFields = [
-                    FirestoreHelper.getString(fields["phone"] as? [String: Any]),
-                    FirestoreHelper.getString(fields["soDienThoai"] as? [String: Any]),
-                    FirestoreHelper.getString(fields["phoneNumber"] as? [String: Any]),
-                    FirestoreHelper.getString(fields["sdt"] as? [String: Any]),
-                    FirestoreHelper.getString(fields["soDT"] as? [String: Any])
+                    DatabaseHelper.getString(fields["phone"] as? [String: Any]),
+                    DatabaseHelper.getString(fields["soDienThoai"] as? [String: Any]),
+                    DatabaseHelper.getString(fields["phoneNumber"] as? [String: Any]),
+                    DatabaseHelper.getString(fields["sdt"] as? [String: Any]),
+                    DatabaseHelper.getString(fields["soDT"] as? [String: Any])
                 ].map { $0.filter { $0.isNumber } }.filter { !$0.isEmpty }
 
                 for p in pFields {
@@ -216,8 +216,8 @@ public class AuthService {
         }
 
         // 1. Quét nhanh trong companies/SGCOOP/users
-        if let req = makeAuthorizedRequest(urlStr: "\(FirebaseConfig.firestoreBaseUrl)/companies/SGCOOP/users?pageSize=300") {
-            if let (data, resp) = await FirestoreHelper.executeSafeRequest(req),
+        if let req = makeAuthorizedRequest(urlStr: "\(ServerConfig.documentsBaseUrl)/companies/SGCOOP/users?pageSize=300") {
+            if let (data, resp) = await DatabaseHelper.executeSafeRequest(req),
                resp.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let docs = json["documents"] as? [[String: Any]] {
@@ -237,8 +237,8 @@ public class AuthService {
         }
 
         // 2. Quét qua tất cả các công ty khác trong companies/ (hỗ trợ đa doanh nghiệp)
-        if let reqComps = makeAuthorizedRequest(urlStr: "\(FirebaseConfig.firestoreBaseUrl)/companies?pageSize=50") {
-            if let (data, resp) = await FirestoreHelper.executeSafeRequest(reqComps),
+        if let reqComps = makeAuthorizedRequest(urlStr: "\(ServerConfig.documentsBaseUrl)/companies?pageSize=50") {
+            if let (data, resp) = await DatabaseHelper.executeSafeRequest(reqComps),
                resp.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let compDocs = json["documents"] as? [[String: Any]] {
@@ -247,8 +247,8 @@ public class AuthService {
                     let cId = cName.components(separatedBy: "/").last ?? ""
                     if cId.isEmpty || cId.uppercased() == "SGCOOP" { continue }
 
-                    if let reqUsers = makeAuthorizedRequest(urlStr: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cId)/users?pageSize=300") {
-                        if let (uData, uResp) = await FirestoreHelper.executeSafeRequest(reqUsers),
+                    if let reqUsers = makeAuthorizedRequest(urlStr: "\(ServerConfig.documentsBaseUrl)/companies/\(cId)/users?pageSize=300") {
+                        if let (uData, uResp) = await DatabaseHelper.executeSafeRequest(reqUsers),
                            uResp.statusCode == 200,
                            let uJson = try? JSONSerialization.jsonObject(with: uData) as? [String: Any],
                            let uDocs = uJson["documents"] as? [[String: Any]] {
@@ -271,8 +271,8 @@ public class AuthService {
         }
 
         // 3. Fallback quét qua root users/
-        if let req = makeAuthorizedRequest(urlStr: "\(FirebaseConfig.firestoreBaseUrl)/users?pageSize=300") {
-            if let (data, resp) = await FirestoreHelper.executeSafeRequest(req),
+        if let req = makeAuthorizedRequest(urlStr: "\(ServerConfig.documentsBaseUrl)/users?pageSize=300") {
+            if let (data, resp) = await DatabaseHelper.executeSafeRequest(req),
                resp.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let docs = json["documents"] as? [[String: Any]] {
@@ -325,17 +325,17 @@ public class AuthService {
         }
 
         // B. Fallback Firestore: Kiểm tra nếu mật khẩu người dùng khớp với Firestore document (password, matKhau, pass, newPassword)
-        let userDocUrl = "\(FirebaseConfig.firestoreBaseUrl)/companies/SGCOOP/users/\(resolvedEmail)"
+        let userDocUrl = "\(ServerConfig.documentsBaseUrl)/companies/SGCOOP/users/\(resolvedEmail)"
         if let uUrl = URL(string: userDocUrl) {
             let req = URLRequest(url: uUrl)
             if let (data, resp) = try? await URLSession.shared.data(for: req),
                let http = resp as? HTTPURLResponse, http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
-                let savedPw = FirestoreHelper.getString(fields["password"] as? [String: Any])
-                    .isEmpty ? FirestoreHelper.getString(fields["matKhau"] as? [String: Any]) : FirestoreHelper.getString(fields["password"] as? [String: Any])
-                let fallbackPw = savedPw.isEmpty ? FirestoreHelper.getString(fields["pass"] as? [String: Any]) : savedPw
-                let newPw = FirestoreHelper.getString(fields["newPassword"] as? [String: Any])
+                let savedPw = DatabaseHelper.getString(fields["password"] as? [String: Any])
+                    .isEmpty ? DatabaseHelper.getString(fields["matKhau"] as? [String: Any]) : DatabaseHelper.getString(fields["password"] as? [String: Any])
+                let fallbackPw = savedPw.isEmpty ? DatabaseHelper.getString(fields["pass"] as? [String: Any]) : savedPw
+                let newPw = DatabaseHelper.getString(fields["newPassword"] as? [String: Any])
 
                 if (!fallbackPw.isEmpty && fallbackPw == password) || (!newPw.isEmpty && newPw == password) {
                     return AuthSession(
@@ -350,17 +350,17 @@ public class AuthService {
         }
 
         // B2. Fallback Root Firestore (cho tài khoản Quản trị toàn hệ thống / Central Command)
-        let rootDocUrl = "\(FirebaseConfig.firestoreBaseUrl)/users/\(resolvedEmail)"
+        let rootDocUrl = "\(ServerConfig.documentsBaseUrl)/users/\(resolvedEmail)"
         if let rUrl = URL(string: rootDocUrl) {
             let req = URLRequest(url: rUrl)
             if let (data, resp) = try? await URLSession.shared.data(for: req),
                let http = resp as? HTTPURLResponse, http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
-                let savedPw = FirestoreHelper.getString(fields["password"] as? [String: Any])
-                    .isEmpty ? FirestoreHelper.getString(fields["matKhau"] as? [String: Any]) : FirestoreHelper.getString(fields["password"] as? [String: Any])
-                let fallbackPw = savedPw.isEmpty ? FirestoreHelper.getString(fields["pass"] as? [String: Any]) : savedPw
-                let newPw = FirestoreHelper.getString(fields["newPassword"] as? [String: Any])
+                let savedPw = DatabaseHelper.getString(fields["password"] as? [String: Any])
+                    .isEmpty ? DatabaseHelper.getString(fields["matKhau"] as? [String: Any]) : DatabaseHelper.getString(fields["password"] as? [String: Any])
+                let fallbackPw = savedPw.isEmpty ? DatabaseHelper.getString(fields["pass"] as? [String: Any]) : savedPw
+                let newPw = DatabaseHelper.getString(fields["newPassword"] as? [String: Any])
 
                 if (!fallbackPw.isEmpty && fallbackPw == password) || (!newPw.isEmpty && newPw == password) {
                     return AuthSession(
@@ -390,7 +390,7 @@ public class AuthService {
     // Gửi yêu cầu đăng nhập trực tiếp tới Firebase REST
     public func performFirebaseAuthSignIn(email: String, password: String) async throws -> AuthSession {
         let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard let url = URL(string: FirebaseConfig.authSignInUrl) else {
+        guard let url = URL(string: ServerConfig.authSignInUrl) else {
             throw NSError(domain: "AuthService", code: 400, userInfo: [NSLocalizedDescriptionKey: "URL không hợp lệ"])
         }
 
@@ -442,7 +442,7 @@ public class AuthService {
 
         // Thử tìm trong SGCOOP trước (theo đúng chuẩn Android)
         let defaultCompId = "SGCOOP"
-        let compUserUrl = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(defaultCompId)/users/\(cleanEmail)"
+        let compUserUrl = "\(ServerConfig.documentsBaseUrl)/companies/\(defaultCompId)/users/\(cleanEmail)"
         if let user = await fetchUserDoc(urlStr: compUserUrl, idToken: idToken) {
             var updatedUser = user
             if updatedUser.companyId.isEmpty { updatedUser.companyId = defaultCompId }
@@ -450,7 +450,7 @@ public class AuthService {
         }
 
         // Thử tìm trong root collection users
-        let rootUserUrl = "\(FirebaseConfig.firestoreBaseUrl)/users/\(cleanEmail)"
+        let rootUserUrl = "\(ServerConfig.documentsBaseUrl)/users/\(cleanEmail)"
         if let user = await fetchUserDoc(urlStr: rootUserUrl, idToken: idToken) {
             let compId = !user.companyId.isEmpty ? user.companyId : defaultCompId
             return (compId, user)
@@ -458,7 +458,7 @@ public class AuthService {
 
         // Thử tìm trong saigoncoop (lowercase)
         let lowerCompId = "saigoncoop"
-        let lowerUrl = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(lowerCompId)/users/\(cleanEmail)"
+        let lowerUrl = "\(ServerConfig.documentsBaseUrl)/companies/\(lowerCompId)/users/\(cleanEmail)"
         if let user = await fetchUserDoc(urlStr: lowerUrl, idToken: idToken) {
             var updatedUser = user
             if updatedUser.companyId.isEmpty { updatedUser.companyId = defaultCompId }
@@ -500,21 +500,21 @@ public class AuthService {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         }
 
-        guard let (data, response) = await FirestoreHelper.executeSafeRequest(request),
+        guard let (data, response) = await DatabaseHelper.executeSafeRequest(request),
               response.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let fields = json["fields"] as? [String: Any] else {
             return nil
         }
 
-        let resolvedDept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
-            .ifEmpty(FirestoreHelper.getString(fields["department"] as? [String: Any]))
-            .ifEmpty(FirestoreHelper.getString(fields["departmentName"] as? [String: Any]))
-            .ifEmpty(FirestoreHelper.getString(fields["deptName"] as? [String: Any]))
-            .ifEmpty(FirestoreHelper.getString(fields["phongBan"] as? [String: Any]))
-        let rawDonVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
-            .ifEmpty(FirestoreHelper.getString(fields["tenDonVi"] as? [String: Any]))
-        let rawUnitId = FirestoreHelper.getString(fields["unitId"] as? [String: Any])
+        let resolvedDept = DatabaseHelper.getString(fields["departmentId"] as? [String: Any])
+            .ifEmpty(DatabaseHelper.getString(fields["department"] as? [String: Any]))
+            .ifEmpty(DatabaseHelper.getString(fields["departmentName"] as? [String: Any]))
+            .ifEmpty(DatabaseHelper.getString(fields["deptName"] as? [String: Any]))
+            .ifEmpty(DatabaseHelper.getString(fields["phongBan"] as? [String: Any]))
+        let rawDonVi = DatabaseHelper.getString(fields["donVi"] as? [String: Any])
+            .ifEmpty(DatabaseHelper.getString(fields["tenDonVi"] as? [String: Any]))
+        let rawUnitId = DatabaseHelper.getString(fields["unitId"] as? [String: Any])
         var resolvedDonVi = rawDonVi
         if !rawUnitId.isEmpty && !resolvedDonVi.isEmpty && resolvedDonVi != rawUnitId {
             if !resolvedDonVi.contains(" - ") && !resolvedDonVi.hasPrefix(rawUnitId) {
@@ -523,40 +523,40 @@ public class AuthService {
         } else if !rawUnitId.isEmpty && resolvedDonVi.isEmpty {
             resolvedDonVi = rawUnitId
         }
-        let resolvedCompanyId = FirestoreHelper.getString(fields["companyId"] as? [String: Any])
+        let resolvedCompanyId = DatabaseHelper.getString(fields["companyId"] as? [String: Any])
             .ifEmpty("SGCOOP")
-        let resolvedKhuVuc = FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any])
-            .ifEmpty(FirestoreHelper.getString(fields["khuVuc"] as? [String: Any]))
-            .ifEmpty(FirestoreHelper.getString(fields["cum"] as? [String: Any]))
+        let resolvedKhuVuc = DatabaseHelper.getString(fields["maKhuVuc"] as? [String: Any])
+            .ifEmpty(DatabaseHelper.getString(fields["khuVuc"] as? [String: Any]))
+            .ifEmpty(DatabaseHelper.getString(fields["cum"] as? [String: Any]))
 
-        let resolvedName = FirestoreHelper.getFirstNonEmptyString(fields, keys: ["fullName", "displayName", "name", "hoTen"])
-        let resolvedPhone = FirestoreHelper.resolvePhone(fields)
+        let resolvedName = DatabaseHelper.getFirstNonEmptyString(fields, keys: ["fullName", "displayName", "name", "hoTen"])
+        let resolvedPhone = DatabaseHelper.resolvePhone(fields)
 
         return User(
-            maNhanVien: FirestoreHelper.getFirstNonEmptyString(fields, keys: ["maNhanVien", "employeeId", "employeeCode", "mnv"]),
-            email: FirestoreHelper.getString(fields["email"] as? [String: Any]),
-            role: FirestoreHelper.getString(fields["role"] as? [String: Any]),
+            maNhanVien: DatabaseHelper.getFirstNonEmptyString(fields, keys: ["maNhanVien", "employeeId", "employeeCode", "mnv"]),
+            email: DatabaseHelper.getString(fields["email"] as? [String: Any]),
+            role: DatabaseHelper.getString(fields["role"] as? [String: Any]),
             fullName: resolvedName,
             phone: resolvedPhone,
             donVi: resolvedDonVi,
             companyId: resolvedCompanyId,
             departmentId: resolvedDept,
-            status: FirestoreHelper.getString(fields["status"] as? [String: Any]).ifEmpty("ACTIVE"),
-            avatarUrl: FirestoreHelper.getFirstNonEmptyString(fields, keys: ["profileImageUrl", "avatarUrl", "photoUrl"]),
-            createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
-            mustChangePassword: FirestoreHelper.getBool(fields["mustChangePassword"] as? [String: Any]),
+            status: DatabaseHelper.getString(fields["status"] as? [String: Any]).ifEmpty("ACTIVE"),
+            avatarUrl: DatabaseHelper.getFirstNonEmptyString(fields, keys: ["profileImageUrl", "avatarUrl", "photoUrl"]),
+            createdAt: DatabaseHelper.getInt64(fields["createdAt"] as? [String: Any]),
+            mustChangePassword: DatabaseHelper.getBool(fields["mustChangePassword"] as? [String: Any]),
             maKhuVuc: resolvedKhuVuc,
-            toNghiepVu: FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any]),
-            lastActiveAt: FirestoreHelper.getInt64(fields["lastActiveAt"] as? [String: Any]),
-            isOnline: FirestoreHelper.getBool(fields["isOnline"] as? [String: Any]),
-            permissions: FirestoreHelper.getStringArray(fields["permissions"] as? [String: Any])
+            toNghiepVu: DatabaseHelper.getString(fields["toNghiepVu"] as? [String: Any]),
+            lastActiveAt: DatabaseHelper.getInt64(fields["lastActiveAt"] as? [String: Any]),
+            isOnline: DatabaseHelper.getBool(fields["isOnline"] as? [String: Any]),
+            permissions: DatabaseHelper.getStringArray(fields["permissions"] as? [String: Any])
         )
     }
 
     // 3. Quên mật khẩu (Gửi email reset)
     public func sendPasswordReset(email: String) async throws {
         let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: FirebaseConfig.authSendOobUrl) else { return }
+        guard let url = URL(string: ServerConfig.authSendOobUrl) else { return }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -579,7 +579,7 @@ public class AuthService {
 
     // 4. Buộc đổi mật khẩu tạm sang mật khẩu mới
     public func updatePassword(idToken: String, newPassword: String) async throws {
-        guard let url = URL(string: FirebaseConfig.authUpdateUrl) else { return }
+        guard let url = URL(string: ServerConfig.authUpdateUrl) else { return }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -607,7 +607,7 @@ public class AuthService {
         guard !clean.isEmpty, !clean.starts(with: "refresh_") else { return nil }
 
         // 1. Thử máy chủ chính 103.179.172.229 /v1/token (Custom JWT Token)
-        if let serverUrl = URL(string: "\(FirebaseConfig.serverBaseUrl)/v1/token") {
+        if let serverUrl = URL(string: "\(ServerConfig.serverBaseUrl)/v1/token") {
             var req = URLRequest(url: serverUrl)
             req.httpMethod = "POST"
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")

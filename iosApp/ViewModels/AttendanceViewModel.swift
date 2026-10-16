@@ -826,7 +826,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         guard !cleanComp.isEmpty, !cleanEmail.isEmpty else { return }
 
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/users/\(cleanEmail)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/users/\(cleanEmail)"
             guard let url = URL(string: urlStr) else { return }
 
             var req = URLRequest(url: url)
@@ -836,7 +836,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
             var resFields: [String: Any]? = nil
 
-            if let (data, http) = await FirestoreHelper.executeSafeRequest(req),
+            if let (data, http) = await DatabaseHelper.executeSafeRequest(req),
                http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
@@ -845,19 +845,19 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
             if let fields = resFields {
 
-                let name = FirestoreHelper.getString(fields["fullName"] as? [String: Any])
-                    .isEmpty ? FirestoreHelper.getString(fields["name"] as? [String: Any]) : FirestoreHelper.getString(fields["fullName"] as? [String: Any])
-                let mnv = FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any])
-                    .isEmpty ? FirestoreHelper.getString(fields["employeeId"] as? [String: Any]) : FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any])
-                let dept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
-                    .isEmpty ? FirestoreHelper.getString(fields["phongBan"] as? [String: Any]) : FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
-                let donVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
-                let role = FirestoreHelper.getString(fields["role"] as? [String: Any])
-                let avatar = FirestoreHelper.getString(fields["profileImageUrl"] as? [String: Any])
-                    .isEmpty ? FirestoreHelper.getString(fields["avatarUrl"] as? [String: Any]) : FirestoreHelper.getString(fields["profileImageUrl"] as? [String: Any])
+                let name = DatabaseHelper.getString(fields["fullName"] as? [String: Any])
+                    .isEmpty ? DatabaseHelper.getString(fields["name"] as? [String: Any]) : DatabaseHelper.getString(fields["fullName"] as? [String: Any])
+                let mnv = DatabaseHelper.getString(fields["maNhanVien"] as? [String: Any])
+                    .isEmpty ? DatabaseHelper.getString(fields["employeeId"] as? [String: Any]) : DatabaseHelper.getString(fields["maNhanVien"] as? [String: Any])
+                let dept = DatabaseHelper.getString(fields["departmentId"] as? [String: Any])
+                    .isEmpty ? DatabaseHelper.getString(fields["phongBan"] as? [String: Any]) : DatabaseHelper.getString(fields["departmentId"] as? [String: Any])
+                let donVi = DatabaseHelper.getString(fields["donVi"] as? [String: Any])
+                let role = DatabaseHelper.getString(fields["role"] as? [String: Any])
+                let avatar = DatabaseHelper.getString(fields["profileImageUrl"] as? [String: Any])
+                    .isEmpty ? DatabaseHelper.getString(fields["avatarUrl"] as? [String: Any]) : DatabaseHelper.getString(fields["profileImageUrl"] as? [String: Any])
                 let onDuty = (fields["isOnDuty"] as? [String: Any])?["booleanValue"] as? Bool ?? false
-                let onDutyShift = FirestoreHelper.getString(fields["onDutyShift"] as? [String: Any])
-                let phone = FirestoreHelper.resolvePhone(fields)
+                let onDutyShift = DatabaseHelper.getString(fields["onDutyShift"] as? [String: Any])
+                let phone = DatabaseHelper.resolvePhone(fields)
 
                 await MainActor.run {
                     if !name.isEmpty { self.userName = name }
@@ -881,47 +881,47 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         guard !cleanComp.isEmpty else { return }
 
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/travel_expense_config"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/system_config/travel_expense_config"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
             if !idToken.isEmpty { request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+            if let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
                httpResponse.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
 
                 var cfg = TravelExpenseConfig()
-                cfg.standardCheckInTime = FirestoreHelper.getString(fields["standardCheckInTime"] as? [String: Any])
+                cfg.standardCheckInTime = DatabaseHelper.getString(fields["standardCheckInTime"] as? [String: Any])
                 if cfg.standardCheckInTime.isEmpty { cfg.standardCheckInTime = "08:00" }
-                cfg.standardCheckOutTime = FirestoreHelper.getString(fields["standardCheckOutTime"] as? [String: Any])
+                cfg.standardCheckOutTime = DatabaseHelper.getString(fields["standardCheckOutTime"] as? [String: Any])
                 if cfg.standardCheckOutTime.isEmpty { cfg.standardCheckOutTime = "17:00" }
 
-                cfg.shift1CheckInTime = FirestoreHelper.getString(fields["shift1CheckInTime"] as? [String: Any])
+                cfg.shift1CheckInTime = DatabaseHelper.getString(fields["shift1CheckInTime"] as? [String: Any])
                 if cfg.shift1CheckInTime.isEmpty { cfg.shift1CheckInTime = "07:00" }
-                cfg.shift1CheckOutTime = FirestoreHelper.getString(fields["shift1CheckOutTime"] as? [String: Any])
+                cfg.shift1CheckOutTime = DatabaseHelper.getString(fields["shift1CheckOutTime"] as? [String: Any])
                 if cfg.shift1CheckOutTime.isEmpty { cfg.shift1CheckOutTime = "15:00" }
 
-                cfg.shift2CheckInTime = FirestoreHelper.getString(fields["shift2CheckInTime"] as? [String: Any])
+                cfg.shift2CheckInTime = DatabaseHelper.getString(fields["shift2CheckInTime"] as? [String: Any])
                 if cfg.shift2CheckInTime.isEmpty { cfg.shift2CheckInTime = "14:00" }
-                cfg.shift2CheckOutTime = FirestoreHelper.getString(fields["shift2CheckOutTime"] as? [String: Any])
+                cfg.shift2CheckOutTime = DatabaseHelper.getString(fields["shift2CheckOutTime"] as? [String: Any])
                 if cfg.shift2CheckOutTime.isEmpty { cfg.shift2CheckOutTime = "22:00" }
 
-                cfg.nightCheckInTime = FirestoreHelper.getString(fields["nightCheckInTime"] as? [String: Any])
+                cfg.nightCheckInTime = DatabaseHelper.getString(fields["nightCheckInTime"] as? [String: Any])
                 if cfg.nightCheckInTime.isEmpty { cfg.nightCheckInTime = "22:00" }
-                cfg.nightCheckOutTime = FirestoreHelper.getString(fields["nightCheckOutTime"] as? [String: Any])
+                cfg.nightCheckOutTime = DatabaseHelper.getString(fields["nightCheckOutTime"] as? [String: Any])
                 if cfg.nightCheckOutTime.isEmpty { cfg.nightCheckOutTime = "06:00" }
 
-                let lateM = FirestoreHelper.getInt(fields["maxCheckInLateMinutes"] as? [String: Any])
+                let lateM = DatabaseHelper.getInt(fields["maxCheckInLateMinutes"] as? [String: Any])
                 cfg.maxCheckInLateMinutes = lateM > 0 ? lateM : 15
 
-                let radius = FirestoreHelper.getDouble(fields["geofenceRadiusMeters"] as? [String: Any])
+                let radius = DatabaseHelper.getDouble(fields["geofenceRadiusMeters"] as? [String: Any])
                 cfg.geofenceRadiusMeters = radius > 0 ? radius : 250.0
 
-                cfg.targetLatitude = FirestoreHelper.getDouble(fields["targetLatitude"] as? [String: Any])
-                cfg.targetLongitude = FirestoreHelper.getDouble(fields["targetLongitude"] as? [String: Any])
-                cfg.targetAddress = FirestoreHelper.getString(fields["targetAddress"] as? [String: Any])
+                cfg.targetLatitude = DatabaseHelper.getDouble(fields["targetLatitude"] as? [String: Any])
+                cfg.targetLongitude = DatabaseHelper.getDouble(fields["targetLongitude"] as? [String: Any])
+                cfg.targetAddress = DatabaseHelper.getString(fields["targetAddress"] as? [String: Any])
                 cfg.strictGeofenceBlocking = (fields["strictGeofenceBlocking"] as? [String: Any])?["booleanValue"] as? Bool ?? false
                 cfg.autoCaptureGpsOnOpen = (fields["autoCaptureGpsOnOpen"] as? [String: Any])?["booleanValue"] as? Bool ?? true
 
@@ -986,13 +986,13 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         }()
 
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/shift_schedules/\(weekId)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/shift_schedules/\(weekId)"
             guard let url = URL(string: urlStr) else { return }
 
             var req = URLRequest(url: url)
             if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-            if let (data, http) = await FirestoreHelper.executeSafeRequest(req),
+            if let (data, http) = await DatabaseHelper.executeSafeRequest(req),
                http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any],
@@ -1007,10 +1007,10 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
                 for val in values {
                     guard let itemFields = (val["mapValue"] as? [String: Any])?["fields"] as? [String: Any] else { continue }
-                    let empId = FirestoreHelper.getString(itemFields["employeeId"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
-                    let empName = FirestoreHelper.getString(itemFields["employeeName"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
-                    let empEmail = FirestoreHelper.getString(itemFields["employeeEmail"] as? [String: Any])
-                        .isEmpty ? FirestoreHelper.getString(itemFields["email"] as? [String: Any]) : FirestoreHelper.getString(itemFields["employeeEmail"] as? [String: Any])
+                    let empId = DatabaseHelper.getString(itemFields["employeeId"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    let empName = DatabaseHelper.getString(itemFields["employeeName"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    let empEmail = DatabaseHelper.getString(itemFields["employeeEmail"] as? [String: Any])
+                        .isEmpty ? DatabaseHelper.getString(itemFields["email"] as? [String: Any]) : DatabaseHelper.getString(itemFields["employeeEmail"] as? [String: Any])
                     let cleanEmpEmail = empEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
                     let cleanEmpName = self.stripAccents(empName)
@@ -1038,11 +1038,11 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     if matchEmail || matchId || matchName || matchPrefix || matchPartial {
                         if let daysMap = (itemFields["days"] as? [String: Any])?["mapValue"] as? [String: Any],
                            let dayFields = daysMap["fields"] as? [String: Any] {
-                            let rawCode = FirestoreHelper.getString(dayFields[todayDateKey] as? [String: Any])
-                                .isEmpty ? FirestoreHelper.getString(dayFields[todayKey] as? [String: Any])
-                                : FirestoreHelper.getString(dayFields[todayDateKey] as? [String: Any])
-                            let fallbackCode = rawCode.isEmpty ? FirestoreHelper.getString(dayFields[todayDdMmYyyy] as? [String: Any]) : rawCode
-                            let finalCode = fallbackCode.isEmpty ? FirestoreHelper.getString(dayFields[todayKeyVi] as? [String: Any]) : fallbackCode
+                            let rawCode = DatabaseHelper.getString(dayFields[todayDateKey] as? [String: Any])
+                                .isEmpty ? DatabaseHelper.getString(dayFields[todayKey] as? [String: Any])
+                                : DatabaseHelper.getString(dayFields[todayDateKey] as? [String: Any])
+                            let fallbackCode = rawCode.isEmpty ? DatabaseHelper.getString(dayFields[todayDdMmYyyy] as? [String: Any]) : rawCode
+                            let finalCode = fallbackCode.isEmpty ? DatabaseHelper.getString(dayFields[todayKeyVi] as? [String: Any]) : fallbackCode
                             foundCode = finalCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
                             break
                         }
@@ -1129,43 +1129,43 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             }
 
             for docId in docIdsToTry {
-                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances/\(docId)"
+                let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/attendances/\(docId)"
                 guard let url = URL(string: urlStr) else { continue }
 
                 var req = URLRequest(url: url)
                 if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-                if let (data, http) = await FirestoreHelper.executeSafeRequest(req),
+                if let (data, http) = await DatabaseHelper.executeSafeRequest(req),
                    http.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let fields = json["fields"] as? [String: Any] {
 
                     let rec = AttendanceRecord(
                         id: docId,
-                        userEmail: FirestoreHelper.getString(fields["userEmail"] as? [String: Any]).isEmpty ? cleanEmail : FirestoreHelper.getString(fields["userEmail"] as? [String: Any]),
-                        userName: FirestoreHelper.getString(fields["userName"] as? [String: Any]),
-                        userPhone: FirestoreHelper.getString(fields["userPhone"] as? [String: Any]),
-                        maNhanVien: FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
-                        employeeId: FirestoreHelper.getString(fields["employeeId"] as? [String: Any]),
-                        departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
-                        departmentName: FirestoreHelper.getString(fields["departmentName"] as? [String: Any]),
-                        donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
-                        date: FirestoreHelper.getString(fields["date"] as? [String: Any]),
-                        checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
-                        checkInLat: FirestoreHelper.getDouble(fields["checkInLat"] as? [String: Any]),
-                        checkInLng: FirestoreHelper.getDouble(fields["checkInLng"] as? [String: Any]),
-                        checkInAddress: FirestoreHelper.getString(fields["checkInAddress"] as? [String: Any]),
-                        checkInStatus: FirestoreHelper.getString(fields["checkInStatus"] as? [String: Any]),
-                        checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
-                        checkOutLat: FirestoreHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
-                        checkOutLng: FirestoreHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
-                        checkOutAddress: FirestoreHelper.getString(fields["checkOutAddress"] as? [String: Any]),
-                        checkOutStatus: FirestoreHelper.getString(fields["checkOutStatus"] as? [String: Any]),
-                        totalWorkMinutes: FirestoreHelper.getInt(fields["totalWorkMinutes"] as? [String: Any]),
-                        note: FirestoreHelper.getString(fields["note"] as? [String: Any]),
+                        userEmail: DatabaseHelper.getString(fields["userEmail"] as? [String: Any]).isEmpty ? cleanEmail : DatabaseHelper.getString(fields["userEmail"] as? [String: Any]),
+                        userName: DatabaseHelper.getString(fields["userName"] as? [String: Any]),
+                        userPhone: DatabaseHelper.getString(fields["userPhone"] as? [String: Any]),
+                        maNhanVien: DatabaseHelper.getString(fields["maNhanVien"] as? [String: Any]),
+                        employeeId: DatabaseHelper.getString(fields["employeeId"] as? [String: Any]),
+                        departmentId: DatabaseHelper.getString(fields["departmentId"] as? [String: Any]),
+                        departmentName: DatabaseHelper.getString(fields["departmentName"] as? [String: Any]),
+                        donVi: DatabaseHelper.getString(fields["donVi"] as? [String: Any]),
+                        date: DatabaseHelper.getString(fields["date"] as? [String: Any]),
+                        checkInTime: DatabaseHelper.getInt64(fields["checkInTime"] as? [String: Any]),
+                        checkInLat: DatabaseHelper.getDouble(fields["checkInLat"] as? [String: Any]),
+                        checkInLng: DatabaseHelper.getDouble(fields["checkInLng"] as? [String: Any]),
+                        checkInAddress: DatabaseHelper.getString(fields["checkInAddress"] as? [String: Any]),
+                        checkInStatus: DatabaseHelper.getString(fields["checkInStatus"] as? [String: Any]),
+                        checkOutTime: DatabaseHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
+                        checkOutLat: DatabaseHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
+                        checkOutLng: DatabaseHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
+                        checkOutAddress: DatabaseHelper.getString(fields["checkOutAddress"] as? [String: Any]),
+                        checkOutStatus: DatabaseHelper.getString(fields["checkOutStatus"] as? [String: Any]),
+                        totalWorkMinutes: DatabaseHelper.getInt(fields["totalWorkMinutes"] as? [String: Any]),
+                        note: DatabaseHelper.getString(fields["note"] as? [String: Any]),
                         companyId: self.companyId,
-                        shiftType: FirestoreHelper.getString(fields["shiftType"] as? [String: Any]),
-                        scheduledShiftCode: FirestoreHelper.getString(fields["scheduledShiftCode"] as? [String: Any]),
+                        shiftType: DatabaseHelper.getString(fields["shiftType"] as? [String: Any]),
+                        scheduledShiftCode: DatabaseHelper.getString(fields["scheduledShiftCode"] as? [String: Any]),
                         isUnscheduled: (fields["isUnscheduled"] as? [String: Any])?["booleanValue"] as? Bool ?? false
                     )
 
@@ -1189,13 +1189,13 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         guard !cleanEmail.isEmpty else { return }
 
         Task {
-            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances?pageSize=300"
+            let listUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/attendances?pageSize=300"
             guard let url = URL(string: listUrlStr) else { return }
 
             var req = URLRequest(url: url)
             if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-            if let (data, http) = await FirestoreHelper.executeSafeRequest(req),
+            if let (data, http) = await DatabaseHelper.executeSafeRequest(req),
                http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let docs = json["documents"] as? [[String: Any]] {
@@ -1203,8 +1203,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 var count = 0
                 for doc in docs {
                     if let f = doc["fields"] as? [String: Any] {
-                        let e = FirestoreHelper.getString(f["userEmail"] as? [String: Any])
-                        let d = FirestoreHelper.getString(f["date"] as? [String: Any])
+                        let e = DatabaseHelper.getString(f["userEmail"] as? [String: Any])
+                        let d = DatabaseHelper.getString(f["date"] as? [String: Any])
                         if e.caseInsensitiveCompare(cleanEmail) == .orderedSame && d.hasPrefix(ym) {
                             count += 1
                         }
@@ -1227,7 +1227,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
         let deviceId = currentDeviceId
         let devName = currentDeviceName
-        let userUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/users/\(cleanEmail)"
+        let userUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/users/\(cleanEmail)"
         guard let url = URL(string: userUrlStr) else {
             return .error(message: "URL không hợp lệ")
         }
@@ -1236,7 +1236,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         getReq.httpMethod = "GET"
         if !idToken.isEmpty { getReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
-        guard let (data, http) = await FirestoreHelper.executeSafeRequest(getReq), http.statusCode == 200 else {
+        guard let (data, http) = await DatabaseHelper.executeSafeRequest(getReq), http.statusCode == 200 else {
             // Không lấy được dữ liệu do mạng -> cho phép qua để không chặn nhân viên
             return .success(isNewlyBound: false, deviceName: devName)
         }
@@ -1267,7 +1267,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     ]
                 ]
                 patchReq.httpBody = try? JSONSerialization.data(withJSONObject: patchBody)
-                _ = await FirestoreHelper.executeSafeRequest(patchReq)
+                _ = await DatabaseHelper.executeSafeRequest(patchReq)
             }
             return .success(isNewlyBound: true, deviceName: devName)
         }
@@ -1287,7 +1287,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard !cleanComp.isEmpty, !cleanEmail.isEmpty else { return false }
 
-        let userUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/users/\(cleanEmail)?updateMask.fieldPaths=boundDeviceId&updateMask.fieldPaths=boundDeviceName&updateMask.fieldPaths=boundDevicePlatform&updateMask.fieldPaths=boundDeviceAt"
+        let userUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/users/\(cleanEmail)?updateMask.fieldPaths=boundDeviceId&updateMask.fieldPaths=boundDeviceName&updateMask.fieldPaths=boundDevicePlatform&updateMask.fieldPaths=boundDeviceAt"
         guard let url = URL(string: userUrlStr) else { return false }
 
         var patchReq = URLRequest(url: url)
@@ -1303,7 +1303,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             ]
         ]
         patchReq.httpBody = try? JSONSerialization.data(withJSONObject: patchBody)
-        if let (_, http) = await FirestoreHelper.executeSafeRequest(patchReq), http.statusCode == 200 {
+        if let (_, http) = await DatabaseHelper.executeSafeRequest(patchReq), http.statusCode == 200 {
             return true
         }
         return false
@@ -1392,7 +1392,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 }
             }
 
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances/\(docId)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/attendances/\(docId)"
             guard let url = URL(string: urlStr) else {
                 self.isSubmitting = false
                 return
@@ -1433,7 +1433,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             ]
             req.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (_, http) = await FirestoreHelper.executeSafeRequest(req), http.statusCode == 200 {
+            if let (_, http) = await DatabaseHelper.executeSafeRequest(req), http.statusCode == 200 {
                 await self.syncUserOnDuty(isOnDuty: true, shift: self.selectedShiftType, source: "CHECK_IN")
                 await MainActor.run {
                     self.isSubmitting = false
@@ -1538,7 +1538,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             var overtimeTicketCount = 0
             if !isEarly && now > shiftEndTimestamp {
                 let cleanEmail = self.user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let tUrlStr = "\(FirebaseConfig.firestoreBaseUrl):runQuery"
+                let tUrlStr = "\(ServerConfig.documentsBaseUrl):runQuery"
                 if let tUrl = URL(string: tUrlStr) {
                     var tReq = URLRequest(url: tUrl)
                     tReq.httpMethod = "POST"
@@ -1556,19 +1556,19 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                                 ]
                             ]
                         ],
-                        "parent": "projects/\(FirebaseConfig.projectId)/databases/(default)/documents/companies/\(companyId)"
+                        "parent": "projects/\(ServerConfig.projectId)/databases/(default)/documents/companies/\(companyId)"
                     ]
                     tReq.httpBody = try? JSONSerialization.data(withJSONObject: tBody)
 
-                    if let (tData, tHttp) = await FirestoreHelper.executeSafeRequest(tReq),
+                    if let (tData, tHttp) = await DatabaseHelper.executeSafeRequest(tReq),
                        tHttp.statusCode == 200,
                        let tArr = try? JSONSerialization.jsonObject(with: tData) as? [[String: Any]] {
                         for tResult in tArr {
                             if let doc = tResult["document"] as? [String: Any],
                                let f = doc["fields"] as? [String: Any] {
-                                let status = FirestoreHelper.getString(f["status"] as? [String: Any])
-                                let closedAt = FirestoreHelper.getInt64(f["closedAt"] as? [String: Any])
-                                let assignedAt = FirestoreHelper.getInt64(f["assignedAt"] as? [String: Any])
+                                let status = DatabaseHelper.getString(f["status"] as? [String: Any])
+                                let closedAt = DatabaseHelper.getInt64(f["closedAt"] as? [String: Any])
+                                let assignedAt = DatabaseHelper.getInt64(f["assignedAt"] as? [String: Any])
                                 let isClosed = status.caseInsensitiveCompare("CLOSED") == .orderedSame || closedAt > 0
                                 if !isClosed || closedAt >= shiftEndTimestamp || assignedAt >= shiftEndTimestamp {
                                     hasOvertimeTicket = true
@@ -1606,7 +1606,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
             let combinedNote = (self.noteInput.trimmingCharacters(in: .whitespacesAndNewlines) + noteSuffix).trimmingCharacters(in: .whitespacesAndNewlines)
 
-            let patchUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances/\(docId)?updateMask.fieldPaths=checkOutTime&updateMask.fieldPaths=checkOutLat&updateMask.fieldPaths=checkOutLng&updateMask.fieldPaths=checkOutAddress&updateMask.fieldPaths=checkOutStatus&updateMask.fieldPaths=totalWorkMinutes&updateMask.fieldPaths=shiftType&updateMask.fieldPaths=note&updateMask.fieldPaths=checkOutDeviceId&updateMask.fieldPaths=checkOutDeviceName"
+            let patchUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/attendances/\(docId)?updateMask.fieldPaths=checkOutTime&updateMask.fieldPaths=checkOutLat&updateMask.fieldPaths=checkOutLng&updateMask.fieldPaths=checkOutAddress&updateMask.fieldPaths=checkOutStatus&updateMask.fieldPaths=totalWorkMinutes&updateMask.fieldPaths=shiftType&updateMask.fieldPaths=note&updateMask.fieldPaths=checkOutDeviceId&updateMask.fieldPaths=checkOutDeviceName"
             guard let patchUrl = URL(string: patchUrlStr) else {
                 self.isSubmitting = false
                 return
@@ -1633,7 +1633,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             ]
             patchReq.httpBody = try? JSONSerialization.data(withJSONObject: patchBody)
 
-            if let (_, http) = await FirestoreHelper.executeSafeRequest(patchReq),
+            if let (_, http) = await DatabaseHelper.executeSafeRequest(patchReq),
                http.statusCode == 200 {
                 await self.syncUserOnDuty(isOnDuty: false, shift: "", source: "")
                 await MainActor.run {
@@ -1661,7 +1661,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         guard !cleanComp.isEmpty, !cleanEmail.isEmpty else { return }
 
         let now = Int64(Date().timeIntervalSince1970 * 1000)
-        let updateUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/users/\(cleanEmail)?updateMask.fieldPaths=isOnDuty&updateMask.fieldPaths=onDutyShift&updateMask.fieldPaths=onDutySource&updateMask.fieldPaths=onDutySince&updateMask.fieldPaths=isOnline&updateMask.fieldPaths=lastActiveAt"
+        let updateUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/users/\(cleanEmail)?updateMask.fieldPaths=isOnDuty&updateMask.fieldPaths=onDutyShift&updateMask.fieldPaths=onDutySource&updateMask.fieldPaths=onDutySince&updateMask.fieldPaths=isOnline&updateMask.fieldPaths=lastActiveAt"
         guard let url = URL(string: updateUrlStr) else { return }
 
         var patchReq = URLRequest(url: url)
@@ -1680,7 +1680,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             ]
         ]
         patchReq.httpBody = try? JSONSerialization.data(withJSONObject: patchBody)
-        _ = await FirestoreHelper.executeSafeRequest(patchReq)
+        _ = await DatabaseHelper.executeSafeRequest(patchReq)
 
         await MainActor.run {
             self.isOnDuty = isOnDuty
@@ -1703,148 +1703,72 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             formatter.dateFormat = "yyyy-MM"
             let monthStr = formatter.string(from: month)
 
-            let queryUrl = "\(FirebaseConfig.firestoreBaseUrl):runQuery"
-            guard let qUrl = URL(string: queryUrl) else {
-                await MainActor.run { self.isLoadingHistory = false }
-                return
-            }
-            var qRequest = URLRequest(url: qUrl)
-            qRequest.httpMethod = "POST"
-            qRequest.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-            qRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            let dayFormatter = DateFormatter()
+            dayFormatter.dateFormat = "yyyy-MM-dd"
 
             let cleanEmail = user.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let body: [String: Any] = [
-                "structuredQuery": [
-                    "from": [["collectionId": "attendances"]],
-                    "where": [
-                        "compositeFilter": [
-                            "op": "AND",
-                            "filters": [
-                                [
-                                    "fieldFilter": [
-                                        "field": ["fieldPath": "userEmail"],
-                                        "op": "EQUAL",
-                                        "value": ["stringValue": cleanEmail]
-                                    ]
-                                ]
-                            ]
-                        ]
-                    ],
-                    "orderBy": [
-                        [
-                            "field": ["fieldPath": "date"],
-                            "direction": "DESCENDING"
-                        ]
-                    ]
-                ],
-                "parent": "projects/\(FirebaseConfig.projectId)/databases/(default)/documents/companies/\(companyId)"
-            ]
-            qRequest.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            let cleanName = user.fullName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
 
             var records: [AttendanceRecord] = []
-            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(qRequest),
-               httpResponse.statusCode == 200,
-               let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
-
-                for docResult in jsonArray {
-                    if let doc = docResult["document"] as? [String: Any],
-                       let fields = doc["fields"] as? [String: Any],
-                       let docName = doc["name"] as? String {
-
-                        let dateVal = FirestoreHelper.getString(fields["date"] as? [String: Any])
-                        if dateVal.hasPrefix(monthStr) {
-                            let docId = docName.components(separatedBy: "/").last ?? ""
-                            let record = AttendanceRecord(
-                                id: docId,
-                                userEmail: FirestoreHelper.getString(fields["userEmail"] as? [String: Any]),
-                                userName: FirestoreHelper.getString(fields["userName"] as? [String: Any]),
-                                userPhone: FirestoreHelper.getString(fields["userPhone"] as? [String: Any]),
-                                maNhanVien: FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
-                                employeeId: FirestoreHelper.getString(fields["employeeId"] as? [String: Any]),
-                                departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
-                                departmentName: FirestoreHelper.getString(fields["departmentName"] as? [String: Any]),
-                                donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
-                                date: dateVal,
-                                checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
-                                checkInLat: FirestoreHelper.getDouble(fields["checkInLat"] as? [String: Any]),
-                                checkInLng: FirestoreHelper.getDouble(fields["checkInLng"] as? [String: Any]),
-                                checkInAddress: FirestoreHelper.getString(fields["checkInAddress"] as? [String: Any]),
-                                checkInStatus: FirestoreHelper.getString(fields["checkInStatus"] as? [String: Any]),
-                                checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
-                                checkOutLat: FirestoreHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
-                                checkOutLng: FirestoreHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
-                                checkOutAddress: FirestoreHelper.getString(fields["checkOutAddress"] as? [String: Any]),
-                                checkOutStatus: FirestoreHelper.getString(fields["checkOutStatus"] as? [String: Any]),
-                                totalWorkMinutes: FirestoreHelper.getInt(fields["totalWorkMinutes"] as? [String: Any]),
-                                note: FirestoreHelper.getString(fields["note"] as? [String: Any]),
-                                companyId: self.companyId,
-                                shiftType: FirestoreHelper.getString(fields["shiftType"] as? [String: Any]),
-                                scheduledShiftCode: FirestoreHelper.getString(fields["scheduledShiftCode"] as? [String: Any]),
-                                isUnscheduled: (fields["isUnscheduled"] as? [String: Any])?["booleanValue"] as? Bool ?? false
-                            )
-                            records.append(record)
-                        }
-                    }
-                }
-            }
-
-            // Fallback đọc trực tiếp collection attendances nếu runQuery không có index
-            if records.isEmpty {
-                let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances?pageSize=300"
-                if let listUrl = URL(string: listUrlStr) {
-                    var listReq = URLRequest(url: listUrl)
-                    if !idToken.isEmpty { listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                    if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(listReq),
-                       httpResponse.statusCode == 200,
-                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let docs = json["documents"] as? [[String: Any]] {
-                        for doc in docs {
-                            if let fields = doc["fields"] as? [String: Any],
-                               let docName = doc["name"] as? String {
-                                let docEmail = FirestoreHelper.getString(fields["userEmail"] as? [String: Any])
-                                if docEmail.caseInsensitiveCompare(cleanEmail) == .orderedSame {
-                                    let dateVal = FirestoreHelper.getString(fields["date"] as? [String: Any])
-                                    if dateVal.hasPrefix(monthStr) {
-                                        let docId = docName.components(separatedBy: "/").last ?? ""
-                                        let record = AttendanceRecord(
-                                            id: docId,
-                                            userEmail: docEmail,
-                                            userName: FirestoreHelper.getString(fields["userName"] as? [String: Any]),
-                                            userPhone: FirestoreHelper.getString(fields["userPhone"] as? [String: Any]),
-                                            maNhanVien: FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
-                                            employeeId: FirestoreHelper.getString(fields["employeeId"] as? [String: Any]),
-                                            departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
-                                            departmentName: FirestoreHelper.getString(fields["departmentName"] as? [String: Any]),
-                                            donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
-                                            date: dateVal,
-                                            checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
-                                            checkInLat: FirestoreHelper.getDouble(fields["checkInLat"] as? [String: Any]),
-                                            checkInLng: FirestoreHelper.getDouble(fields["checkInLng"] as? [String: Any]),
-                                            checkInAddress: FirestoreHelper.getString(fields["checkInAddress"] as? [String: Any]),
-                                            checkInStatus: FirestoreHelper.getString(fields["checkInStatus"] as? [String: Any]),
-                                            checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
-                                            checkOutLat: FirestoreHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
-                                            checkOutLng: FirestoreHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
-                                            checkOutAddress: FirestoreHelper.getString(fields["checkOutAddress"] as? [String: Any]),
-                                            checkOutStatus: FirestoreHelper.getString(fields["checkOutStatus"] as? [String: Any]),
-                                            totalWorkMinutes: FirestoreHelper.getInt(fields["totalWorkMinutes"] as? [String: Any]),
-                                            note: FirestoreHelper.getString(fields["note"] as? [String: Any]),
-                                            companyId: self.companyId,
-                                            shiftType: FirestoreHelper.getString(fields["shiftType"] as? [String: Any]),
-                                            scheduledShiftCode: FirestoreHelper.getString(fields["scheduledShiftCode"] as? [String: Any]),
-                                            isUnscheduled: (fields["isUnscheduled"] as? [String: Any])?["booleanValue"] as? Bool ?? false
-                                        )
-                                        records.append(record)
-                                    }
-                                }
+            let listUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/attendances?pageSize=500"
+            if let listUrl = URL(string: listUrlStr) {
+                var listReq = URLRequest(url: listUrl)
+                if !idToken.isEmpty { listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                if let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(listReq),
+                   httpResponse.statusCode == 200,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let docs = json["documents"] as? [[String: Any]] {
+                    for doc in docs {
+                        if let fields = doc["fields"] as? [String: Any],
+                           let docName = doc["name"] as? String {
+                            let docEmail = DatabaseHelper.getString(fields["userEmail"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                            let docUserName = DatabaseHelper.getString(fields["userName"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
+                            var dateVal = DatabaseHelper.getString(fields["date"] as? [String: Any])
+                            let checkInTs = DatabaseHelper.getInt64(fields["checkInTime"] as? [String: Any])
+                            if dateVal.isEmpty && checkInTs > 0 {
+                                dateVal = dayFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(checkInTs) / 1000.0))
+                            }
+                            let emailMatch = !cleanEmail.isEmpty && (docEmail.caseInsensitiveCompare(cleanEmail) == .orderedSame || docUserName.caseInsensitiveCompare(cleanEmail) == .orderedSame)
+                            let nameMatch = !cleanName.isEmpty && !docUserName.isEmpty && docUserName.lowercased() == cleanName
+                            if (emailMatch || nameMatch) && dateVal.hasPrefix(monthStr) {
+                                let docId = docName.components(separatedBy: "/").last ?? ""
+                                let record = AttendanceRecord(
+                                    id: docId,
+                                    userEmail: docEmail.isEmpty ? cleanEmail : docEmail,
+                                    userName: docUserName,
+                                    userPhone: DatabaseHelper.getString(fields["userPhone"] as? [String: Any]),
+                                    maNhanVien: DatabaseHelper.getString(fields["maNhanVien"] as? [String: Any]),
+                                    employeeId: DatabaseHelper.getString(fields["employeeId"] as? [String: Any]),
+                                    departmentId: DatabaseHelper.getString(fields["departmentId"] as? [String: Any]),
+                                    departmentName: DatabaseHelper.getString(fields["departmentName"] as? [String: Any]),
+                                    donVi: DatabaseHelper.getString(fields["donVi"] as? [String: Any]),
+                                    date: dateVal,
+                                    checkInTime: checkInTs,
+                                    checkInLat: DatabaseHelper.getDouble(fields["checkInLat"] as? [String: Any]),
+                                    checkInLng: DatabaseHelper.getDouble(fields["checkInLng"] as? [String: Any]),
+                                    checkInAddress: DatabaseHelper.getString(fields["checkInAddress"] as? [String: Any]),
+                                    checkInStatus: DatabaseHelper.getString(fields["checkInStatus"] as? [String: Any]),
+                                    checkOutTime: DatabaseHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
+                                    checkOutLat: DatabaseHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
+                                    checkOutLng: DatabaseHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
+                                    checkOutAddress: DatabaseHelper.getString(fields["checkOutAddress"] as? [String: Any]),
+                                    checkOutStatus: DatabaseHelper.getString(fields["checkOutStatus"] as? [String: Any]),
+                                    totalWorkMinutes: DatabaseHelper.getInt(fields["totalWorkMinutes"] as? [String: Any]),
+                                    note: DatabaseHelper.getString(fields["note"] as? [String: Any]),
+                                    companyId: cleanComp,
+                                    shiftType: DatabaseHelper.getString(fields["shiftType"] as? [String: Any]),
+                                    scheduledShiftCode: DatabaseHelper.getString(fields["scheduledShiftCode"] as? [String: Any]),
+                                    isUnscheduled: (fields["isUnscheduled"] as? [String: Any])?["booleanValue"] as? Bool ?? false
+                                )
+                                records.append(record)
                             }
                         }
                     }
                 }
             }
 
-            records.sort { $0.date > $1.date }
+            records.sort { max($0.checkInTime, $0.checkOutTime) > max($1.checkInTime, $1.checkOutTime) }
 
             await MainActor.run {
                 self.attendanceHistory = records
@@ -1861,7 +1785,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             formatter.dateFormat = "yyyy-MM"
             let monthStr = formatter.string(from: month)
 
-            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/attendances?pageSize=300"
+            let listUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/attendances?pageSize=500"
             guard let listUrl = URL(string: listUrlStr) else {
                 await MainActor.run { self.isLoadingHistory = false }
                 return
@@ -1871,7 +1795,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             if !idToken.isEmpty { listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
 
             var records: [AttendanceRecord] = []
-            if let (data, http) = await FirestoreHelper.executeSafeRequest(listReq),
+            if let (data, http) = await DatabaseHelper.executeSafeRequest(listReq),
                http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let docs = json["documents"] as? [[String: Any]] {
@@ -1879,35 +1803,35 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 for doc in docs {
                     if let f = doc["fields"] as? [String: Any],
                        let docName = doc["name"] as? String {
-                        let d = FirestoreHelper.getString(f["date"] as? [String: Any])
+                        let d = DatabaseHelper.getString(f["date"] as? [String: Any])
                         if d.hasPrefix(monthStr) {
                             let docId = docName.components(separatedBy: "/").last ?? ""
                             let rec = AttendanceRecord(
                                 id: docId,
-                                userEmail: FirestoreHelper.getString(f["userEmail"] as? [String: Any]),
-                                userName: FirestoreHelper.getString(f["userName"] as? [String: Any]),
-                                userPhone: FirestoreHelper.getString(f["userPhone"] as? [String: Any]),
-                                maNhanVien: FirestoreHelper.getString(f["maNhanVien"] as? [String: Any]),
-                                employeeId: FirestoreHelper.getString(f["employeeId"] as? [String: Any]),
-                                departmentId: FirestoreHelper.getString(f["departmentId"] as? [String: Any]),
-                                departmentName: FirestoreHelper.getString(f["departmentName"] as? [String: Any]),
-                                donVi: FirestoreHelper.getString(f["donVi"] as? [String: Any]),
+                                userEmail: DatabaseHelper.getString(f["userEmail"] as? [String: Any]),
+                                userName: DatabaseHelper.getString(f["userName"] as? [String: Any]),
+                                userPhone: DatabaseHelper.getString(f["userPhone"] as? [String: Any]),
+                                maNhanVien: DatabaseHelper.getString(f["maNhanVien"] as? [String: Any]),
+                                employeeId: DatabaseHelper.getString(f["employeeId"] as? [String: Any]),
+                                departmentId: DatabaseHelper.getString(f["departmentId"] as? [String: Any]),
+                                departmentName: DatabaseHelper.getString(f["departmentName"] as? [String: Any]),
+                                donVi: DatabaseHelper.getString(f["donVi"] as? [String: Any]),
                                 date: d,
-                                checkInTime: FirestoreHelper.getInt64(f["checkInTime"] as? [String: Any]),
-                                checkInLat: FirestoreHelper.getDouble(f["checkInLat"] as? [String: Any]),
-                                checkInLng: FirestoreHelper.getDouble(f["checkInLng"] as? [String: Any]),
-                                checkInAddress: FirestoreHelper.getString(f["checkInAddress"] as? [String: Any]),
-                                checkInStatus: FirestoreHelper.getString(f["checkInStatus"] as? [String: Any]),
-                                checkOutTime: FirestoreHelper.getInt64(f["checkOutTime"] as? [String: Any]),
-                                checkOutLat: FirestoreHelper.getDouble(f["checkOutLat"] as? [String: Any]),
-                                checkOutLng: FirestoreHelper.getDouble(f["checkOutLng"] as? [String: Any]),
-                                checkOutAddress: FirestoreHelper.getString(f["checkOutAddress"] as? [String: Any]),
-                                checkOutStatus: FirestoreHelper.getString(f["checkOutStatus"] as? [String: Any]),
-                                totalWorkMinutes: FirestoreHelper.getInt(f["totalWorkMinutes"] as? [String: Any]),
-                                note: FirestoreHelper.getString(f["note"] as? [String: Any]),
+                                checkInTime: DatabaseHelper.getInt64(f["checkInTime"] as? [String: Any]),
+                                checkInLat: DatabaseHelper.getDouble(f["checkInLat"] as? [String: Any]),
+                                checkInLng: DatabaseHelper.getDouble(f["checkInLng"] as? [String: Any]),
+                                checkInAddress: DatabaseHelper.getString(f["checkInAddress"] as? [String: Any]),
+                                checkInStatus: DatabaseHelper.getString(f["checkInStatus"] as? [String: Any]),
+                                checkOutTime: DatabaseHelper.getInt64(f["checkOutTime"] as? [String: Any]),
+                                checkOutLat: DatabaseHelper.getDouble(f["checkOutLat"] as? [String: Any]),
+                                checkOutLng: DatabaseHelper.getDouble(f["checkOutLng"] as? [String: Any]),
+                                checkOutAddress: DatabaseHelper.getString(f["checkOutAddress"] as? [String: Any]),
+                                checkOutStatus: DatabaseHelper.getString(f["checkOutStatus"] as? [String: Any]),
+                                totalWorkMinutes: DatabaseHelper.getInt(f["totalWorkMinutes"] as? [String: Any]),
+                                note: DatabaseHelper.getString(f["note"] as? [String: Any]),
                                 companyId: self.companyId,
-                                shiftType: FirestoreHelper.getString(f["shiftType"] as? [String: Any]),
-                                scheduledShiftCode: FirestoreHelper.getString(f["scheduledShiftCode"] as? [String: Any]),
+                                shiftType: DatabaseHelper.getString(f["shiftType"] as? [String: Any]),
+                                scheduledShiftCode: DatabaseHelper.getString(f["scheduledShiftCode"] as? [String: Any]),
                                 isUnscheduled: (f["isUnscheduled"] as? [String: Any])?["booleanValue"] as? Bool ?? false
                             )
                             records.append(rec)
@@ -1929,30 +1853,30 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     private func parseAttendanceRecord(docId: String, fields: [String: Any]) -> AttendanceRecord {
         return AttendanceRecord(
             id: docId,
-            userEmail: FirestoreHelper.getString(fields["userEmail"] as? [String: Any]),
-            userName: FirestoreHelper.getString(fields["userName"] as? [String: Any]),
-            userPhone: FirestoreHelper.getString(fields["userPhone"] as? [String: Any]),
-            maNhanVien: FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
-            employeeId: FirestoreHelper.getString(fields["employeeId"] as? [String: Any]),
-            departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
-            departmentName: FirestoreHelper.getString(fields["departmentName"] as? [String: Any]),
-            donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
-            date: FirestoreHelper.getString(fields["date"] as? [String: Any]),
-            checkInTime: FirestoreHelper.getInt64(fields["checkInTime"] as? [String: Any]),
-            checkInLat: FirestoreHelper.getDouble(fields["checkInLat"] as? [String: Any]),
-            checkInLng: FirestoreHelper.getDouble(fields["checkInLng"] as? [String: Any]),
-            checkInAddress: FirestoreHelper.getString(fields["checkInAddress"] as? [String: Any]),
-            checkInStatus: FirestoreHelper.getString(fields["checkInStatus"] as? [String: Any]),
-            checkOutTime: FirestoreHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
-            checkOutLat: FirestoreHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
-            checkOutLng: FirestoreHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
-            checkOutAddress: FirestoreHelper.getString(fields["checkOutAddress"] as? [String: Any]),
-            checkOutStatus: FirestoreHelper.getString(fields["checkOutStatus"] as? [String: Any]),
-            totalWorkMinutes: FirestoreHelper.getInt(fields["totalWorkMinutes"] as? [String: Any]),
-            note: FirestoreHelper.getString(fields["note"] as? [String: Any]),
+            userEmail: DatabaseHelper.getString(fields["userEmail"] as? [String: Any]),
+            userName: DatabaseHelper.getString(fields["userName"] as? [String: Any]),
+            userPhone: DatabaseHelper.getString(fields["userPhone"] as? [String: Any]),
+            maNhanVien: DatabaseHelper.getString(fields["maNhanVien"] as? [String: Any]),
+            employeeId: DatabaseHelper.getString(fields["employeeId"] as? [String: Any]),
+            departmentId: DatabaseHelper.getString(fields["departmentId"] as? [String: Any]),
+            departmentName: DatabaseHelper.getString(fields["departmentName"] as? [String: Any]),
+            donVi: DatabaseHelper.getString(fields["donVi"] as? [String: Any]),
+            date: DatabaseHelper.getString(fields["date"] as? [String: Any]),
+            checkInTime: DatabaseHelper.getInt64(fields["checkInTime"] as? [String: Any]),
+            checkInLat: DatabaseHelper.getDouble(fields["checkInLat"] as? [String: Any]),
+            checkInLng: DatabaseHelper.getDouble(fields["checkInLng"] as? [String: Any]),
+            checkInAddress: DatabaseHelper.getString(fields["checkInAddress"] as? [String: Any]),
+            checkInStatus: DatabaseHelper.getString(fields["checkInStatus"] as? [String: Any]),
+            checkOutTime: DatabaseHelper.getInt64(fields["checkOutTime"] as? [String: Any]),
+            checkOutLat: DatabaseHelper.getDouble(fields["checkOutLat"] as? [String: Any]),
+            checkOutLng: DatabaseHelper.getDouble(fields["checkOutLng"] as? [String: Any]),
+            checkOutAddress: DatabaseHelper.getString(fields["checkOutAddress"] as? [String: Any]),
+            checkOutStatus: DatabaseHelper.getString(fields["checkOutStatus"] as? [String: Any]),
+            totalWorkMinutes: DatabaseHelper.getInt(fields["totalWorkMinutes"] as? [String: Any]),
+            note: DatabaseHelper.getString(fields["note"] as? [String: Any]),
             companyId: self.companyId,
-            shiftType: FirestoreHelper.getString(fields["shiftType"] as? [String: Any]),
-            scheduledShiftCode: FirestoreHelper.getString(fields["scheduledShiftCode"] as? [String: Any]),
+            shiftType: DatabaseHelper.getString(fields["shiftType"] as? [String: Any]),
+            scheduledShiftCode: DatabaseHelper.getString(fields["scheduledShiftCode"] as? [String: Any]),
             isUnscheduled: (fields["isUnscheduled"] as? [String: Any])?["booleanValue"] as? Bool ?? false
         )
     }
@@ -1961,24 +1885,24 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     private func parseExpenseRecord(docId: String, fields: [String: Any]) -> TravelExpenseRecord {
         return TravelExpenseRecord(
             id: docId,
-            ticketId: FirestoreHelper.getString(fields["ticketId"] as? [String: Any]),
-            ticketSubject: FirestoreHelper.getString(fields["ticketSubject"] as? [String: Any]),
-            technicianEmail: FirestoreHelper.getString(fields["technicianEmail"] as? [String: Any]),
-            technicianName: FirestoreHelper.getString(fields["technicianName"] as? [String: Any]),
-            departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
-            fromDonVi: FirestoreHelper.getString(fields["fromDonVi"] as? [String: Any]),
-            toDonVi: FirestoreHelper.getString(fields["toDonVi"] as? [String: Any]),
-            date: FirestoreHelper.getString(fields["date"] as? [String: Any]),
-            timestamp: FirestoreHelper.getInt64(fields["timestamp"] as? [String: Any]),
-            distanceKm: FirestoreHelper.getDouble(fields["distanceKm"] as? [String: Any]),
-            kmExpenseAmount: FirestoreHelper.getDouble(fields["kmExpenseAmount"] as? [String: Any]),
-            tripAllowanceAmount: FirestoreHelper.getDouble(fields["tripAllowanceAmount"] as? [String: Any]),
-            totalAmount: FirestoreHelper.getDouble(fields["totalAmount"] as? [String: Any]),
-            status: FirestoreHelper.getString(fields["status"] as? [String: Any]).isEmpty ? "PENDING" : FirestoreHelper.getString(fields["status"] as? [String: Any]),
-            approvedBy: FirestoreHelper.getString(fields["approvedBy"] as? [String: Any]),
-            approvedAt: FirestoreHelper.getInt64(fields["approvedAt"] as? [String: Any]),
-            note: FirestoreHelper.getString(fields["note"] as? [String: Any]),
-            rejectReason: FirestoreHelper.getString(fields["rejectReason"] as? [String: Any])
+            ticketId: DatabaseHelper.getString(fields["ticketId"] as? [String: Any]),
+            ticketSubject: DatabaseHelper.getString(fields["ticketSubject"] as? [String: Any]),
+            technicianEmail: DatabaseHelper.getString(fields["technicianEmail"] as? [String: Any]),
+            technicianName: DatabaseHelper.getString(fields["technicianName"] as? [String: Any]),
+            departmentId: DatabaseHelper.getString(fields["departmentId"] as? [String: Any]),
+            fromDonVi: DatabaseHelper.getString(fields["fromDonVi"] as? [String: Any]),
+            toDonVi: DatabaseHelper.getString(fields["toDonVi"] as? [String: Any]),
+            date: DatabaseHelper.getString(fields["date"] as? [String: Any]),
+            timestamp: DatabaseHelper.getInt64(fields["timestamp"] as? [String: Any]),
+            distanceKm: DatabaseHelper.getDouble(fields["distanceKm"] as? [String: Any]),
+            kmExpenseAmount: DatabaseHelper.getDouble(fields["kmExpenseAmount"] as? [String: Any]),
+            tripAllowanceAmount: DatabaseHelper.getDouble(fields["tripAllowanceAmount"] as? [String: Any]),
+            totalAmount: DatabaseHelper.getDouble(fields["totalAmount"] as? [String: Any]),
+            status: DatabaseHelper.getString(fields["status"] as? [String: Any]).isEmpty ? "PENDING" : DatabaseHelper.getString(fields["status"] as? [String: Any]),
+            approvedBy: DatabaseHelper.getString(fields["approvedBy"] as? [String: Any]),
+            approvedAt: DatabaseHelper.getInt64(fields["approvedAt"] as? [String: Any]),
+            note: DatabaseHelper.getString(fields["note"] as? [String: Any]),
+            rejectReason: DatabaseHelper.getString(fields["rejectReason"] as? [String: Any])
         )
     }
 
@@ -2127,7 +2051,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     private func fetchMonthlyAttendances(cleanComp: String, targetMonth: String) async -> [AttendanceRecord] {
         var fetchedRecords: [AttendanceRecord] = []
 
-        let queryUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp):runQuery"
+        let queryUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp):runQuery"
         if let qUrl = URL(string: queryUrlStr) {
             var qReq = URLRequest(url: qUrl)
             qReq.httpMethod = "POST"
@@ -2147,14 +2071,14 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             ]
             qReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (data, resp) = await FirestoreHelper.executeSafeRequest(qReq),
+            if let (data, resp) = await DatabaseHelper.executeSafeRequest(qReq),
                let http = resp as? HTTPURLResponse, http.statusCode == 200,
                let jsonArray = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
                 for docResult in jsonArray {
                     if let doc = docResult["document"] as? [String: Any],
                        let fields = doc["fields"] as? [String: Any],
                        let docName = doc["name"] as? String {
-                        let dDate = FirestoreHelper.getString(fields["date"] as? [String: Any])
+                        let dDate = DatabaseHelper.getString(fields["date"] as? [String: Any])
                         if dDate.hasPrefix(targetMonth) {
                             let docId = docName.components(separatedBy: "/").last ?? ""
                             fetchedRecords.append(parseAttendanceRecord(docId: docId, fields: fields))
@@ -2166,17 +2090,17 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
         // Fallback: list collection attendances if structuredQuery didn't return
         if fetchedRecords.isEmpty {
-            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/attendances?pageSize=300"
+            let listUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/attendances?pageSize=300"
             if let listUrl = URL(string: listUrlStr) {
                 var listReq = URLRequest(url: listUrl)
-                if let (data, resp) = await FirestoreHelper.executeSafeRequest(listReq),
+                if let (data, resp) = await DatabaseHelper.executeSafeRequest(listReq),
                    let http = resp as? HTTPURLResponse, http.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let docs = json["documents"] as? [[String: Any]] {
                     for doc in docs {
                         if let fields = doc["fields"] as? [String: Any],
                            let docName = doc["name"] as? String {
-                            let dDate = FirestoreHelper.getString(fields["date"] as? [String: Any])
+                            let dDate = DatabaseHelper.getString(fields["date"] as? [String: Any])
                             if dDate.hasPrefix(targetMonth) {
                                 let docId = docName.components(separatedBy: "/").last ?? ""
                                 fetchedRecords.append(parseAttendanceRecord(docId: docId, fields: fields))
@@ -2218,10 +2142,10 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         }
 
         // 1. Lấy danh sách duyệt travel_expenses (đồng bộ 1:1 Android: lấy danh sách duyệt)
-        let expGetUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/travel_expenses?pageSize=300"
+        let expGetUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/travel_expenses?pageSize=300"
         if let expGetUrl = URL(string: expGetUrlStr) {
             var expReq = URLRequest(url: expGetUrl)
-            if let (expData, expResp) = await FirestoreHelper.executeSafeRequest(expReq),
+            if let (expData, expResp) = await DatabaseHelper.executeSafeRequest(expReq),
                let httpExp = expResp as? HTTPURLResponse, httpExp.statusCode == 200,
                let expJson = try? JSONSerialization.jsonObject(with: expData) as? [String: Any],
                let expDocs = expJson["documents"] as? [[String: Any]] {
@@ -2229,8 +2153,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     if let fields = doc["fields"] as? [String: Any],
                        let docName = doc["name"] as? String {
                         let docId = docName.components(separatedBy: "/").last ?? ""
-                        let st = FirestoreHelper.getString(fields["status"] as? [String: Any])
-                        let rj = FirestoreHelper.getString(fields["rejectReason"] as? [String: Any])
+                        let st = DatabaseHelper.getString(fields["status"] as? [String: Any])
+                        let rj = DatabaseHelper.getString(fields["rejectReason"] as? [String: Any])
                         if !docId.isEmpty {
                             savedExpenseStatusMap[docId] = st.isEmpty ? "PENDING" : st
                             if !rj.isEmpty { savedRejectReasonMap[docId] = rj }
@@ -2243,7 +2167,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         var fetchedExpenses: [TravelExpenseRecord] = []
 
         // 2. Lấy danh sách phiếu support_tickets qua runQuery (đồng bộ 1:1 Android)
-        let tixUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp):runQuery"
+        let tixUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp):runQuery"
         var tixDocsList: [[String: Any]] = []
 
         if let tixUrl = URL(string: tixUrlStr) {
@@ -2279,7 +2203,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             ]
             tixReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (tixData, tixResp) = await FirestoreHelper.executeSafeRequest(tixReq),
+            if let (tixData, tixResp) = await DatabaseHelper.executeSafeRequest(tixReq),
                let httpTix = tixResp as? HTTPURLResponse, httpTix.statusCode == 200,
                let tixArray = try? JSONSerialization.jsonObject(with: tixData) as? [[String: Any]] {
                 for item in tixArray {
@@ -2293,13 +2217,13 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         // Fallback: Nếu runQuery không trả về bản ghi nào, truy vấn trực tiếp support_tickets
         if tixDocsList.isEmpty {
             let listUrls = [
-                "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=500",
-                "\(FirebaseConfig.firestoreBaseUrl)/companies/SGCOOP/support_tickets?pageSize=500"
+                "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=500",
+                "\(ServerConfig.documentsBaseUrl)/companies/SGCOOP/support_tickets?pageSize=500"
             ]
             for listUrlStr in listUrls {
                 guard tixDocsList.isEmpty, let listUrl = URL(string: listUrlStr) else { continue }
                 let listReq = URLRequest(url: listUrl)
-                if let (data, resp) = await FirestoreHelper.executeSafeRequest(listReq),
+                if let (data, resp) = await DatabaseHelper.executeSafeRequest(listReq),
                    let http = resp as? HTTPURLResponse, http.statusCode == 200,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let docs = json["documents"] as? [[String: Any]] {
@@ -2332,39 +2256,39 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             guard let fields = doc["fields"] as? [String: Any],
                   let docName = doc["name"] as? String else { continue }
             let ticketId = docName.components(separatedBy: "/").last ?? ""
-            let createdAt = FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
+            let createdAt = DatabaseHelper.getInt64(fields["createdAt"] as? [String: Any])
             if createdAt > 0 && (createdAt < startMillis || createdAt > endMillis) {
                 continue
             }
             let ticketDate = createdAt > 0 ? df.string(from: Date(timeIntervalSince1970: Double(createdAt) / 1000.0)) : ""
 
-            let trMap = FirestoreHelper.getMap(fields["tracking"] as? [String: Any])
+            let trMap = DatabaseHelper.getMap(fields["tracking"] as? [String: Any])
 
-            let rawDistKm = FirestoreHelper.getDouble(trMap["distanceKm"] as? [String: Any])
-            let traveledKm = FirestoreHelper.getDouble(trMap["traveledDistanceKm"] as? [String: Any])
-            let trackingStatus = FirestoreHelper.getString(trMap["status"] as? [String: Any])
-            let destName = FirestoreHelper.getString(trMap["destName"] as? [String: Any])
-            let destAddress = FirestoreHelper.getString(trMap["destAddress"] as? [String: Any])
-            let trackingTechEmail = FirestoreHelper.getString(trMap["technicianEmail"] as? [String: Any])
-            let trackingTechName = FirestoreHelper.getString(trMap["technicianName"] as? [String: Any])
+            let rawDistKm = DatabaseHelper.getDouble(trMap["distanceKm"] as? [String: Any])
+            let traveledKm = DatabaseHelper.getDouble(trMap["traveledDistanceKm"] as? [String: Any])
+            let trackingStatus = DatabaseHelper.getString(trMap["status"] as? [String: Any])
+            let destName = DatabaseHelper.getString(trMap["destName"] as? [String: Any])
+            let destAddress = DatabaseHelper.getString(trMap["destAddress"] as? [String: Any])
+            let trackingTechEmail = DatabaseHelper.getString(trMap["technicianEmail"] as? [String: Any])
+            let trackingTechName = DatabaseHelper.getString(trMap["technicianName"] as? [String: Any])
 
-            let flatTrackingStatus = FirestoreHelper.getString(fields["tracking.status"] as? [String: Any])
+            let flatTrackingStatus = DatabaseHelper.getString(fields["tracking.status"] as? [String: Any])
             let effectiveTrackingStatus = !trackingStatus.isEmpty ? trackingStatus : flatTrackingStatus
 
-            let flatTechEmail = FirestoreHelper.getString(fields["tracking.technicianEmail"] as? [String: Any])
-            let flatTechName = FirestoreHelper.getString(fields["tracking.technicianName"] as? [String: Any])
+            let flatTechEmail = DatabaseHelper.getString(fields["tracking.technicianEmail"] as? [String: Any])
+            let flatTechName = DatabaseHelper.getString(fields["tracking.technicianName"] as? [String: Any])
             let effectiveTrTechEmail = !trackingTechEmail.isEmpty ? trackingTechEmail : flatTechEmail
             let effectiveTrTechName = !trackingTechName.isEmpty ? trackingTechName : flatTechName
 
-            let assignedToEmail = FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any])
-            let assignedTo = FirestoreHelper.getString(fields["assignedTo"] as? [String: Any])
-            let assignedToName = FirestoreHelper.getString(fields["assignedToName"] as? [String: Any])
-            let assignedDept = FirestoreHelper.getString(fields["assignedDepartmentId"] as? [String: Any])
-            let assignedDeptName = FirestoreHelper.getString(fields["assignedDepartmentName"] as? [String: Any])
-            let donVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any])
-            let subject = FirestoreHelper.getString(fields["subject"] as? [String: Any])
-            let resolvedReason = FirestoreHelper.getString(fields["resolvedReason"] as? [String: Any])
-            let resolutionNote = FirestoreHelper.getString(fields["resolutionNote"] as? [String: Any])
+            let assignedToEmail = DatabaseHelper.getString(fields["assignedToEmail"] as? [String: Any])
+            let assignedTo = DatabaseHelper.getString(fields["assignedTo"] as? [String: Any])
+            let assignedToName = DatabaseHelper.getString(fields["assignedToName"] as? [String: Any])
+            let assignedDept = DatabaseHelper.getString(fields["assignedDepartmentId"] as? [String: Any])
+            let assignedDeptName = DatabaseHelper.getString(fields["assignedDepartmentName"] as? [String: Any])
+            let donVi = DatabaseHelper.getString(fields["donVi"] as? [String: Any])
+            let subject = DatabaseHelper.getString(fields["subject"] as? [String: Any])
+            let resolvedReason = DatabaseHelper.getString(fields["resolvedReason"] as? [String: Any])
+            let resolutionNote = DatabaseHelper.getString(fields["resolutionNote"] as? [String: Any])
 
             let techEmail = !effectiveTrTechEmail.isEmpty ? effectiveTrTechEmail : (!assignedToEmail.isEmpty ? assignedToEmail : assignedTo)
             let techName = !effectiveTrTechName.isEmpty ? effectiveTrTechName : (!assignedToName.isEmpty ? assignedToName : techEmail)
@@ -2486,12 +2410,12 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         let cleanComp = cleanCompanyId
         guard !cleanComp.isEmpty else { return TravelExpenseConfig() }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/travel_expense_config"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/system_config/travel_expense_config"
         guard let url = URL(string: urlStr) else { return TravelExpenseConfig() }
 
         var request = URLRequest(url: url)
         var responseData: Data? = nil
-        if let (data, response) = await FirestoreHelper.executeSafeRequest(request),
+        if let (data, response) = await DatabaseHelper.executeSafeRequest(request),
            let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
             responseData = data
         }
@@ -2501,48 +2425,48 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
            let fields = json["fields"] as? [String: Any] {
 
             var cfg = TravelExpenseConfig()
-            cfg.standardCheckInTime = FirestoreHelper.getString(fields["standardCheckInTime"] as? [String: Any])
+            cfg.standardCheckInTime = DatabaseHelper.getString(fields["standardCheckInTime"] as? [String: Any])
             if cfg.standardCheckInTime.isEmpty { cfg.standardCheckInTime = "08:00" }
-            cfg.standardCheckOutTime = FirestoreHelper.getString(fields["standardCheckOutTime"] as? [String: Any])
+            cfg.standardCheckOutTime = DatabaseHelper.getString(fields["standardCheckOutTime"] as? [String: Any])
             if cfg.standardCheckOutTime.isEmpty { cfg.standardCheckOutTime = "17:00" }
-            cfg.shift1CheckInTime = FirestoreHelper.getString(fields["shift1CheckInTime"] as? [String: Any])
+            cfg.shift1CheckInTime = DatabaseHelper.getString(fields["shift1CheckInTime"] as? [String: Any])
             if cfg.shift1CheckInTime.isEmpty { cfg.shift1CheckInTime = "07:00" }
-            cfg.shift1CheckOutTime = FirestoreHelper.getString(fields["shift1CheckOutTime"] as? [String: Any])
+            cfg.shift1CheckOutTime = DatabaseHelper.getString(fields["shift1CheckOutTime"] as? [String: Any])
             if cfg.shift1CheckOutTime.isEmpty { cfg.shift1CheckOutTime = "15:00" }
-            cfg.shift2CheckInTime = FirestoreHelper.getString(fields["shift2CheckInTime"] as? [String: Any])
+            cfg.shift2CheckInTime = DatabaseHelper.getString(fields["shift2CheckInTime"] as? [String: Any])
             if cfg.shift2CheckInTime.isEmpty { cfg.shift2CheckInTime = "14:00" }
-            cfg.shift2CheckOutTime = FirestoreHelper.getString(fields["shift2CheckOutTime"] as? [String: Any])
+            cfg.shift2CheckOutTime = DatabaseHelper.getString(fields["shift2CheckOutTime"] as? [String: Any])
             if cfg.shift2CheckOutTime.isEmpty { cfg.shift2CheckOutTime = "22:00" }
-            cfg.nightCheckInTime = FirestoreHelper.getString(fields["nightCheckInTime"] as? [String: Any])
+            cfg.nightCheckInTime = DatabaseHelper.getString(fields["nightCheckInTime"] as? [String: Any])
             if cfg.nightCheckInTime.isEmpty { cfg.nightCheckInTime = "22:00" }
-            cfg.nightCheckOutTime = FirestoreHelper.getString(fields["nightCheckOutTime"] as? [String: Any])
+            cfg.nightCheckOutTime = DatabaseHelper.getString(fields["nightCheckOutTime"] as? [String: Any])
             if cfg.nightCheckOutTime.isEmpty { cfg.nightCheckOutTime = "06:00" }
 
-            let lateM = FirestoreHelper.getInt(fields["maxCheckInLateMinutes"] as? [String: Any])
+            let lateM = DatabaseHelper.getInt(fields["maxCheckInLateMinutes"] as? [String: Any])
             cfg.maxCheckInLateMinutes = lateM > 0 ? lateM : 15
-            let radius = FirestoreHelper.getDouble(fields["geofenceRadiusMeters"] as? [String: Any])
+            let radius = DatabaseHelper.getDouble(fields["geofenceRadiusMeters"] as? [String: Any])
             cfg.geofenceRadiusMeters = radius > 0 ? radius : 250.0
 
-            cfg.targetLatitude = FirestoreHelper.getDouble(fields["targetLatitude"] as? [String: Any])
-            cfg.targetLongitude = FirestoreHelper.getDouble(fields["targetLongitude"] as? [String: Any])
-            cfg.targetAddress = FirestoreHelper.getString(fields["targetAddress"] as? [String: Any])
+            cfg.targetLatitude = DatabaseHelper.getDouble(fields["targetLatitude"] as? [String: Any])
+            cfg.targetLongitude = DatabaseHelper.getDouble(fields["targetLongitude"] as? [String: Any])
+            cfg.targetAddress = DatabaseHelper.getString(fields["targetAddress"] as? [String: Any])
 
-            let pKm = FirestoreHelper.getDouble(fields["pricePerKm"] as? [String: Any])
+            let pKm = DatabaseHelper.getDouble(fields["pricePerKm"] as? [String: Any])
             cfg.pricePerKm = pKm > 0 ? pKm : 1500.0
-            let tAllow = FirestoreHelper.getDouble(fields["tripBaseAllowance"] as? [String: Any])
+            let tAllow = DatabaseHelper.getDouble(fields["tripBaseAllowance"] as? [String: Any])
             cfg.tripBaseAllowance = tAllow > 0 ? tAllow : 50000.0
-            cfg.overtimeMultiplier = FirestoreHelper.getDouble(fields["overtimeMultiplier"] as? [String: Any])
+            cfg.overtimeMultiplier = DatabaseHelper.getDouble(fields["overtimeMultiplier"] as? [String: Any])
 
-            let arrR = FirestoreHelper.getDouble(fields["arrivalRadiusMeters"] as? [String: Any])
+            let arrR = DatabaseHelper.getDouble(fields["arrivalRadiusMeters"] as? [String: Any])
             cfg.arrivalRadiusMeters = arrR > 0 ? arrR : 150.0
 
-            let canTh = FirestoreHelper.getInt(fields["cancellationThresholdPercent"] as? [String: Any])
+            let canTh = DatabaseHelper.getInt(fields["cancellationThresholdPercent"] as? [String: Any])
             cfg.cancellationThresholdPercent = canTh > 0 ? canTh : 50
-            let underPol = FirestoreHelper.getString(fields["underThresholdPolicy"] as? [String: Any])
+            let underPol = DatabaseHelper.getString(fields["underThresholdPolicy"] as? [String: Any])
             cfg.underThresholdPolicy = !underPol.isEmpty ? underPol : "HALF_TRIP"
-            let flatFee = FirestoreHelper.getDouble(fields["underThresholdFlatFee"] as? [String: Any])
+            let flatFee = DatabaseHelper.getDouble(fields["underThresholdFlatFee"] as? [String: Any])
             cfg.underThresholdFlatFee = flatFee > 0 ? flatFee : 30000.0
-            let abovePol = FirestoreHelper.getString(fields["aboveThresholdPolicy"] as? [String: Any])
+            let abovePol = DatabaseHelper.getString(fields["aboveThresholdPolicy"] as? [String: Any])
             cfg.aboveThresholdPolicy = !abovePol.isEmpty ? abovePol : "FULL_TRIP"
 
             await MainActor.run {
@@ -2578,7 +2502,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         Task {
             await MainActor.run { self.isSavingReportConfig = true }
 
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/travel_expense_config"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/system_config/travel_expense_config"
             guard let url = URL(string: urlStr) else {
                 await MainActor.run { self.isSavingReportConfig = false }
                 return
@@ -2619,7 +2543,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let body = ["fields": fields]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (_, resp) = await FirestoreHelper.executeSafeRequest(request),
+            if let (_, resp) = await DatabaseHelper.executeSafeRequest(request),
                let http = resp as? HTTPURLResponse, (http.statusCode == 200 || http.statusCode == 204) {
                 await MainActor.run {
                     self.travelConfig.pricePerKm = pKm
@@ -2658,7 +2582,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
         Task {
             let mask = "updateMask.fieldPaths=status&updateMask.fieldPaths=approvedBy&updateMask.fieldPaths=approvedAt" + (rejectReason.isEmpty ? "" : "&updateMask.fieldPaths=rejectReason")
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/travel_expenses/\(tripId)?\(mask)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/travel_expenses/\(tripId)?\(mask)"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -2676,7 +2600,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
             let body = ["fields": fields]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-            if let (_, resp) = await FirestoreHelper.executeSafeRequest(request),
+            if let (_, resp) = await DatabaseHelper.executeSafeRequest(request),
                let http = resp as? HTTPURLResponse, (http.statusCode == 200 || http.statusCode == 204) {
                 await MainActor.run {
                     self.fetchMonthlyReport(monthStr: self.selectedReportMonth)
@@ -2694,7 +2618,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         Task {
             for tripId in tripIds {
                 let mask = "updateMask.fieldPaths=status&updateMask.fieldPaths=approvedBy&updateMask.fieldPaths=approvedAt"
-                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/travel_expenses/\(tripId)?\(mask)"
+                let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/travel_expenses/\(tripId)?\(mask)"
                 guard let url = URL(string: urlStr) else { continue }
 
                 var request = URLRequest(url: url)
@@ -2708,7 +2632,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 ]
                 let body = ["fields": fields]
                 request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-                _ = await FirestoreHelper.executeSafeRequest(request)
+                _ = await DatabaseHelper.executeSafeRequest(request)
             }
             await MainActor.run {
                 self.fetchMonthlyReport(monthStr: self.selectedReportMonth)

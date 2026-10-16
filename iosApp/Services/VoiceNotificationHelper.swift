@@ -125,7 +125,7 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
     public func syncAdminConfig(companyId: String, idToken: String = "") {
         guard !companyId.isEmpty else { return }
         let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/system_toggle_config"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/system_config/system_toggle_config"
         guard let url = URL(string: urlStr) else { return }
 
         Task {
@@ -141,8 +141,8 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                 if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
                     if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                        let fields = json["fields"] as? [String: Any] {
-                        let mode = FirestoreHelper.getString(fields, "voiceNotificationMode")
-                        let soundEnabled = FirestoreHelper.getBool(fields["enableNotificationSound"] as? [String: Any], defaultValue: true)
+                        let mode = DatabaseHelper.getString(fields, "voiceNotificationMode")
+                        let soundEnabled = DatabaseHelper.getBool(fields["enableNotificationSound"] as? [String: Any], defaultValue: true)
 
                         let cleanMode = mode.isEmpty ? "REPEAT" : mode.uppercased()
                         UserDefaults.standard.set(cleanMode, forKey: "key_dev_portal_voice_mode")

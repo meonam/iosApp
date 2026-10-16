@@ -63,9 +63,14 @@ public struct UserManagementView: View {
         self.onBack = onBack
     }
 
+    private var isHelpdeskReadOnly: Bool {
+        viewModel.currentUser.isHelpDesk && !viewModel.allowHelpdeskUserManagement
+    }
+
     // Lọc danh sách User ở Tab 1
     private var filteredUsers: [User] {
-        viewModel.allUsers.filter { u in
+        let base = isHelpdeskReadOnly ? viewModel.allUsers.filter { !($0.role.uppercased() == "ADMIN" || $0.isAdmin || $0.isSuperAdmin) } : viewModel.allUsers
+        return base.filter { u in
             let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
             let matchSearch = q.isEmpty ||
                 u.fullName.localizedCaseInsensitiveContains(q) ||
@@ -138,47 +143,51 @@ public struct UserManagementView: View {
                                     .foregroundColor(.white)
                             }
 
-                            Text("Quản lý người dùng")
+                            Text(isHelpdeskReadOnly ? "Danh bạ nhân sự" : "Quản lý người dùng")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.white)
 
                             Spacer()
 
-                            // 4 actions switching tabs
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 0 }
-                            }) {
-                                Image(systemName: "person.badge.plus")
-                                    .font(.system(size: 17, weight: .semibold))
-                                    .foregroundColor(selectedTab == 0 ? Color.appPrimaryPink : .white.opacity(0.65))
-                                    .frame(width: 32, height: 32)
+                            if !isHelpdeskReadOnly {
+                                // 4 actions switching tabs
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 0 }
+                                }) {
+                                    Image(systemName: "person.badge.plus")
+                                        .font(.system(size: 17, weight: .semibold))
+                                        .foregroundColor(selectedTab == 0 ? Color.appPrimaryPink : .white.opacity(0.65))
+                                        .frame(width: 32, height: 32)
+                                }
                             }
 
                             Button(action: {
                                 withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 1 }
                             }) {
-                                Image(systemName: "person.3.fill")
+                                Image(systemName: isHelpdeskReadOnly ? "person.crop.rectangle.stack.fill" : "person.3.fill")
                                     .font(.system(size: 17, weight: .semibold))
                                     .foregroundColor(selectedTab == 1 ? Color.appPrimaryPink : .white.opacity(0.65))
                                     .frame(width: 32, height: 32)
                             }
 
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 2 }
-                            }) {
-                                Image(systemName: "shield.lefthalf.filled")
-                                    .font(.system(size: 17, weight: .semibold))
-                                    .foregroundColor(selectedTab == 2 ? Color.appPrimaryPink : .white.opacity(0.65))
-                                    .frame(width: 32, height: 32)
-                            }
+                            if !isHelpdeskReadOnly {
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 2 }
+                                }) {
+                                    Image(systemName: "shield.lefthalf.filled")
+                                        .font(.system(size: 17, weight: .semibold))
+                                        .foregroundColor(selectedTab == 2 ? Color.appPrimaryPink : .white.opacity(0.65))
+                                        .frame(width: 32, height: 32)
+                                }
 
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 3 }
-                            }) {
-                                Image(systemName: "clock.arrow.circlepath")
-                                    .font(.system(size: 17, weight: .semibold))
-                                    .foregroundColor(selectedTab == 3 ? Color.appPrimaryPink : .white.opacity(0.65))
-                                    .frame(width: 32, height: 32)
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 3 }
+                                }) {
+                                    Image(systemName: "clock.arrow.circlepath")
+                                        .font(.system(size: 17, weight: .semibold))
+                                        .foregroundColor(selectedTab == 3 ? Color.appPrimaryPink : .white.opacity(0.65))
+                                        .frame(width: 32, height: 32)
+                                }
                             }
                         }
                         .padding(.horizontal, 14)
@@ -274,6 +283,9 @@ public struct UserManagementView: View {
             .ignoresSafeArea(edges: .top)
         }
         .onAppear {
+            if isHelpdeskReadOnly {
+                selectedTab = 1
+            }
             viewModel.fetchAllDataIfNeeded()
         }
         .alert(isPresented: $showDeleteAlert) {
@@ -572,40 +584,57 @@ public struct UserManagementView: View {
     private var userListTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                // 1. BANNER THÊM USER MỚI
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 0 }
-                }) {
-                    HStack(spacing: 6) {
-                        Text("Thêm User mới? Chọn")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-
-                        HStack {
-                            Image(systemName: "person.badge.plus")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(Color.appPrimaryPink)
-                        }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(Color.appTopBarColor)
-                        .cornerRadius(6)
-
-                        Text("trên thanh tiêu đề")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color.appSecondaryDarkBlue)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
+                // 1. BANNER THÊM USER MỚI / CHỈ XEM
+                if isHelpdeskReadOnly {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "info.circle.fill")
+                            .font(.system(size: 15))
+                            .foregroundColor(Color(hex: "#D97706"))
+                        Text("ℹ️ Danh bạ nhân sự (Chỉ xem): Chế độ tra cứu danh bạ & liên hệ nội bộ. Tính năng thêm nhân viên, đổi quyền, khóa tài khoản và đặt lại mật khẩu bị hạn chế theo cấu hình phân quyền hệ thống.")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(Color(hex: "#92400E"))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 8)
-                    .background(Color.appSecondaryDarkBlue.opacity(0.08))
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(hex: "#FEF3C7"))
                     .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#FDE68A"), lineWidth: 1))
+                } else {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.15)) { selectedTab = 0 }
+                    }) {
+                        HStack(spacing: 6) {
+                            Text("Thêm User mới? Chọn")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+
+                            HStack {
+                                Image(systemName: "person.badge.plus")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(Color.appPrimaryPink)
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Color.appTopBarColor)
+                            .cornerRadius(6)
+
+                            Text("trên thanh tiêu đề")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(Color.appSecondaryDarkBlue)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(Color.appSecondaryDarkBlue.opacity(0.08))
+                        .cornerRadius(10)
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
-                .buttonStyle(PlainButtonStyle())
 
                 // 2. SEARCH BAR
                 HStack(spacing: 8) {
@@ -629,10 +658,11 @@ public struct UserManagementView: View {
                 // 3. HORIZONTAL SCROLL STATUS FILTER CHIPS
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
-                        let allCount = viewModel.allUsers.count
-                        let activeCount = viewModel.allUsers.filter { $0.status.uppercased() == "ACTIVE" || $0.status.uppercased() == "APPROVED" }.count
-                        let pendingCount = viewModel.allUsers.filter { $0.status.uppercased() == "PENDING" }.count
-                        let disabledCount = viewModel.allUsers.filter { $0.status.uppercased() == "DISABLED" || $0.status.uppercased() == "LOCKED" }.count
+                        let baseUsers = isHelpdeskReadOnly ? viewModel.allUsers.filter { !($0.role.uppercased() == "ADMIN" || $0.isAdmin || $0.isSuperAdmin) } : viewModel.allUsers
+                        let allCount = baseUsers.count
+                        let activeCount = baseUsers.filter { $0.status.uppercased() == "ACTIVE" || $0.status.uppercased() == "APPROVED" }.count
+                        let pendingCount = baseUsers.filter { $0.status.uppercased() == "PENDING" }.count
+                        let disabledCount = baseUsers.filter { $0.status.uppercased() == "DISABLED" || $0.status.uppercased() == "LOCKED" }.count
 
                         statusFilterChip(
                             title: "Tất cả (\(allCount))",
@@ -915,67 +945,82 @@ public struct UserManagementView: View {
             HStack(spacing: 8) {
                 Spacer()
 
-                // Phân quyền
-                Button(action: {
-                    selectUserForPermission(u)
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        selectedTab = 2
-                    }
-                }) {
+                if isHelpdeskReadOnly {
                     HStack(spacing: 4) {
-                        Image(systemName: "shield.lefthalf.filled")
+                        Image(systemName: "eye.fill")
                             .font(.system(size: 11))
-                        Text("Phân quyền")
+                        Text("Chỉ xem")
                             .font(.system(size: 11, weight: .bold))
                     }
-                    .foregroundColor(Color.appPrimaryPink)
+                    .foregroundColor(Color.gray)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(Color.appSurface)
+                    .background(Color(hex: "#F1F5F9"))
                     .cornerRadius(8)
-                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appPrimaryPink, lineWidth: 1))
-                }
-                .buttonStyle(BorderlessButtonStyle())
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                } else {
+                    // Phân quyền
+                    Button(action: {
+                        selectUserForPermission(u)
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            selectedTab = 2
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "shield.lefthalf.filled")
+                                .font(.system(size: 11))
+                            Text("Phân quyền")
+                                .font(.system(size: 11, weight: .bold))
+                        }
+                        .foregroundColor(Color.appPrimaryPink)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color.appSurface)
+                        .cornerRadius(8)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.appPrimaryPink, lineWidth: 1))
+                    }
+                    .buttonStyle(BorderlessButtonStyle())
 
-                // Khóa / Mở khóa
-                if !isTargetAdmin {
-                    if isLocked {
-                        Button(action: {
-                            unlockTargetUser = u
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "lock.open.fill")
-                                    .font(.system(size: 11))
-                                Text("Mở khóa")
-                                    .font(.system(size: 11, weight: .bold))
+                    // Khóa / Mở khóa
+                    if !isTargetAdmin {
+                        if isLocked {
+                            Button(action: {
+                                unlockTargetUser = u
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "lock.open.fill")
+                                        .font(.system(size: 11))
+                                    Text("Mở khóa")
+                                        .font(.system(size: 11, weight: .bold))
+                                }
+                                .foregroundColor(Color(hex: "#16A34A"))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.appSurface)
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#16A34A"), lineWidth: 1))
                             }
-                            .foregroundColor(Color(hex: "#16A34A"))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Color.appSurface)
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#16A34A"), lineWidth: 1))
-                        }
-                        .buttonStyle(BorderlessButtonStyle())
-                    } else {
-                        Button(action: {
-                            lockTargetUser = u
-                            lockReasonInput = ""
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "lock.fill")
-                                    .font(.system(size: 11))
-                                Text("Khóa")
-                                    .font(.system(size: 11, weight: .bold))
+                            .buttonStyle(BorderlessButtonStyle())
+                        } else {
+                            Button(action: {
+                                lockTargetUser = u
+                                lockReasonInput = ""
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "lock.fill")
+                                        .font(.system(size: 11))
+                                    Text("Khóa")
+                                        .font(.system(size: 11, weight: .bold))
+                                }
+                                .foregroundColor(Color(hex: "#DC2626"))
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.appSurface)
+                                .cornerRadius(8)
+                                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#DC2626"), lineWidth: 1))
                             }
-                            .foregroundColor(Color(hex: "#DC2626"))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Color.appSurface)
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#DC2626"), lineWidth: 1))
+                            .buttonStyle(BorderlessButtonStyle())
                         }
-                        .buttonStyle(BorderlessButtonStyle())
                     }
                 }
             }

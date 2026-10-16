@@ -361,8 +361,8 @@ struct AdminSettingsView: View {
     private func loadData() async {
         guard !companyId.isEmpty else { return }
         isLoading = true
-        // Assuming FirebaseConfig.firestoreBaseUrl exists or use a generic one
-        let baseUrl = FirebaseConfig.firestoreBaseUrl
+        // Assuming ServerConfig.documentsBaseUrl exists or use a generic one
+        let baseUrl = ServerConfig.documentsBaseUrl
         let urlString = "\(baseUrl)/companies/\(companyId)"
         guard let url = URL(string: urlString) else { return }
         
@@ -432,7 +432,7 @@ struct AdminSettingsView: View {
     }
     
     private func saveWebhookConfig(serverUrl: String) async {
-        let baseUrl = FirebaseConfig.firestoreBaseUrl
+        let baseUrl = ServerConfig.documentsBaseUrl
         let urlString = "\(baseUrl)/companies/\(companyId)/config/email?updateMask.fieldPaths=webhookServerUrl"
         guard let url = URL(string: urlString) else { return }
         var req = URLRequest(url: url)
@@ -460,7 +460,7 @@ struct AdminSettingsView: View {
     }
     
     private func updateLogoUrl(_ newUrl: String) async throws {
-        let baseUrl = FirebaseConfig.firestoreBaseUrl
+        let baseUrl = ServerConfig.documentsBaseUrl
         let urlString = "\(baseUrl)/companies/\(companyId)?updateMask.fieldPaths=logoUrl"
         guard let url = URL(string: urlString) else { return }
         
@@ -481,7 +481,7 @@ struct AdminSettingsView: View {
     }
     
     private func updateMaintenanceConfig(isMaintenance: Bool, message: String) async throws {
-        let baseUrl = FirebaseConfig.firestoreBaseUrl
+        let baseUrl = ServerConfig.documentsBaseUrl
         let urlString = "\(baseUrl)/companies/\(companyId)?updateMask.fieldPaths=isMaintenance&updateMask.fieldPaths=maintenanceMsg"
         guard let url = URL(string: urlString) else { return }
         var request = URLRequest(url: url)
@@ -520,7 +520,7 @@ struct AdminSettingsView: View {
     private func saveAllSettings() {
         Task {
             isSaving = true
-            let baseUrl = FirebaseConfig.firestoreBaseUrl
+            let baseUrl = ServerConfig.documentsBaseUrl
             let urlString = "\(baseUrl)/companies/\(companyId)?updateMask.fieldPaths=companyName&updateMask.fieldPaths=taxCode&updateMask.fieldPaths=address&updateMask.fieldPaths=isMaintenance&updateMask.fieldPaths=maintenanceMsg"
             guard let url = URL(string: urlString) else { isSaving = false; return }
             var request = URLRequest(url: url)

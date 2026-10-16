@@ -150,7 +150,7 @@ public class ShiftViewModel: ObservableObject {
         isLoading = true
         errorMessage = nil
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/shift_schedules/\(currentWeekId)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/shift_schedules/\(currentWeekId)"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -158,7 +158,7 @@ public class ShiftViewModel: ObservableObject {
                 request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
 
-            guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+            guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
                   httpResponse.statusCode == 200,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let fields = json["fields"] as? [String: Any] else {
@@ -187,11 +187,11 @@ public class ShiftViewModel: ObservableObject {
                 for item in values {
                     if let mapVal = item["mapValue"] as? [String: Any],
                        let subFields = mapVal["fields"] as? [String: Any] {
-                        var empId = FirestoreHelper.getString(subFields["employeeId"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
-                        let empName = FirestoreHelper.getString(subFields["employeeName"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
-                        let maKhuVuc = FirestoreHelper.getString(subFields["maKhuVuc"] as? [String: Any])
-                        let donVi = FirestoreHelper.getString(subFields["donVi"] as? [String: Any])
-                        let empEmail = (FirestoreHelper.getString(subFields["employeeEmail"] as? [String: Any]).isEmpty ? FirestoreHelper.getString(subFields["email"] as? [String: Any]) : FirestoreHelper.getString(subFields["employeeEmail"] as? [String: Any])).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        var empId = DatabaseHelper.getString(subFields["employeeId"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
+                        let empName = DatabaseHelper.getString(subFields["employeeName"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
+                        let maKhuVuc = DatabaseHelper.getString(subFields["maKhuVuc"] as? [String: Any])
+                        let donVi = DatabaseHelper.getString(subFields["donVi"] as? [String: Any])
+                        let empEmail = (DatabaseHelper.getString(subFields["employeeEmail"] as? [String: Any]).isEmpty ? DatabaseHelper.getString(subFields["email"] as? [String: Any]) : DatabaseHelper.getString(subFields["employeeEmail"] as? [String: Any])).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
                         // Standardize MNV if phone or empty
                         let isOldPhone = (empId.hasPrefix("0") && empId.count >= 9) || empId.range(of: "^[0-9]{10}$", options: .regularExpression) != nil
@@ -205,7 +205,7 @@ public class ShiftViewModel: ObservableObject {
                            let daysMapVal = daysObj["mapValue"] as? [String: Any],
                            let dayFields = daysMapVal["fields"] as? [String: Any] {
                             for (dayKey, dayCodeVal) in dayFields {
-                                let code = FirestoreHelper.getString(dayCodeVal as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
+                                let code = DatabaseHelper.getString(dayCodeVal as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
                                 if !code.isEmpty {
                                     rawDays[dayKey.lowercased()] = code
                                 }
@@ -253,7 +253,7 @@ public class ShiftViewModel: ObservableObject {
                            let subFields = map["fields"] as? [String: Any] {
                             var rawDays: [String: String] = [:]
                             for dayKey in shortKeys {
-                                let code = FirestoreHelper.getString(subFields[dayKey] as? [String: Any])
+                                let code = DatabaseHelper.getString(subFields[dayKey] as? [String: Any])
                                 if !code.isEmpty {
                                     rawDays[dayKey] = code
                                 }
@@ -265,7 +265,7 @@ public class ShiftViewModel: ObservableObject {
                                     daysMap[fKeys[idx]] = v
                                 }
                             }
-                            let empName = FirestoreHelper.getString(subFields["name"] as? [String: Any])
+                            let empName = DatabaseHelper.getString(subFields["name"] as? [String: Any])
                             let cleanId = key.replacingOccurrences(of: "emp_", with: "").replacingOccurrences(of: "ktv_", with: "")
                             parsedEntries.append(ShiftEntry(employeeId: cleanId, employeeName: empName.isEmpty ? cleanId : empName, days: daysMap))
                         }
@@ -372,7 +372,7 @@ public class ShiftViewModel: ObservableObject {
     public func syncKtvUsers() async {
         guard !companyId.isEmpty else { return }
         isLoading = true
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users?pageSize=100"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/users?pageSize=100"
         guard let url = URL(string: urlStr) else { isLoading = false; return }
 
         var request = URLRequest(url: url)
@@ -380,7 +380,7 @@ public class ShiftViewModel: ObservableObject {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         }
 
-        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+        guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
               httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let documents = json["documents"] as? [[String: Any]] else {
@@ -391,13 +391,13 @@ public class ShiftViewModel: ObservableObject {
         var fetchedKtvs: [ShiftEntry] = []
         for doc in documents {
             guard let fields = doc["fields"] as? [String: Any] else { continue }
-            let role = FirestoreHelper.getString(fields["role"] as? [String: Any]).uppercased()
-            let dept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any]).uppercased()
-            let dv = FirestoreHelper.getString(fields["donVi"] as? [String: Any]).uppercased()
-            let toNv = FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any]).uppercased()
-            let fullName = FirestoreHelper.getString(fields["fullName"] as? [String: Any])
-            let mnv = FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any])
-            let maKhuVuc = FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any])
+            let role = DatabaseHelper.getString(fields["role"] as? [String: Any]).uppercased()
+            let dept = DatabaseHelper.getString(fields["departmentId"] as? [String: Any]).uppercased()
+            let dv = DatabaseHelper.getString(fields["donVi"] as? [String: Any]).uppercased()
+            let toNv = DatabaseHelper.getString(fields["toNghiepVu"] as? [String: Any]).uppercased()
+            let fullName = DatabaseHelper.getString(fields["fullName"] as? [String: Any])
+            let mnv = DatabaseHelper.getString(fields["maNhanVien"] as? [String: Any])
+            let maKhuVuc = DatabaseHelper.getString(fields["maKhuVuc"] as? [String: Any])
 
             let isTech = role.contains("KTV") || role.contains("KYTHUAT") || role.contains("TECH") ||
                          role.contains("CHUYENVIEN") || role.contains("SPECIALIST") ||
@@ -444,7 +444,7 @@ public class ShiftViewModel: ObservableObject {
         let prevWeek = cal.component(.weekOfYear, from: prevTarget)
         let prevWeekId = String(format: "%04d-W%02d", prevYear, prevWeek)
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/shift_schedules/\(prevWeekId)"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/shift_schedules/\(prevWeekId)"
         guard let url = URL(string: urlStr) else { isLoading = false; return }
 
         var request = URLRequest(url: url)
@@ -452,7 +452,7 @@ public class ShiftViewModel: ObservableObject {
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
         }
 
-        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+        guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
               httpResponse.statusCode == 200,
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let fields = json["fields"] as? [String: Any] else {
@@ -468,17 +468,17 @@ public class ShiftViewModel: ObservableObject {
             for item in values {
                 if let mapVal = item["mapValue"] as? [String: Any],
                    let subFields = mapVal["fields"] as? [String: Any] {
-                    let empId = FirestoreHelper.getString(subFields["employeeId"] as? [String: Any])
-                    let empName = FirestoreHelper.getString(subFields["employeeName"] as? [String: Any])
-                    let maKhuVuc = FirestoreHelper.getString(subFields["maKhuVuc"] as? [String: Any])
-                    let donVi = FirestoreHelper.getString(subFields["donVi"] as? [String: Any])
+                    let empId = DatabaseHelper.getString(subFields["employeeId"] as? [String: Any])
+                    let empName = DatabaseHelper.getString(subFields["employeeName"] as? [String: Any])
+                    let maKhuVuc = DatabaseHelper.getString(subFields["maKhuVuc"] as? [String: Any])
+                    let donVi = DatabaseHelper.getString(subFields["donVi"] as? [String: Any])
                     
                     var daysMap: [String: String] = [:]
                     if let daysObj = subFields["days"] as? [String: Any],
                        let daysMapVal = daysObj["mapValue"] as? [String: Any],
                        let dayFields = daysMapVal["fields"] as? [String: Any] {
                         for (dayKey, dayCodeVal) in dayFields {
-                            let code = FirestoreHelper.getString(dayCodeVal as? [String: Any])
+                            let code = DatabaseHelper.getString(dayCodeVal as? [String: Any])
                             if !code.isEmpty {
                                 daysMap[dayKey.lowercased()] = code
                             }
@@ -502,7 +502,7 @@ public class ShiftViewModel: ObservableObject {
         isSaving = true
         errorMessage = nil
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/shift_schedules/\(currentWeekId)?updateMask.fieldPaths=entries&updateMask.fieldPaths=updatedAt&updateMask.fieldPaths=updatedBy&updateMask.fieldPaths=weekStart"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/shift_schedules/\(currentWeekId)?updateMask.fieldPaths=entries&updateMask.fieldPaths=updatedAt&updateMask.fieldPaths=updatedBy&updateMask.fieldPaths=weekStart"
         guard let url = URL(string: urlStr) else { isSaving = false; return }
 
         var request = URLRequest(url: url)
@@ -563,7 +563,7 @@ public class ShiftViewModel: ObservableObject {
         ]
 
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        if let (_, httpResp) = await FirestoreHelper.executeSafeRequest(request), httpResp.statusCode == 200 {
+        if let (_, httpResp) = await DatabaseHelper.executeSafeRequest(request), httpResp.statusCode == 200 {
             self.successMessage = "✅ Đã lưu phân ca tuần thành công!"
         } else {
             self.errorMessage = "Lỗi lưu phân ca tuần."

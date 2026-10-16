@@ -55,18 +55,18 @@ public struct CompanyEmailConfig {
     }
 
     public static func fromFirestore(_ fields: [String: Any]) -> CompanyEmailConfig {
-        let provider = FirestoreHelper.getString(fields["providerType"] as? [String: Any])
-        let tenant = FirestoreHelper.getString(fields["m365TenantId"] as? [String: Any])
-        let client = FirestoreHelper.getString(fields["m365ClientId"] as? [String: Any])
-        let secret = FirestoreHelper.getString(fields["m365ClientSecret"] as? [String: Any])
-        let mailbox = FirestoreHelper.getString(fields["m365MailboxEmail"] as? [String: Any])
-        let sUser = FirestoreHelper.getString(fields["smtpUsername"] as? [String: Any])
-        let sPass = FirestoreHelper.getString(fields["smtpPassword"] as? [String: Any])
-        let sHost = FirestoreHelper.getString(fields["smtpHost"] as? [String: Any])
-        let sPort = FirestoreHelper.getInt(fields["smtpPort"] as? [String: Any])
-        let rUrl = FirestoreHelper.getString(fields["ratingBaseUrl"] as? [String: Any])
-        let autoSend = FirestoreHelper.getBool(fields["autoSendRatingEmailOnClose"] as? [String: Any], defaultValue: true)
-        let srvUrl = FirestoreHelper.getString(fields["webhookServerUrl"] as? [String: Any])
+        let provider = DatabaseHelper.getString(fields["providerType"] as? [String: Any])
+        let tenant = DatabaseHelper.getString(fields["m365TenantId"] as? [String: Any])
+        let client = DatabaseHelper.getString(fields["m365ClientId"] as? [String: Any])
+        let secret = DatabaseHelper.getString(fields["m365ClientSecret"] as? [String: Any])
+        let mailbox = DatabaseHelper.getString(fields["m365MailboxEmail"] as? [String: Any])
+        let sUser = DatabaseHelper.getString(fields["smtpUsername"] as? [String: Any])
+        let sPass = DatabaseHelper.getString(fields["smtpPassword"] as? [String: Any])
+        let sHost = DatabaseHelper.getString(fields["smtpHost"] as? [String: Any])
+        let sPort = DatabaseHelper.getInt(fields["smtpPort"] as? [String: Any])
+        let rUrl = DatabaseHelper.getString(fields["ratingBaseUrl"] as? [String: Any])
+        let autoSend = DatabaseHelper.getBool(fields["autoSendRatingEmailOnClose"] as? [String: Any], defaultValue: true)
+        let srvUrl = DatabaseHelper.getString(fields["webhookServerUrl"] as? [String: Any])
 
         return CompanyEmailConfig(
             providerType: provider.isEmpty ? "GRAPH_API" : provider,

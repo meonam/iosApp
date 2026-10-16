@@ -305,7 +305,7 @@ public class DeviceViewModel: ObservableObject {
 
         Task {
             let effectiveCompId = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-            var urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(effectiveCompId)/devices?pageSize=300"
+            var urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(effectiveCompId)/devices?pageSize=300"
             if let token = nextPageToken, !isRefresh {
                 urlStr += "&pageToken=\(token)"
             }
@@ -321,7 +321,7 @@ public class DeviceViewModel: ObservableObject {
                 request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
 
-            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+            if let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
                httpResponse.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
 
@@ -333,25 +333,25 @@ public class DeviceViewModel: ObservableObject {
                     guard let name = doc["name"] as? String,
                           let fields = doc["fields"] as? [String: Any] else { return nil }
                     let id = name.components(separatedBy: "/").last ?? ""
-                    let ten = FirestoreHelper.getString(fields, "ten")
-                        .ifEmpty(FirestoreHelper.getString(fields, "name"))
+                    let ten = DatabaseHelper.getString(fields, "ten")
+                        .ifEmpty(DatabaseHelper.getString(fields, "name"))
                         .ifEmpty(id)
-                    let donVi = FirestoreHelper.getString(fields, "tenDonVi")
-                        .ifEmpty(FirestoreHelper.getString(fields, "donVi"))
-                        .ifEmpty(FirestoreHelper.getString(fields, "unitId"))
-                    let trangThai = FirestoreHelper.getString(fields, "trangThai")
-                        .ifEmpty(FirestoreHelper.getString(fields, "status"))
+                    let donVi = DatabaseHelper.getString(fields, "tenDonVi")
+                        .ifEmpty(DatabaseHelper.getString(fields, "donVi"))
+                        .ifEmpty(DatabaseHelper.getString(fields, "unitId"))
+                    let trangThai = DatabaseHelper.getString(fields, "trangThai")
+                        .ifEmpty(DatabaseHelper.getString(fields, "status"))
                         .ifEmpty(DeviceStatusConstants.statusInStock)
-                    let loai = FirestoreHelper.getString(fields, "loai")
-                        .ifEmpty(FirestoreHelper.getString(fields, "deviceType"))
-                    let phongBan = FirestoreHelper.getString(fields, "phongBan")
-                        .ifEmpty(FirestoreHelper.getString(fields, "departmentId"))
-                        .ifEmpty(FirestoreHelper.getString(fields, "role"))
-                    let moTa = FirestoreHelper.getString(fields, "moTa")
-                        .ifEmpty(FirestoreHelper.getString(fields, "description"))
-                    let createdBy = FirestoreHelper.getString(fields, "createdBy")
-                        .ifEmpty(FirestoreHelper.getString(fields, "created_by"))
-                    let companyId = FirestoreHelper.getString(fields, "companyId")
+                    let loai = DatabaseHelper.getString(fields, "loai")
+                        .ifEmpty(DatabaseHelper.getString(fields, "deviceType"))
+                    let phongBan = DatabaseHelper.getString(fields, "phongBan")
+                        .ifEmpty(DatabaseHelper.getString(fields, "departmentId"))
+                        .ifEmpty(DatabaseHelper.getString(fields, "role"))
+                    let moTa = DatabaseHelper.getString(fields, "moTa")
+                        .ifEmpty(DatabaseHelper.getString(fields, "description"))
+                    let createdBy = DatabaseHelper.getString(fields, "createdBy")
+                        .ifEmpty(DatabaseHelper.getString(fields, "created_by"))
+                    let companyId = DatabaseHelper.getString(fields, "companyId")
                         .ifEmpty("SGCOOP")
 
                     return ThietBi(
@@ -359,26 +359,26 @@ public class DeviceViewModel: ObservableObject {
                         ten: ten,
                         tenDonVi: donVi,
                         trangThai: trangThai,
-                        createdAt: FirestoreHelper.getInt64(fields, "createdAt"),
-                        role: FirestoreHelper.getString(fields, "role"),
+                        createdAt: DatabaseHelper.getInt64(fields, "createdAt"),
+                        role: DatabaseHelper.getString(fields, "role"),
                         loai: loai,
                         phongBan: phongBan,
                         moTa: moTa,
                         createdBy: createdBy,
                         companyId: companyId,
                         synced: true,
-                        donViMuon: FirestoreHelper.getString(fields, "donViMuon").ifEmpty(FirestoreHelper.getString(fields, "don_vi_muon")),
-                        phongBanMuon: FirestoreHelper.getString(fields, "phongBanMuon").ifEmpty(FirestoreHelper.getString(fields, "phong_ban_muon")),
-                        nguoiMuon: FirestoreHelper.getString(fields, "nguoiMuon").ifEmpty(FirestoreHelper.getString(fields, "nguoi_muon")),
-                        ngayMuon: FirestoreHelper.getString(fields, "ngayMuon").ifEmpty(FirestoreHelper.getString(fields, "ngay_muon")),
-                        ngayHenTra: FirestoreHelper.getString(fields, "ngayHenTra").ifEmpty(FirestoreHelper.getString(fields, "ngay_hen_tra")),
-                        serialNumber: FirestoreHelper.getString(fields, "serialNumber"),
-                        giaTri: FirestoreHelper.getDouble(fields, "giaTri"),
-                        viTri: FirestoreHelper.getString(fields, "viTri"),
-                        ghiChu: FirestoreHelper.getString(fields, "ghiChu").ifEmpty(moTa),
-                        cauHinh: FirestoreHelper.getString(fields, "cauHinh").ifEmpty(FirestoreHelper.getString(fields, "description")),
-                        qrCodeUrl: FirestoreHelper.getString(fields, "qrCodeUrl"),
-                        hinhAnh: FirestoreHelper.getString(fields, "hinhAnh")
+                        donViMuon: DatabaseHelper.getString(fields, "donViMuon").ifEmpty(DatabaseHelper.getString(fields, "don_vi_muon")),
+                        phongBanMuon: DatabaseHelper.getString(fields, "phongBanMuon").ifEmpty(DatabaseHelper.getString(fields, "phong_ban_muon")),
+                        nguoiMuon: DatabaseHelper.getString(fields, "nguoiMuon").ifEmpty(DatabaseHelper.getString(fields, "nguoi_muon")),
+                        ngayMuon: DatabaseHelper.getString(fields, "ngayMuon").ifEmpty(DatabaseHelper.getString(fields, "ngay_muon")),
+                        ngayHenTra: DatabaseHelper.getString(fields, "ngayHenTra").ifEmpty(DatabaseHelper.getString(fields, "ngay_hen_tra")),
+                        serialNumber: DatabaseHelper.getString(fields, "serialNumber"),
+                        giaTri: DatabaseHelper.getDouble(fields, "giaTri"),
+                        viTri: DatabaseHelper.getString(fields, "viTri"),
+                        ghiChu: DatabaseHelper.getString(fields, "ghiChu").ifEmpty(moTa),
+                        cauHinh: DatabaseHelper.getString(fields, "cauHinh").ifEmpty(DatabaseHelper.getString(fields, "description")),
+                        qrCodeUrl: DatabaseHelper.getString(fields, "qrCodeUrl"),
+                        hinhAnh: DatabaseHelper.getString(fields, "hinhAnh")
                     )
                 }
 
@@ -482,11 +482,11 @@ public class DeviceViewModel: ObservableObject {
         let effectiveComp = companyId.isEmpty ? "SGCOOP" : companyId
 
         // 2. Direct document GET
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(effectiveComp)/devices/\(cleanId)"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(effectiveComp)/devices/\(cleanId)"
         if let url = URL(string: urlStr) {
             var request = URLRequest(url: url)
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+            if let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
                httpResponse.statusCode == 200,
                let doc = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = doc["fields"] as? [String: Any] {
@@ -495,7 +495,7 @@ public class DeviceViewModel: ObservableObject {
         }
 
         // 3. Fallback: runQuery by field `id` or `serialNumber`
-        let queryUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(effectiveComp):runQuery"
+        let queryUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(effectiveComp):runQuery"
         if let queryUrl = URL(string: queryUrlStr) {
             var qReq = URLRequest(url: queryUrl)
             qReq.httpMethod = "POST"
@@ -518,7 +518,7 @@ public class DeviceViewModel: ObservableObject {
             ]
             if let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) {
                 qReq.httpBody = bodyData
-                if let (data, http) = await FirestoreHelper.executeSafeRequest(qReq),
+                if let (data, http) = await DatabaseHelper.executeSafeRequest(qReq),
                    http.statusCode == 200,
                    let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
                     for item in results {
@@ -548,7 +548,7 @@ public class DeviceViewModel: ObservableObject {
             ]
             if let bodyData = try? JSONSerialization.data(withJSONObject: snPayload) {
                 qReq.httpBody = bodyData
-                if let (data, http) = await FirestoreHelper.executeSafeRequest(qReq),
+                if let (data, http) = await DatabaseHelper.executeSafeRequest(qReq),
                    http.statusCode == 200,
                    let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
                     for item in results {
@@ -567,37 +567,37 @@ public class DeviceViewModel: ObservableObject {
     }
 
     private func parseDeviceFromFields(_ id: String, fields: [String: Any], companyId: String) -> ThietBi {
-        let moTa = FirestoreHelper.getString(fields, "moTa")
-            .ifEmpty(FirestoreHelper.getString(fields, "description"))
-        let rawNguonGoc = FirestoreHelper.getString(fields, "nguonGoc")
-            .ifEmpty(FirestoreHelper.getString(fields, "origin"))
+        let moTa = DatabaseHelper.getString(fields, "moTa")
+            .ifEmpty(DatabaseHelper.getString(fields, "description"))
+        let rawNguonGoc = DatabaseHelper.getString(fields, "nguonGoc")
+            .ifEmpty(DatabaseHelper.getString(fields, "origin"))
         let nguonGoc = rawNguonGoc.isEmpty ? DeviceOriginConstants.originDept : rawNguonGoc
 
         return ThietBi(
             id: id,
-            ten: FirestoreHelper.getString(fields, "ten"),
-            tenDonVi: FirestoreHelper.getString(fields, "tenDonVi"),
-            trangThai: FirestoreHelper.getString(fields, "trangThai"),
-            createdAt: FirestoreHelper.getInt64(fields, "createdAt"),
-            role: FirestoreHelper.getString(fields, "role"),
-            loai: FirestoreHelper.getString(fields, "loai"),
-            phongBan: FirestoreHelper.getString(fields, "phongBan"),
+            ten: DatabaseHelper.getString(fields, "ten"),
+            tenDonVi: DatabaseHelper.getString(fields, "tenDonVi"),
+            trangThai: DatabaseHelper.getString(fields, "trangThai"),
+            createdAt: DatabaseHelper.getInt64(fields, "createdAt"),
+            role: DatabaseHelper.getString(fields, "role"),
+            loai: DatabaseHelper.getString(fields, "loai"),
+            phongBan: DatabaseHelper.getString(fields, "phongBan"),
             moTa: moTa,
-            createdBy: FirestoreHelper.getString(fields, "createdBy"),
+            createdBy: DatabaseHelper.getString(fields, "createdBy"),
             companyId: companyId,
             synced: true,
-            donViMuon: FirestoreHelper.getString(fields, "donViMuon"),
-            phongBanMuon: FirestoreHelper.getString(fields, "phongBanMuon"),
-            nguoiMuon: FirestoreHelper.getString(fields, "nguoiMuon"),
-            ngayMuon: FirestoreHelper.getString(fields, "ngayMuon"),
-            ngayHenTra: FirestoreHelper.getString(fields, "ngayHenTra"),
-            serialNumber: FirestoreHelper.getString(fields, "serialNumber"),
-            giaTri: FirestoreHelper.getDouble(fields, "giaTri"),
-            viTri: FirestoreHelper.getString(fields, "viTri"),
-            ghiChu: FirestoreHelper.getString(fields, "ghiChu").ifEmpty(moTa),
-            cauHinh: FirestoreHelper.getString(fields, "cauHinh").ifEmpty(FirestoreHelper.getString(fields, "description")),
-            qrCodeUrl: FirestoreHelper.getString(fields, "qrCodeUrl"),
-            hinhAnh: FirestoreHelper.getString(fields, "hinhAnh"),
+            donViMuon: DatabaseHelper.getString(fields, "donViMuon"),
+            phongBanMuon: DatabaseHelper.getString(fields, "phongBanMuon"),
+            nguoiMuon: DatabaseHelper.getString(fields, "nguoiMuon"),
+            ngayMuon: DatabaseHelper.getString(fields, "ngayMuon"),
+            ngayHenTra: DatabaseHelper.getString(fields, "ngayHenTra"),
+            serialNumber: DatabaseHelper.getString(fields, "serialNumber"),
+            giaTri: DatabaseHelper.getDouble(fields, "giaTri"),
+            viTri: DatabaseHelper.getString(fields, "viTri"),
+            ghiChu: DatabaseHelper.getString(fields, "ghiChu").ifEmpty(moTa),
+            cauHinh: DatabaseHelper.getString(fields, "cauHinh").ifEmpty(DatabaseHelper.getString(fields, "description")),
+            qrCodeUrl: DatabaseHelper.getString(fields, "qrCodeUrl"),
+            hinhAnh: DatabaseHelper.getString(fields, "hinhAnh"),
             nguonGoc: nguonGoc
         )
     }
@@ -610,18 +610,18 @@ public class DeviceViewModel: ObservableObject {
     public func loadDepartmentsAndUnits() {
         Task {
             // 1. Departments
-            if let deptUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/departments") {
+            if let deptUrl = URL(string: "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/departments") {
                 var req = URLRequest(url: deptUrl)
                 req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                if let (data, http) = await FirestoreHelper.executeSafeRequest(req),
+                if let (data, http) = await DatabaseHelper.executeSafeRequest(req),
                    http.statusCode == 200,
                    let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                    let docs = json["documents"] as? [[String: Any]] {
                     var dList: [String] = []
                     for doc in docs {
                         if let f = doc["fields"] as? [String: Any] {
-                            let name = FirestoreHelper.getString(f, "departmentName")
-                            let dId = FirestoreHelper.getString(f, "departmentId")
+                            let name = DatabaseHelper.getString(f, "departmentName")
+                            let dId = DatabaseHelper.getString(f, "departmentId")
                             let effective = !name.isEmpty ? name : dId
                             if !effective.isEmpty && !dList.contains(effective) {
                                 dList.append(effective)
@@ -633,10 +633,10 @@ public class DeviceViewModel: ObservableObject {
             }
 
             // 2. Units
-            if let unitUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/units") {
+            if let unitUrl = URL(string: "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/units") {
                 var req = URLRequest(url: unitUrl)
                 req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                if let (data, http) = await FirestoreHelper.executeSafeRequest(req),
+                if let (data, http) = await DatabaseHelper.executeSafeRequest(req),
                    http.statusCode == 200,
                    let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                    let docs = json["documents"] as? [[String: Any]] {
@@ -644,8 +644,8 @@ public class DeviceViewModel: ObservableObject {
                     var map: [String: String] = [:]
                     for doc in docs {
                         if let f = doc["fields"] as? [String: Any] {
-                            let uName = FirestoreHelper.getString(f, "unitName").ifEmpty(FirestoreHelper.getString(f, "tenDonVi"))
-                            let dept = FirestoreHelper.getString(f, "phongBan").ifEmpty(FirestoreHelper.getString(f, "departmentName"))
+                            let uName = DatabaseHelper.getString(f, "unitName").ifEmpty(DatabaseHelper.getString(f, "tenDonVi"))
+                            let dept = DatabaseHelper.getString(f, "phongBan").ifEmpty(DatabaseHelper.getString(f, "departmentName"))
                             if !uName.isEmpty {
                                 if !uList.contains(uName) { uList.append(uName) }
                                 if !dept.isEmpty { map[uName.lowercased()] = dept }
@@ -666,13 +666,13 @@ public class DeviceViewModel: ObservableObject {
         }
         Task {
             let effectiveCompId = self.companyId.isEmpty ? "SGCOOP" : self.companyId
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(effectiveCompId)/device_types?pageSize=300"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(effectiveCompId)/device_types?pageSize=300"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+            if let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
                httpResponse.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
 
@@ -681,12 +681,12 @@ public class DeviceViewModel: ObservableObject {
                     guard let namePath = doc["name"] as? String,
                           let fields = doc["fields"] as? [String: Any] else { return nil }
                     let id = namePath.components(separatedBy: "/").last ?? ""
-                    let name = FirestoreHelper.getString(fields, "name")
-                        .ifEmpty(FirestoreHelper.getString(fields, "displayName"))
-                        .ifEmpty(FirestoreHelper.getString(fields, "tenLoai"))
-                        .ifEmpty(FirestoreHelper.getString(fields, "typeId"))
-                    let phongBan = FirestoreHelper.getString(fields, "phongBan")
-                    let compId = FirestoreHelper.getString(fields, "companyId")
+                    let name = DatabaseHelper.getString(fields, "name")
+                        .ifEmpty(DatabaseHelper.getString(fields, "displayName"))
+                        .ifEmpty(DatabaseHelper.getString(fields, "tenLoai"))
+                        .ifEmpty(DatabaseHelper.getString(fields, "typeId"))
+                    let phongBan = DatabaseHelper.getString(fields, "phongBan")
+                    let compId = DatabaseHelper.getString(fields, "companyId")
                     return DeviceType(id: id, name: name.isEmpty ? id : name, phongBan: phongBan, companyId: compId)
                 }
 
@@ -717,7 +717,7 @@ public class DeviceViewModel: ObservableObject {
             .replacingOccurrences(of: " ", with: "_")
             .filter { $0.isLetter || $0.isNumber || $0 == "_" }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types/\(docId)"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/device_types/\(docId)"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -737,7 +737,7 @@ public class DeviceViewModel: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": fields])
 
         Task {
-            if let (_, http) = await FirestoreHelper.executeSafeRequest(request),
+            if let (_, http) = await DatabaseHelper.executeSafeRequest(request),
                (200...299).contains(http.statusCode) {
                 let newType = DeviceType(id: docId, name: cleanName, phongBan: phongBan, companyId: self.companyId)
                 self.deviceTypes.append(newType)
@@ -754,7 +754,7 @@ public class DeviceViewModel: ObservableObject {
         let cleanName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanName.isEmpty else { return }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types/\(typeId)?updateMask.fieldPaths=name"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/device_types/\(typeId)?updateMask.fieldPaths=name"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -766,7 +766,7 @@ public class DeviceViewModel: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         Task {
-            if let (_, http) = await FirestoreHelper.executeSafeRequest(request),
+            if let (_, http) = await DatabaseHelper.executeSafeRequest(request),
                (200...299).contains(http.statusCode) {
                 if let idx = self.deviceTypes.firstIndex(where: { $0.id == typeId }) {
                     self.deviceTypes[idx].name = cleanName
@@ -780,7 +780,7 @@ public class DeviceViewModel: ObservableObject {
     }
 
     public func deleteDeviceType(typeId: String, completion: @escaping (Result<Void, Error>) -> Void) {
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types/\(typeId)"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/device_types/\(typeId)"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -788,7 +788,7 @@ public class DeviceViewModel: ObservableObject {
         request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
         Task {
-            if let (_, http) = await FirestoreHelper.executeSafeRequest(request),
+            if let (_, http) = await DatabaseHelper.executeSafeRequest(request),
                (200...299).contains(http.statusCode) {
                 self.deviceTypes.removeAll { $0.id == typeId }
                 self.successMessage = "Đã xóa loại thiết bị"
@@ -802,12 +802,12 @@ public class DeviceViewModel: ObservableObject {
     public func deleteAllDeviceTypes(completion: @escaping (Result<Void, Error>) -> Void) {
         Task {
             for t in deviceTypes {
-                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/device_types/\(t.id)"
+                let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/device_types/\(t.id)"
                 if let url = URL(string: urlStr) {
                     var req = URLRequest(url: url)
                     req.httpMethod = "DELETE"
                     req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                    _ = await FirestoreHelper.executeSafeRequest(req)
+                    _ = await DatabaseHelper.executeSafeRequest(req)
                 }
             }
             self.deviceTypes.removeAll()
@@ -872,7 +872,7 @@ public class DeviceViewModel: ObservableObject {
             fields["ngayMuon"] = ["stringValue": dateStr]
         }
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(effectiveCompId)/devices/\(cleanId)"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(effectiveCompId)/devices/\(cleanId)"
         guard let url = URL(string: urlStr) else { return }
 
         var request = URLRequest(url: url)
@@ -891,7 +891,7 @@ public class DeviceViewModel: ObservableObject {
                 return
             }
 
-            let res = await FirestoreHelper.executeSafeRequest(request)
+            let res = await DatabaseHelper.executeSafeRequest(request)
             self.isLoading = false
             if let (data, http) = res, (200...299).contains(http.statusCode) {
                 let newDevice = ThietBi(
@@ -1004,7 +1004,7 @@ public class DeviceViewModel: ObservableObject {
             }
 
             // 1. Log History
-            let historyUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/history"
+            let historyUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/history"
             if let histUrl = URL(string: historyUrlStr) {
                 var histReq = URLRequest(url: histUrl)
                 histReq.httpMethod = "POST"
@@ -1021,7 +1021,7 @@ public class DeviceViewModel: ObservableObject {
                     "createdAt": ["integerValue": "\(now)"]
                 ]
                 histReq.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": histFields])
-                _ = await FirestoreHelper.executeSafeRequest(histReq)
+                _ = await DatabaseHelper.executeSafeRequest(histReq)
             }
 
             // 2. Compute New Status
@@ -1082,14 +1082,14 @@ public class DeviceViewModel: ObservableObject {
             }
 
             let maskQuery = updateMasks.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
-            let devUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(deviceId)?\(maskQuery)"
+            let devUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/devices/\(deviceId)?\(maskQuery)"
             if let devUrl = URL(string: devUrlStr) {
                 var devReq = URLRequest(url: devUrl)
                 devReq.httpMethod = "PATCH"
                 devReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
                 devReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 devReq.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": devFields])
-                _ = await FirestoreHelper.executeSafeRequest(devReq)
+                _ = await DatabaseHelper.executeSafeRequest(devReq)
             }
 
             self.successMessage = "Đã cập nhật trạng thái: \(newStatus) (\(finalMoTa))"
@@ -1127,19 +1127,19 @@ public class DeviceViewModel: ObservableObject {
                     bodyFields["nguonGoc"] = ["stringValue": org.trimmingCharacters(in: .whitespacesAndNewlines)]
                 }
                 let maskQuery = updateMasks.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
-                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(cleanOldId)?\(maskQuery)"
+                let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/devices/\(cleanOldId)?\(maskQuery)"
                 if let url = URL(string: urlStr) {
                     var req = URLRequest(url: url)
                     req.httpMethod = "PATCH"
                     req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
                     req.setValue("application/json", forHTTPHeaderField: "Content-Type")
                     req.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": bodyFields])
-                    _ = await FirestoreHelper.executeSafeRequest(req)
+                    _ = await DatabaseHelper.executeSafeRequest(req)
                 }
             } else {
                 // Fetch old doc
                 if let oldDev = await getDeviceById(cleanOldId) {
-                    let newUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(cleanNewId)"
+                    let newUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/devices/\(cleanNewId)"
                     if let newUrl = URL(string: newUrlStr) {
                         var req = URLRequest(url: newUrl)
                         req.httpMethod = "PATCH"
@@ -1163,15 +1163,15 @@ public class DeviceViewModel: ObservableObject {
                         if let m = oldDev.moTa { fields["moTa"] = ["stringValue": m] }
 
                         req.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": fields])
-                        _ = await FirestoreHelper.executeSafeRequest(req)
+                        _ = await DatabaseHelper.executeSafeRequest(req)
 
                         // Delete old doc
-                        let delUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(cleanOldId)"
+                        let delUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/devices/\(cleanOldId)"
                         if let delUrl = URL(string: delUrlStr) {
                             var delReq = URLRequest(url: delUrl)
                             delReq.httpMethod = "DELETE"
                             delReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
-                            _ = await FirestoreHelper.executeSafeRequest(delReq)
+                            _ = await DatabaseHelper.executeSafeRequest(delReq)
                         }
                     }
                 }
@@ -1190,14 +1190,14 @@ public class DeviceViewModel: ObservableObject {
         guard user.isAdmin || user.isSuperAdmin else { return }
         isLoading = true
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/devices/\(deviceId)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/devices/\(deviceId)"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
             request.httpMethod = "DELETE"
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
             self.successMessage = "Đã xóa thiết bị \(deviceId)"
             self.fetchDevices()
         }

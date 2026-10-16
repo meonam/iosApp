@@ -331,7 +331,7 @@ public struct HelpView: View {
 
         isSendingFeedback = true
         let companyId = authViewModel.currentCompanyId
-        let urlString = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/feedback"
+        let urlString = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/feedback"
 
         guard let url = URL(string: urlString) else {
             self.feedbackMessage = "Lỗi URL"

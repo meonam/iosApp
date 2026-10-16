@@ -134,13 +134,13 @@ public class SupportViewModel: ObservableObject {
         guard !companyId.isEmpty else { return }
         Task {
             let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/system_toggle_config"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/system_config/system_toggle_config"
             guard let url = URL(string: urlStr) else { return }
             var req = URLRequest(url: url)
             if !idToken.isEmpty {
                 req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
-            if let (data, httpResp) = await FirestoreHelper.executeSafeRequest(req), httpResp.statusCode == 200,
+            if let (data, httpResp) = await DatabaseHelper.executeSafeRequest(req), httpResp.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
                 let allowReopen = (fields["allowTicketReopen"] as? [String: Any])?["booleanValue"] as? Bool ?? false
@@ -175,23 +175,23 @@ public class SupportViewModel: ObservableObject {
         guard !companyId.isEmpty else { return }
         Task {
             let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/travel_expense_config"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/system_config/travel_expense_config"
             guard let url = URL(string: urlStr) else { return }
             var req = URLRequest(url: url)
             if !idToken.isEmpty {
                 req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
-            if let (data, httpResp) = await FirestoreHelper.executeSafeRequest(req), httpResp.statusCode == 200,
+            if let (data, httpResp) = await DatabaseHelper.executeSafeRequest(req), httpResp.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
-                let s1In = FirestoreHelper.getString(fields["shift1CheckInTime"] as? [String: Any]).isEmpty ? "08:00" : FirestoreHelper.getString(fields["shift1CheckInTime"] as? [String: Any])
-                let s1Out = FirestoreHelper.getString(fields["shift1CheckOutTime"] as? [String: Any]).isEmpty ? "15:00" : FirestoreHelper.getString(fields["shift1CheckOutTime"] as? [String: Any])
-                let s2In = FirestoreHelper.getString(fields["shift2CheckInTime"] as? [String: Any]).isEmpty ? "14:00" : FirestoreHelper.getString(fields["shift2CheckInTime"] as? [String: Any])
-                let s2Out = FirestoreHelper.getString(fields["shift2CheckOutTime"] as? [String: Any]).isEmpty ? "22:00" : FirestoreHelper.getString(fields["shift2CheckOutTime"] as? [String: Any])
-                let hcIn = FirestoreHelper.getString(fields["standardCheckInTime"] as? [String: Any]).isEmpty ? "08:00" : FirestoreHelper.getString(fields["standardCheckInTime"] as? [String: Any])
-                let hcOut = FirestoreHelper.getString(fields["standardCheckOutTime"] as? [String: Any]).isEmpty ? "17:00" : FirestoreHelper.getString(fields["standardCheckOutTime"] as? [String: Any])
-                let nightIn = FirestoreHelper.getString(fields["nightCheckInTime"] as? [String: Any]).isEmpty ? "22:00" : FirestoreHelper.getString(fields["nightCheckInTime"] as? [String: Any])
-                let nightOut = FirestoreHelper.getString(fields["nightCheckOutTime"] as? [String: Any]).isEmpty ? "06:00" : FirestoreHelper.getString(fields["nightCheckOutTime"] as? [String: Any])
+                let s1In = DatabaseHelper.getString(fields["shift1CheckInTime"] as? [String: Any]).isEmpty ? "08:00" : DatabaseHelper.getString(fields["shift1CheckInTime"] as? [String: Any])
+                let s1Out = DatabaseHelper.getString(fields["shift1CheckOutTime"] as? [String: Any]).isEmpty ? "15:00" : DatabaseHelper.getString(fields["shift1CheckOutTime"] as? [String: Any])
+                let s2In = DatabaseHelper.getString(fields["shift2CheckInTime"] as? [String: Any]).isEmpty ? "14:00" : DatabaseHelper.getString(fields["shift2CheckInTime"] as? [String: Any])
+                let s2Out = DatabaseHelper.getString(fields["shift2CheckOutTime"] as? [String: Any]).isEmpty ? "22:00" : DatabaseHelper.getString(fields["shift2CheckOutTime"] as? [String: Any])
+                let hcIn = DatabaseHelper.getString(fields["standardCheckInTime"] as? [String: Any]).isEmpty ? "08:00" : DatabaseHelper.getString(fields["standardCheckInTime"] as? [String: Any])
+                let hcOut = DatabaseHelper.getString(fields["standardCheckOutTime"] as? [String: Any]).isEmpty ? "17:00" : DatabaseHelper.getString(fields["standardCheckOutTime"] as? [String: Any])
+                let nightIn = DatabaseHelper.getString(fields["nightCheckInTime"] as? [String: Any]).isEmpty ? "22:00" : DatabaseHelper.getString(fields["nightCheckInTime"] as? [String: Any])
+                let nightOut = DatabaseHelper.getString(fields["nightCheckOutTime"] as? [String: Any]).isEmpty ? "06:00" : DatabaseHelper.getString(fields["nightCheckOutTime"] as? [String: Any])
 
                 await MainActor.run {
                     self.shiftHours = [
@@ -210,58 +210,58 @@ public class SupportViewModel: ObservableObject {
         guard !companyId.isEmpty else { return }
         Task {
             let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/sla_config"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/system_config/sla_config"
             guard let url = URL(string: urlStr) else { return }
             var req = URLRequest(url: url)
             if !idToken.isEmpty {
                 req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
-            if let (data, httpResp) = await FirestoreHelper.executeSafeRequest(req), httpResp.statusCode == 200,
+            if let (data, httpResp) = await DatabaseHelper.executeSafeRequest(req), httpResp.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
                 var cfg = SlaConfig()
-                let rDef = FirestoreHelper.getInt(fields["responseMinutesDefault"] as? [String: Any])
+                let rDef = DatabaseHelper.getInt(fields["responseMinutesDefault"] as? [String: Any])
                 if rDef > 0 {
                     cfg.responseMinutesDefault = rDef
                 }
-                let rUrg = FirestoreHelper.getInt(fields["resolveMinutesUrgent"] as? [String: Any])
+                let rUrg = DatabaseHelper.getInt(fields["resolveMinutesUrgent"] as? [String: Any])
                 if rUrg > 0 {
                     cfg.resolveMinutesUrgent = rUrg
                 }
-                let rHigh = FirestoreHelper.getInt(fields["resolveMinutesHigh"] as? [String: Any])
+                let rHigh = DatabaseHelper.getInt(fields["resolveMinutesHigh"] as? [String: Any])
                 if rHigh > 0 {
                     cfg.resolveMinutesHigh = rHigh
                 }
-                let rNorm = FirestoreHelper.getInt(fields["resolveMinutesNormal"] as? [String: Any])
+                let rNorm = DatabaseHelper.getInt(fields["resolveMinutesNormal"] as? [String: Any])
                 if rNorm > 0 {
                     cfg.resolveMinutesNormal = rNorm
                 }
-                let rLow = FirestoreHelper.getInt(fields["resolveMinutesLow"] as? [String: Any])
+                let rLow = DatabaseHelper.getInt(fields["resolveMinutesLow"] as? [String: Any])
                 if rLow > 0 {
                     cfg.resolveMinutesLow = rLow
                 }
-                let qUrg = FirestoreHelper.getInt(fields["qualityTrackingHoursUrgent"] as? [String: Any])
+                let qUrg = DatabaseHelper.getInt(fields["qualityTrackingHoursUrgent"] as? [String: Any])
                 if qUrg > 0 {
                     cfg.qualityTrackingHoursUrgent = qUrg
                 }
-                let qHigh = FirestoreHelper.getInt(fields["qualityTrackingHoursHigh"] as? [String: Any])
+                let qHigh = DatabaseHelper.getInt(fields["qualityTrackingHoursHigh"] as? [String: Any])
                 if qHigh > 0 {
                     cfg.qualityTrackingHoursHigh = qHigh
                 }
-                let qNorm = FirestoreHelper.getInt(fields["qualityTrackingHoursNormal"] as? [String: Any])
+                let qNorm = DatabaseHelper.getInt(fields["qualityTrackingHoursNormal"] as? [String: Any])
                 if qNorm > 0 {
                     cfg.qualityTrackingHoursNormal = qNorm
                 }
-                let qLow = FirestoreHelper.getInt(fields["qualityTrackingHoursLow"] as? [String: Any])
+                let qLow = DatabaseHelper.getInt(fields["qualityTrackingHoursLow"] as? [String: Any])
                 if qLow > 0 {
                     cfg.qualityTrackingHoursLow = qLow
                 }
-                let wMin = FirestoreHelper.getInt(fields["warningBeforeBreachMinutes"] as? [String: Any])
+                let wMin = DatabaseHelper.getInt(fields["warningBeforeBreachMinutes"] as? [String: Any])
                 if wMin > 0 {
                     cfg.warningBeforeBreachMinutes = wMin
                 }
                 if fields["slaPenaltyPercentDefault"] != nil {
-                    let pen = FirestoreHelper.getInt(fields["slaPenaltyPercentDefault"] as? [String: Any])
+                    let pen = DatabaseHelper.getInt(fields["slaPenaltyPercentDefault"] as? [String: Any])
                     cfg.slaPenaltyPercentDefault = pen
                 }
                 if let eh = fields["enableHelpdeskSla"] as? [String: Any], let b = eh["booleanValue"] as? Bool {
@@ -270,15 +270,15 @@ public class SupportViewModel: ObservableObject {
                 if let autoOff = fields["enableAutoDispatchOffHours"] as? [String: Any], let b = autoOff["booleanValue"] as? Bool {
                     cfg.enableAutoDispatchOffHours = b
                 }
-                let wdS = FirestoreHelper.getString(fields["helpdeskWeekdayStart"] as? [String: Any])
+                let wdS = DatabaseHelper.getString(fields["helpdeskWeekdayStart"] as? [String: Any])
                 if !wdS.isEmpty { cfg.helpdeskWeekdayStart = wdS }
-                let wdE = FirestoreHelper.getString(fields["helpdeskWeekdayEnd"] as? [String: Any])
+                let wdE = DatabaseHelper.getString(fields["helpdeskWeekdayEnd"] as? [String: Any])
                 if !wdE.isEmpty { cfg.helpdeskWeekdayEnd = wdE }
-                let satS = FirestoreHelper.getString(fields["helpdeskSaturdayStart"] as? [String: Any])
+                let satS = DatabaseHelper.getString(fields["helpdeskSaturdayStart"] as? [String: Any])
                 if !satS.isEmpty { cfg.helpdeskSaturdayStart = satS }
-                let satE = FirestoreHelper.getString(fields["helpdeskSaturdayEnd"] as? [String: Any])
+                let satE = DatabaseHelper.getString(fields["helpdeskSaturdayEnd"] as? [String: Any])
                 if !satE.isEmpty { cfg.helpdeskSaturdayEnd = satE }
-                let escMin = FirestoreHelper.getInt(fields["escalationTimeoutMinutes"] as? [String: Any])
+                let escMin = DatabaseHelper.getInt(fields["escalationTimeoutMinutes"] as? [String: Any])
                 if escMin > 0 { cfg.escalationTimeoutMinutes = escMin }
                 if let hArr = fields["holidaysList"] as? [String: Any],
                    let vals = hArr["arrayValue"] as? [String: Any],
@@ -297,21 +297,21 @@ public class SupportViewModel: ObservableObject {
         guard !companyId.isEmpty else { return }
         Task {
             let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/units?pageSize=300"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/units?pageSize=300"
             guard let url = URL(string: urlStr) else { return }
             var req = URLRequest(url: url)
             if !idToken.isEmpty { req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-            if let (data, resp) = await FirestoreHelper.executeSafeRequest(req), resp.statusCode == 200,
+            if let (data, resp) = await DatabaseHelper.executeSafeRequest(req), resp.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let docs = json["documents"] as? [[String: Any]] {
                 let units: [DonVi] = docs.compactMap { doc in
                     guard let fields = doc["fields"] as? [String: Any],
                           let name = doc["name"] as? String else { return nil }
                     let id = name.components(separatedBy: "/").last ?? ""
-                    let uName = FirestoreHelper.getString(fields["unitName"] as? [String: Any]).isEmpty
-                        ? (FirestoreHelper.getString(fields["name"] as? [String: Any]).isEmpty ? id : FirestoreHelper.getString(fields["name"] as? [String: Any]))
-                        : FirestoreHelper.getString(fields["unitName"] as? [String: Any])
-                    let maKhuVuc = FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any])
+                    let uName = DatabaseHelper.getString(fields["unitName"] as? [String: Any]).isEmpty
+                        ? (DatabaseHelper.getString(fields["name"] as? [String: Any]).isEmpty ? id : DatabaseHelper.getString(fields["name"] as? [String: Any]))
+                        : DatabaseHelper.getString(fields["unitName"] as? [String: Any])
+                    let maKhuVuc = DatabaseHelper.getString(fields["maKhuVuc"] as? [String: Any])
                     return DonVi(id: id, tenDonVi: uName, maKhuVuc: maKhuVuc, companyId: cleanComp)
                 }
                 await MainActor.run {
@@ -325,7 +325,7 @@ public class SupportViewModel: ObservableObject {
     public func deleteTicketPermanently(id: String) {
         guard !id.isEmpty, !companyId.isEmpty else { return }
         let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/tickets/\(id)"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/tickets/\(id)"
         guard let url = URL(string: urlStr) else { return }
 
         var req = URLRequest(url: url)
@@ -593,13 +593,13 @@ public class SupportViewModel: ObservableObject {
         firestoreListenTask = Task { [weak self] in
             guard let self = self else { return }
             // Firestore REST Listen endpoint: POST :listen với resumeToken
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(compId):listen"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(compId):listen"
             guard let url = URL(string: urlStr) else { return }
 
             let listenBody: [String: Any] = [
                 "addTarget": [
                     "query": [
-                        "parent": "\(FirebaseConfig.firestoreBaseUrl)/companies/\(compId)",
+                        "parent": "\(ServerConfig.documentsBaseUrl)/companies/\(compId)",
                         "structuredQuery": [
                             "from": [["collectionId": "support_tickets"]],
                             "orderBy": [["field": ["fieldPath": "createdAt"], "direction": "DESCENDING"]],
@@ -717,7 +717,7 @@ public class SupportViewModel: ObservableObject {
         }
 
         let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp):runQuery"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp):runQuery"
         guard let url = URL(string: urlStr) else {
             if showSpinner {
                 await MainActor.run { self.isLoading = false }
@@ -754,7 +754,7 @@ public class SupportViewModel: ObservableObject {
         var responseData: Data? = nil
         var isSuccess = false
 
-        if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+        if let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
            httpResponse.statusCode == 200 {
             responseData = data
             isSuccess = true
@@ -762,13 +762,13 @@ public class SupportViewModel: ObservableObject {
 
         // Fallback: Nếu runQuery bị lỗi hoặc không có dữ liệu, dùng trực tiếp document listing
         if !isSuccess || responseData == nil {
-            let listUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=500"
+            let listUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/support_tickets?pageSize=500"
             if let listUrl = URL(string: listUrlStr) {
                 var listReq = URLRequest(url: listUrl)
                 if !idToken.isEmpty {
                     listReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
                 }
-                if let (lData, lHttp) = await FirestoreHelper.executeSafeRequest(listReq),
+                if let (lData, lHttp) = await DatabaseHelper.executeSafeRequest(listReq),
                    lHttp.statusCode == 200 {
                     if let json = try? JSONSerialization.jsonObject(with: lData) as? [String: Any],
                        let docs = json["documents"] as? [[String: Any]] {
@@ -799,14 +799,14 @@ public class SupportViewModel: ObservableObject {
                       let fields = doc["fields"] as? [String: Any] else { return nil }
                 let id = name.components(separatedBy: "/").last ?? ""
 
-                let ackBool = FirestoreHelper.getBool(fields["isAcknowledged"] as? [String: Any]) || FirestoreHelper.getBool(fields["acknowledged"] as? [String: Any])
-                let ackAt = FirestoreHelper.getInt64(fields["acknowledgedAt"] as? [String: Any])
-                let ackBy = FirestoreHelper.getString(fields["acknowledgedBy"] as? [String: Any])
-                let ackByName = FirestoreHelper.getString(fields["acknowledgedByName"] as? [String: Any])
-                let hdAckAt = FirestoreHelper.getInt64(fields["helpdeskAcknowledgedAt"] as? [String: Any])
-                let hdAckBy = FirestoreHelper.getString(fields["helpdeskAcknowledgedBy"] as? [String: Any])
-                let rawMethod = FirestoreHelper.getString(fields["handlingMethod"] as? [String: Any])
-                let rawStatus = FirestoreHelper.getString(fields["status"] as? [String: Any]).uppercased()
+                let ackBool = DatabaseHelper.getBool(fields["isAcknowledged"] as? [String: Any]) || DatabaseHelper.getBool(fields["acknowledged"] as? [String: Any])
+                let ackAt = DatabaseHelper.getInt64(fields["acknowledgedAt"] as? [String: Any])
+                let ackBy = DatabaseHelper.getString(fields["acknowledgedBy"] as? [String: Any])
+                let ackByName = DatabaseHelper.getString(fields["acknowledgedByName"] as? [String: Any])
+                let hdAckAt = DatabaseHelper.getInt64(fields["helpdeskAcknowledgedAt"] as? [String: Any])
+                let hdAckBy = DatabaseHelper.getString(fields["helpdeskAcknowledgedBy"] as? [String: Any])
+                let rawMethod = DatabaseHelper.getString(fields["handlingMethod"] as? [String: Any])
+                let rawStatus = DatabaseHelper.getString(fields["status"] as? [String: Any]).uppercased()
                 let ack = ackBool || ackAt > 0 || !ackBy.isEmpty || !rawMethod.isEmpty || ["PROCESSING", "IN_PROGRESS", "ASSIGNED", "RESOLVED", "CLOSED"].contains(rawStatus)
 
                 // Parse attachments if any
@@ -815,11 +815,11 @@ public class SupportViewModel: ObservableObject {
                    let values = attArray["values"] as? [[String: Any]] {
                     for v in values {
                         if let mMap = v["mapValue"] as? [String: Any], let mFields = mMap["fields"] as? [String: Any] {
-                            let aId = FirestoreHelper.getString(mFields["id"] as? [String: Any])
-                            let aName = FirestoreHelper.getString(mFields["name"] as? [String: Any])
-                            let aUrl = FirestoreHelper.getString(mFields["url"] as? [String: Any])
-                            let aSize = FirestoreHelper.getInt64(mFields["size"] as? [String: Any])
-                            let aType = FirestoreHelper.getString(mFields["type"] as? [String: Any])
+                            let aId = DatabaseHelper.getString(mFields["id"] as? [String: Any])
+                            let aName = DatabaseHelper.getString(mFields["name"] as? [String: Any])
+                            let aUrl = DatabaseHelper.getString(mFields["url"] as? [String: Any])
+                            let aSize = DatabaseHelper.getInt64(mFields["size"] as? [String: Any])
+                            let aType = DatabaseHelper.getString(mFields["type"] as? [String: Any])
                             attachmentsList.append(AttachmentItem(id: aId, name: aName, url: aUrl, size: aSize, type: aType))
                         }
                     }
@@ -833,8 +833,8 @@ public class SupportViewModel: ObservableObject {
                        let rVals = rArr["values"] as? [[String: Any]] {
                         for v in rVals {
                             if let vm = (v["mapValue"] as? [String: Any])?["fields"] as? [String: Any] {
-                                let lat = FirestoreHelper.getDouble(vm["lat"] as? [String: Any])
-                                let lng = FirestoreHelper.getDouble(vm["lng"] as? [String: Any])
+                                let lat = DatabaseHelper.getDouble(vm["lat"] as? [String: Any])
+                                let lng = DatabaseHelper.getDouble(vm["lng"] as? [String: Any])
                                 if lat != 0 && lng != 0 {
                                     routeCoords.append([lat, lng])
                                 }
@@ -842,33 +842,33 @@ public class SupportViewModel: ObservableObject {
                         }
                     }
                     parsedTracking = TicketTracking(
-                        ticketId: FirestoreHelper.getString(tFields["ticketId"] as? [String: Any]),
-                        technicianEmail: FirestoreHelper.getString(tFields["technicianEmail"] as? [String: Any]),
-                        technicianName: FirestoreHelper.getString(tFields["technicianName"] as? [String: Any]),
-                        technicianPhone: FirestoreHelper.getString(tFields["technicianPhone"] as? [String: Any]),
-                        currentLat: FirestoreHelper.getDouble(tFields["currentLat"] as? [String: Any]),
-                        currentLng: FirestoreHelper.getDouble(tFields["currentLng"] as? [String: Any]),
-                        speedKmh: Float(FirestoreHelper.getDouble(tFields["speedKmh"] as? [String: Any])),
-                        heading: Float(FirestoreHelper.getDouble(tFields["heading"] as? [String: Any])),
-                        startLat: FirestoreHelper.getDouble(tFields["startLat"] as? [String: Any]),
-                        startLng: FirestoreHelper.getDouble(tFields["startLng"] as? [String: Any]),
-                        startAddress: FirestoreHelper.getString(tFields["startAddress"] as? [String: Any]),
-                        startName: FirestoreHelper.getString(tFields["startName"] as? [String: Any]),
-                        destLat: FirestoreHelper.getDouble(tFields["destLat"] as? [String: Any]),
-                        destLng: FirestoreHelper.getDouble(tFields["destLng"] as? [String: Any]),
-                        destAddress: FirestoreHelper.getString(tFields["destAddress"] as? [String: Any]),
-                        destName: FirestoreHelper.getString(tFields["destName"] as? [String: Any]),
-                        distanceKm: FirestoreHelper.getDouble(tFields["distanceKm"] as? [String: Any]),
-                        traveledDistanceKm: FirestoreHelper.getDouble(tFields["traveledDistanceKm"] as? [String: Any]),
-                        etaMinutes: FirestoreHelper.getInt(tFields["etaMinutes"] as? [String: Any]),
-                        status: FirestoreHelper.getString(tFields["status"] as? [String: Any]),
-                        lastUpdatedAt: FirestoreHelper.getInt64(tFields["lastUpdatedAt"] as? [String: Any]),
-                        isGpsLost: FirestoreHelper.getBool(tFields["isGpsLost"] as? [String: Any]),
-                        lastGpsLostAt: FirestoreHelper.getInt64(tFields["lastGpsLostAt"] as? [String: Any]),
-                        isArrivedVerified: FirestoreHelper.getBool(tFields["isArrivedVerified"] as? [String: Any]),
-                        cancelledBy: FirestoreHelper.getString(tFields["cancelledBy"] as? [String: Any]),
-                        cancelReason: FirestoreHelper.getString(tFields["cancelReason"] as? [String: Any]),
-                        cancelledAt: FirestoreHelper.getInt64(tFields["cancelledAt"] as? [String: Any]),
+                        ticketId: DatabaseHelper.getString(tFields["ticketId"] as? [String: Any]),
+                        technicianEmail: DatabaseHelper.getString(tFields["technicianEmail"] as? [String: Any]),
+                        technicianName: DatabaseHelper.getString(tFields["technicianName"] as? [String: Any]),
+                        technicianPhone: DatabaseHelper.getString(tFields["technicianPhone"] as? [String: Any]),
+                        currentLat: DatabaseHelper.getDouble(tFields["currentLat"] as? [String: Any]),
+                        currentLng: DatabaseHelper.getDouble(tFields["currentLng"] as? [String: Any]),
+                        speedKmh: Float(DatabaseHelper.getDouble(tFields["speedKmh"] as? [String: Any])),
+                        heading: Float(DatabaseHelper.getDouble(tFields["heading"] as? [String: Any])),
+                        startLat: DatabaseHelper.getDouble(tFields["startLat"] as? [String: Any]),
+                        startLng: DatabaseHelper.getDouble(tFields["startLng"] as? [String: Any]),
+                        startAddress: DatabaseHelper.getString(tFields["startAddress"] as? [String: Any]),
+                        startName: DatabaseHelper.getString(tFields["startName"] as? [String: Any]),
+                        destLat: DatabaseHelper.getDouble(tFields["destLat"] as? [String: Any]),
+                        destLng: DatabaseHelper.getDouble(tFields["destLng"] as? [String: Any]),
+                        destAddress: DatabaseHelper.getString(tFields["destAddress"] as? [String: Any]),
+                        destName: DatabaseHelper.getString(tFields["destName"] as? [String: Any]),
+                        distanceKm: DatabaseHelper.getDouble(tFields["distanceKm"] as? [String: Any]),
+                        traveledDistanceKm: DatabaseHelper.getDouble(tFields["traveledDistanceKm"] as? [String: Any]),
+                        etaMinutes: DatabaseHelper.getInt(tFields["etaMinutes"] as? [String: Any]),
+                        status: DatabaseHelper.getString(tFields["status"] as? [String: Any]),
+                        lastUpdatedAt: DatabaseHelper.getInt64(tFields["lastUpdatedAt"] as? [String: Any]),
+                        isGpsLost: DatabaseHelper.getBool(tFields["isGpsLost"] as? [String: Any]),
+                        lastGpsLostAt: DatabaseHelper.getInt64(tFields["lastGpsLostAt"] as? [String: Any]),
+                        isArrivedVerified: DatabaseHelper.getBool(tFields["isArrivedVerified"] as? [String: Any]),
+                        cancelledBy: DatabaseHelper.getString(tFields["cancelledBy"] as? [String: Any]),
+                        cancelReason: DatabaseHelper.getString(tFields["cancelReason"] as? [String: Any]),
+                        cancelledAt: DatabaseHelper.getInt64(tFields["cancelledAt"] as? [String: Any]),
                         routeCoordinates: routeCoords
                     )
                 }
@@ -879,17 +879,17 @@ public class SupportViewModel: ObservableObject {
                    let coVals = coArr["values"] as? [[String: Any]] {
                     for cv in coVals {
                         if let cm = (cv["mapValue"] as? [String: Any])?["fields"] as? [String: Any] {
-                            let email = FirestoreHelper.getString(cm["email"] as? [String: Any])
+                            let email = DatabaseHelper.getString(cm["email"] as? [String: Any])
                             if !email.isEmpty {
                                 parsedCoTechs.append(CoTechnician(
                                     email: email,
-                                    name: FirestoreHelper.getString(cm["name"] as? [String: Any]),
-                                    phone: FirestoreHelper.getString(cm["phone"] as? [String: Any]),
-                                    role: FirestoreHelper.getString(cm["role"] as? [String: Any]),
-                                    assignedAt: FirestoreHelper.getInt64(cm["assignedAt"] as? [String: Any]),
-                                    assignedBy: FirestoreHelper.getString(cm["assignedBy"] as? [String: Any]),
-                                    isAcknowledged: FirestoreHelper.getBool(cm["isAcknowledged"] as? [String: Any]),
-                                    acknowledgedAt: FirestoreHelper.getInt64(cm["acknowledgedAt"] as? [String: Any])
+                                    name: DatabaseHelper.getString(cm["name"] as? [String: Any]),
+                                    phone: DatabaseHelper.getString(cm["phone"] as? [String: Any]),
+                                    role: DatabaseHelper.getString(cm["role"] as? [String: Any]),
+                                    assignedAt: DatabaseHelper.getInt64(cm["assignedAt"] as? [String: Any]),
+                                    assignedBy: DatabaseHelper.getString(cm["assignedBy"] as? [String: Any]),
+                                    isAcknowledged: DatabaseHelper.getBool(cm["isAcknowledged"] as? [String: Any]),
+                                    acknowledgedAt: DatabaseHelper.getInt64(cm["acknowledgedAt"] as? [String: Any])
                                 ))
                             }
                         }
@@ -908,8 +908,8 @@ public class SupportViewModel: ObservableObject {
                                let rVals = rArr["values"] as? [[String: Any]] {
                                 for rv in rVals {
                                     if let rm = (rv["mapValue"] as? [String: Any])?["fields"] as? [String: Any] {
-                                        let lat = FirestoreHelper.getDouble(rm["lat"] as? [String: Any])
-                                        let lng = FirestoreHelper.getDouble(rm["lng"] as? [String: Any])
+                                        let lat = DatabaseHelper.getDouble(rm["lat"] as? [String: Any])
+                                        let lng = DatabaseHelper.getDouble(rm["lng"] as? [String: Any])
                                         if lat != 0 && lng != 0 {
                                             cRouteCoords.append([lat, lng])
                                         }
@@ -918,33 +918,33 @@ public class SupportViewModel: ObservableObject {
                             }
 
                             parsedCollabs[k] = TicketTracking(
-                                ticketId: FirestoreHelper.getString(vFields["ticketId"] as? [String: Any]),
-                                technicianEmail: FirestoreHelper.getString(vFields["technicianEmail"] as? [String: Any]),
-                                technicianName: FirestoreHelper.getString(vFields["technicianName"] as? [String: Any]),
-                                technicianPhone: FirestoreHelper.getString(vFields["technicianPhone"] as? [String: Any]),
-                                currentLat: FirestoreHelper.getDouble(vFields["currentLat"] as? [String: Any]),
-                                currentLng: FirestoreHelper.getDouble(vFields["currentLng"] as? [String: Any]),
-                                speedKmh: Float(FirestoreHelper.getDouble(vFields["speedKmh"] as? [String: Any])),
-                                heading: Float(FirestoreHelper.getDouble(vFields["heading"] as? [String: Any])),
-                                startLat: FirestoreHelper.getDouble(vFields["startLat"] as? [String: Any]),
-                                startLng: FirestoreHelper.getDouble(vFields["startLng"] as? [String: Any]),
-                                startAddress: FirestoreHelper.getString(vFields["startAddress"] as? [String: Any]),
-                                startName: FirestoreHelper.getString(vFields["startName"] as? [String: Any]),
-                                destLat: FirestoreHelper.getDouble(vFields["destLat"] as? [String: Any]),
-                                destLng: FirestoreHelper.getDouble(vFields["destLng"] as? [String: Any]),
-                                destAddress: FirestoreHelper.getString(vFields["destAddress"] as? [String: Any]),
-                                destName: FirestoreHelper.getString(vFields["destName"] as? [String: Any]),
-                                distanceKm: FirestoreHelper.getDouble(vFields["distanceKm"] as? [String: Any]),
-                                traveledDistanceKm: FirestoreHelper.getDouble(vFields["traveledDistanceKm"] as? [String: Any]),
-                                etaMinutes: FirestoreHelper.getInt(vFields["etaMinutes"] as? [String: Any]),
-                                status: FirestoreHelper.getString(vFields["status"] as? [String: Any]),
-                                lastUpdatedAt: FirestoreHelper.getInt64(vFields["lastUpdatedAt"] as? [String: Any]),
-                                isGpsLost: FirestoreHelper.getBool(vFields["isGpsLost"] as? [String: Any]),
-                                lastGpsLostAt: FirestoreHelper.getInt64(vFields["lastGpsLostAt"] as? [String: Any]),
-                                isArrivedVerified: FirestoreHelper.getBool(vFields["isArrivedVerified"] as? [String: Any]),
-                                cancelledBy: FirestoreHelper.getString(vFields["cancelledBy"] as? [String: Any]),
-                                cancelReason: FirestoreHelper.getString(vFields["cancelReason"] as? [String: Any]),
-                                cancelledAt: FirestoreHelper.getInt64(vFields["cancelledAt"] as? [String: Any]),
+                                ticketId: DatabaseHelper.getString(vFields["ticketId"] as? [String: Any]),
+                                technicianEmail: DatabaseHelper.getString(vFields["technicianEmail"] as? [String: Any]),
+                                technicianName: DatabaseHelper.getString(vFields["technicianName"] as? [String: Any]),
+                                technicianPhone: DatabaseHelper.getString(vFields["technicianPhone"] as? [String: Any]),
+                                currentLat: DatabaseHelper.getDouble(vFields["currentLat"] as? [String: Any]),
+                                currentLng: DatabaseHelper.getDouble(vFields["currentLng"] as? [String: Any]),
+                                speedKmh: Float(DatabaseHelper.getDouble(vFields["speedKmh"] as? [String: Any])),
+                                heading: Float(DatabaseHelper.getDouble(vFields["heading"] as? [String: Any])),
+                                startLat: DatabaseHelper.getDouble(vFields["startLat"] as? [String: Any]),
+                                startLng: DatabaseHelper.getDouble(vFields["startLng"] as? [String: Any]),
+                                startAddress: DatabaseHelper.getString(vFields["startAddress"] as? [String: Any]),
+                                startName: DatabaseHelper.getString(vFields["startName"] as? [String: Any]),
+                                destLat: DatabaseHelper.getDouble(vFields["destLat"] as? [String: Any]),
+                                destLng: DatabaseHelper.getDouble(vFields["destLng"] as? [String: Any]),
+                                destAddress: DatabaseHelper.getString(vFields["destAddress"] as? [String: Any]),
+                                destName: DatabaseHelper.getString(vFields["destName"] as? [String: Any]),
+                                distanceKm: DatabaseHelper.getDouble(vFields["distanceKm"] as? [String: Any]),
+                                traveledDistanceKm: DatabaseHelper.getDouble(vFields["traveledDistanceKm"] as? [String: Any]),
+                                etaMinutes: DatabaseHelper.getInt(vFields["etaMinutes"] as? [String: Any]),
+                                status: DatabaseHelper.getString(vFields["status"] as? [String: Any]),
+                                lastUpdatedAt: DatabaseHelper.getInt64(vFields["lastUpdatedAt"] as? [String: Any]),
+                                isGpsLost: DatabaseHelper.getBool(vFields["isGpsLost"] as? [String: Any]),
+                                lastGpsLostAt: DatabaseHelper.getInt64(vFields["lastGpsLostAt"] as? [String: Any]),
+                                isArrivedVerified: DatabaseHelper.getBool(vFields["isArrivedVerified"] as? [String: Any]),
+                                cancelledBy: DatabaseHelper.getString(vFields["cancelledBy"] as? [String: Any]),
+                                cancelReason: DatabaseHelper.getString(vFields["cancelReason"] as? [String: Any]),
+                                cancelledAt: DatabaseHelper.getInt64(vFields["cancelledAt"] as? [String: Any]),
                                 routeCoordinates: cRouteCoords
                             )
                         }
@@ -957,17 +957,17 @@ public class SupportViewModel: ObservableObject {
                    let hoVals = hoArr["values"] as? [[String: Any]] {
                     for hv in hoVals {
                         if let hm = (hv["mapValue"] as? [String: Any])?["fields"] as? [String: Any] {
-                            let handoverId = FirestoreHelper.getString(hm["handoverId"] as? [String: Any])
-                            let fromEmail = FirestoreHelper.getString(hm["fromEmail"] as? [String: Any])
-                            let fromName = FirestoreHelper.getString(hm["fromName"] as? [String: Any])
-                            let fromTitle = FirestoreHelper.getString(hm["fromTitle"] as? [String: Any])
-                            let toType = FirestoreHelper.getString(hm["toType"] as? [String: Any])
-                            let toEmail = FirestoreHelper.getString(hm["toEmail"] as? [String: Any])
-                            let toName = FirestoreHelper.getString(hm["toName"] as? [String: Any])
-                            let toTitle = FirestoreHelper.getString(hm["toTitle"] as? [String: Any])
-                            let toCluster = FirestoreHelper.getString(hm["toCluster"] as? [String: Any])
-                            let reason = FirestoreHelper.getString(hm["reason"] as? [String: Any])
-                            let timestamp = FirestoreHelper.getInt64(hm["timestamp"] as? [String: Any])
+                            let handoverId = DatabaseHelper.getString(hm["handoverId"] as? [String: Any])
+                            let fromEmail = DatabaseHelper.getString(hm["fromEmail"] as? [String: Any])
+                            let fromName = DatabaseHelper.getString(hm["fromName"] as? [String: Any])
+                            let fromTitle = DatabaseHelper.getString(hm["fromTitle"] as? [String: Any])
+                            let toType = DatabaseHelper.getString(hm["toType"] as? [String: Any])
+                            let toEmail = DatabaseHelper.getString(hm["toEmail"] as? [String: Any])
+                            let toName = DatabaseHelper.getString(hm["toName"] as? [String: Any])
+                            let toTitle = DatabaseHelper.getString(hm["toTitle"] as? [String: Any])
+                            let toCluster = DatabaseHelper.getString(hm["toCluster"] as? [String: Any])
+                            let reason = DatabaseHelper.getString(hm["reason"] as? [String: Any])
+                            let timestamp = DatabaseHelper.getInt64(hm["timestamp"] as? [String: Any])
 
                             parsedHandoverHistory.append(HandoverRecord(
                                 handoverId: handoverId.isEmpty ? UUID().uuidString : handoverId,
@@ -986,58 +986,58 @@ public class SupportViewModel: ObservableObject {
                     }
                 }
 
-                var parsedInitMsg = FirestoreHelper.getString(fields["initialMessage"] as? [String: Any])
+                var parsedInitMsg = DatabaseHelper.getString(fields["initialMessage"] as? [String: Any])
                 if parsedInitMsg.isEmpty {
-                    parsedInitMsg = FirestoreHelper.getString(fields["description"] as? [String: Any])
+                    parsedInitMsg = DatabaseHelper.getString(fields["description"] as? [String: Any])
                 }
                 if parsedInitMsg.isEmpty {
-                    parsedInitMsg = FirestoreHelper.getString(fields["moTa"] as? [String: Any])
+                    parsedInitMsg = DatabaseHelper.getString(fields["moTa"] as? [String: Any])
                 }
                 if parsedInitMsg.isEmpty {
-                    parsedInitMsg = FirestoreHelper.getString(fields["content"] as? [String: Any])
+                    parsedInitMsg = DatabaseHelper.getString(fields["content"] as? [String: Any])
                 }
 
                 return SupportTicket(
                     id: id,
-                    ticketCode: FirestoreHelper.getString(fields["ticketCode"] as? [String: Any]),
-                    creatorEmail: FirestoreHelper.getString(fields["creatorEmail"] as? [String: Any]),
-                    creatorName: FirestoreHelper.getString(fields["creatorName"] as? [String: Any]),
-                    creatorPhone: FirestoreHelper.getString(fields["creatorPhone"] as? [String: Any]),
-                    creatorUserId: FirestoreHelper.getString(fields["creatorUserId"] as? [String: Any]),
-                    creatorLat: FirestoreHelper.getDouble(fields["creatorLat"] as? [String: Any]),
-                    creatorLng: FirestoreHelper.getDouble(fields["creatorLng"] as? [String: Any]),
-                    creatorAddress: FirestoreHelper.getString(fields["creatorAddress"] as? [String: Any]),
-                    subject: FirestoreHelper.getString(fields["subject"] as? [String: Any]),
-                    status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
-                    category: FirestoreHelper.getString(fields["category"] as? [String: Any]),
-                    priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
-                    assetId: FirestoreHelper.getString(fields["assetId"] as? [String: Any]),
-                    assetName: FirestoreHelper.getString(fields["assetName"] as? [String: Any]),
-                    images: FirestoreHelper.getStringArray(fields["images"] as? [String: Any]),
+                    ticketCode: DatabaseHelper.getString(fields["ticketCode"] as? [String: Any]),
+                    creatorEmail: DatabaseHelper.getString(fields["creatorEmail"] as? [String: Any]),
+                    creatorName: DatabaseHelper.getString(fields["creatorName"] as? [String: Any]),
+                    creatorPhone: DatabaseHelper.getString(fields["creatorPhone"] as? [String: Any]),
+                    creatorUserId: DatabaseHelper.getString(fields["creatorUserId"] as? [String: Any]),
+                    creatorLat: DatabaseHelper.getDouble(fields["creatorLat"] as? [String: Any]),
+                    creatorLng: DatabaseHelper.getDouble(fields["creatorLng"] as? [String: Any]),
+                    creatorAddress: DatabaseHelper.getString(fields["creatorAddress"] as? [String: Any]),
+                    subject: DatabaseHelper.getString(fields["subject"] as? [String: Any]),
+                    status: DatabaseHelper.getString(fields["status"] as? [String: Any]),
+                    category: DatabaseHelper.getString(fields["category"] as? [String: Any]),
+                    priority: DatabaseHelper.getString(fields["priority"] as? [String: Any]),
+                    assetId: DatabaseHelper.getString(fields["assetId"] as? [String: Any]),
+                    assetName: DatabaseHelper.getString(fields["assetName"] as? [String: Any]),
+                    images: DatabaseHelper.getStringArray(fields["images"] as? [String: Any]),
                     attachments: attachmentsList,
-                    createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
-                    lastMessage: FirestoreHelper.getString(fields["lastMessage"] as? [String: Any]),
-                    lastMessageAt: FirestoreHelper.getInt64(fields["lastMessageAt"] as? [String: Any]),
-                    companyId: FirestoreHelper.getString(fields["companyId"] as? [String: Any]),
-                    departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
-                    donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
+                    createdAt: DatabaseHelper.getInt64(fields["createdAt"] as? [String: Any]),
+                    lastMessage: DatabaseHelper.getString(fields["lastMessage"] as? [String: Any]),
+                    lastMessageAt: DatabaseHelper.getInt64(fields["lastMessageAt"] as? [String: Any]),
+                    companyId: DatabaseHelper.getString(fields["companyId"] as? [String: Any]),
+                    departmentId: DatabaseHelper.getString(fields["departmentId"] as? [String: Any]),
+                    donVi: DatabaseHelper.getString(fields["donVi"] as? [String: Any]),
                     initialMessage: parsedInitMsg,
-                    rating: FirestoreHelper.getInt(fields["rating"] as? [String: Any]),
-                    feedback: FirestoreHelper.getString(fields["feedback"] as? [String: Any]),
-                    feedbackAt: FirestoreHelper.getInt64(fields["feedbackAt"] as? [String: Any]),
-                    parentTicketId: FirestoreHelper.getString(fields["parentTicketId"] as? [String: Any]),
-                    assignedTo: FirestoreHelper.getString(fields["assignedTo"] as? [String: Any]),
-                    assignedDepartmentId: FirestoreHelper.getString(fields["assignedDepartmentId"] as? [String: Any]),
-                    assignedDepartmentName: FirestoreHelper.getString(fields["assignedDepartmentName"] as? [String: Any]),
-                    assignedToEmail: FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any]),
-                    assignedToName: FirestoreHelper.getString(fields["assignedToName"] as? [String: Any]),
-                    assignedCluster: FirestoreHelper.getString(fields["assignedCluster"] as? [String: Any]),
-                    assignedRegion: FirestoreHelper.getString(fields["assignedRegion"] as? [String: Any]),
-                    assignedByEmail: FirestoreHelper.getString(fields["assignedByEmail"] as? [String: Any]),
-                    assignedAt: FirestoreHelper.getInt64(fields["assignedAt"] as? [String: Any]),
-                    dispatchNote: FirestoreHelper.getString(fields["dispatchNote"] as? [String: Any]),
-                    handlingMethod: FirestoreHelper.getString(fields["handlingMethod"] as? [String: Any]),
-                    handlingMethodUpdatedAt: FirestoreHelper.getInt64(fields["handlingMethodUpdatedAt"] as? [String: Any]),
+                    rating: DatabaseHelper.getInt(fields["rating"] as? [String: Any]),
+                    feedback: DatabaseHelper.getString(fields["feedback"] as? [String: Any]),
+                    feedbackAt: DatabaseHelper.getInt64(fields["feedbackAt"] as? [String: Any]),
+                    parentTicketId: DatabaseHelper.getString(fields["parentTicketId"] as? [String: Any]),
+                    assignedTo: DatabaseHelper.getString(fields["assignedTo"] as? [String: Any]),
+                    assignedDepartmentId: DatabaseHelper.getString(fields["assignedDepartmentId"] as? [String: Any]),
+                    assignedDepartmentName: DatabaseHelper.getString(fields["assignedDepartmentName"] as? [String: Any]),
+                    assignedToEmail: DatabaseHelper.getString(fields["assignedToEmail"] as? [String: Any]),
+                    assignedToName: DatabaseHelper.getString(fields["assignedToName"] as? [String: Any]),
+                    assignedCluster: DatabaseHelper.getString(fields["assignedCluster"] as? [String: Any]),
+                    assignedRegion: DatabaseHelper.getString(fields["assignedRegion"] as? [String: Any]),
+                    assignedByEmail: DatabaseHelper.getString(fields["assignedByEmail"] as? [String: Any]),
+                    assignedAt: DatabaseHelper.getInt64(fields["assignedAt"] as? [String: Any]),
+                    dispatchNote: DatabaseHelper.getString(fields["dispatchNote"] as? [String: Any]),
+                    handlingMethod: DatabaseHelper.getString(fields["handlingMethod"] as? [String: Any]),
+                    handlingMethodUpdatedAt: DatabaseHelper.getInt64(fields["handlingMethodUpdatedAt"] as? [String: Any]),
                     coTechnicians: parsedCoTechs,
                     tracking: parsedTracking,
                     collaboratorTrackings: parsedCollabs,
@@ -1047,47 +1047,47 @@ public class SupportViewModel: ObservableObject {
                     acknowledgedByName: ackByName,
                     helpdeskAcknowledgedAt: hdAckAt,
                     helpdeskAcknowledgedBy: hdAckBy,
-                    resolvedAt: FirestoreHelper.getInt64(fields["resolvedAt"] as? [String: Any]),
-                    resolvedBy: FirestoreHelper.getString(fields["resolvedBy"] as? [String: Any]),
-                    resolvedByName: FirestoreHelper.getString(fields["resolvedByName"] as? [String: Any]),
-                    resolutionNote: FirestoreHelper.getString(fields["resolutionNote"] as? [String: Any]),
-                    resolvedReason: FirestoreHelper.getString(fields["resolvedReason"] as? [String: Any]),
-                    closedAt: FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any]),
-                    closedByEmail: FirestoreHelper.getString(fields["closedByEmail"] as? [String: Any]),
-                    closedByName: FirestoreHelper.getString(fields["closedByName"] as? [String: Any]),
-                    ratingResponse: FirestoreHelper.getInt(fields["ratingResponse"] as? [String: Any]),
-                    ratingResolve: FirestoreHelper.getInt(fields["ratingResolve"] as? [String: Any]),
-                    ratingAttitude: FirestoreHelper.getInt(fields["ratingAttitude"] as? [String: Any]),
-                    ratingQuality: FirestoreHelper.getInt(fields["ratingQuality"] as? [String: Any]),
-                    isAutoRated: FirestoreHelper.getBool(fields["isAutoRated"] as? [String: Any]),
-                    reopenCount: FirestoreHelper.getInt(fields["reopenCount"] as? [String: Any]),
-                    isQualityPassed: FirestoreHelper.getBool(fields["isQualityPassed"] as? [String: Any]),
-                    source: FirestoreHelper.getString(fields["source"] as? [String: Any]),
-                    isInvalid: FirestoreHelper.getBool(fields["isInvalid"] as? [String: Any]),
-                    invalidReason: FirestoreHelper.getString(fields["invalidReason"] as? [String: Any]),
-                    previousRating: FirestoreHelper.getInt(fields["previousRating"] as? [String: Any]),
-                    previousFeedback: FirestoreHelper.getString(fields["previousFeedback"] as? [String: Any]),
-                    isObjectiveExclusion: FirestoreHelper.getBool(fields["isObjectiveExclusion"] as? [String: Any]),
-                    objectiveExclusionReason: FirestoreHelper.getString(fields["objectiveExclusionReason"] as? [String: Any]),
-                    reopenedAt: FirestoreHelper.getInt64(fields["reopenedAt"] as? [String: Any]),
-                    reopenedByEmail: FirestoreHelper.getString(fields["reopenedByEmail"] as? [String: Any]),
-                    reopenedByName: FirestoreHelper.getString(fields["reopenedByName"] as? [String: Any]),
-                    reopenReason: FirestoreHelper.getString(fields["reopenReason"] as? [String: Any]),
+                    resolvedAt: DatabaseHelper.getInt64(fields["resolvedAt"] as? [String: Any]),
+                    resolvedBy: DatabaseHelper.getString(fields["resolvedBy"] as? [String: Any]),
+                    resolvedByName: DatabaseHelper.getString(fields["resolvedByName"] as? [String: Any]),
+                    resolutionNote: DatabaseHelper.getString(fields["resolutionNote"] as? [String: Any]),
+                    resolvedReason: DatabaseHelper.getString(fields["resolvedReason"] as? [String: Any]),
+                    closedAt: DatabaseHelper.getInt64(fields["closedAt"] as? [String: Any]),
+                    closedByEmail: DatabaseHelper.getString(fields["closedByEmail"] as? [String: Any]),
+                    closedByName: DatabaseHelper.getString(fields["closedByName"] as? [String: Any]),
+                    ratingResponse: DatabaseHelper.getInt(fields["ratingResponse"] as? [String: Any]),
+                    ratingResolve: DatabaseHelper.getInt(fields["ratingResolve"] as? [String: Any]),
+                    ratingAttitude: DatabaseHelper.getInt(fields["ratingAttitude"] as? [String: Any]),
+                    ratingQuality: DatabaseHelper.getInt(fields["ratingQuality"] as? [String: Any]),
+                    isAutoRated: DatabaseHelper.getBool(fields["isAutoRated"] as? [String: Any]),
+                    reopenCount: DatabaseHelper.getInt(fields["reopenCount"] as? [String: Any]),
+                    isQualityPassed: DatabaseHelper.getBool(fields["isQualityPassed"] as? [String: Any]),
+                    source: DatabaseHelper.getString(fields["source"] as? [String: Any]),
+                    isInvalid: DatabaseHelper.getBool(fields["isInvalid"] as? [String: Any]),
+                    invalidReason: DatabaseHelper.getString(fields["invalidReason"] as? [String: Any]),
+                    previousRating: DatabaseHelper.getInt(fields["previousRating"] as? [String: Any]),
+                    previousFeedback: DatabaseHelper.getString(fields["previousFeedback"] as? [String: Any]),
+                    isObjectiveExclusion: DatabaseHelper.getBool(fields["isObjectiveExclusion"] as? [String: Any]),
+                    objectiveExclusionReason: DatabaseHelper.getString(fields["objectiveExclusionReason"] as? [String: Any]),
+                    reopenedAt: DatabaseHelper.getInt64(fields["reopenedAt"] as? [String: Any]),
+                    reopenedByEmail: DatabaseHelper.getString(fields["reopenedByEmail"] as? [String: Any]),
+                    reopenedByName: DatabaseHelper.getString(fields["reopenedByName"] as? [String: Any]),
+                    reopenReason: DatabaseHelper.getString(fields["reopenReason"] as? [String: Any]),
                     handoverHistory: parsedHandoverHistory,
-                    assignedApplication: FirestoreHelper.getString(fields["assignedApplication"] as? [String: Any]),
-                    assignedRole: FirestoreHelper.getString(fields["assignedRole"] as? [String: Any]),
-                    scope: FirestoreHelper.getString(fields["scope"] as? [String: Any]),
-                    toNghiepVu: FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any]),
+                    assignedApplication: DatabaseHelper.getString(fields["assignedApplication"] as? [String: Any]),
+                    assignedRole: DatabaseHelper.getString(fields["assignedRole"] as? [String: Any]),
+                    scope: DatabaseHelper.getString(fields["scope"] as? [String: Any]),
+                    toNghiepVu: DatabaseHelper.getString(fields["toNghiepVu"] as? [String: Any]),
                     messageCount: {
-                        let c = FirestoreHelper.getInt(fields["messageCount"] as? [String: Any])
+                        let c = DatabaseHelper.getInt(fields["messageCount"] as? [String: Any])
                         return c > 0 ? c : 1
                     }(),
-                    hasNewReply: FirestoreHelper.getBool(fields["hasNewReply"] as? [String: Any]),
-                    isThreadActive: FirestoreHelper.getBool(fields["isThreadActive"] as? [String: Any]),
-                    lastSenderName: FirestoreHelper.getString(fields["lastSenderName"] as? [String: Any]),
-                    lastSenderEmail: FirestoreHelper.getString(fields["lastSenderEmail"] as? [String: Any]),
-                    conversationId: FirestoreHelper.getString(fields["conversationId"] as? [String: Any]),
-                    normalizedSubject: FirestoreHelper.getString(fields["normalizedSubject"] as? [String: Any])
+                    hasNewReply: DatabaseHelper.getBool(fields["hasNewReply"] as? [String: Any]),
+                    isThreadActive: DatabaseHelper.getBool(fields["isThreadActive"] as? [String: Any]),
+                    lastSenderName: DatabaseHelper.getString(fields["lastSenderName"] as? [String: Any]),
+                    lastSenderEmail: DatabaseHelper.getString(fields["lastSenderEmail"] as? [String: Any]),
+                    conversationId: DatabaseHelper.getString(fields["conversationId"] as? [String: Any]),
+                    normalizedSubject: DatabaseHelper.getString(fields["normalizedSubject"] as? [String: Any])
                 )
             }
 
@@ -1136,6 +1136,15 @@ public class SupportViewModel: ObservableObject {
         gpsLng: Double = 0.0,
         scope: String = "UNIT"
     ) async -> String? {
+        // Kiểm tra quyền tạo ticket: Kỹ thuật viên (KTV), Chuyên viên, Helpdesk, Admin không được tạo phiếu mới
+        guard user.canCreateTicket else {
+            print("⚠️ SupportVM: User \(user.email) (role: \(user.role)) is not allowed to create tickets.")
+            await MainActor.run {
+                self.errorMessage = "Kỹ thuật viên / Chuyên viên không được phép tạo phiếu hỗ trợ. Chỉ người dùng đơn vị mới được phép gửi yêu cầu."
+            }
+            return nil
+        }
+
         let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             ? (user.companyId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "SGCOOP" : user.companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased())
             : companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
@@ -1244,7 +1253,7 @@ public class SupportViewModel: ObservableObject {
         let jsonBody = try? JSONSerialization.data(withJSONObject: body)
 
         // 1. Cố gắng tạo document bằng PATCH với customTicketId (đồng bộ 1:1 theo Android SupportRestRepository.kt)
-        let patchUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets/\(customTicketId)"
+        let patchUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/support_tickets/\(customTicketId)"
         var finalTicketId = customTicketId
         var creationSuccess = false
 
@@ -1255,7 +1264,7 @@ public class SupportViewModel: ObservableObject {
             patchRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
             patchRequest.httpBody = jsonBody
 
-            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(patchRequest),
+            if let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(patchRequest),
                (200...299).contains(httpResponse.statusCode) {
                 creationSuccess = true
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -1267,14 +1276,14 @@ public class SupportViewModel: ObservableObject {
         }
 
         // 2. Fallback sang POST /companies/{cleanComp}/support_tickets nếu PATCH chưa thành công
-        if !creationSuccess, let postUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets") {
+        if !creationSuccess, let postUrl = URL(string: "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/support_tickets") {
             var postRequest = URLRequest(url: postUrl)
             postRequest.httpMethod = "POST"
             postRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             postRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
             postRequest.httpBody = jsonBody
 
-            if let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(postRequest),
+            if let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(postRequest),
                (200...299).contains(httpResponse.statusCode) {
                 creationSuccess = true
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -1353,13 +1362,13 @@ public class SupportViewModel: ObservableObject {
         Task {
             let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             let safeToken = idToken.isEmpty ? "default_token" : idToken
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets/\(ticketId)/messages?pageSize=100"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/support_tickets/\(ticketId)/messages?pageSize=100"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
             request.setValue("Bearer \(safeToken)", forHTTPHeaderField: "Authorization")
 
-            guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+            guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
                   httpResponse.statusCode == 200,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 return
@@ -1386,12 +1395,12 @@ public class SupportViewModel: ObservableObject {
                     return vals.compactMap { item -> AttachmentItem? in
                         if let mapVal = item["mapValue"] as? [String: Any],
                            let mv = mapVal["fields"] as? [String: Any] {
-                            let urlStr = FirestoreHelper.getString(mv["url"] as? [String: Any])
+                            let urlStr = DatabaseHelper.getString(mv["url"] as? [String: Any])
                             guard !urlStr.isEmpty else { return nil }
-                            let nameStr = FirestoreHelper.getString(mv["name"] as? [String: Any])
-                            let typeStr = FirestoreHelper.getString(mv["type"] as? [String: Any])
-                            let sizeVal = FirestoreHelper.getInt64(mv["size"] as? [String: Any])
-                            let idStr = FirestoreHelper.getString(mv["id"] as? [String: Any])
+                            let nameStr = DatabaseHelper.getString(mv["name"] as? [String: Any])
+                            let typeStr = DatabaseHelper.getString(mv["type"] as? [String: Any])
+                            let sizeVal = DatabaseHelper.getInt64(mv["size"] as? [String: Any])
+                            let idStr = DatabaseHelper.getString(mv["id"] as? [String: Any])
                             let ext = (urlStr as NSString).pathExtension.lowercased()
                             let isImg = ["png", "jpg", "jpeg", "webp", "bmp"].contains(ext) || typeStr.lowercased() == "image"
                             return AttachmentItem(
@@ -1402,7 +1411,7 @@ public class SupportViewModel: ObservableObject {
                                 type: isImg ? "image" : (typeStr.isEmpty ? "file" : typeStr)
                             )
                         } else {
-                            let urlStr = FirestoreHelper.getString(item["stringValue"] as? [String: Any] ?? item)
+                            let urlStr = DatabaseHelper.getString(item["stringValue"] as? [String: Any] ?? item)
                             guard !urlStr.isEmpty, let _ = URL(string: urlStr) else { return nil }
                             let ext = (urlStr as NSString).pathExtension.lowercased()
                             let isImg = ["png", "jpg", "jpeg", "webp", "bmp"].contains(ext)
@@ -1413,15 +1422,15 @@ public class SupportViewModel: ObservableObject {
 
                 return SupportMessage(
                     id: id,
-                    senderEmail: FirestoreHelper.getString(fields["senderEmail"] as? [String: Any]),
-                    senderName: FirestoreHelper.getString(fields["senderName"] as? [String: Any]),
-                    message: FirestoreHelper.getString(fields["message"] as? [String: Any]),
-                    timestamp: FirestoreHelper.getInt64(fields["timestamp"] as? [String: Any]),
-                    isAdminReply: FirestoreHelper.getBool(fields["isAdminReply"] as? [String: Any]),
-                    donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
-                    departmentId: FirestoreHelper.getString(fields["departmentId"] as? [String: Any]),
-                    isSystemMessage: FirestoreHelper.getBool(fields["isSystemMessage"] as? [String: Any]),
-                    isInternal: FirestoreHelper.getBool(fields["isInternal"] as? [String: Any]),
+                    senderEmail: DatabaseHelper.getString(fields["senderEmail"] as? [String: Any]),
+                    senderName: DatabaseHelper.getString(fields["senderName"] as? [String: Any]),
+                    message: DatabaseHelper.getString(fields["message"] as? [String: Any]),
+                    timestamp: DatabaseHelper.getInt64(fields["timestamp"] as? [String: Any]),
+                    isAdminReply: DatabaseHelper.getBool(fields["isAdminReply"] as? [String: Any]),
+                    donVi: DatabaseHelper.getString(fields["donVi"] as? [String: Any]),
+                    departmentId: DatabaseHelper.getString(fields["departmentId"] as? [String: Any]),
+                    isSystemMessage: DatabaseHelper.getBool(fields["isSystemMessage"] as? [String: Any]),
+                    isInternal: DatabaseHelper.getBool(fields["isInternal"] as? [String: Any]),
                     attachments: attachmentItems
                 )
             }
@@ -1459,7 +1468,7 @@ public class SupportViewModel: ObservableObject {
         }
         Task {
             let mask = "updateMask.fieldPaths=category"
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
             guard let url = URL(string: urlStr) else {
                 DispatchQueue.main.async { completion?(false) }
                 return
@@ -1470,7 +1479,7 @@ public class SupportViewModel: ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             let f: [String: Any] = ["category": ["stringValue": newCategory]]
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-            let resp = await FirestoreHelper.executeSafeRequest(request)
+            let resp = await DatabaseHelper.executeSafeRequest(request)
             let isSuccess = resp != nil && (resp!.1.statusCode >= 200 && resp!.1.statusCode < 300)
             DispatchQueue.main.async { completion?(isSuccess) }
         }
@@ -1500,7 +1509,7 @@ public class SupportViewModel: ObservableObject {
         }
         Task {
             let mask = "updateMask.fieldPaths=priority"
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
             guard let url = URL(string: urlStr) else {
                 DispatchQueue.main.async { completion?(false) }
                 return
@@ -1511,7 +1520,7 @@ public class SupportViewModel: ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             let f: [String: Any] = ["priority": ["stringValue": cleanPriority]]
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-            let resp = await FirestoreHelper.executeSafeRequest(request)
+            let resp = await DatabaseHelper.executeSafeRequest(request)
             let isSuccess = resp != nil && (resp!.1.statusCode >= 200 && resp!.1.statusCode < 300)
             if isSuccess {
                 let msg = "⚡ [Ưu tiên SLA] Đã cập nhật mức độ ưu tiên thành: \(priorityLabel)"
@@ -1540,7 +1549,7 @@ public class SupportViewModel: ObservableObject {
             let cleanComp = companyId.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
             let safeToken = idToken.isEmpty ? "default_token" : idToken
             let now = customTimestamp ?? Int64(Date().timeIntervalSince1970 * 1000)
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets/\(ticketId)/messages"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/support_tickets/\(ticketId)/messages"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -1589,13 +1598,13 @@ public class SupportViewModel: ObservableObject {
 
             let body: [String: Any] = ["fields": fields]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             // Update ticket lastMessage & lastMessageAt (chỉ cập nhật lastMessage nếu không phải ghi chú nội bộ)
             let lastMsg = cleanText.isEmpty ? "📎 Đính kèm \(attachmentUrls.count) tệp" : cleanText
             let patchUrlStr = isInternal
-                ? "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets/\(ticketId)?updateMask.fieldPaths=lastMessageAt"
-                : "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/support_tickets/\(ticketId)?updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
+                ? "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/support_tickets/\(ticketId)?updateMask.fieldPaths=lastMessageAt"
+                : "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/support_tickets/\(ticketId)?updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
             if let patchUrl = URL(string: patchUrlStr) {
                 var pReq = URLRequest(url: patchUrl)
                 pReq.httpMethod = "PATCH"
@@ -1611,7 +1620,7 @@ public class SupportViewModel: ObservableObject {
                     "fields": patchFields
                 ]
                 pReq.httpBody = try? JSONSerialization.data(withJSONObject: pBody)
-                _ = await FirestoreHelper.executeSafeRequest(pReq)
+                _ = await DatabaseHelper.executeSafeRequest(pReq)
             }
 
             await MainActor.run {
@@ -1646,7 +1655,7 @@ public class SupportViewModel: ObservableObject {
                 maskFields.append(contentsOf: ["assignedTo", "assignedToEmail", "assignedToName", "assignedRole"])
             }
             let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -1670,7 +1679,7 @@ public class SupportViewModel: ObservableObject {
 
             let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             let isSpecialist = ticket?.isSpecialistAssigned == true || (ticket?.assignedRole.uppercased() == "SPECIALIST") || (user.isSpecialist && ticket?.assignedRole.uppercased() != "TECH")
             let rolePrefix = isSpecialist ? "Chuyên viên" : "KTV"
@@ -1708,7 +1717,7 @@ public class SupportViewModel: ObservableObject {
                 maskFields.append(contentsOf: ["assignedTo", "assignedToEmail", "assignedToName", "assignedRole"])
             }
             let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -1734,7 +1743,7 @@ public class SupportViewModel: ObservableObject {
 
             let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             let isSpecialist = ticket?.isSpecialistAssigned == true || (ticket?.assignedRole.uppercased() == "SPECIALIST") || (user.isSpecialist && ticket?.assignedRole.uppercased() != "TECH")
             let rolePrefix = isSpecialist ? "Chuyên viên" : "KTV"
@@ -1752,7 +1761,7 @@ public class SupportViewModel: ObservableObject {
     public func markTicketResolved(ticketId: String, note: String, completion: ((Bool) -> Void)? = nil) {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=status&updateMask.fieldPaths=resolvedAt&updateMask.fieldPaths=resolvedBy&updateMask.fieldPaths=resolvedByName&updateMask.fieldPaths=resolutionNote"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=status&updateMask.fieldPaths=resolvedAt&updateMask.fieldPaths=resolvedBy&updateMask.fieldPaths=resolvedByName&updateMask.fieldPaths=resolutionNote"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -1770,7 +1779,7 @@ public class SupportViewModel: ObservableObject {
                 ]
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             let ticket = rawTickets.first { $0.id == ticketId }
             let isSpecialist = ticket?.isSpecialistAssigned == true || (ticket?.assignedRole.uppercased() == "SPECIALIST") || (user.isSpecialist && ticket?.assignedRole.uppercased() != "TECH")
@@ -1797,7 +1806,7 @@ public class SupportViewModel: ObservableObject {
             if let _ = rating {
                 mask += "&updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt"
             }
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -1820,7 +1829,7 @@ public class SupportViewModel: ObservableObject {
 
             let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             let closeMsg = !note.isEmpty ? "🔒 Yêu cầu hỗ trợ đã được đóng bởi \(user.fullName): \(note)" : "🔒 Yêu cầu hỗ trợ đã được đóng bởi \(user.fullName)."
             sendMessage(ticketId: ticketId, text: closeMsg)
@@ -1849,7 +1858,7 @@ public class SupportViewModel: ObservableObject {
         switch res {
         case .success:
             let nowTime = Int64(Date().timeIntervalSince1970 * 1000)
-            let updateUrl = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=ratingEmailSent&updateMask.fieldPaths=ratingEmailSentAt"
+            let updateUrl = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=ratingEmailSent&updateMask.fieldPaths=ratingEmailSentAt"
             if let u = URL(string: updateUrl) {
                 var req = URLRequest(url: u)
                 req.httpMethod = "PATCH"
@@ -1862,7 +1871,7 @@ public class SupportViewModel: ObservableObject {
                     ]
                 ]
                 req.httpBody = try? JSONSerialization.data(withJSONObject: body)
-                _ = await FirestoreHelper.executeSafeRequest(req)
+                _ = await DatabaseHelper.executeSafeRequest(req)
             }
 
             let auditMsg = "✉️ [Hệ thống]: Đã tự động gửi email nghiệm thu & liên kết đánh giá 1-Click Rating tới \(recipientEmail)."
@@ -1877,8 +1886,8 @@ public class SupportViewModel: ObservableObject {
         guard !cleanComp.isEmpty else { return nil }
 
         // 1. Tìm cấu hình riêng của công ty: companies/{compId}/system_config/email_integration
-        let compDocUrl = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/system_config/email_integration"
-        if let u = URL(string: compDocUrl), let (data, resp) = await FirestoreHelper.safeGet(url: u, idToken: idToken), resp == 200 {
+        let compDocUrl = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/system_config/email_integration"
+        if let u = URL(string: compDocUrl), let (data, resp) = await DatabaseHelper.safeGet(url: u, idToken: idToken), resp == 200 {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
                 let cfg = CompanyEmailConfig.fromFirestore(fields)
@@ -1887,8 +1896,8 @@ public class SupportViewModel: ObservableObject {
         }
 
         // 2. Fallback: Cấu hình dùng chung toàn hệ thống /system_config/email_integration
-        let globalDocUrl = "\(FirebaseConfig.firestoreBaseUrl)/system_config/email_integration"
-        if let u = URL(string: globalDocUrl), let (data, resp) = await FirestoreHelper.safeGet(url: u, idToken: idToken), resp == 200 {
+        let globalDocUrl = "\(ServerConfig.documentsBaseUrl)/system_config/email_integration"
+        if let u = URL(string: globalDocUrl), let (data, resp) = await DatabaseHelper.safeGet(url: u, idToken: idToken), resp == 200 {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
                 let cfg = CompanyEmailConfig.fromFirestore(fields)
@@ -1921,7 +1930,7 @@ public class SupportViewModel: ObservableObject {
             mask += "&updateMask.fieldPaths=closedByRole"
             mask += "&updateMask.fieldPaths=closedAt"
 
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -1946,7 +1955,7 @@ public class SupportViewModel: ObservableObject {
 
             let body: [String: Any] = ["fields": fields]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             sendMessage(ticketId: ticketId, text: finalRejectMsg)
             self.fetchTickets()
@@ -1963,7 +1972,7 @@ public class SupportViewModel: ObservableObject {
         guard let ticket = rawTickets.first(where: { $0.id == ticketId }) else { completion?(false); return }
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=status&updateMask.fieldPaths=reopenCount&updateMask.fieldPaths=reopenedAt&updateMask.fieldPaths=reopenedByEmail&updateMask.fieldPaths=reopenedByName&updateMask.fieldPaths=reopenReason&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=resolvedAt&updateMask.fieldPaths=resolvedReason&updateMask.fieldPaths=rating&updateMask.fieldPaths=isQualityPassed&updateMask.fieldPaths=previousRating&updateMask.fieldPaths=previousFeedback"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?updateMask.fieldPaths=status&updateMask.fieldPaths=reopenCount&updateMask.fieldPaths=reopenedAt&updateMask.fieldPaths=reopenedByEmail&updateMask.fieldPaths=reopenedByName&updateMask.fieldPaths=reopenReason&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=resolvedAt&updateMask.fieldPaths=resolvedReason&updateMask.fieldPaths=rating&updateMask.fieldPaths=isQualityPassed&updateMask.fieldPaths=previousRating&updateMask.fieldPaths=previousFeedback"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -1989,7 +1998,7 @@ public class SupportViewModel: ObservableObject {
                 ]
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             let msg = "🔄 \(user.fullName) đã MỞ LẠI yêu cầu hỗ trợ (Lần \(ticket.reopenCount + 1)): \(reason)"
             sendMessage(ticketId: ticketId, text: msg)
@@ -2016,7 +2025,7 @@ public class SupportViewModel: ObservableObject {
             let finalCloseMsg = "⭐ [Khách hàng đánh giá \(rating)/5★]: \(fbDetail). Phiếu hỗ trợ đã được đóng tự động."
 
             let fields = "updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt&updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=closedByEmail&updateMask.fieldPaths=closedByName&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(fields)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(fields)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -2038,7 +2047,7 @@ public class SupportViewModel: ObservableObject {
                 ]
             ]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             // Ghi nhận tin nhắn thông báo đánh giá vào cuộc hội thoại
             sendMessage(ticketId: ticketId, text: finalCloseMsg, customSenderName: "Hệ thống (Nghiệm thu)", isSystemMessage: true)
@@ -2056,7 +2065,7 @@ public class SupportViewModel: ObservableObject {
             if !cluster.isEmpty { mask += "&updateMask.fieldPaths=assignedCluster" }
             if !note.isEmpty { mask += "&updateMask.fieldPaths=dispatchNote" }
 
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -2075,7 +2084,7 @@ public class SupportViewModel: ObservableObject {
 
             let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             let clusterMsg = cluster.isEmpty ? "" : " (Cụm: \(cluster))"
             let noteMsg = note.isEmpty ? "" : " - Ghi chú: \(note)"
@@ -2209,7 +2218,7 @@ public class SupportViewModel: ObservableObject {
                 maskFields.append("priority")
             }
             let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -2270,7 +2279,7 @@ public class SupportViewModel: ObservableObject {
 
             let body: [String: Any] = ["fields": f]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             let rawAssignerName = user.fullName.trimmingCharacters(in: .whitespacesAndNewlines)
             let assignerName = (!rawAssignerName.isEmpty && rawAssignerName.lowercased() != "admin" && rawAssignerName.lowercased() != "user") ? rawAssignerName : "Bộ phận HelpDesk"
@@ -2554,7 +2563,7 @@ public class SupportViewModel: ObservableObject {
                 }
             }
             let maskStr = uniqueFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -2563,7 +2572,7 @@ public class SupportViewModel: ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
 
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             sendMessage(
                 ticketId: ticketId,
@@ -2618,7 +2627,7 @@ public class SupportViewModel: ObservableObject {
             ]
 
             let maskStr = maskFields.map { "updateMask.fieldPaths=\($0)" }.joined(separator: "&")
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(maskStr)"
             guard let url = URL(string: urlStr) else {
                 DispatchQueue.main.async { completion?(false) }
                 return
@@ -2630,7 +2639,7 @@ public class SupportViewModel: ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
 
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             sendMessage(
                 ticketId: ticketId,
@@ -2656,7 +2665,7 @@ public class SupportViewModel: ObservableObject {
             for ticket in candidates {
                 guard ticket.hasAssignee && !ticket.isSelfResolved && ticket.isAutoRateEligible else { continue }
                 let maskStr = "updateMask.fieldPaths=rating&updateMask.fieldPaths=feedback&updateMask.fieldPaths=feedbackAt&updateMask.fieldPaths=isAutoRated&updateMask.fieldPaths=status&updateMask.fieldPaths=closedAt&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
-                let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticket.id)?\(maskStr)"
+                let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticket.id)?\(maskStr)"
                 guard let url = URL(string: urlStr) else { continue }
 
                 var request = URLRequest(url: url)
@@ -2676,7 +2685,7 @@ public class SupportViewModel: ObservableObject {
                     "lastMessageAt": ["integerValue": String(now)]
                 ]
                 request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-                _ = await FirestoreHelper.executeSafeRequest(request)
+                _ = await DatabaseHelper.executeSafeRequest(request)
 
                 // Gửi tin nhắn nghiệm thu tự động vào messages subcollection
                 sendMessage(
@@ -2742,7 +2751,7 @@ public class SupportViewModel: ObservableObject {
                 trackingMap["routeCoordinates"] = ["arrayValue": ["values": coordsArray]]
             }
 
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -2766,7 +2775,7 @@ public class SupportViewModel: ObservableObject {
             }
 
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
@@ -2822,7 +2831,7 @@ public class SupportViewModel: ObservableObject {
                 trackingFields["routeCoordinates"] = ["arrayValue": ["values": coordsArray]]
             }
 
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
             guard let url = URL(string: urlStr) else { return }
 
             var request = URLRequest(url: url)
@@ -2845,7 +2854,7 @@ public class SupportViewModel: ObservableObject {
 
             let body: [String: Any] = ["fields": fieldsPayload]
             request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
         }
     }
 
@@ -2855,7 +2864,7 @@ public class SupportViewModel: ObservableObject {
             let sanitizedKey = user.email.lowercased().replacingOccurrences(of: "[^a-zA-Z0-9_]", with: "_", options: .regularExpression)
             let fieldPrefix = isCoTech ? "collaboratorTrackings.\(sanitizedKey)" : "tracking"
             let mask = "updateMask.fieldPaths=\(fieldPrefix).status&updateMask.fieldPaths=\(fieldPrefix).isArrivedVerified&updateMask.fieldPaths=\(fieldPrefix).lastUpdatedAt&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -2883,7 +2892,7 @@ public class SupportViewModel: ObservableObject {
             }
 
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
@@ -2895,7 +2904,7 @@ public class SupportViewModel: ObservableObject {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let mask = "updateMask.fieldPaths=handlingMethod&updateMask.fieldPaths=tracking.status&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -2917,7 +2926,7 @@ public class SupportViewModel: ObservableObject {
             ]
 
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
@@ -2929,7 +2938,7 @@ public class SupportViewModel: ObservableObject {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             let mask = "updateMask.fieldPaths=tracking.status&updateMask.fieldPaths=tracking.cancelReason&updateMask.fieldPaths=tracking.cancelledAt&updateMask.fieldPaths=lastMessage&updateMask.fieldPaths=lastMessageAt"
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/support_tickets/\(ticketId)?\(mask)"
             guard let url = URL(string: urlStr) else { completion?(false); return }
 
             var request = URLRequest(url: url)
@@ -2951,7 +2960,7 @@ public class SupportViewModel: ObservableObject {
             ]
 
             request.httpBody = try? JSONSerialization.data(withJSONObject: ["fields": f])
-            _ = await FirestoreHelper.executeSafeRequest(request)
+            _ = await DatabaseHelper.executeSafeRequest(request)
 
             sendMessage(ticketId: ticketId, text: msg)
             self.fetchTickets()
@@ -2968,11 +2977,11 @@ public class SupportViewModel: ObservableObject {
 
             // 1. Fetch Users từ /companies/{comp}/users (và fallback nếu rỗng)
             var loadedStaff: [User] = []
-            let usersUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/users?pageSize=200"
+            let usersUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(comp)/users?pageSize=200"
             if let uUrl = URL(string: usersUrlStr) {
                 var uReq = URLRequest(url: uUrl)
                 if !idToken.isEmpty { uReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                if let (uData, uResp) = await FirestoreHelper.executeSafeRequest(uReq),
+                if let (uData, uResp) = await DatabaseHelper.executeSafeRequest(uReq),
                    uResp.statusCode == 200,
                    let uJson = try? JSONSerialization.jsonObject(with: uData) as? [String: Any],
                    let uDocs = uJson["documents"] as? [[String: Any]], !uDocs.isEmpty {
@@ -2981,11 +2990,11 @@ public class SupportViewModel: ObservableObject {
             }
 
             if loadedStaff.isEmpty {
-                let rootUsersUrl = "\(FirebaseConfig.firestoreBaseUrl)/users?pageSize=200"
+                let rootUsersUrl = "\(ServerConfig.documentsBaseUrl)/users?pageSize=200"
                 if let rUrl = URL(string: rootUsersUrl) {
                     var rReq = URLRequest(url: rUrl)
                     if !idToken.isEmpty { rReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                    if let (rData, rResp) = await FirestoreHelper.executeSafeRequest(rReq),
+                    if let (rData, rResp) = await DatabaseHelper.executeSafeRequest(rReq),
                        rResp.statusCode == 200,
                        let rJson = try? JSONSerialization.jsonObject(with: rData) as? [String: Any],
                        let rDocs = rJson["documents"] as? [[String: Any]] {
@@ -2999,11 +3008,11 @@ public class SupportViewModel: ObservableObject {
             }
 
             // 2. Fetch Specialist Teams từ Firestore /companies/{comp}/specialist_teams
-            let specUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/specialist_teams?pageSize=50"
+            let specUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(comp)/specialist_teams?pageSize=50"
             if let sUrl = URL(string: specUrlStr) {
                 var sReq = URLRequest(url: sUrl)
                 if !idToken.isEmpty { sReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                if let (sData, sResp) = await FirestoreHelper.executeSafeRequest(sReq),
+                if let (sData, sResp) = await DatabaseHelper.executeSafeRequest(sReq),
                    sResp.statusCode == 200,
                    let sJson = try? JSONSerialization.jsonObject(with: sData) as? [String: Any],
                    let sDocs = sJson["documents"] as? [[String: Any]], !sDocs.isEmpty {
@@ -3011,10 +3020,10 @@ public class SupportViewModel: ObservableObject {
                         guard let docName = doc["name"] as? String,
                               let fields = doc["fields"] as? [String: Any] else { return nil }
                         let id = docName.components(separatedBy: "/").last ?? ""
-                        let teamId = FirestoreHelper.getString(fields["teamId"] as? [String: Any]).isEmpty ? id : FirestoreHelper.getString(fields["teamId"] as? [String: Any])
-                        let teamName = FirestoreHelper.getString(fields["teamName"] as? [String: Any]).isEmpty ? (FirestoreHelper.getString(fields["name"] as? [String: Any]).isEmpty ? teamId : FirestoreHelper.getString(fields["name"] as? [String: Any])) : FirestoreHelper.getString(fields["teamName"] as? [String: Any])
-                        let apps = FirestoreHelper.getStringArray(fields["applications"] as? [String: Any])
-                        let desc = FirestoreHelper.getString(fields["description"] as? [String: Any])
+                        let teamId = DatabaseHelper.getString(fields["teamId"] as? [String: Any]).isEmpty ? id : DatabaseHelper.getString(fields["teamId"] as? [String: Any])
+                        let teamName = DatabaseHelper.getString(fields["teamName"] as? [String: Any]).isEmpty ? (DatabaseHelper.getString(fields["name"] as? [String: Any]).isEmpty ? teamId : DatabaseHelper.getString(fields["name"] as? [String: Any])) : DatabaseHelper.getString(fields["teamName"] as? [String: Any])
+                        let apps = DatabaseHelper.getStringArray(fields["applications"] as? [String: Any])
+                        let desc = DatabaseHelper.getString(fields["description"] as? [String: Any])
                         return SpecialistTeamInfo(teamId: teamId, teamName: teamName, applications: apps, description: desc)
                     }.sorted { $0.teamName.localizedCaseInsensitiveCompare($1.teamName) == .orderedAscending }
 
@@ -3032,55 +3041,55 @@ public class SupportViewModel: ObservableObject {
         return docs.compactMap { doc -> User? in
             guard let docName = doc["name"] as? String,
                   let fields = doc["fields"] as? [String: Any] else { return nil }
-            let rawEmail = FirestoreHelper.getString(fields["email"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let rawEmail = DatabaseHelper.getString(fields["email"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             let email = !rawEmail.isEmpty && rawEmail.contains("@") ? rawEmail : (docName.components(separatedBy: "/").last?.lowercased() ?? "")
             guard email.contains("@") && !email.hasPrefix("device_") else { return nil }
 
-            let rawDept = FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
-            let rawPb = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
+            let rawDept = DatabaseHelper.getString(fields["departmentId"] as? [String: Any])
+            let rawPb = DatabaseHelper.getString(fields["phongBan"] as? [String: Any])
             let finalDept = rawDept.isEmpty ? rawPb : rawDept
-            let name = FirestoreHelper.getString(fields["fullName"] as? [String: Any]).isEmpty
-                ? (FirestoreHelper.getString(fields["name"] as? [String: Any]).isEmpty
-                    ? (FirestoreHelper.getString(fields["displayName"] as? [String: Any]).isEmpty
-                        ? FirestoreHelper.getString(fields["hoTen"] as? [String: Any])
-                        : FirestoreHelper.getString(fields["displayName"] as? [String: Any]))
-                    : FirestoreHelper.getString(fields["name"] as? [String: Any]))
-                : FirestoreHelper.getString(fields["fullName"] as? [String: Any])
-            let maKhuVuc = FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any]).isEmpty
-                ? FirestoreHelper.getString(fields["khuVuc"] as? [String: Any])
-                : FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any])
-            var toNghiepVu = FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let name = DatabaseHelper.getString(fields["fullName"] as? [String: Any]).isEmpty
+                ? (DatabaseHelper.getString(fields["name"] as? [String: Any]).isEmpty
+                    ? (DatabaseHelper.getString(fields["displayName"] as? [String: Any]).isEmpty
+                        ? DatabaseHelper.getString(fields["hoTen"] as? [String: Any])
+                        : DatabaseHelper.getString(fields["displayName"] as? [String: Any]))
+                    : DatabaseHelper.getString(fields["name"] as? [String: Any]))
+                : DatabaseHelper.getString(fields["fullName"] as? [String: Any])
+            let maKhuVuc = DatabaseHelper.getString(fields["maKhuVuc"] as? [String: Any]).isEmpty
+                ? DatabaseHelper.getString(fields["khuVuc"] as? [String: Any])
+                : DatabaseHelper.getString(fields["maKhuVuc"] as? [String: Any])
+            var toNghiepVu = DatabaseHelper.getString(fields["toNghiepVu"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines)
             if toNghiepVu.isEmpty && maKhuVuc.hasPrefix("TO_") {
                 toNghiepVu = maKhuVuc
             }
 
-            let lastActiveAt = FirestoreHelper.getInt64(fields["lastActiveAt"] as? [String: Any])
-            let rawOnline = FirestoreHelper.getBool(fields["isOnline"] as? [String: Any]) || FirestoreHelper.getBool(fields["online"] as? [String: Any])
-            let isOnDuty = FirestoreHelper.getBool(fields["isOnDuty"] as? [String: Any])
-            let onDutyShift = FirestoreHelper.getString(fields["onDutyShift"] as? [String: Any])
-            let onDutySource = FirestoreHelper.getString(fields["onDutySource"] as? [String: Any])
-            let onDutySince = FirestoreHelper.getInt64(fields["onDutySince"] as? [String: Any])
+            let lastActiveAt = DatabaseHelper.getInt64(fields["lastActiveAt"] as? [String: Any])
+            let rawOnline = DatabaseHelper.getBool(fields["isOnline"] as? [String: Any]) || DatabaseHelper.getBool(fields["online"] as? [String: Any])
+            let isOnDuty = DatabaseHelper.getBool(fields["isOnDuty"] as? [String: Any])
+            let onDutyShift = DatabaseHelper.getString(fields["onDutyShift"] as? [String: Any])
+            let onDutySource = DatabaseHelper.getString(fields["onDutySource"] as? [String: Any])
+            let onDutySince = DatabaseHelper.getInt64(fields["onDutySince"] as? [String: Any])
             let isOnline = (rawOnline && (lastActiveAt > 0) && (nowMs - lastActiveAt <= 15 * 60 * 1000)) || isOnDuty
 
             return User(
-                maNhanVien: FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]),
+                maNhanVien: DatabaseHelper.getString(fields["maNhanVien"] as? [String: Any]),
                 email: email,
-                role: FirestoreHelper.getString(fields["role"] as? [String: Any]).isEmpty ? "STAFF" : FirestoreHelper.getString(fields["role"] as? [String: Any]),
+                role: DatabaseHelper.getString(fields["role"] as? [String: Any]).isEmpty ? "STAFF" : DatabaseHelper.getString(fields["role"] as? [String: Any]),
                 fullName: name.isEmpty ? (email.components(separatedBy: "@").first ?? "") : name,
-                phone: FirestoreHelper.getString(fields["phone"] as? [String: Any]),
-                donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
+                phone: DatabaseHelper.getString(fields["phone"] as? [String: Any]),
+                donVi: DatabaseHelper.getString(fields["donVi"] as? [String: Any]),
                 companyId: companyId,
                 departmentId: finalDept,
-                status: FirestoreHelper.getString(fields["status"] as? [String: Any]).isEmpty ? "ACTIVE" : FirestoreHelper.getString(fields["status"] as? [String: Any]),
-                avatarUrl: FirestoreHelper.getString(fields["avatarUrl"] as? [String: Any]),
-                createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
-                mustChangePassword: FirestoreHelper.getBool(fields["mustChangePassword"] as? [String: Any]),
+                status: DatabaseHelper.getString(fields["status"] as? [String: Any]).isEmpty ? "ACTIVE" : DatabaseHelper.getString(fields["status"] as? [String: Any]),
+                avatarUrl: DatabaseHelper.getString(fields["avatarUrl"] as? [String: Any]),
+                createdAt: DatabaseHelper.getInt64(fields["createdAt"] as? [String: Any]),
+                mustChangePassword: DatabaseHelper.getBool(fields["mustChangePassword"] as? [String: Any]),
                 maKhuVuc: maKhuVuc,
                 toNghiepVu: toNghiepVu,
                 lastActiveAt: lastActiveAt,
                 isOnline: isOnline,
-                permissions: FirestoreHelper.getStringArray(fields["permissions"] as? [String: Any]),
-                disabledReason: FirestoreHelper.getString(fields["disabledReason"] as? [String: Any]),
+                permissions: DatabaseHelper.getStringArray(fields["permissions"] as? [String: Any]),
+                disabledReason: DatabaseHelper.getString(fields["disabledReason"] as? [String: Any]),
                 isOnDuty: isOnDuty,
                 onDutyShift: onDutyShift,
                 onDutySource: onDutySource,
@@ -3093,7 +3102,7 @@ public class SupportViewModel: ObservableObject {
     public func fetchKtvTechnicians() {
         isLoadingKtvs = true
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/users?pageSize=200"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/users?pageSize=200"
             guard let url = URL(string: urlStr) else {
                 self.isLoadingKtvs = false
                 return
@@ -3102,7 +3111,7 @@ public class SupportViewModel: ObservableObject {
             var request = URLRequest(url: url)
             request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
 
-            guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+            guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
                   httpResponse.statusCode == 200,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let docs = json["documents"] as? [[String: Any]] else {
@@ -3112,20 +3121,20 @@ public class SupportViewModel: ObservableObject {
 
             // 1. Lấy tọa độ GPS thời gian thực từ technician_locations
             var techGpsMap: [String: (lat: Double, lng: Double)] = [:]
-            if let tLocUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/technician_locations?pageSize=200") {
+            if let tLocUrl = URL(string: "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/technician_locations?pageSize=200") {
                 var tLocReq = URLRequest(url: tLocUrl)
                 if !idToken.isEmpty { tLocReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                if let (tData, tResp) = await FirestoreHelper.executeSafeRequest(tLocReq),
+                if let (tData, tResp) = await DatabaseHelper.executeSafeRequest(tLocReq),
                    tResp.statusCode == 200,
                    let tJson = try? JSONSerialization.jsonObject(with: tData) as? [String: Any],
                    let tDocs = tJson["documents"] as? [[String: Any]] {
                     for td in tDocs {
                         guard let tFields = td["fields"] as? [String: Any] else { continue }
                         let docName = (td["name"] as? String)?.components(separatedBy: "/").last ?? ""
-                        let tEmail = FirestoreHelper.getString(tFields["email"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                        let tEmail = DatabaseHelper.getString(tFields["email"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
                         let keyEmail = tEmail.isEmpty ? docName.lowercased() : tEmail
-                        let tLat = FirestoreHelper.getDouble(tFields["lat"] as? [String: Any])
-                        let tLng = FirestoreHelper.getDouble(tFields["lng"] as? [String: Any])
+                        let tLat = DatabaseHelper.getDouble(tFields["lat"] as? [String: Any])
+                        let tLng = DatabaseHelper.getDouble(tFields["lng"] as? [String: Any])
                         if tLat != 0.0 && tLng != 0.0 {
                             techGpsMap[keyEmail] = (tLat, tLng)
                             techGpsMap[keyEmail.replacingOccurrences(of: "/", with: "_")] = (tLat, tLng)
@@ -3136,18 +3145,18 @@ public class SupportViewModel: ObservableObject {
 
             // 2. Lấy tọa độ các đơn vị / chi nhánh từ bảng units
             var unitCoordsMap: [String: (lat: Double, lng: Double)] = [:]
-            if let unitsUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/units?pageSize=300") {
+            if let unitsUrl = URL(string: "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/units?pageSize=300") {
                 var uReq = URLRequest(url: unitsUrl)
                 if !idToken.isEmpty { uReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                if let (uData, uResp) = await FirestoreHelper.executeSafeRequest(uReq),
+                if let (uData, uResp) = await DatabaseHelper.executeSafeRequest(uReq),
                    uResp.statusCode == 200,
                    let uJson = try? JSONSerialization.jsonObject(with: uData) as? [String: Any],
                    let uDocs = uJson["documents"] as? [[String: Any]] {
                     for ud in uDocs {
                         guard let uFields = ud["fields"] as? [String: Any] else { continue }
-                        let uName = FirestoreHelper.getString(uFields["unitName"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-                        let uLat = FirestoreHelper.getDouble(uFields["lat"] as? [String: Any])
-                        let uLng = FirestoreHelper.getDouble(uFields["lng"] as? [String: Any])
+                        let uName = DatabaseHelper.getString(uFields["unitName"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                        let uLat = DatabaseHelper.getDouble(uFields["lat"] as? [String: Any])
+                        let uLng = DatabaseHelper.getDouble(uFields["lng"] as? [String: Any])
                         if !uName.isEmpty && uLat != 0.0 && uLng != 0.0 {
                             unitCoordsMap[uName] = (uLat, uLng)
                         }
@@ -3173,10 +3182,10 @@ public class SupportViewModel: ObservableObject {
             let shortDays = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
             let todayKeyShort = shortDays[weekdayIdx]
 
-            if let schedUrl = URL(string: "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)/shift_schedules/\(currentWeekId)") {
+            if let schedUrl = URL(string: "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/shift_schedules/\(currentWeekId)") {
                 var sReq = URLRequest(url: schedUrl)
                 if !idToken.isEmpty { sReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
-                if let (sData, sResp) = await FirestoreHelper.executeSafeRequest(sReq),
+                if let (sData, sResp) = await DatabaseHelper.executeSafeRequest(sReq),
                    sResp.statusCode == 200,
                    let sJson = try? JSONSerialization.jsonObject(with: sData) as? [String: Any],
                    let sFields = sJson["fields"] as? [String: Any],
@@ -3184,15 +3193,15 @@ public class SupportViewModel: ObservableObject {
                    let valList = rawEntries["values"] as? [[String: Any]] {
                     for v in valList {
                         guard let mapFields = (v["mapValue"] as? [String: Any])?["fields"] as? [String: Any] else { continue }
-                        let empId = FirestoreHelper.getString(mapFields["employeeId"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                        let empName = FirestoreHelper.getString(mapFields["employeeName"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        let empId = DatabaseHelper.getString(mapFields["employeeId"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        let empName = DatabaseHelper.getString(mapFields["employeeName"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                         if let daysMap = (mapFields["days"] as? [String: Any])?["mapValue"] as? [String: Any],
                            let dayFields = daysMap["fields"] as? [String: Any] {
-                            let code = FirestoreHelper.getString(dayFields[todayKeyDate] as? [String: Any]).isEmpty
-                                ? (FirestoreHelper.getString(dayFields[todayKeyShort] as? [String: Any]).isEmpty
-                                    ? FirestoreHelper.getString(dayFields[todayKeyDdMm] as? [String: Any])
-                                    : FirestoreHelper.getString(dayFields[todayKeyShort] as? [String: Any]))
-                                : FirestoreHelper.getString(dayFields[todayKeyDate] as? [String: Any])
+                            let code = DatabaseHelper.getString(dayFields[todayKeyDate] as? [String: Any]).isEmpty
+                                ? (DatabaseHelper.getString(dayFields[todayKeyShort] as? [String: Any]).isEmpty
+                                    ? DatabaseHelper.getString(dayFields[todayKeyDdMm] as? [String: Any])
+                                    : DatabaseHelper.getString(dayFields[todayKeyShort] as? [String: Any]))
+                                : DatabaseHelper.getString(dayFields[todayKeyDate] as? [String: Any])
                             if !code.isEmpty {
                                 if !empId.isEmpty { shiftCodeMap[empId] = code }
                                 if !empName.isEmpty { shiftCodeMap[empName] = code }
@@ -3208,18 +3217,18 @@ public class SupportViewModel: ObservableObject {
             var result: [KtvOnlineLocation] = []
             for doc in docs {
                 guard let fields = doc["fields"] as? [String: Any] else { continue }
-                let email = FirestoreHelper.getString(fields["email"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let email = DatabaseHelper.getString(fields["email"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
                 if email.isEmpty { continue }
 
-                let role = FirestoreHelper.getString(fields["role"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let deptId = (FirestoreHelper.getString(fields["departmentId"] as? [String: Any]).isEmpty
-                    ? FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
-                    : FirestoreHelper.getString(fields["departmentId"] as? [String: Any])).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let deptName = (FirestoreHelper.getString(fields["departmentName"] as? [String: Any]).isEmpty
-                    ? FirestoreHelper.getString(fields["deptName"] as? [String: Any])
-                    : FirestoreHelper.getString(fields["departmentName"] as? [String: Any])).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let toNghiepVu = FirestoreHelper.getString(fields["toNghiepVu"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let donVi = FirestoreHelper.getString(fields["donVi"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let role = DatabaseHelper.getString(fields["role"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let deptId = (DatabaseHelper.getString(fields["departmentId"] as? [String: Any]).isEmpty
+                    ? DatabaseHelper.getString(fields["phongBan"] as? [String: Any])
+                    : DatabaseHelper.getString(fields["departmentId"] as? [String: Any])).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let deptName = (DatabaseHelper.getString(fields["departmentName"] as? [String: Any]).isEmpty
+                    ? DatabaseHelper.getString(fields["deptName"] as? [String: Any])
+                    : DatabaseHelper.getString(fields["departmentName"] as? [String: Any])).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let toNghiepVu = DatabaseHelper.getString(fields["toNghiepVu"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let donVi = DatabaseHelper.getString(fields["donVi"] as? [String: Any]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
 
                 // 1. Loại trừ các vai trò không thuộc đội kỹ thuật/chuyên viên
                 let isExcluded = role == "user" || role == "admin" || role == "superadmin" || role == "super_admin" || role == "helpdesk" || role == "hd" ||
@@ -3242,21 +3251,21 @@ public class SupportViewModel: ObservableObject {
                 }
 
                 let rawOnline = (fields["isOnline"] as? [String: Any])?["booleanValue"] as? Bool ?? false
-                let lastActiveAt = FirestoreHelper.getInt64(fields["lastActiveAt"] as? [String: Any])
+                let lastActiveAt = DatabaseHelper.getInt64(fields["lastActiveAt"] as? [String: Any])
                 let isOnDuty = (fields["isOnDuty"] as? [String: Any])?["booleanValue"] as? Bool ?? false
                 let isOnline = (rawOnline && (lastActiveAt > 0) && ((nowMs - lastActiveAt) < onlineWindowMs)) || isOnDuty
 
-                let name = FirestoreHelper.getString(fields["fullName"] as? [String: Any]).isEmpty
-                    ? FirestoreHelper.getString(fields["name"] as? [String: Any])
-                    : FirestoreHelper.getString(fields["fullName"] as? [String: Any])
-                let phone = FirestoreHelper.getString(fields["phone"] as? [String: Any])
-                let maNhanVien = FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any]).isEmpty
-                    ? FirestoreHelper.getString(fields["employeeId"] as? [String: Any])
-                    : FirestoreHelper.getString(fields["maNhanVien"] as? [String: Any])
-                let maKhuVuc = FirestoreHelper.getString(fields["maKhuVuc"] as? [String: Any])
-                let unitName = FirestoreHelper.getString(fields["donVi"] as? [String: Any]).isEmpty
-                    ? FirestoreHelper.getString(fields["departmentId"] as? [String: Any])
-                    : FirestoreHelper.getString(fields["donVi"] as? [String: Any])
+                let name = DatabaseHelper.getString(fields["fullName"] as? [String: Any]).isEmpty
+                    ? DatabaseHelper.getString(fields["name"] as? [String: Any])
+                    : DatabaseHelper.getString(fields["fullName"] as? [String: Any])
+                let phone = DatabaseHelper.getString(fields["phone"] as? [String: Any])
+                let maNhanVien = DatabaseHelper.getString(fields["maNhanVien"] as? [String: Any]).isEmpty
+                    ? DatabaseHelper.getString(fields["employeeId"] as? [String: Any])
+                    : DatabaseHelper.getString(fields["maNhanVien"] as? [String: Any])
+                let maKhuVuc = DatabaseHelper.getString(fields["maKhuVuc"] as? [String: Any])
+                let unitName = DatabaseHelper.getString(fields["donVi"] as? [String: Any]).isEmpty
+                    ? DatabaseHelper.getString(fields["departmentId"] as? [String: Any])
+                    : DatabaseHelper.getString(fields["donVi"] as? [String: Any])
 
                 var lastSeen = "Không rõ"
                 if lastActiveAt > 0 {
@@ -3266,7 +3275,7 @@ public class SupportViewModel: ObservableObject {
                     else { lastSeen = "\(diffSeconds / 3600) giờ trước" }
                 }
 
-                let violCount = Int(FirestoreHelper.getInt64(fields["offlineViolationsCount"] as? [String: Any]))
+                let violCount = Int(DatabaseHelper.getInt64(fields["offlineViolationsCount"] as? [String: Any]))
                 let isBlacklisted = (fields["isBlacklisted"] as? [String: Any])?["booleanValue"] as? Bool ?? (violCount >= 5)
 
                 let shiftCode = shiftCodeMap[maNhanVien.lowercased()] ?? shiftCodeMap[name.lowercased()] ?? ""
@@ -3278,8 +3287,8 @@ public class SupportViewModel: ObservableObject {
                 let jitterLng = (Double(abs((email + "x").hashValue) % 70) - 35.0) / 10000.0
 
                 let liveGps = techGpsMap[email] ?? techGpsMap[email.replacingOccurrences(of: "/", with: "_")]
-                let docLat = FirestoreHelper.getDouble(fields["latitude"] as? [String: Any]) != 0 ? FirestoreHelper.getDouble(fields["latitude"] as? [String: Any]) : FirestoreHelper.getDouble(fields["lat"] as? [String: Any])
-                let docLng = FirestoreHelper.getDouble(fields["longitude"] as? [String: Any]) != 0 ? FirestoreHelper.getDouble(fields["longitude"] as? [String: Any]) : FirestoreHelper.getDouble(fields["lng"] as? [String: Any])
+                let docLat = DatabaseHelper.getDouble(fields["latitude"] as? [String: Any]) != 0 ? DatabaseHelper.getDouble(fields["latitude"] as? [String: Any]) : DatabaseHelper.getDouble(fields["lat"] as? [String: Any])
+                let docLng = DatabaseHelper.getDouble(fields["longitude"] as? [String: Any]) != 0 ? DatabaseHelper.getDouble(fields["longitude"] as? [String: Any]) : DatabaseHelper.getDouble(fields["lng"] as? [String: Any])
 
                 let unitCoord = unitCoordsMap[unitName.lowercased()] ?? unitCoordsMap[donVi.lowercased()]
                 let coopStore = (liveGps == nil && docLat == 0.0 && unitCoord == nil) ? CoopmartDirectory.resolve(unitName.isEmpty ? donVi : unitName) : nil
@@ -3334,7 +3343,7 @@ public class SupportViewModel: ObservableObject {
                     violationsThisMonth: violCount,
                     isBlacklisted: isBlacklisted,
                     isOnDuty: isOnDuty,
-                    onDutyShift: FirestoreHelper.getString(fields["onDutyShift"] as? [String: Any])
+                    onDutyShift: DatabaseHelper.getString(fields["onDutyShift"] as? [String: Any])
                 ))
             }
 
@@ -3390,7 +3399,7 @@ public class SupportViewModel: ObservableObject {
         let cleanCode = newCode.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // 1. Fetch current week's schedule
-        let schedUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/shift_schedules/\(wId)"
+        let schedUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/shift_schedules/\(wId)"
         guard let schedUrl = URL(string: schedUrlStr) else { return false }
 
         var getReq = URLRequest(url: schedUrl)
@@ -3399,11 +3408,11 @@ public class SupportViewModel: ObservableObject {
         var currentEntries: [[String: Any]] = []
         var existingWeekStart: Int64 = Int64(thisMonday.timeIntervalSince1970 * 1000)
 
-        if let (sData, sResp) = await FirestoreHelper.executeSafeRequest(getReq),
+        if let (sData, sResp) = await DatabaseHelper.executeSafeRequest(getReq),
            sResp.statusCode == 200,
            let sJson = try? JSONSerialization.jsonObject(with: sData) as? [String: Any],
            let sFields = sJson["fields"] as? [String: Any] {
-            let ws = FirestoreHelper.getInt64(sFields["weekStart"] as? [String: Any])
+            let ws = DatabaseHelper.getInt64(sFields["weekStart"] as? [String: Any])
             if ws > 0 {
                 existingWeekStart = ws
             }
@@ -3425,9 +3434,9 @@ public class SupportViewModel: ObservableObject {
 
         var foundIndex = -1
         for (i, entryFields) in currentEntries.enumerated() {
-            let eId = FirestoreHelper.getString(entryFields["employeeId"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-            let eName = FirestoreHelper.getString(entryFields["employeeName"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-            let eEmail = FirestoreHelper.getString(entryFields["employeeEmail"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            let eId = DatabaseHelper.getString(entryFields["employeeId"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            let eName = DatabaseHelper.getString(entryFields["employeeName"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+            let eEmail = DatabaseHelper.getString(entryFields["employeeEmail"] as? [String: Any]).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
             if (!targetId.isEmpty && eId == targetId) ||
                (!targetName.isEmpty && eName == targetName) ||
@@ -3484,7 +3493,7 @@ public class SupportViewModel: ObservableObject {
         }
 
         let now = Int64(Date().timeIntervalSince1970 * 1000)
-        let patchUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp)/shift_schedules/\(wId)?updateMask.fieldPaths=entries&updateMask.fieldPaths=updatedAt&updateMask.fieldPaths=updatedBy&updateMask.fieldPaths=weekStart"
+        let patchUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/shift_schedules/\(wId)?updateMask.fieldPaths=entries&updateMask.fieldPaths=updatedAt&updateMask.fieldPaths=updatedBy&updateMask.fieldPaths=weekStart"
         guard let patchUrl = URL(string: patchUrlStr) else { return false }
 
         var patchReq = URLRequest(url: patchUrl)
@@ -3502,7 +3511,7 @@ public class SupportViewModel: ObservableObject {
         ]
         patchReq.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
-        let patchResult = await FirestoreHelper.executeSafeRequest(patchReq)
+        let patchResult = await DatabaseHelper.executeSafeRequest(patchReq)
         let success = (patchResult?.1.statusCode == 200)
 
         if success {
@@ -3614,7 +3623,7 @@ public class SupportViewModel: ObservableObject {
     }
 
     private func fetchAllTicketsFromFirestore() async -> [SupportTicket]? {
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId):runQuery"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId):runQuery"
         guard let url = URL(string: urlStr) else { return nil }
 
         var request = URLRequest(url: url)
@@ -3635,7 +3644,7 @@ public class SupportViewModel: ObservableObject {
         guard let bodyData = try? JSONSerialization.data(withJSONObject: queryPayload) else { return nil }
         request.httpBody = bodyData
 
-        guard let (data, httpResponse) = await FirestoreHelper.executeSafeRequest(request),
+        guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
               httpResponse.statusCode == 200,
               let results = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
             return nil
@@ -3649,22 +3658,22 @@ public class SupportViewModel: ObservableObject {
 
             return SupportTicket(
                 id: id,
-                creatorEmail: FirestoreHelper.getString(fields["creatorEmail"] as? [String: Any]),
-                creatorName: FirestoreHelper.getString(fields["creatorName"] as? [String: Any]),
-                subject: FirestoreHelper.getString(fields["subject"] as? [String: Any]),
-                status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
-                priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
-                createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
-                donVi: FirestoreHelper.getString(fields["donVi"] as? [String: Any]),
-                rating: FirestoreHelper.getInt(fields["rating"] as? [String: Any]),
-                feedback: FirestoreHelper.getString(fields["feedback"] as? [String: Any]),
-                feedbackAt: FirestoreHelper.getInt64(fields["feedbackAt"] as? [String: Any]),
-                assignedDepartmentName: FirestoreHelper.getString(fields["assignedDepartmentName"] as? [String: Any]),
-                assignedToEmail: FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any]),
-                assignedToName: FirestoreHelper.getString(fields["assignedToName"] as? [String: Any]),
-                closedAt: FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any]),
-                isAutoRated: FirestoreHelper.getBool(fields["isAutoRated"] as? [String: Any]),
-                isInvalid: FirestoreHelper.getBool(fields["isInvalid"] as? [String: Any])
+                creatorEmail: DatabaseHelper.getString(fields["creatorEmail"] as? [String: Any]),
+                creatorName: DatabaseHelper.getString(fields["creatorName"] as? [String: Any]),
+                subject: DatabaseHelper.getString(fields["subject"] as? [String: Any]),
+                status: DatabaseHelper.getString(fields["status"] as? [String: Any]),
+                priority: DatabaseHelper.getString(fields["priority"] as? [String: Any]),
+                createdAt: DatabaseHelper.getInt64(fields["createdAt"] as? [String: Any]),
+                donVi: DatabaseHelper.getString(fields["donVi"] as? [String: Any]),
+                rating: DatabaseHelper.getInt(fields["rating"] as? [String: Any]),
+                feedback: DatabaseHelper.getString(fields["feedback"] as? [String: Any]),
+                feedbackAt: DatabaseHelper.getInt64(fields["feedbackAt"] as? [String: Any]),
+                assignedDepartmentName: DatabaseHelper.getString(fields["assignedDepartmentName"] as? [String: Any]),
+                assignedToEmail: DatabaseHelper.getString(fields["assignedToEmail"] as? [String: Any]),
+                assignedToName: DatabaseHelper.getString(fields["assignedToName"] as? [String: Any]),
+                closedAt: DatabaseHelper.getInt64(fields["closedAt"] as? [String: Any]),
+                isAutoRated: DatabaseHelper.getBool(fields["isAutoRated"] as? [String: Any]),
+                isInvalid: DatabaseHelper.getBool(fields["isInvalid"] as? [String: Any])
             )
         }
     }

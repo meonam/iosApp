@@ -31,17 +31,17 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     // Mặc định nạp sẵn STUN/TURN của máy chủ Cloud & Google STUN
     private var iceServers: [RTCIceServer] = [
         RTCIceServer(urlStrings: [
-            FirebaseConfig.stunServer,
+            ServerConfig.stunServer,
             "stun:stun.l.google.com:19302",
             "stun:stun1.l.google.com:19302"
         ]),
         RTCIceServer(
             urlStrings: [
-                "turn:\(FirebaseConfig.serverHost):3478?transport=udp",
-                "turn:\(FirebaseConfig.serverHost):3478?transport=tcp"
+                "turn:\(ServerConfig.serverHost):3478?transport=udp",
+                "turn:\(ServerConfig.serverHost):3478?transport=tcp"
             ],
-            username: FirebaseConfig.turnUsername,
-            credential: FirebaseConfig.turnPassword
+            username: ServerConfig.turnUsername,
+            credential: ServerConfig.turnPassword
         ),
         RTCIceServer(
             urlStrings: [
@@ -55,7 +55,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     
     public var companyId: String = "SGCOOP"
     public var idToken: String = ""
-    private let firestoreBaseUrl = FirebaseConfig.firestoreBaseUrl
+    private let documentsBaseUrl = ServerConfig.documentsBaseUrl
     
     private var signalingTimer: AnyCancellable?
     private var isCaller: Bool = false
@@ -80,7 +80,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     }
     
     private func fetchIceServers() {
-        guard let url = URL(string: "\(FirebaseConfig.serverBaseUrl)/api/webrtc/config") else { return }
+        guard let url = URL(string: "\(ServerConfig.serverBaseUrl)/api/webrtc/config") else { return }
         URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
             guard let self = self, let data = data else { return }
             do {
@@ -281,7 +281,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         
         self.companyId = safeComp
         
-        let urlStr = "\(firestoreBaseUrl)/companies/\(safeComp):runQuery"
+        let urlStr = "\(documentsBaseUrl)/companies/\(safeComp):runQuery"
         guard let url = URL(string: urlStr) else {
             self.startCall(targetEmail: "helpdesk", targetName: "Trực ban HelpDesk", callerName: callerName, callerEmail: cleanCallerEmail, callerRole: callerRole)
             return
@@ -517,7 +517,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     ) {
         guard let callId = currentCallId else { return }
         
-        let urlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls?documentId=\(callId)"
+        let urlStr = "\(documentsBaseUrl)/companies/\(companyId)/calls?documentId=\(callId)"
         guard let url = URL(string: urlStr) else { return }
         
         let body: [String: Any] = [
@@ -567,7 +567,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
             return
         }
         
-        let urlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)"
+        let urlStr = "\(documentsBaseUrl)/companies/\(companyId)/calls/\(callId)"
         guard let url = URL(string: urlStr) else {
             completion(nil)
             return
@@ -602,7 +602,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         guard let callId = currentCallId else { return }
         
         let now = Int64(Date().timeIntervalSince1970 * 1000)
-        let urlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)?updateMask.fieldPaths=answer&updateMask.fieldPaths=status&updateMask.fieldPaths=acceptedAt"
+        let urlStr = "\(documentsBaseUrl)/companies/\(companyId)/calls/\(callId)?updateMask.fieldPaths=answer&updateMask.fieldPaths=status&updateMask.fieldPaths=acceptedAt"
         guard let url = URL(string: urlStr) else { return }
         
         let body: [String: Any] = [
@@ -640,7 +640,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     
     private func updateCallStateEnded(callId: String) {
         let now = Int64(Date().timeIntervalSince1970 * 1000)
-        let urlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)?updateMask.fieldPaths=status&updateMask.fieldPaths=endedAt"
+        let urlStr = "\(documentsBaseUrl)/companies/\(companyId)/calls/\(callId)?updateMask.fieldPaths=status&updateMask.fieldPaths=endedAt"
         guard let url = URL(string: urlStr) else { return }
         
         let body: [String: Any] = [
@@ -664,7 +664,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
     private func sendIceCandidate(_ candidate: RTCIceCandidate) {
         guard let callId = currentCallId else { return }
         let collection = isCaller ? "callerCandidates" : "calleeCandidates"
-        let urlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)/\(collection)"
+        let urlStr = "\(documentsBaseUrl)/companies/\(companyId)/calls/\(callId)/\(collection)"
         guard let url = URL(string: urlStr) else { return }
         
         let body: [String: Any] = [
@@ -700,7 +700,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         guard let callId = currentCallId else { return }
         
         // 1. Kiểm tra trạng thái cuộc gọi
-        let callUrlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)"
+        let callUrlStr = "\(documentsBaseUrl)/companies/\(companyId)/calls/\(callId)"
         if let url = URL(string: callUrlStr) {
             var request = URLRequest(url: url)
             if !idToken.isEmpty {
@@ -753,7 +753,7 @@ public class WebRtcCallManager: NSObject, ObservableObject {
         
         // 2. Trao đổi ứng viên mạng (ICE Candidates)
         let targetCollection = isCaller ? "calleeCandidates" : "callerCandidates"
-        let candidatesUrlStr = "\(firestoreBaseUrl)/companies/\(companyId)/calls/\(callId)/\(targetCollection)"
+        let candidatesUrlStr = "\(documentsBaseUrl)/companies/\(companyId)/calls/\(callId)/\(targetCollection)"
         if let url = URL(string: candidatesUrlStr) {
             var request = URLRequest(url: url)
             if !idToken.isEmpty {

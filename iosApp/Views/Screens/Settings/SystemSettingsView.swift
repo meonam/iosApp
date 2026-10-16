@@ -733,7 +733,7 @@ public struct SystemSettingsView: View {
             return
         }
         
-        let url = FirebaseConfig.firestoreBaseUrl + "/companies/\(companyId)/settings/config"
+        let url = ServerConfig.documentsBaseUrl + "/companies/\(companyId)/settings/config"
         guard let reqUrl = URL(string: url) else { return }
         
         var request = URLRequest(url: reqUrl)
@@ -748,24 +748,24 @@ public struct SystemSettingsView: View {
                 guard let data = data, error == nil else { return }
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let fields = json["fields"] as? [String: Any] {
-                    self.companyName = FirestoreHelper.getString(fields["companyName"] as? [String: Any])
-                    self.companyCode = FirestoreHelper.getString(fields["companyCode"] as? [String: Any])
-                    self.companyAddress = FirestoreHelper.getString(fields["companyAddress"] as? [String: Any])
-                    self.companyPhone = FirestoreHelper.getString(fields["companyPhone"] as? [String: Any])
-                    self.companyEmail = FirestoreHelper.getString(fields["companyEmail"] as? [String: Any])
-                    self.gpsCheckInEnabled = FirestoreHelper.getBool(fields["gpsCheckInEnabled"] as? [String: Any])
-                    self.gpsRadius = FirestoreHelper.getInt(fields["gpsRadius"] as? [String: Any])
-                    self.gpsLat = FirestoreHelper.getDouble(fields["gpsLat"] as? [String: Any])
-                    self.gpsLng = FirestoreHelper.getDouble(fields["gpsLng"] as? [String: Any])
-                    self.selfieCheckInEnabled = FirestoreHelper.getBool(fields["selfieCheckInEnabled"] as? [String: Any])
-                    self.attendanceStartTime = FirestoreHelper.getString(fields["attendanceStartTime"] as? [String: Any])
-                    self.lateThresholdMinutes = FirestoreHelper.getInt(fields["lateThresholdMinutes"] as? [String: Any])
-                    self.slaUrgentHours = FirestoreHelper.getInt(fields["slaUrgentHours"] as? [String: Any])
-                    self.slaHighHours = FirestoreHelper.getInt(fields["slaHighHours"] as? [String: Any])
-                    self.slaNormalHours = FirestoreHelper.getInt(fields["slaNormalHours"] as? [String: Any])
-                    self.notificationsEnabled = FirestoreHelper.getBool(fields["notificationsEnabled"] as? [String: Any])
-                    self.maxDevicesPerUser = FirestoreHelper.getInt(fields["maxDevicesPerUser"] as? [String: Any])
-                    self.paywallEnabled = FirestoreHelper.getBool(fields["paywallEnabled"] as? [String: Any])
+                    self.companyName = DatabaseHelper.getString(fields["companyName"] as? [String: Any])
+                    self.companyCode = DatabaseHelper.getString(fields["companyCode"] as? [String: Any])
+                    self.companyAddress = DatabaseHelper.getString(fields["companyAddress"] as? [String: Any])
+                    self.companyPhone = DatabaseHelper.getString(fields["companyPhone"] as? [String: Any])
+                    self.companyEmail = DatabaseHelper.getString(fields["companyEmail"] as? [String: Any])
+                    self.gpsCheckInEnabled = DatabaseHelper.getBool(fields["gpsCheckInEnabled"] as? [String: Any])
+                    self.gpsRadius = DatabaseHelper.getInt(fields["gpsRadius"] as? [String: Any])
+                    self.gpsLat = DatabaseHelper.getDouble(fields["gpsLat"] as? [String: Any])
+                    self.gpsLng = DatabaseHelper.getDouble(fields["gpsLng"] as? [String: Any])
+                    self.selfieCheckInEnabled = DatabaseHelper.getBool(fields["selfieCheckInEnabled"] as? [String: Any])
+                    self.attendanceStartTime = DatabaseHelper.getString(fields["attendanceStartTime"] as? [String: Any])
+                    self.lateThresholdMinutes = DatabaseHelper.getInt(fields["lateThresholdMinutes"] as? [String: Any])
+                    self.slaUrgentHours = DatabaseHelper.getInt(fields["slaUrgentHours"] as? [String: Any])
+                    self.slaHighHours = DatabaseHelper.getInt(fields["slaHighHours"] as? [String: Any])
+                    self.slaNormalHours = DatabaseHelper.getInt(fields["slaNormalHours"] as? [String: Any])
+                    self.notificationsEnabled = DatabaseHelper.getBool(fields["notificationsEnabled"] as? [String: Any])
+                    self.maxDevicesPerUser = DatabaseHelper.getInt(fields["maxDevicesPerUser"] as? [String: Any])
+                    self.paywallEnabled = DatabaseHelper.getBool(fields["paywallEnabled"] as? [String: Any])
                     
                     // Sync local cache
                     self.localCompanyName = self.companyName
@@ -779,7 +779,7 @@ public struct SystemSettingsView: View {
         }.resume()
 
         // 2. Tải thêm từ canonical system_config/travel_expense_config
-        let travelUrl = FirebaseConfig.firestoreBaseUrl + "/companies/\(companyId)/system_config/travel_expense_config"
+        let travelUrl = ServerConfig.documentsBaseUrl + "/companies/\(companyId)/system_config/travel_expense_config"
         if let tUrl = URL(string: travelUrl) {
             var tReq = URLRequest(url: tUrl)
             tReq.httpMethod = "GET"
@@ -791,56 +791,56 @@ public struct SystemSettingsView: View {
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let fields = json["fields"] as? [String: Any] else { return }
                 DispatchQueue.main.async {
-                    let sIn = FirestoreHelper.getString(fields["standardCheckInTime"] as? [String: Any])
+                    let sIn = DatabaseHelper.getString(fields["standardCheckInTime"] as? [String: Any])
                     if !sIn.isEmpty { self.standardCheckInTime = sIn }
-                    let sOut = FirestoreHelper.getString(fields["standardCheckOutTime"] as? [String: Any])
+                    let sOut = DatabaseHelper.getString(fields["standardCheckOutTime"] as? [String: Any])
                     if !sOut.isEmpty { self.standardCheckOutTime = sOut }
-                    let s1In = FirestoreHelper.getString(fields["shift1CheckInTime"] as? [String: Any])
+                    let s1In = DatabaseHelper.getString(fields["shift1CheckInTime"] as? [String: Any])
                     if !s1In.isEmpty { self.shift1CheckInTime = s1In }
-                    let s1Out = FirestoreHelper.getString(fields["shift1CheckOutTime"] as? [String: Any])
+                    let s1Out = DatabaseHelper.getString(fields["shift1CheckOutTime"] as? [String: Any])
                     if !s1Out.isEmpty { self.shift1CheckOutTime = s1Out }
-                    let s2In = FirestoreHelper.getString(fields["shift2CheckInTime"] as? [String: Any])
+                    let s2In = DatabaseHelper.getString(fields["shift2CheckInTime"] as? [String: Any])
                     if !s2In.isEmpty { self.shift2CheckInTime = s2In }
-                    let s2Out = FirestoreHelper.getString(fields["shift2CheckOutTime"] as? [String: Any])
+                    let s2Out = DatabaseHelper.getString(fields["shift2CheckOutTime"] as? [String: Any])
                     if !s2Out.isEmpty { self.shift2CheckOutTime = s2Out }
-                    let nIn = FirestoreHelper.getString(fields["nightCheckInTime"] as? [String: Any])
+                    let nIn = DatabaseHelper.getString(fields["nightCheckInTime"] as? [String: Any])
                     if !nIn.isEmpty { self.nightCheckInTime = nIn }
-                    let nOut = FirestoreHelper.getString(fields["nightCheckOutTime"] as? [String: Any])
+                    let nOut = DatabaseHelper.getString(fields["nightCheckOutTime"] as? [String: Any])
                     if !nOut.isEmpty { self.nightCheckOutTime = nOut }
 
-                    let lateM = FirestoreHelper.getInt(fields["maxCheckInLateMinutes"] as? [String: Any])
+                    let lateM = DatabaseHelper.getInt(fields["maxCheckInLateMinutes"] as? [String: Any])
                     if lateM > 0 { self.lateThresholdMinutes = lateM }
-                    let geoR = FirestoreHelper.getDouble(fields["geofenceRadiusMeters"] as? [String: Any])
+                    let geoR = DatabaseHelper.getDouble(fields["geofenceRadiusMeters"] as? [String: Any])
                     if geoR > 0 { self.gpsRadius = Int(geoR) }
-                    let arrR = FirestoreHelper.getDouble(fields["arrivalRadiusMeters"] as? [String: Any])
+                    let arrR = DatabaseHelper.getDouble(fields["arrivalRadiusMeters"] as? [String: Any])
                     if arrR > 0 { self.arrivalRadius = Int(arrR) }
 
-                    let addr = FirestoreHelper.getString(fields["targetAddress"] as? [String: Any])
+                    let addr = DatabaseHelper.getString(fields["targetAddress"] as? [String: Any])
                     if !addr.isEmpty { self.targetAddress = addr }
-                    let tLat = FirestoreHelper.getDouble(fields["targetLatitude"] as? [String: Any])
+                    let tLat = DatabaseHelper.getDouble(fields["targetLatitude"] as? [String: Any])
                     if tLat != 0 { self.gpsLat = tLat }
-                    let tLng = FirestoreHelper.getDouble(fields["targetLongitude"] as? [String: Any])
+                    let tLng = DatabaseHelper.getDouble(fields["targetLongitude"] as? [String: Any])
                     if tLng != 0 { self.gpsLng = tLng }
 
-                    let pKm = FirestoreHelper.getDouble(fields["pricePerKm"] as? [String: Any])
+                    let pKm = DatabaseHelper.getDouble(fields["pricePerKm"] as? [String: Any])
                     if pKm > 0 { self.pricePerKm = pKm }
-                    let tAll = FirestoreHelper.getDouble(fields["tripBaseAllowance"] as? [String: Any])
+                    let tAll = DatabaseHelper.getDouble(fields["tripBaseAllowance"] as? [String: Any])
                     if tAll > 0 { self.tripBaseAllowance = tAll }
-                    let oMulti = FirestoreHelper.getDouble(fields["overtimeMultiplier"] as? [String: Any])
+                    let oMulti = DatabaseHelper.getDouble(fields["overtimeMultiplier"] as? [String: Any])
                     self.overtimeMultiplier = oMulti
 
-                    let cThresh = FirestoreHelper.getInt(fields["cancellationThresholdPercent"] as? [String: Any])
+                    let cThresh = DatabaseHelper.getInt(fields["cancellationThresholdPercent"] as? [String: Any])
                     if cThresh > 0 { self.cancellationThresholdPercent = cThresh }
-                    let uPol = FirestoreHelper.getString(fields["underThresholdPolicy"] as? [String: Any])
+                    let uPol = DatabaseHelper.getString(fields["underThresholdPolicy"] as? [String: Any])
                     if !uPol.isEmpty { self.underThresholdPolicy = uPol }
-                    let uFee = FirestoreHelper.getDouble(fields["underThresholdFlatFee"] as? [String: Any])
+                    let uFee = DatabaseHelper.getDouble(fields["underThresholdFlatFee"] as? [String: Any])
                     if uFee > 0 { self.underThresholdFlatFee = uFee }
                 }
             }.resume()
         }
 
         // 3. Tải từ canonical system_config/sla_config
-        let slaUrl = FirebaseConfig.firestoreBaseUrl + "/companies/\(companyId)/system_config/sla_config"
+        let slaUrl = ServerConfig.documentsBaseUrl + "/companies/\(companyId)/system_config/sla_config"
         if let sUrl = URL(string: slaUrl) {
             var sReq = URLRequest(url: sUrl)
             sReq.httpMethod = "GET"
@@ -852,40 +852,40 @@ public struct SystemSettingsView: View {
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let fields = json["fields"] as? [String: Any] else { return }
                 DispatchQueue.main.async {
-                    let respMin = FirestoreHelper.getInt(fields["responseMinutesDefault"] as? [String: Any])
+                    let respMin = DatabaseHelper.getInt(fields["responseMinutesDefault"] as? [String: Any])
                     if respMin > 0 { self.slaResponseMinutes = respMin }
 
-                    let rUrgentMin = FirestoreHelper.getInt(fields["resolveMinutesUrgent"] as? [String: Any])
+                    let rUrgentMin = DatabaseHelper.getInt(fields["resolveMinutesUrgent"] as? [String: Any])
                     if rUrgentMin > 0 {
                         self.slaResolveUrgent = rUrgentMin
                         self.slaUrgentHours = max(1, rUrgentMin / 60)
                     }
-                    let rHighMin = FirestoreHelper.getInt(fields["resolveMinutesHigh"] as? [String: Any])
+                    let rHighMin = DatabaseHelper.getInt(fields["resolveMinutesHigh"] as? [String: Any])
                     if rHighMin > 0 {
                         self.slaResolveHigh = rHighMin
                         self.slaHighHours = max(1, rHighMin / 60)
                     }
-                    let rNormMin = FirestoreHelper.getInt(fields["resolveMinutesNormal"] as? [String: Any])
+                    let rNormMin = DatabaseHelper.getInt(fields["resolveMinutesNormal"] as? [String: Any])
                     if rNormMin > 0 {
                         self.slaResolveNormal = rNormMin
                         self.slaNormalHours = max(1, rNormMin / 60)
                     }
-                    let rLowMin = FirestoreHelper.getInt(fields["resolveMinutesLow"] as? [String: Any])
+                    let rLowMin = DatabaseHelper.getInt(fields["resolveMinutesLow"] as? [String: Any])
                     if rLowMin > 0 { self.slaResolveLow = rLowMin }
 
-                    let tUrg = FirestoreHelper.getInt(fields["qualityTrackingHoursUrgent"] as? [String: Any])
+                    let tUrg = DatabaseHelper.getInt(fields["qualityTrackingHoursUrgent"] as? [String: Any])
                     if tUrg > 0 { self.slaTrackingUrgent = tUrg }
-                    let tHigh = FirestoreHelper.getInt(fields["qualityTrackingHoursHigh"] as? [String: Any])
+                    let tHigh = DatabaseHelper.getInt(fields["qualityTrackingHoursHigh"] as? [String: Any])
                     if tHigh > 0 { self.slaTrackingHigh = tHigh }
-                    let tNorm = FirestoreHelper.getInt(fields["qualityTrackingHoursNormal"] as? [String: Any])
+                    let tNorm = DatabaseHelper.getInt(fields["qualityTrackingHoursNormal"] as? [String: Any])
                     if tNorm > 0 { self.slaTrackingNormal = tNorm }
-                    let tLow = FirestoreHelper.getInt(fields["qualityTrackingHoursLow"] as? [String: Any])
+                    let tLow = DatabaseHelper.getInt(fields["qualityTrackingHoursLow"] as? [String: Any])
                     if tLow > 0 { self.slaTrackingLow = tLow }
 
-                    let warnMin = FirestoreHelper.getInt(fields["warningBeforeBreachMinutes"] as? [String: Any])
+                    let warnMin = DatabaseHelper.getInt(fields["warningBeforeBreachMinutes"] as? [String: Any])
                     if warnMin > 0 { self.slaWarningMinutes = warnMin }
 
-                    let penPct = FirestoreHelper.getInt(fields["slaPenaltyPercentDefault"] as? [String: Any])
+                    let penPct = DatabaseHelper.getInt(fields["slaPenaltyPercentDefault"] as? [String: Any])
                     self.slaPenaltyPercent = penPct
 
                     if let ehDict = fields["enableHelpdeskSla"] as? [String: Any],
@@ -901,15 +901,15 @@ public struct SystemSettingsView: View {
                     } else {
                         self.enableAutoDispatchOffHours = true
                     }
-                    let wdS = FirestoreHelper.getString(fields["helpdeskWeekdayStart"] as? [String: Any])
+                    let wdS = DatabaseHelper.getString(fields["helpdeskWeekdayStart"] as? [String: Any])
                     if !wdS.isEmpty { self.helpdeskWeekdayStart = wdS }
-                    let wdE = FirestoreHelper.getString(fields["helpdeskWeekdayEnd"] as? [String: Any])
+                    let wdE = DatabaseHelper.getString(fields["helpdeskWeekdayEnd"] as? [String: Any])
                     if !wdE.isEmpty { self.helpdeskWeekdayEnd = wdE }
-                    let satS = FirestoreHelper.getString(fields["helpdeskSaturdayStart"] as? [String: Any])
+                    let satS = DatabaseHelper.getString(fields["helpdeskSaturdayStart"] as? [String: Any])
                     if !satS.isEmpty { self.helpdeskSaturdayStart = satS }
-                    let satE = FirestoreHelper.getString(fields["helpdeskSaturdayEnd"] as? [String: Any])
+                    let satE = DatabaseHelper.getString(fields["helpdeskSaturdayEnd"] as? [String: Any])
                     if !satE.isEmpty { self.helpdeskSaturdayEnd = satE }
-                    let escMin = FirestoreHelper.getInt(fields["escalationTimeoutMinutes"] as? [String: Any])
+                    let escMin = DatabaseHelper.getInt(fields["escalationTimeoutMinutes"] as? [String: Any])
                     if escMin > 0 { self.escalationTimeoutMinutes = escMin }
                     if let hArr = fields["holidaysList"] as? [String: Any],
                        let vals = hArr["arrayValue"] as? [String: Any],
@@ -933,7 +933,7 @@ public struct SystemSettingsView: View {
         isSaving = true
 
         // Cần patch tất cả các fields
-        let patchUrl = FirebaseConfig.firestoreBaseUrl + "/companies/\(companyId)/settings/config?" +
+        let patchUrl = ServerConfig.documentsBaseUrl + "/companies/\(companyId)/settings/config?" +
             "updateMask.fieldPaths=companyName&updateMask.fieldPaths=companyCode&updateMask.fieldPaths=companyAddress&" +
             "updateMask.fieldPaths=companyPhone&updateMask.fieldPaths=companyEmail&updateMask.fieldPaths=gpsCheckInEnabled&" +
             "updateMask.fieldPaths=gpsRadius&updateMask.fieldPaths=gpsLat&updateMask.fieldPaths=gpsLng&" +
@@ -979,7 +979,7 @@ public struct SystemSettingsView: View {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         // 2. Lưu đồng thời vào canonical system_config/travel_expense_config
-        let travelPatchUrl = FirebaseConfig.firestoreBaseUrl + "/companies/\(companyId)/system_config/travel_expense_config"
+        let travelPatchUrl = ServerConfig.documentsBaseUrl + "/companies/\(companyId)/system_config/travel_expense_config"
         if let tReqUrl = URL(string: travelPatchUrl) {
             var tReq = URLRequest(url: tReqUrl)
             tReq.httpMethod = "PATCH"
@@ -1017,7 +1017,7 @@ public struct SystemSettingsView: View {
         }
 
         // 3. Lưu đồng thời vào canonical system_config/sla_config
-        let slaPatchUrl = FirebaseConfig.firestoreBaseUrl + "/companies/\(companyId)/system_config/sla_config"
+        let slaPatchUrl = ServerConfig.documentsBaseUrl + "/companies/\(companyId)/system_config/sla_config"
         if let sReqUrl = URL(string: slaPatchUrl) {
             var sReq = URLRequest(url: sReqUrl)
             sReq.httpMethod = "PATCH"

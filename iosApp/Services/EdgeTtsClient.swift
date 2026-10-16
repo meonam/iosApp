@@ -165,8 +165,8 @@ public class EdgeTtsClient: NSObject, AVAudioPlayerDelegate {
             return false
         }
 
-        // Gọi Backend server QLTB (có sẵn edge-tts và cache trên CloudFly VPS 103.179.172.229)
-        let serverUrlStr = "https://103.179.172.229.sslip.io/api/tts?text=\(encodedText)&voice=\(encodedVoice)"
+        // Gọi Backend server QLTB (có sẵn edge-tts và cache trên Backend)
+        let serverUrlStr = "\(ServerConfig.serverBaseUrl)/api/tts?text=\(encodedText)&voice=\(encodedVoice)"
         guard let url = URL(string: serverUrlStr) else { return false }
 
         var request = URLRequest(url: url)

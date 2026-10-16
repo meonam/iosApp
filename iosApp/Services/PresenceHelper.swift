@@ -52,7 +52,7 @@ public class PresenceHelper {
         guard !cleanEmail.isEmpty, !cleanCompId.isEmpty else { return }
 
         let encodedEmail = cleanEmail.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? cleanEmail
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanCompId)/users/\(encodedEmail)?updateMask.fieldPaths=lastActiveAt&updateMask.fieldPaths=isOnline"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanCompId)/users/\(encodedEmail)?updateMask.fieldPaths=lastActiveAt&updateMask.fieldPaths=isOnline"
 
         guard let url = URL(string: urlStr) else { return }
 

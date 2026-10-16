@@ -1,9 +1,9 @@
 import Foundation
 
-// MARK: - DATABASE REST VALUE HELPER (Drop-in alias for self-hosted backend)
-public typealias DbHelper = FirestoreHelper
+// MARK: - DATABASE REST VALUE HELPER (QLTB Enterprise Self-Hosted Backend)
+public typealias DbHelper = DatabaseHelper
 
-public struct FirestoreHelper {
+public struct DatabaseHelper {
     public static func getString(_ field: [String: Any]?) -> String {
         return field?["stringValue"] as? String ?? ""
     }
@@ -95,7 +95,7 @@ public struct FirestoreHelper {
         return getMap(fields?[key] as? [String: Any])
     }
 
-    // Tiện ích đóng gói Swift Value sang Firestore REST format
+    // Tiện ích đóng gói Swift Value sang Database REST format
     public static func valueToFirestore(_ value: Any) -> [String: Any] {
         if let str = value as? String {
             return ["stringValue": str]
@@ -117,15 +117,16 @@ public struct FirestoreHelper {
         return ["stringValue": "\(value)"]
     }
 
-    // MARK: - BULLETPROOF FIRESTORE REST EXECUTOR
+    public static func valueToDb(_ value: Any) -> [String: Any] {
+        return valueToFirestore(value)
+    }
+
+    // MARK: - BULLETPROOF DATABASE REST EXECUTOR
     @discardableResult
     public static func executeSafeRequest(_ originalRequest: URLRequest, timeoutInterval: TimeInterval = 15.0) async -> (Data, HTTPURLResponse)? {
         var req = originalRequest
         req.timeoutInterval = timeoutInterval
 
-        // 1. Sanitize Authorization header:
-        // Only keep Bearer token if it looks like a valid Firebase JWT (starts with "Bearer ey" and length > 40).
-        // Non-JWT tokens like "token_<uuid>" cause Google Cloud Identity Gateway to immediately return 401.
         let authHeader = req.value(forHTTPHeaderField: "Authorization") ?? ""
         var hadBearer = false
         if !authHeader.isEmpty {
@@ -141,17 +142,16 @@ public struct FirestoreHelper {
             }
         }
 
-        // 2. Perform request
+        // 2. Thực thi request
         if let (data, response) = try? await URLSession.shared.data(for: req),
            let httpResponse = response as? HTTPURLResponse {
 
-            // Success (200...299)
+            // Thành công (200...299)
             if (200...299).contains(httpResponse.statusCode) {
                 return (data, httpResponse)
             }
 
-            // 3. Fallback on 401 Unauthorized or 403 Forbidden:
-            // Thử cấp lại token hợp lệ qua AuthService trước, sau đó mới thử bỏ Authorization
+            // 3. Fallback on 401 Unauthorized or 403 Forbidden
             if (httpResponse.statusCode == 401 || httpResponse.statusCode == 403) {
                 if let freshToken = await AuthService.shared.ensureGuestToken() {
                     var retryReq = originalRequest
@@ -235,7 +235,6 @@ public struct FirestoreHelper {
     }
 
     // MARK: - HÀM ĐỒNG BỘ ĐA BIẾN THỂ TRƯỜNG DỮ LIỆU
-    /// Trích xuất chuỗi đầu tiên có giá trị từ danh sách các khóa ưu tiên (hỗ trợ phone/phoneNumber/soDienThoai/sdt,...)
     public static func getFirstNonEmptyString(_ fields: [String: Any]?, keys: [String]) -> String {
         guard let fields = fields else { return "" }
         for key in keys {
@@ -247,7 +246,6 @@ public struct FirestoreHelper {
         return ""
     }
 
-    /// Trích xuất số điện thoại chuẩn hỗ trợ tất cả các trường dữ liệu trên database: phone, phoneNumber, soDienThoai, sdt, soDT
     public static func resolvePhone(_ fields: [String: Any]?) -> String {
         return getFirstNonEmptyString(fields, keys: ["phone", "phoneNumber", "soDienThoai", "sdt", "soDT"])
     }

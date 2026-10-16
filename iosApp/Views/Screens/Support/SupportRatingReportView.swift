@@ -319,7 +319,7 @@ public struct SupportRatingReportView: View {
     }
 
     private func fetchSlaConfig() async {
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.companyId)/system_config/sla_config"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(viewModel.companyId)/system_config/sla_config"
         guard let url = URL(string: urlStr) else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -329,8 +329,8 @@ public struct SupportRatingReportView: View {
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
                let doc = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = doc["fields"] as? [String: Any] {
-                let enabled = FirestoreHelper.getBool(fields["enableHelpdeskSla"] as? [String: Any], defaultValue: true)
-                let penalty = FirestoreHelper.getInt(fields["slaPenaltyPercentDefault"] as? [String: Any])
+                let enabled = DatabaseHelper.getBool(fields["enableHelpdeskSla"] as? [String: Any], defaultValue: true)
+                let penalty = DatabaseHelper.getInt(fields["slaPenaltyPercentDefault"] as? [String: Any])
                 await MainActor.run {
                     self.enableHelpdeskSla = enabled
                     self.slaPenaltyPercent = penalty
@@ -344,7 +344,7 @@ public struct SupportRatingReportView: View {
             await MainActor.run { isLoading = true }
         }
         await fetchSlaConfig()
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(viewModel.companyId):runQuery"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(viewModel.companyId):runQuery"
         guard let url = URL(string: urlStr) else { return }
         
         var request = URLRequest(url: url)
@@ -379,8 +379,8 @@ public struct SupportRatingReportView: View {
                         guard let doc = item["document"] as? [String: Any],
                               let fields = doc["fields"] as? [String: Any] else { continue }
                         
-                        let assignedEmail = FirestoreHelper.getString(fields["assignedToEmail"] as? [String: Any])
-                        let assignedName = FirestoreHelper.getString(fields["assignedToName"] as? [String: Any])
+                        let assignedEmail = DatabaseHelper.getString(fields["assignedToEmail"] as? [String: Any])
+                        let assignedName = DatabaseHelper.getString(fields["assignedToName"] as? [String: Any])
                         let ktvName = assignedName.isEmpty ? (assignedEmail.isEmpty ? "HelpDesk" : assignedEmail) : assignedName
                         if !ktvName.isEmpty { ktvs.insert(ktvName) }
                         
@@ -389,18 +389,18 @@ public struct SupportRatingReportView: View {
                         
                         let t = SupportTicket(
                             id: id,
-                            status: FirestoreHelper.getString(fields["status"] as? [String: Any]),
-                            priority: FirestoreHelper.getString(fields["priority"] as? [String: Any]),
-                            createdAt: FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any]),
-                            rating: FirestoreHelper.getInt(fields["rating"] as? [String: Any]),
-                            feedbackAt: FirestoreHelper.getInt64(fields["feedbackAt"] as? [String: Any]),
+                            status: DatabaseHelper.getString(fields["status"] as? [String: Any]),
+                            priority: DatabaseHelper.getString(fields["priority"] as? [String: Any]),
+                            createdAt: DatabaseHelper.getInt64(fields["createdAt"] as? [String: Any]),
+                            rating: DatabaseHelper.getInt(fields["rating"] as? [String: Any]),
+                            feedbackAt: DatabaseHelper.getInt64(fields["feedbackAt"] as? [String: Any]),
                             assignedToEmail: assignedEmail,
                             assignedToName: assignedName,
-                            assignedAt: FirestoreHelper.getInt64(fields["assignedAt"] as? [String: Any]),
-                            resolvedAt: FirestoreHelper.getInt64(fields["resolvedAt"] as? [String: Any]),
-                            closedAt: FirestoreHelper.getInt64(fields["closedAt"] as? [String: Any]),
-                            isAutoRated: FirestoreHelper.getBool(fields["isAutoRated"] as? [String: Any]),
-                            isInvalid: FirestoreHelper.getBool(fields["isInvalid"] as? [String: Any])
+                            assignedAt: DatabaseHelper.getInt64(fields["assignedAt"] as? [String: Any]),
+                            resolvedAt: DatabaseHelper.getInt64(fields["resolvedAt"] as? [String: Any]),
+                            closedAt: DatabaseHelper.getInt64(fields["closedAt"] as? [String: Any]),
+                            isAutoRated: DatabaseHelper.getBool(fields["isAutoRated"] as? [String: Any]),
+                            isInvalid: DatabaseHelper.getBool(fields["isInvalid"] as? [String: Any])
                         )
                         loaded.append(t)
                     }

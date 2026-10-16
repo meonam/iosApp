@@ -65,7 +65,7 @@ class PaywallLicenseViewModel: ObservableObject {
     
     func fetchCurrentLicense() {
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)"
             guard let url = URL(string: urlStr) else { return }
             
             var request = URLRequest(url: url)
@@ -78,22 +78,22 @@ class PaywallLicenseViewModel: ObservableObject {
                    let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let fields = json["fields"] as? [String: Any] {
                     
-                    let tierStr = FirestoreHelper.getString(fields["licenseTier"] as? [String: Any])
+                    let tierStr = DatabaseHelper.getString(fields["licenseTier"] as? [String: Any])
                     let tierEnum = LicenseTier(rawValue: tierStr.uppercased()) ?? (tierStr.uppercased().contains("ENT") ? .ENTERPRISE : .TRIAL)
-                    let code = FirestoreHelper.getString(fields["licenseCode"] as? [String: Any])
-                    let rawCode = code.isEmpty ? FirestoreHelper.getString(fields["activationCode"] as? [String: Any]) : code
-                    let exp1 = FirestoreHelper.getInt64(fields["licenseExpiresAt"] as? [String: Any])
-                    let exp2 = FirestoreHelper.getInt64(fields["expiresAt"] as? [String: Any])
+                    let code = DatabaseHelper.getString(fields["licenseCode"] as? [String: Any])
+                    let rawCode = code.isEmpty ? DatabaseHelper.getString(fields["activationCode"] as? [String: Any]) : code
+                    let exp1 = DatabaseHelper.getInt64(fields["licenseExpiresAt"] as? [String: Any])
+                    let exp2 = DatabaseHelper.getInt64(fields["expiresAt"] as? [String: Any])
                     let effectiveExpiresAt = exp1 > 0 ? exp1 : exp2
-                    let compName = FirestoreHelper.getString(fields["companyName"] as? [String: Any])
-                    let maxDev = FirestoreHelper.getInt(fields["maxDevices"] as? [String: Any])
-                    let maxAss = FirestoreHelper.getInt(fields["maxAssets"] as? [String: Any])
+                    let compName = DatabaseHelper.getString(fields["companyName"] as? [String: Any])
+                    let maxDev = DatabaseHelper.getInt(fields["maxDevices"] as? [String: Any])
+                    let maxAss = DatabaseHelper.getInt(fields["maxAssets"] as? [String: Any])
 
                     self.licenseInfo = LicenseInfo(
                         tier: tierEnum,
                         companyName: compName.isEmpty ? self.companyId.uppercased() : compName,
                         activationCode: rawCode.isEmpty ? (tierEnum == .ENTERPRISE ? "QLTB-ENT-F8CF2F" : "") : rawCode,
-                        activatedAt: FirestoreHelper.getInt64(fields["activatedAt"] as? [String: Any]),
+                        activatedAt: DatabaseHelper.getInt64(fields["activatedAt"] as? [String: Any]),
                         expiresAt: effectiveExpiresAt,
                         maxDevices: tierEnum == .ENTERPRISE ? 999999 : (maxDev > 0 ? maxDev : 50),
                         maxAssets: tierEnum == .ENTERPRISE ? 999999 : (maxAss > 0 ? maxAss : 500)
@@ -127,7 +127,7 @@ class PaywallLicenseViewModel: ObservableObject {
             let deviceName = UIDevice.current.name.isEmpty ? "Thiết bị Apple iOS" : UIDevice.current.name
 
             // 1. Lưu lên Firestore companies/{companyId} kèm theo thông tin thiết bị
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=licenseTier&updateMask.fieldPaths=licenseCode&updateMask.fieldPaths=licenseExpiresAt&updateMask.fieldPaths=licenseUpdatedAt&updateMask.fieldPaths=activationCode&updateMask.fieldPaths=expiresAt&updateMask.fieldPaths=maxDevices&updateMask.fieldPaths=maxAssets&updateMask.fieldPaths=devicesDetail.\(deviceId).name&updateMask.fieldPaths=devicesDetail.\(deviceId).activatedAt&updateMask.fieldPaths=devicesDetail.\(deviceId).lastActive&updateMask.fieldPaths=devicesDetail.\(deviceId).isRevoked"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=licenseTier&updateMask.fieldPaths=licenseCode&updateMask.fieldPaths=licenseExpiresAt&updateMask.fieldPaths=licenseUpdatedAt&updateMask.fieldPaths=activationCode&updateMask.fieldPaths=expiresAt&updateMask.fieldPaths=maxDevices&updateMask.fieldPaths=maxAssets&updateMask.fieldPaths=devicesDetail.\(deviceId).name&updateMask.fieldPaths=devicesDetail.\(deviceId).activatedAt&updateMask.fieldPaths=devicesDetail.\(deviceId).lastActive&updateMask.fieldPaths=devicesDetail.\(deviceId).isRevoked"
             if let url = URL(string: urlStr) {
                 var request = URLRequest(url: url)
                 request.httpMethod = "PATCH"
@@ -168,7 +168,7 @@ class PaywallLicenseViewModel: ObservableObject {
 
             // 2. Ghi nhận thiết bị vào license_codes/{cleanCode} nếu là key bản quyền
             if cleanCode.hasPrefix("QLTB-") {
-                let licUrlStr = "\(FirebaseConfig.resolveFirestoreUrl(for: "license_codes/\(cleanCode)"))?updateMask.fieldPaths=devicesDetail.\(deviceId).name&updateMask.fieldPaths=devicesDetail.\(deviceId).activatedAt&updateMask.fieldPaths=devicesDetail.\(deviceId).lastActive&updateMask.fieldPaths=devicesDetail.\(deviceId).isRevoked&updateMask.fieldPaths=lastActive"
+                let licUrlStr = "\(ServerConfig.resolveFirestoreUrl(for: "license_codes/\(cleanCode)"))?updateMask.fieldPaths=devicesDetail.\(deviceId).name&updateMask.fieldPaths=devicesDetail.\(deviceId).activatedAt&updateMask.fieldPaths=devicesDetail.\(deviceId).lastActive&updateMask.fieldPaths=devicesDetail.\(deviceId).isRevoked&updateMask.fieldPaths=lastActive"
                 if let licUrl = URL(string: licUrlStr) {
                     var licReq = URLRequest(url: licUrl)
                     licReq.httpMethod = "PATCH"

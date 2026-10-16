@@ -158,7 +158,7 @@ public class IncomingCallManager: NSObject, ObservableObject {
         }
 
         let cleanComp = currentCompanyId.isEmpty ? "SGCOOP" : currentCompanyId
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(cleanComp):runQuery"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp):runQuery"
         guard let url = URL(string: urlStr) else { return }
 
         let queryPayload: [String: Any] = [
@@ -322,7 +322,7 @@ public class IncomingCallManager: NSObject, ObservableObject {
         stopRinging()
         activeIncomingCall = nil
 
-        let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(call.companyId)/calls/\(call.id)?updateMask.fieldPaths=status"
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(call.companyId)/calls/\(call.id)?updateMask.fieldPaths=status"
         guard let url = URL(string: urlStr) else { return }
 
         let body: [String: Any] = [

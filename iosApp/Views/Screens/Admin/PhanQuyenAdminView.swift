@@ -214,7 +214,7 @@ public struct PhanQuyenAdminView: View {
         ]
 
         var loadedRoles: [RoleInfo] = []
-        let rolesUrlStr = "\(FirebaseConfig.firestoreBaseUrl)/roles"
+        let rolesUrlStr = "\(ServerConfig.documentsBaseUrl)/roles"
         if let rolesUrl = URL(string: rolesUrlStr) {
             var req = URLRequest(url: rolesUrl)
             if !token.isEmpty { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
@@ -226,7 +226,7 @@ public struct PhanQuyenAdminView: View {
                     let docName = doc["name"] as? String ?? ""
                     let id = docName.components(separatedBy: "/").last ?? ""
                     if let fields = doc["fields"] as? [String: Any] {
-                        let name = FirestoreHelper.getString(fields["displayName"] as? [String: Any])
+                        let name = DatabaseHelper.getString(fields["displayName"] as? [String: Any])
                         if !id.isEmpty {
                             loadedRoles.append(RoleInfo(id: id, displayName: name.isEmpty ? id : name))
                         }
@@ -239,8 +239,8 @@ public struct PhanQuyenAdminView: View {
         // 2. Tải danh sách Admin từ công ty hoặc root users
         let comp = companyId.isEmpty ? "SGCOOP" : companyId
         let usersUrls = [
-            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/users?pageSize=200",
-            "\(FirebaseConfig.firestoreBaseUrl)/users?pageSize=200"
+            "\(ServerConfig.documentsBaseUrl)/companies/\(comp)/users?pageSize=200",
+            "\(ServerConfig.documentsBaseUrl)/users?pageSize=200"
         ]
 
         var adminsFound: [AdminUserInfo] = []
@@ -258,9 +258,9 @@ public struct PhanQuyenAdminView: View {
                     let docName = doc["name"] as? String ?? ""
                     let email = docName.components(separatedBy: "/").last ?? ""
                     if let fields = doc["fields"] as? [String: Any] {
-                        let role = FirestoreHelper.getString(fields["role"] as? [String: Any]).uppercased()
+                        let role = DatabaseHelper.getString(fields["role"] as? [String: Any]).uppercased()
                         if role == "ADMIN" || role == "SUB_ADMIN" {
-                            let allowed = FirestoreHelper.getStringArray(fields["allowedRoles"] as? [String: Any])
+                            let allowed = DatabaseHelper.getStringArray(fields["allowedRoles"] as? [String: Any])
                             adminsFound.append(AdminUserInfo(id: email, email: email, allowedRoles: allowed))
                         }
                     }
@@ -298,8 +298,8 @@ public struct PhanQuyenAdminView: View {
         guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else { return }
 
         let patchUrls = [
-            "\(FirebaseConfig.firestoreBaseUrl)/companies/\(comp)/users/\(encodedEmail)?updateMask.fieldPaths=allowedRoles",
-            "\(FirebaseConfig.firestoreBaseUrl)/users/\(encodedEmail)?updateMask.fieldPaths=allowedRoles"
+            "\(ServerConfig.documentsBaseUrl)/companies/\(comp)/users/\(encodedEmail)?updateMask.fieldPaths=allowedRoles",
+            "\(ServerConfig.documentsBaseUrl)/users/\(encodedEmail)?updateMask.fieldPaths=allowedRoles"
         ]
 
         var success = false

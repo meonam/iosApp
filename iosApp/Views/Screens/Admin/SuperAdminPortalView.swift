@@ -896,7 +896,7 @@ class SuperAdminViewModel: ObservableObject {
     func checkSuperAdmin(email: String, token: String) {
         isLoading = true
         // Check super admin list
-        let url = "\(FirebaseConfig.firestoreBaseUrl)/system_config/super_admin"
+        let url = "\(ServerConfig.documentsBaseUrl)/system_config/super_admin"
         var request = URLRequest(url: URL(string: url)!)
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -930,7 +930,7 @@ class SuperAdminViewModel: ObservableObject {
     }
     
     func loadData(token: String) {
-        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies"
+        let url = "\(ServerConfig.documentsBaseUrl)/companies"
         var request = URLRequest(url: URL(string: url)!)
         request.httpMethod = "GET"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -948,12 +948,12 @@ class SuperAdminViewModel: ObservableObject {
                           let id = nameField.components(separatedBy: "/").last,
                           let fields = doc["fields"] as? [String: Any] else { return nil }
                     
-                    let companyName = FirestoreHelper.getString(fields["companyName"] as? [String: Any])
-                    let isMaintenance = FirestoreHelper.getBool(fields["isMaintenance"] as? [String: Any])
-                    let licenseTier = FirestoreHelper.getString(fields["licenseTier"] as? [String: Any])
-                    let maxDevices = FirestoreHelper.getInt(fields["maxDevices"] as? [String: Any])
-                    let createdAt = FirestoreHelper.getInt64(fields["createdAt"] as? [String: Any])
-                    let rawPrice = FirestoreHelper.getInt64(fields["pricePerUserMonthly"] as? [String: Any])
+                    let companyName = DatabaseHelper.getString(fields["companyName"] as? [String: Any])
+                    let isMaintenance = DatabaseHelper.getBool(fields["isMaintenance"] as? [String: Any])
+                    let licenseTier = DatabaseHelper.getString(fields["licenseTier"] as? [String: Any])
+                    let maxDevices = DatabaseHelper.getInt(fields["maxDevices"] as? [String: Any])
+                    let createdAt = DatabaseHelper.getInt64(fields["createdAt"] as? [String: Any])
+                    let rawPrice = DatabaseHelper.getInt64(fields["pricePerUserMonthly"] as? [String: Any])
                     let pricePerUserMonthly: Int64 = rawPrice > 0 ? rawPrice : 250000
                     
                     return SACompany(
@@ -986,7 +986,7 @@ class SuperAdminViewModel: ObservableObject {
         
         for company in companies {
             group.enter()
-            let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(company.id)/users?pageSize=300"
+            let url = "\(ServerConfig.documentsBaseUrl)/companies/\(company.id)/users?pageSize=300"
             guard let reqUrl = URL(string: url) else {
                 group.leave()
                 continue
@@ -1005,16 +1005,16 @@ class SuperAdminViewModel: ObservableObject {
                    let documents = json["documents"] as? [[String: Any]] {
                     for doc in documents {
                         guard let fields = doc["fields"] as? [String: Any] else { continue }
-                        let email = FirestoreHelper.getString(fields["email"] as? [String: Any])
-                        let nameRaw = FirestoreHelper.getString(fields["name"] as? [String: Any])
-                        let fullNameRaw = FirestoreHelper.getString(fields["fullName"] as? [String: Any])
+                        let email = DatabaseHelper.getString(fields["email"] as? [String: Any])
+                        let nameRaw = DatabaseHelper.getString(fields["name"] as? [String: Any])
+                        let fullNameRaw = DatabaseHelper.getString(fields["fullName"] as? [String: Any])
                         let name = nameRaw.isEmpty ? (fullNameRaw.isEmpty ? "Chưa đặt tên" : fullNameRaw) : nameRaw
-                        let role = FirestoreHelper.getString(fields["role"] as? [String: Any]).uppercased()
-                        let deptRaw = FirestoreHelper.getString(fields["department"] as? [String: Any])
-                        let phongBanRaw = FirestoreHelper.getString(fields["phongBan"] as? [String: Any])
+                        let role = DatabaseHelper.getString(fields["role"] as? [String: Any]).uppercased()
+                        let deptRaw = DatabaseHelper.getString(fields["department"] as? [String: Any])
+                        let phongBanRaw = DatabaseHelper.getString(fields["phongBan"] as? [String: Any])
                         let department = deptRaw.isEmpty ? phongBanRaw : deptRaw
-                        let status = FirestoreHelper.getString(fields["status"] as? [String: Any]).uppercased()
-                        let isActiveRaw = FirestoreHelper.getBool(fields["isActive"] as? [String: Any], defaultValue: true)
+                        let status = DatabaseHelper.getString(fields["status"] as? [String: Any]).uppercased()
+                        let isActiveRaw = DatabaseHelper.getBool(fields["isActive"] as? [String: Any], defaultValue: true)
                         
                         let isActive = isActiveRaw && status != "LOCKED" && status != "DISABLED"
                         let isAdmin = ["ADMIN", "QUANTRI", "SUPER_ADMIN", "SUPERADMIN"].contains(role)
@@ -1060,7 +1060,7 @@ class SuperAdminViewModel: ObservableObject {
     }
     
     func updateCompanyPrice(companyId: String, newPrice: Int64, token: String) {
-        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=pricePerUserMonthly"
+        let url = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=pricePerUserMonthly"
         guard let reqUrl = URL(string: url) else { return }
         var request = URLRequest(url: reqUrl)
         request.httpMethod = "PATCH"
@@ -1092,7 +1092,7 @@ class SuperAdminViewModel: ObservableObject {
     }
     
     func createCompany(name: String, taxCode: String, email: String, token: String) {
-        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies"
+        let url = "\(ServerConfig.documentsBaseUrl)/companies"
         var request = URLRequest(url: URL(string: url)!)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -1123,7 +1123,7 @@ class SuperAdminViewModel: ObservableObject {
     }
     
     func toggleMaintenance(companyId: String, isMaintenance: Bool, token: String) {
-        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=isMaintenance"
+        let url = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=isMaintenance"
         var request = URLRequest(url: URL(string: url)!)
         request.httpMethod = "PATCH"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -1149,7 +1149,7 @@ class SuperAdminViewModel: ObservableObject {
     }
     
     func updateCompanyLicense(companyId: String, tier: String, maxDevices: Int, token: String) {
-        let url = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=licenseTier&updateMask.fieldPaths=maxDevices"
+        let url = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=licenseTier&updateMask.fieldPaths=maxDevices"
         var request = URLRequest(url: URL(string: url)!)
         request.httpMethod = "PATCH"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

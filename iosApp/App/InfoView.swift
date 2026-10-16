@@ -554,7 +554,7 @@ public struct InfoView: View {
     private func loadCompanyLicense() {
         let compId = authViewModel.currentCompanyId.isEmpty ? "SGCOOP" : authViewModel.currentCompanyId
         Task {
-            let urlStr = "\(FirebaseConfig.firestoreBaseUrl)/companies/\(compId)"
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(compId)"
             guard let url = URL(string: urlStr) else { return }
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
@@ -566,23 +566,23 @@ public struct InfoView: View {
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
 
-                let tierStr = FirestoreHelper.getString(fields["licenseTier"] as? [String: Any])
+                let tierStr = DatabaseHelper.getString(fields["licenseTier"] as? [String: Any])
                 let tierEnum = LicenseTier(rawValue: tierStr.uppercased()) ?? (tierStr.uppercased().contains("ENT") ? .ENTERPRISE : .TRIAL)
-                let code = FirestoreHelper.getString(fields["licenseCode"] as? [String: Any])
-                let rawCode = code.isEmpty ? FirestoreHelper.getString(fields["activationCode"] as? [String: Any]) : code
-                let exp1 = FirestoreHelper.getInt64(fields["licenseExpiresAt"] as? [String: Any])
-                let exp2 = FirestoreHelper.getInt64(fields["expiresAt"] as? [String: Any])
+                let code = DatabaseHelper.getString(fields["licenseCode"] as? [String: Any])
+                let rawCode = code.isEmpty ? DatabaseHelper.getString(fields["activationCode"] as? [String: Any]) : code
+                let exp1 = DatabaseHelper.getInt64(fields["licenseExpiresAt"] as? [String: Any])
+                let exp2 = DatabaseHelper.getInt64(fields["expiresAt"] as? [String: Any])
                 let effectiveExpiresAt = exp1 > 0 ? exp1 : exp2
-                let compName = FirestoreHelper.getString(fields["companyName"] as? [String: Any])
-                let maxDev = FirestoreHelper.getInt(fields["maxDevices"] as? [String: Any])
-                let maxAss = FirestoreHelper.getInt(fields["maxAssets"] as? [String: Any])
+                let compName = DatabaseHelper.getString(fields["companyName"] as? [String: Any])
+                let maxDev = DatabaseHelper.getInt(fields["maxDevices"] as? [String: Any])
+                let maxAss = DatabaseHelper.getInt(fields["maxAssets"] as? [String: Any])
 
                 await MainActor.run {
                     self.companyLicense = LicenseInfo(
                         tier: tierEnum,
                         companyName: compName.isEmpty ? compId.uppercased() : compName,
                         activationCode: rawCode.isEmpty ? (tierEnum == .ENTERPRISE ? "QLTB-ENT-F8CF2F" : "") : rawCode,
-                        activatedAt: FirestoreHelper.getInt64(fields["activatedAt"] as? [String: Any]),
+                        activatedAt: DatabaseHelper.getInt64(fields["activatedAt"] as? [String: Any]),
                         expiresAt: effectiveExpiresAt,
                         maxDevices: tierEnum == .ENTERPRISE ? 999999 : (maxDev > 0 ? maxDev : 50),
                         maxAssets: tierEnum == .ENTERPRISE ? 999999 : (maxAss > 0 ? maxAss : 500)

@@ -101,7 +101,7 @@ struct ResetPasswordView: View {
         
         Task {
             do {
-                let url = URL(string: FirebaseConfig.authSendOobUrl)!
+                let url = URL(string: ServerConfig.authSendOobUrl)!
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
