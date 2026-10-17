@@ -107,6 +107,7 @@ public struct MainContainerView: View {
                             AppSidebarDrawer(
                                 user: homeViewModel.user.email.isEmpty ? user : homeViewModel.user,
                                 allowHelpdeskUserManagement: homeViewModel.allowHelpdeskUserManagement,
+                                enableDeviceManagement: homeViewModel.enableDeviceManagement,
                                 pendingStaffCount: homeViewModel.pendingStaffCount,
                                 openTicketsCount: homeViewModel.openTicketsCount,
                                 currentDestination: currentDestination,
@@ -274,12 +275,14 @@ public struct MainContainerView: View {
                 currentDestination = .home
             }
 
-            bottomNavItem(
-                title: "Danh sách TB",
-                icon: "laptopcomputer.and.iphone",
-                isSelected: currentDestination == .deviceList
-            ) {
-                currentDestination = .deviceList
+            if homeViewModel.enableDeviceManagement {
+                bottomNavItem(
+                    title: "Danh sách TB",
+                    icon: "laptopcomputer.and.iphone",
+                    isSelected: currentDestination == .deviceList
+                ) {
+                    currentDestination = .deviceList
+                }
             }
 
             let isSupportSelected = currentDestination == .supportHub || currentDestination == .staffSupport || currentDestination == .adminTicketList

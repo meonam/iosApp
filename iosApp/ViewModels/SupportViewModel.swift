@@ -1435,11 +1435,26 @@ public class SupportViewModel: ObservableObject {
                 )
             }
 
+            // Lọc bỏ tin nhắn trùng lặp (theo ID hoặc cùng nội dung trong vòng 5 giây)
+            var deduplicated: [SupportMessage] = []
+            for msg in msgs {
+                let isDup = deduplicated.contains { existing in
+                    let sameContent = existing.message.trimmingCharacters(in: .whitespacesAndNewlines) == msg.message.trimmingCharacters(in: .whitespacesAndNewlines) &&
+                        existing.senderEmail.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == msg.senderEmail.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+                    let closeTime = abs(existing.timestamp - msg.timestamp) <= 5000
+                    let isSys = msg.isSystemMessage || msg.message.contains("Điều phối") || msg.message.contains("xử lý xong")
+                    return existing.id == msg.id || (sameContent && closeTime) || (sameContent && isSys)
+                }
+                if !isDup {
+                    deduplicated.append(msg)
+                }
+            }
+
             let curTicket = self.tickets.first(where: { $0.id == ticketId })
             let cEmail = (curTicket?.creatorEmail ?? "").lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
             let cInitMsg = curTicket?.initialMessage ?? ""
 
-            let sortedMsgs = msgs.sorted { a, b in
+            let sortedMsgs = deduplicated.sorted { a, b in
                 let aIsCreator = (!a.isSystemMessage && !a.isAdminReply) && (a.senderEmail.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == cEmail || (!cInitMsg.isEmpty && a.message == cInitMsg))
                 let bIsCreator = (!b.isSystemMessage && !b.isAdminReply) && (b.senderEmail.lowercased().trimmingCharacters(in: .whitespacesAndNewlines) == cEmail || (!cInitMsg.isEmpty && b.message == cInitMsg))
                 let aIsDispatch = (a.isSystemMessage || a.isAdminReply) && (a.message.contains("Điều phối") || a.message.contains("Chuyển giao tới"))
@@ -2183,14 +2198,33 @@ public class SupportViewModel: ObservableObject {
                 techInfo = ""
             }
 
+            // Lấy ticket hiện tại để kiểm tra trạng thái và phát hiện điều phối lại
+            let currentTicket = self.rawTickets.first { $0.id == ticketId }
+            let curStatus = (currentTicket?.status ?? "").uppercased()
+            if curStatus == "CLOSED" || curStatus == "RESOLVED" || (currentTicket?.closedAt ?? 0) > 0 || (currentTicket?.resolvedAt ?? 0) > 0 {
+                completion?(false)
+                return
+            }
+
+            let curAssigned = (currentTicket?.assignedToEmail ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let cleanTech = techEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if !curAssigned.isEmpty && curAssigned == cleanTech && (currentTicket?.assignedDepartmentId ?? "") == deptId && (currentTicket?.dispatchNote ?? "") == note {
+                completion?(true)
+                return
+            }
+
+            let isReDispatch = !curAssigned.isEmpty && curAssigned != cleanTech
+            let oldName = (currentTicket?.assignedToName ?? "").isEmpty ? curAssigned : (currentTicket?.assignedToName ?? "")
+            let dispatchPrefix = isReDispatch
+                ? "🔄 [Điều phối lại] Chuyển giao từ \(oldName) sang \(finalDeptName)\(techInfo)"
+                : "🔄 [Điều phối] HelpDesk đã chuyển giao yêu cầu cho \(finalDeptName)\(techInfo)"
+
             let appInfo = !assignedApplication.isEmpty ? " • Ứng dụng: \(assignedApplication)" : ""
             let noteInfo = !note.isEmpty ? " • Ghi chú: \(note)" : ""
-            let dispatchMsg = "🔄 [Điều phối] HelpDesk đã chuyển giao yêu cầu cho \(finalDeptName)\(techInfo)\(appInfo)\(noteInfo)"
+            let dispatchMsg = "\(dispatchPrefix)\(appInfo)\(noteInfo)"
 
-            // Lấy ticket hiện tại để cập nhật coTechnicians và assignedTechnicianEmails
-            let currentTicket = self.rawTickets.first { $0.id == ticketId }
             let existingCoTechs = (currentTicket?.coTechnicians ?? []).filter {
-                $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != techEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() != cleanTech
             }
             let existingCoTechEmails = existingCoTechs.map { $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
 

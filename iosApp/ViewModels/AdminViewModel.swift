@@ -15,8 +15,13 @@ public class AdminViewModel: ObservableObject {
     @Published public var userCountByDept: [String: Int] = [:]
     @Published public var deviceCountByDept: [String: Int] = [:]
     @Published public var deviceTypes: [String] = [
-        "Laptop", "Máy tính để bàn (PC)", "Máy in laser", "Máy in nhiệt",
-        "Máy quét Barcode", "Thiết bị mạng (Router/Switch)", "Màn hình (Monitor)", "Bộ lưu điện (UPS)", "Khác"
+        "Máy tính để bàn (PC)", "Máy tính xách tay (Laptop)", "Màn hình máy tính",
+        "Máy in văn phòng (Laser A4)", "Máy in bill / nhiệt (POS)", "Máy quét mã vạch",
+        "Máy kiểm kho (PDA / Scan Memo)", "Thiết bị POS / Máy tính tiền",
+        "Thiết bị mạng (Switch / Router / AP)", "Máy chủ (Server / Storage)",
+        "Bộ lưu điện (UPS)", "Máy chấm công (Vân tay / FaceID)",
+        "Camera quan sát & an ninh (CCTV)", "Tủ đông / Tủ mát siêu thị",
+        "Máy lạnh / Điều hòa không khí", "Máy phát điện / Trạm biến áp"
     ]
 
     @Published public var isLoading: Bool = false

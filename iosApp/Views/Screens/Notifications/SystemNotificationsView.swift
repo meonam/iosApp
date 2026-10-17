@@ -35,7 +35,6 @@ public struct SystemNotificationsView: View {
         case info = "Tin tức"
         case warning = "Cảnh báo"
         case maintenance = "Bảo trì"
-        case ticket = "Ticket"
         case attendance = "Chấm công"
         case device = "Thiết bị"
     }
@@ -136,6 +135,14 @@ public struct SystemNotificationsView: View {
 
     // MARK: - BỘ LỌC QUYỀN XEM THÔNG BÁO (ĐỒNG BỘ 1:1 VỚI ANDROID NotificationHelper.isSystemNotificationVisibleToUser)
     private func isNotificationVisible(_ notif: SysNotification) -> Bool {
+        // TUYỆT ĐỐI KHÔNG hiển thị lệnh điều phối hoặc thông báo ticket trong Thông báo hệ thống
+        let notifType = notif.type.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let notifTitle = notif.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if notifType == "DISPATCHED" || notifType == "TICKET" ||
+           notifTitle.contains("điều phối") || notifTitle.contains("lệnh điều phối") || notifTitle.contains("phiếu hỗ trợ") {
+            return false
+        }
+
         let cleanRole = userRole.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let adminUser = isAdmin || cleanRole == "admin" || cleanRole == "superadmin"
         let helpDeskUser = isHelpDesk || cleanRole == "helpdesk" || cleanRole == "it"
@@ -204,8 +211,6 @@ public struct SystemNotificationsView: View {
             return visibleNotifications.filter { $0.type.uppercased() == "WARNING" }
         case .maintenance:
             return visibleNotifications.filter { $0.type.uppercased() == "MAINTENANCE" }
-        case .ticket:
-            return visibleNotifications.filter { $0.type.uppercased() == "TICKET" }
         case .attendance:
             return visibleNotifications.filter { $0.type.uppercased() == "ATTENDANCE" }
         case .device:

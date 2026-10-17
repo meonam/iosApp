@@ -406,10 +406,25 @@ public struct DeviceTypeManagerView: View {
     }
 
     private func setDefaultTypes() {
-        let defaults = ["Laptop", "Máy tính để bàn (PC)", "Máy in", "Màn hình", "Máy chiếu", "Switch mạng", "Router Wifi", "Khác"]
-        self.types = defaults.map { name in
-            DeviceType(id: name.lowercased().replacingOccurrences(of: " ", with: "_"), name: name)
-        }
+        let defaultTypes: [(id: String, name: String)] = [
+            ("PC", "Máy tính để bàn (PC)"),
+            ("LAPTOP", "Máy tính xách tay (Laptop)"),
+            ("MONITOR", "Màn hình máy tính"),
+            ("PRN_LASER", "Máy in văn phòng (Laser A4)"),
+            ("PRN_POS", "Máy in bill / nhiệt (POS)"),
+            ("SCANNER", "Máy quét mã vạch"),
+            ("PDA", "Máy kiểm kho (PDA / Scan Memo)"),
+            ("POS_TERM", "Thiết bị POS / Máy tính tiền"),
+            ("NETWORK", "Thiết bị mạng (Switch / Router / AP)"),
+            ("SERVER", "Máy chủ (Server / Storage)"),
+            ("UPS", "Bộ lưu điện (UPS)"),
+            ("TIME_ATT", "Máy chấm công (Vân tay / FaceID)"),
+            ("CCTV", "Camera quan sát & an ninh (CCTV)"),
+            ("COLD_FREEZE", "Tủ đông / Tủ mát siêu thị"),
+            ("HVAC", "Máy lạnh / Điều hòa không khí"),
+            ("GENERATOR", "Máy phát điện / Trạm biến áp")
+        ]
+        self.types = defaultTypes.map { DeviceType(id: $0.id, name: $0.name) }
     }
 
     private func addDeviceType(name: String) {
@@ -418,9 +433,11 @@ public struct DeviceTypeManagerView: View {
 
         let companyId = effectiveCompanyId
         let generatedId = cleanName.folding(options: .diacriticInsensitive, locale: .current)
-            .lowercased()
+            .uppercased()
             .replacingOccurrences(of: " ", with: "_")
+            .replacingOccurrences(of: "-", with: "_")
             .filter { $0.isLetter || $0.isNumber || $0 == "_" }
+            .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
 
         let url = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/device_types/\(generatedId)"
         guard let requestUrl = URL(string: url) else { return }

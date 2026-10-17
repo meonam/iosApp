@@ -9,6 +9,8 @@ public struct AddDeviceView: View {
     var onSuccess: ((String) -> Void)? = nil
 
     @State private var id: String = ""
+    @State private var serialNumber: String = ""
+    @State private var scanTarget: String = "id"
     @State private var ten: String = ""
     @State private var selectedLoaiThietBi: String = ""
     @State private var selectedStatus: String = DeviceStatusConstants.statusInStock
@@ -137,9 +139,13 @@ public struct AddDeviceView: View {
         .sheet(isPresented: $showScanner) {
             QRScannerView(
                 onScanResult: { scannedCode in
-                    self.id = scannedCode
+                    if self.scanTarget == "serial" {
+                        self.serialNumber = scannedCode
+                    } else {
+                        self.id = scannedCode
+                        self.triggerIdCheck(scannedCode)
+                    }
                     self.showScanner = false
-                    self.triggerIdCheck(scannedCode)
                 },
                 onDismiss: {
                     self.showScanner = false
@@ -263,9 +269,9 @@ public struct AddDeviceView: View {
     @ViewBuilder
     private func entryFormCard() -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            // 1. SERIAL TEXTFIELD
+            // 1. DEVICE ID / ASSET TAG (QR CODE)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Số serial / Mã tài sản *")
+                Text("Mã thiết bị / Mã tài sản (QR Code) *")
                     .font(.system(size: 13, weight: .bold))
                     .foregroundColor(Color.appSecondaryDarkBlue)
 
@@ -274,7 +280,7 @@ public struct AddDeviceView: View {
                         .foregroundColor(Color.appSecondaryDarkBlue)
                         .frame(width: 20)
 
-                    TextField("Nhập mã thiết bị (Serial)...", text: $id)
+                    TextField("VD: PC-001, PRN-002...", text: $id)
                         .font(.system(size: 14))
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
@@ -282,7 +288,10 @@ public struct AddDeviceView: View {
                             triggerIdCheck(newVal)
                         }
 
-                    Button(action: { showScanner = true }) {
+                    Button(action: {
+                        scanTarget = "id"
+                        showScanner = true
+                    }) {
                         Image(systemName: "qrcode.viewfinder")
                             .font(.system(size: 18))
                             .foregroundColor(Color.appPrimaryPink)
@@ -317,6 +326,37 @@ public struct AddDeviceView: View {
                         .padding(.top, 2)
                     }
                 }
+            }
+
+            // 2. MANUFACTURER SERIAL NUMBER (S/N)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Số Serial nhà sản xuất (S/N)")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(Color.appSecondaryDarkBlue)
+
+                HStack {
+                    Image(systemName: "number")
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                        .frame(width: 20)
+
+                    TextField("Số Serial in trên tem máy (tùy chọn)...", text: $serialNumber)
+                        .font(.system(size: 14))
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+
+                    Button(action: {
+                        scanTarget = "serial"
+                        showScanner = true
+                    }) {
+                        Image(systemName: "barcode.viewfinder")
+                            .font(.system(size: 18))
+                            .foregroundColor(Color.appPrimaryPink)
+                    }
+                }
+                .padding(12)
+                .background(Color.appSurface)
+                .cornerRadius(10)
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
             }
 
             // 2. DEVICE NAME
@@ -649,6 +689,8 @@ public struct AddDeviceView: View {
         isSubmitting = true
         localMessage = nil
 
+        let cleanSerial = serialNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+
         viewModel.addDevice(
             id: cleanId,
             ten: cleanTen,
@@ -657,6 +699,7 @@ public struct AddDeviceView: View {
             loai: selectedLoaiThietBi,
             customStatus: selectedStatus,
             nguonGoc: selectedNguonGoc,
+            serialNumber: cleanSerial.isEmpty ? nil : cleanSerial,
             donViMuon: donViMuon.isEmpty ? nil : donViMuon,
             phongBanMuon: phongBanMuon.isEmpty ? nil : phongBanMuon,
             nguoiMuon: nguoiMuon.isEmpty ? nil : nguoiMuon,
@@ -668,6 +711,7 @@ public struct AddDeviceView: View {
                 self.localMessage = "Đã thêm thiết bị thành công"
                 self.isSuccessMessage = true
                 self.id = ""
+                self.serialNumber = ""
                 self.ten = ""
                 self.donViMuon = ""
                 self.phongBanMuon = ""

@@ -771,7 +771,7 @@ public struct DeviceListView: View {
                     Button(action: {
                         editTargetDeviceId = device.id
                         editTen = device.ten
-                        editSerial = device.id
+                        editSerial = device.serialNumber ?? ""
                         editNguonGoc = device.originDisplay
                         showEditDialog = true
                     }) {
@@ -822,7 +822,35 @@ public struct DeviceListView: View {
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
                 }
 
-                // 2. Badge Trạng thái (Màu sắc chuẩn 1:1 Android)
+                // 2. Tag Số Serial nhà sản xuất (S/N)
+                let sn = device.serialNumber?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                Button(action: {
+                    if !sn.isEmpty {
+                        UIPasteboard.general.string = sn
+                        showToast("🔢 Đã sao chép S/N: \(sn)")
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "tag.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(sn.isEmpty ? Color(hex: "#94A3B8") : Color(hex: "#2563EB"))
+                        Text(sn.isEmpty ? "S/N: -" : "S/N: \(sn)")
+                            .font(.system(size: 12, weight: sn.isEmpty ? .regular : .semibold))
+                            .foregroundColor(sn.isEmpty ? Color(hex: "#64748B") : Color(hex: "#1E40AF"))
+                        if !sn.isEmpty {
+                            Image(systemName: "doc.on.doc")
+                                .font(.system(size: 10))
+                                .foregroundColor(Color(hex: "#93C5FD"))
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(sn.isEmpty ? Color(hex: "#F8FAFC") : Color(hex: "#EFF6FF"))
+                    .cornerRadius(6)
+                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(sn.isEmpty ? Color(hex: "#E2E8F0") : Color(hex: "#BFDBFE"), lineWidth: 1))
+                }
+
+                // 3. Badge Trạng thái (Màu sắc chuẩn 1:1 Android)
                 let normStatus = device.statusNormalized
                 let badgeText: String = {
                     if isBorrowedByMe {
@@ -966,6 +994,39 @@ public struct DeviceListView: View {
     private func editDeviceSheet() -> some View {
         NavigationView {
             VStack(spacing: 16) {
+                // 1. Mã thiết bị / Mã tài sản (QR)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Mã thiết bị / Mã tài sản (QR)")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                    HStack(spacing: 8) {
+                        Image(systemName: "qrcode")
+                            .foregroundColor(Color.appSecondaryDarkBlue)
+                        Text(editTargetDeviceId)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(Color.appTextPrimary)
+                        Spacer()
+                    }
+                    .padding(12)
+                    .background(Color(hex: "#F1F5F9"))
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
+                }
+
+                // 2. Số Serial nhà sản xuất (S/N)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Số Serial nhà sản xuất (S/N)")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(Color.appSecondaryDarkBlue)
+                    TextField("VD: CNB8329XY7, VNC3K89120...", text: $editSerial)
+                        .foregroundColor(Color.appTextPrimary)
+                        .padding(12)
+                        .background(Color.appSurface)
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
+                }
+
+                // 3. Tên thiết bị
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Tên thiết bị *")
                         .font(.system(size: 13, weight: .bold))
@@ -978,18 +1039,7 @@ public struct DeviceListView: View {
                         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Mã thiết bị (Serial) *")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(Color.appSecondaryDarkBlue)
-                    TextField("Số serial", text: $editSerial)
-                        .foregroundColor(Color.appTextPrimary)
-                        .padding(12)
-                        .background(Color.appSurface)
-                        .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.appCardBorder, lineWidth: 1))
-                }
-
+                // 4. Nguồn gốc tài sản
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Nguồn gốc tài sản")
                         .font(.system(size: 13, weight: .bold))
@@ -1023,7 +1073,7 @@ public struct DeviceListView: View {
                 Spacer()
 
                 Button(action: {
-                    viewModel.updateDeviceInfo(oldId: editTargetDeviceId, newTen: editTen, newId: editSerial, newNguonGoc: editNguonGoc)
+                    viewModel.updateDeviceInfo(oldId: editTargetDeviceId, newTen: editTen, newId: editTargetDeviceId, newNguonGoc: editNguonGoc, newSerialNumber: editSerial)
                     showEditDialog = false
                     showToast("✅ Đã cập nhật thiết bị")
                 }) {

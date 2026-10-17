@@ -667,16 +667,18 @@ public struct HomeScreenView: View {
     // MARK: - 2. DASHBOARD STATS (3 THẺ NGANG)
     private var dashboardStatsRow: some View {
         HStack(spacing: 8) {
-            // Thẻ 1: Tổng thiết bị (Màu xanh dương)
-            statsCardItem(
-                title: "Thiết bị",
-                count: "\(viewModel.totalDevicesCount)",
-                subtitle: viewModel.user.isStaff ? "Của tôi" : "Tổng quản lý",
-                icon: "laptopcomputer.and.iphone",
-                accentColor: Color(hex: "#2563EB"),
-                bgColor: Color(hex: "#EFF6FF")
-            ) {
-                onNavigate(.deviceList)
+            // Thẻ 1: Tổng thiết bị (Chỉ hiện khi BẬT Quản lý TB)
+            if viewModel.enableDeviceManagement {
+                statsCardItem(
+                    title: "Thiết bị",
+                    count: "\(viewModel.totalDevicesCount)",
+                    subtitle: viewModel.user.isStaff ? "Của tôi" : "Tổng quản lý",
+                    icon: "laptopcomputer.and.iphone",
+                    accentColor: Color(hex: "#2563EB"),
+                    bgColor: Color(hex: "#EFF6FF")
+                ) {
+                    onNavigate(.deviceList)
+                }
             }
 
             // Thẻ 2: Sự cố kỹ thuật OPEN
@@ -822,74 +824,114 @@ public struct HomeScreenView: View {
             }
             .padding(.horizontal, 4)
 
-            // Hàng 1: Quét QR | Thêm TB | In tem QR
-            HStack(spacing: 8) {
-                quickAccessCard(
-                    icon: "qrcode.viewfinder",
-                    label: "Quét QR",
-                    iconColor: Color(hex: "#E11D48"),
-                    bgColor: Color(hex: "#FFE4E6")
-                ) {
-                    activeSheet = .qrScanner
-                }
+            if viewModel.enableDeviceManagement {
+                // Hàng 1: Quét QR | Thêm TB | In tem QR
+                HStack(spacing: 8) {
+                    quickAccessCard(
+                        icon: "qrcode.viewfinder",
+                        label: "Quét QR",
+                        iconColor: Color(hex: "#E11D48"),
+                        bgColor: Color(hex: "#FFE4E6")
+                    ) {
+                        activeSheet = .qrScanner
+                    }
 
-                quickAccessCard(
-                    icon: "plus.app.fill",
-                    label: "Thêm TB",
-                    iconColor: Color(hex: "#2563EB"),
-                    bgColor: Color(hex: "#DBEAFE")
-                ) {
-                    activeSheet = .addDevice(initialId: "")
-                }
+                    quickAccessCard(
+                        icon: "plus.app.fill",
+                        label: "Thêm TB",
+                        iconColor: Color(hex: "#2563EB"),
+                        bgColor: Color(hex: "#DBEAFE")
+                    ) {
+                        activeSheet = .addDevice(initialId: "")
+                    }
 
-                quickAccessCard(
-                    icon: "printer.fill",
-                    label: "In tem QR",
-                    iconColor: Color(hex: "#4F46E5"),
-                    bgColor: Color(hex: "#E0E7FF")
-                ) {
-                    activeSheet = .printQr
-                }
-            }
-
-            // Hàng 2: Chấm công | Phân ca | Thống kê
-            HStack(spacing: 8) {
-                // Chấm công (KTV, Chuyên viên, Quản lý, Admin được truy cập)
-                quickAccessCard(
-                    icon: "chart.bar.xaxis",
-                    label: "Chấm công",
-                    iconColor: Color(hex: "#059669"),
-                    bgColor: Color(hex: "#D1FAE5")
-                ) {
-                    if viewModel.user.isStaff && !viewModel.user.isTechnician && !viewModel.user.isSpecialist {
-                        accessRestrictedMessage = "Báo cáo Chấm công & Công tác phí chỉ dành cho Kỹ thuật viên, Chuyên viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
-                    } else {
-                        onNavigate(.attendanceReport)
+                    quickAccessCard(
+                        icon: "printer.fill",
+                        label: "In tem QR",
+                        iconColor: Color(hex: "#4F46E5"),
+                        bgColor: Color(hex: "#E0E7FF")
+                    ) {
+                        activeSheet = .printQr
                     }
                 }
 
-                // Phân ca (KTV, Chuyên viên, Quản lý, Admin được truy cập)
-                quickAccessCard(
-                    icon: "calendar",
-                    label: "Phân ca",
-                    iconColor: Color(hex: "#7C3AED"),
-                    bgColor: Color(hex: "#EDE9FE")
-                ) {
-                    if viewModel.user.isStaff && !viewModel.user.isTechnician && !viewModel.user.isSpecialist {
-                        accessRestrictedMessage = "Lịch trực và Phân ca kỹ thuật chỉ dành cho Kỹ thuật viên, Chuyên viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
-                    } else {
-                        onNavigate(.shiftSchedule)
+                // Hàng 2: Chấm công | Phân ca | Thống kê
+                HStack(spacing: 8) {
+                    // Chấm công (KTV, Chuyên viên, Quản lý, Admin được truy cập)
+                    quickAccessCard(
+                        icon: "chart.bar.xaxis",
+                        label: "Chấm công",
+                        iconColor: Color(hex: "#059669"),
+                        bgColor: Color(hex: "#D1FAE5")
+                    ) {
+                        if viewModel.user.isStaff && !viewModel.user.isTechnician && !viewModel.user.isSpecialist {
+                            accessRestrictedMessage = "Báo cáo Chấm công & Công tác phí chỉ dành cho Kỹ thuật viên, Chuyên viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
+                        } else {
+                            onNavigate(.attendanceReport)
+                        }
+                    }
+
+                    // Phân ca (KTV, Chuyên viên, Quản lý, Admin được truy cập)
+                    quickAccessCard(
+                        icon: "calendar",
+                        label: "Phân ca",
+                        iconColor: Color(hex: "#7C3AED"),
+                        bgColor: Color(hex: "#EDE9FE")
+                    ) {
+                        if viewModel.user.isStaff && !viewModel.user.isTechnician && !viewModel.user.isSpecialist {
+                            accessRestrictedMessage = "Lịch trực và Phân ca kỹ thuật chỉ dành cho Kỹ thuật viên, Chuyên viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
+                        } else {
+                            onNavigate(.shiftSchedule)
+                        }
+                    }
+
+                    // Thống kê
+                    quickAccessCard(
+                        icon: "chart.pie.fill",
+                        label: "Thống kê",
+                        iconColor: Color(hex: "#D97706"),
+                        bgColor: Color(hex: "#FEF3C7")
+                    ) {
+                        activeSheet = .statistics
                     }
                 }
+            } else {
+                // Khi TẮT Quản lý TB: chỉ hiển thị các lối tắt không liên quan thiết bị
+                HStack(spacing: 8) {
+                    quickAccessCard(
+                        icon: "chart.bar.xaxis",
+                        label: "Chấm công",
+                        iconColor: Color(hex: "#059669"),
+                        bgColor: Color(hex: "#D1FAE5")
+                    ) {
+                        if viewModel.user.isStaff && !viewModel.user.isTechnician && !viewModel.user.isSpecialist {
+                            accessRestrictedMessage = "Báo cáo Chấm công & Công tác phí chỉ dành cho Kỹ thuật viên, Chuyên viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
+                        } else {
+                            onNavigate(.attendanceReport)
+                        }
+                    }
 
-                // Thống kê
-                quickAccessCard(
-                    icon: "chart.pie.fill",
-                    label: "Thống kê",
-                    iconColor: Color(hex: "#D97706"),
-                    bgColor: Color(hex: "#FEF3C7")
-                ) {
-                    activeSheet = .statistics
+                    quickAccessCard(
+                        icon: "calendar",
+                        label: "Phân ca",
+                        iconColor: Color(hex: "#7C3AED"),
+                        bgColor: Color(hex: "#EDE9FE")
+                    ) {
+                        if viewModel.user.isStaff && !viewModel.user.isTechnician && !viewModel.user.isSpecialist {
+                            accessRestrictedMessage = "Lịch trực và Phân ca kỹ thuật chỉ dành cho Kỹ thuật viên, Chuyên viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
+                        } else {
+                            onNavigate(.shiftSchedule)
+                        }
+                    }
+
+                    quickAccessCard(
+                        icon: "headphones",
+                        label: "Hỗ trợ",
+                        iconColor: Color(hex: "#E11D48"),
+                        bgColor: Color(hex: "#FFE4E6")
+                    ) {
+                        onNavigate(.supportHub)
+                    }
                 }
             }
         }

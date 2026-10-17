@@ -67,6 +67,7 @@ public enum DrawerDestination: Identifiable {
 public struct AppSidebarDrawer: View {
     var user: User
     var allowHelpdeskUserManagement: Bool = false
+    var enableDeviceManagement: Bool = true
     var pendingStaffCount: Int
     var openTicketsCount: Int = 0
     var currentDestination: DrawerDestination = .home
@@ -84,6 +85,7 @@ public struct AppSidebarDrawer: View {
     public init(
         user: User,
         allowHelpdeskUserManagement: Bool = false,
+        enableDeviceManagement: Bool = true,
         pendingStaffCount: Int = 0,
         openTicketsCount: Int = 0,
         currentDestination: DrawerDestination = .home,
@@ -93,6 +95,7 @@ public struct AppSidebarDrawer: View {
     ) {
         self.user = user
         self.allowHelpdeskUserManagement = allowHelpdeskUserManagement
+        self.enableDeviceManagement = enableDeviceManagement
         self.pendingStaffCount = pendingStaffCount
         self.openTicketsCount = openTicketsCount
         self.currentDestination = currentDestination
@@ -291,47 +294,49 @@ public struct AppSidebarDrawer: View {
                         }
 
                         // --- NHÓM 1: QUẢN LÝ THIẾT BỊ ---
-                        DrawerSectionHeader(
-                            title: "QUẢN LÝ THIẾT BỊ",
-                            headerColor: Color(hex: "#059669"),
-                            isExpanded: $isDeviceExpanded
-                        )
-                        if isDeviceExpanded {
-                            VStack(spacing: 2) {
-                                drawerItemRow(
-                                    title: "Danh sách thiết bị",
-                                    icon: "laptopcomputer.and.iphone",
-                                    color: Color(hex: "#10B981"),
-                                    isSelected: currentDestination == .deviceList
-                                ) {
-                                    onSelect(.deviceList)
+                        if enableDeviceManagement {
+                            DrawerSectionHeader(
+                                title: "QUẢN LÝ THIẾT BỊ",
+                                headerColor: Color(hex: "#059669"),
+                                isExpanded: $isDeviceExpanded
+                            )
+                            if isDeviceExpanded {
+                                VStack(spacing: 2) {
+                                    drawerItemRow(
+                                        title: "Danh sách thiết bị",
+                                        icon: "laptopcomputer.and.iphone",
+                                        color: Color(hex: "#10B981"),
+                                        isSelected: currentDestination == .deviceList
+                                    ) {
+                                        onSelect(.deviceList)
+                                    }
+                                    drawerItemRow(
+                                        title: "Thêm thiết bị mới",
+                                        icon: "plus.circle.fill",
+                                        color: Color(hex: "#8B5CF6"),
+                                        isSelected: currentDestination == .addDevice
+                                    ) {
+                                        onSelect(.addDevice)
+                                    }
+                                    drawerItemRow(
+                                        title: "Danh mục loại thiết bị",
+                                        icon: "tag.fill",
+                                        color: Color(hex: "#0EA5E9"),
+                                        isSelected: currentDestination == .deviceTypes
+                                    ) {
+                                        onSelect(.deviceTypes)
+                                    }
+                                    drawerItemRow(
+                                        title: "Nhật ký thiết bị",
+                                        icon: "clock.arrow.circlepath",
+                                        color: Color(hex: "#8B5CF6"),
+                                        isSelected: currentDestination == .lichSu
+                                    ) {
+                                        onSelect(.lichSu)
+                                    }
                                 }
-                                drawerItemRow(
-                                    title: "Thêm thiết bị mới",
-                                    icon: "plus.circle.fill",
-                                    color: Color(hex: "#8B5CF6"),
-                                    isSelected: currentDestination == .addDevice
-                                ) {
-                                    onSelect(.addDevice)
-                                }
-                                drawerItemRow(
-                                    title: "Danh mục loại thiết bị",
-                                    icon: "tag.fill",
-                                    color: Color(hex: "#0EA5E9"),
-                                    isSelected: currentDestination == .deviceTypes
-                                ) {
-                                    onSelect(.deviceTypes)
-                                }
-                                drawerItemRow(
-                                    title: "Nhật ký thiết bị",
-                                    icon: "clock.arrow.circlepath",
-                                    color: Color(hex: "#8B5CF6"),
-                                    isSelected: currentDestination == .lichSu
-                                ) {
-                                    onSelect(.lichSu)
-                                }
+                                .padding(.leading, 6)
                             }
-                            .padding(.leading, 6)
                         }
 
                         // --- NHÓM 2: QUẢN LÝ NHÂN SỰ & TỔ CHỨC / DANH BẠ NHÂN SỰ ---
@@ -448,13 +453,15 @@ public struct AppSidebarDrawer: View {
                         )
                         if isReportExpanded {
                             VStack(spacing: 2) {
-                                drawerItemRow(
-                                    title: "Biểu mẫu & Báo cáo TB",
-                                    icon: "printer.fill",
-                                    color: Color(hex: "#FB7185"),
-                                    isSelected: currentDestination == .printBarcode
-                                ) {
-                                    onSelect(.printBarcode)
+                                if enableDeviceManagement {
+                                    drawerItemRow(
+                                        title: "Biểu mẫu & Báo cáo TB",
+                                        icon: "printer.fill",
+                                        color: Color(hex: "#FB7185"),
+                                        isSelected: currentDestination == .printBarcode
+                                    ) {
+                                        onSelect(.printBarcode)
+                                    }
                                 }
                                 if isAdmin || isHelpDesk {
                                     drawerItemRow(
@@ -477,13 +484,15 @@ public struct AppSidebarDrawer: View {
                                         onSelect(.attendanceReport)
                                     }
                                 }
-                                drawerItemRow(
-                                    title: "Thống kê thiết bị",
-                                    icon: "chart.pie.fill",
-                                    color: Color(hex: "#14B8A6"),
-                                    isSelected: currentDestination == .statistics
-                                ) {
-                                    onSelect(.statistics)
+                                if enableDeviceManagement {
+                                    drawerItemRow(
+                                        title: "Thống kê thiết bị",
+                                        icon: "chart.pie.fill",
+                                        color: Color(hex: "#14B8A6"),
+                                        isSelected: currentDestination == .statistics
+                                    ) {
+                                        onSelect(.statistics)
+                                    }
                                 }
                             }
                             .padding(.leading, 6)

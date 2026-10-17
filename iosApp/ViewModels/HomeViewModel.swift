@@ -25,6 +25,9 @@ public class HomeViewModel: ObservableObject {
     // Cấu hình tính năng phân quyền Helpdesk
     @Published public var allowHelpdeskUserManagement: Bool = false
 
+    // Cấu hình Bật/Tắt module Quản lý thiết bị (đồng bộ Web/Desktop/Android/iOS)
+    @Published public var enableDeviceManagement: Bool = true
+
     // Modal đổi mật khẩu
     @Published public var showChangePasswordModal: Bool = false
     @Published public var showOverflowMenu: Bool = false
@@ -93,10 +96,12 @@ public class HomeViewModel: ObservableObject {
         let active = DatabaseHelper.getBool(fields["isBannerActive"] as? [String: Any])
         let text = DatabaseHelper.getString(fields["bannerText"] as? [String: Any])
         let type = DatabaseHelper.getString(fields["bannerType"] as? [String: Any])
+        let devMgmt = DatabaseHelper.getBool(fields["enableDeviceManagement"] as? [String: Any], defaultValue: true)
 
         self.isCompanyBannerActive = active
         self.companyBannerText = text
         self.companyBannerType = type.isEmpty ? "INFO" : type
+        self.enableDeviceManagement = devMgmt
     }
 
     // MARK: - TẢI CẤU HÌNH PHÂN QUYỀN HELPDESK (SYSTEM_TOGGLE_CONFIG)
@@ -119,6 +124,12 @@ public class HomeViewModel: ObservableObject {
         }
 
         self.allowHelpdeskUserManagement = DatabaseHelper.getBool(fields["allowHelpdeskUserManagement"] as? [String: Any])
+        if let devToggle = fields["enableDeviceManagement"] as? [String: Any] {
+            let toggleVal = DatabaseHelper.getBool(devToggle, defaultValue: true)
+            if !toggleVal {
+                self.enableDeviceManagement = false
+            }
+        }
     }
 
     // MARK: - CẬP NHẬT BANNER DOANH NGHIỆP
@@ -425,6 +436,12 @@ public class HomeViewModel: ObservableObject {
             let msg = DatabaseHelper.getString(fields["message"] as? [String: Any]).isEmpty
                 ? DatabaseHelper.getString(fields["body"] as? [String: Any]).lowercased()
                 : DatabaseHelper.getString(fields["message"] as? [String: Any]).lowercased()
+
+            // TUYỆT ĐỐI KHÔNG tính lệnh điều phối hoặc thông báo ticket vào Thông báo hệ thống
+            if tp == "DISPATCHED" || tp == "TICKET" || fields["ticketId"] != nil ||
+               title.contains("điều phối") || title.contains("lệnh điều phối") || title.contains("phiếu hỗ trợ") {
+                return false
+            }
 
             let isJoinRequest = tg == "ADMIN" || tp == "JOIN_REQUEST" ||
                 title.contains("yêu cầu gia nhập") || title.contains("xin gia nhập") ||

@@ -87,6 +87,14 @@ public struct DeviceDetailView: View {
                                 VStack(spacing: 0) {
                                     detailRow(label: "Tên thiết bị", value: dev.ten)
                                     Divider().padding(.leading, 16)
+                                    detailRow(label: "Mã thiết bị (QR)", value: dev.id)
+                                    Divider().padding(.leading, 16)
+                                    detailRow(label: "Số Serial (S/N)", value: dev.serialNumber ?? "Chưa cập nhật")
+                                    Divider().padding(.leading, 16)
+                                    if let l = dev.loai, !l.isEmpty {
+                                        detailRow(label: "Loại thiết bị", value: l)
+                                        Divider().padding(.leading, 16)
+                                    }
                                     detailRow(label: "Đơn vị", value: dev.tenDonVi)
                                     if let pb = dev.phongBan, !pb.isEmpty {
                                         Divider().padding(.leading, 16)

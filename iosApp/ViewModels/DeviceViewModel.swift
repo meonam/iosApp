@@ -704,18 +704,36 @@ public class DeviceViewModel: ObservableObject {
     }
 
     public func setDefaultDeviceTypes() {
-        let defaultNames = ["Laptop", "Máy tính để bàn (PC)", "Máy in", "Màn hình", "Máy chiếu", "Switch mạng", "Router Wifi", "Khác"]
-        self.deviceTypes = defaultNames.map { name in
-            DeviceType(id: name.lowercased().replacingOccurrences(of: " ", with: "_"), name: name)
-        }
+        let defaultTypes: [(id: String, name: String)] = [
+            ("PC", "Máy tính để bàn (PC)"),
+            ("LAPTOP", "Máy tính xách tay (Laptop)"),
+            ("MONITOR", "Màn hình máy tính"),
+            ("PRN_LASER", "Máy in văn phòng (Laser A4)"),
+            ("PRN_POS", "Máy in bill / nhiệt (POS)"),
+            ("SCANNER", "Máy quét mã vạch"),
+            ("PDA", "Máy kiểm kho (PDA / Scan Memo)"),
+            ("POS_TERM", "Thiết bị POS / Máy tính tiền"),
+            ("NETWORK", "Thiết bị mạng (Switch / Router / AP)"),
+            ("SERVER", "Máy chủ (Server / Storage)"),
+            ("UPS", "Bộ lưu điện (UPS)"),
+            ("TIME_ATT", "Máy chấm công (Vân tay / FaceID)"),
+            ("CCTV", "Camera quan sát & an ninh (CCTV)"),
+            ("COLD_FREEZE", "Tủ đông / Tủ mát siêu thị"),
+            ("HVAC", "Máy lạnh / Điều hòa không khí"),
+            ("GENERATOR", "Máy phát điện / Trạm biến áp")
+        ]
+        self.deviceTypes = defaultTypes.map { DeviceType(id: $0.id, name: $0.name) }
     }
 
     public func addDeviceType(name: String, phongBan: String? = nil, completion: @escaping (Result<DeviceType, Error>) -> Void) {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanName.isEmpty else { return }
-        let docId = cleanName.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+        let docId = cleanName.folding(options: .diacriticInsensitive, locale: .current)
+            .uppercased()
             .replacingOccurrences(of: " ", with: "_")
+            .replacingOccurrences(of: "-", with: "_")
             .filter { $0.isLetter || $0.isNumber || $0 == "_" }
+            .trimmingCharacters(in: CharacterSet(charactersIn: "_"))
 
         let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/device_types/\(docId)"
         guard let url = URL(string: urlStr) else { return }
@@ -825,6 +843,7 @@ public class DeviceViewModel: ObservableObject {
         loai: String,
         customStatus: String,
         nguonGoc: String? = DeviceOriginConstants.originDept,
+        serialNumber: String? = nil,
         donViMuon: String? = nil,
         phongBanMuon: String? = nil,
         nguoiMuon: String? = nil,
@@ -849,12 +868,18 @@ public class DeviceViewModel: ObservableObject {
         dateFormatter.dateFormat = "dd/MM/yyyy"
         let dateStr = dateFormatter.string(from: Date())
 
+        let cleanLoai = loai.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let loaiObj = self.deviceTypes.first { $0.id.caseInsensitiveCompare(cleanLoai) == .orderedSame || $0.name.caseInsensitiveCompare(cleanLoai) == .orderedSame }
+        let loaiDisplayName = loaiObj?.displayName ?? loai
+
         var fields: [String: Any] = [
             "id": ["stringValue": cleanId],
             "ten": ["stringValue": cleanTen],
             "tenDonVi": ["stringValue": donVi],
             "phongBan": ["stringValue": phongBan],
-            "loai": ["stringValue": loai.lowercased().replacingOccurrences(of: " ", with: "")],
+            "loai": ["stringValue": cleanLoai],
+            "deviceType": ["stringValue": cleanLoai],
+            "loaiName": ["stringValue": loaiDisplayName],
             "trangThai": ["stringValue": effectiveStatus],
             "nguonGoc": ["stringValue": effectiveOrigin],
             "companyId": ["stringValue": effectiveCompId],
@@ -863,6 +888,10 @@ public class DeviceViewModel: ObservableObject {
             "ngayCapNhat": ["integerValue": "\(now)"],
             "createdBy": ["stringValue": user.email]
         ]
+
+        if let sn = serialNumber?.trimmingCharacters(in: .whitespacesAndNewlines), !sn.isEmpty {
+            fields["serialNumber"] = ["stringValue": sn]
+        }
 
         if isLoan {
             if let dv = donViMuon, !dv.isEmpty { fields["donViMuon"] = ["stringValue": dv] }
@@ -1105,7 +1134,7 @@ public class DeviceViewModel: ObservableObject {
         )
     }
 
-    public func updateDeviceInfo(oldId: String, newTen: String, newId: String, newNguonGoc: String? = nil) {
+    public func updateDeviceInfo(oldId: String, newTen: String, newId: String, newNguonGoc: String? = nil, newSerialNumber: String? = nil) {
         let cleanOldId = oldId.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanNewId = newId.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanTen = newTen.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1116,12 +1145,18 @@ public class DeviceViewModel: ObservableObject {
         Task {
             let now = Int64(Date().timeIntervalSince1970 * 1000)
             if cleanOldId == cleanNewId {
-                var updateMasks = ["ten", "updatedAt", "ngayCapNhat"]
+                var updateMasks = ["ten", "tenThietBi", "name", "updatedAt", "ngayCapNhat"]
                 var bodyFields: [String: Any] = [
                     "ten": ["stringValue": cleanTen],
+                    "tenThietBi": ["stringValue": cleanTen],
+                    "name": ["stringValue": cleanTen],
                     "updatedAt": ["integerValue": "\(now)"],
                     "ngayCapNhat": ["integerValue": "\(now)"]
                 ]
+                if let sn = newSerialNumber {
+                    updateMasks.append("serialNumber")
+                    bodyFields["serialNumber"] = ["stringValue": sn.trimmingCharacters(in: .whitespacesAndNewlines)]
+                }
                 if let org = newNguonGoc, !org.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     updateMasks.append("nguonGoc")
                     bodyFields["nguonGoc"] = ["stringValue": org.trimmingCharacters(in: .whitespacesAndNewlines)]
@@ -1149,6 +1184,9 @@ public class DeviceViewModel: ObservableObject {
                         var fields: [String: Any] = [
                             "id": ["stringValue": cleanNewId],
                             "ten": ["stringValue": cleanTen],
+                            "tenThietBi": ["stringValue": cleanTen],
+                            "name": ["stringValue": cleanTen],
+                            "serialNumber": ["stringValue": newSerialNumber?.trimmingCharacters(in: .whitespacesAndNewlines) ?? oldDev.serialNumber ?? ""],
                             "tenDonVi": ["stringValue": oldDev.tenDonVi],
                             "trangThai": ["stringValue": oldDev.trangThai],
                             "createdAt": ["integerValue": "\(oldDev.createdAt)"],

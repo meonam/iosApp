@@ -206,6 +206,12 @@ struct CompaniesTab: View {
                             .buttonStyle(BorderlessButtonStyle())
                             .foregroundColor(.blue)
                             
+                            Button(company.enableDeviceManagement ? "💻 Thiết bị: BẬT" : "💻 Thiết bị: TẮT") {
+                                viewModel.toggleDeviceManagement(companyId: company.id, enableDeviceManagement: !company.enableDeviceManagement, token: token)
+                            }
+                            .buttonStyle(BorderlessButtonStyle())
+                            .foregroundColor(company.enableDeviceManagement ? .blue : .gray)
+                            
                             Spacer()
                             
                             Button(company.isMaintenance ? "Mở khóa" : "Bảo trì") {
@@ -731,14 +737,299 @@ struct AccountsTab: View {
 struct ConfigTab: View {
     @ObservedObject var viewModel: SuperAdminViewModel
     let token: String
-    
+
+    @State private var isLoading = false
+    @State private var isSaving = false
+    @State private var statusMessage: String? = nil
+
+    @State private var masterMaintenance = false
+    @State private var masterMaintenanceMsg = "Hệ thống đang bảo trì nâng cấp định kỳ."
+    @State private var enableDeviceManagement = true
+    @State private var enableLiveGps = true
+    @State private var enableInAppCall = true
+    @State private var enableRegionManagement = true
+    @State private var enableAttendanceMileage = true
+    @State private var enableVoiceAlert = true
+    @State private var defaultTrialDays = "14"
+    @State private var defaultTrialMaxDevices = "50"
+
     var body: some View {
-        VStack {
-            Text("Cấu hình hệ thống")
-                .font(.headline)
+        ScrollView {
+            VStack(spacing: 16) {
+                // Header
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("🛡️ Cấu hình Toàn cầu & License Gating")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        Text("Đồng bộ tức thời cho cả 4 nền tảng (Web, Desktop, Android, iOS)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Button("Lưu Cấu Hình") {
+                            saveConfig()
+                        }
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, 12)
+
+                if let msg = statusMessage {
+                    Text(msg)
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.green)
+                        .padding(8)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(8)
+                        .padding(.horizontal)
+                }
+
+                // Master Maintenance
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle(isOn: $masterMaintenance) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Bảo trì khẩn cấp toàn hệ thống (Master Maintenance)")
+                                .font(.subheadline)
+                                .fontWeight(.bold)
+                                .foregroundColor(masterMaintenance ? .red : .primary)
+                            Text("Khóa toàn bộ truy cập của tất cả doanh nghiệp đồng thời")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    if masterMaintenance {
+                        TextField("Thông báo bảo trì", text: $masterMaintenanceMsg)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .font(.caption)
+                    }
+                }
                 .padding()
-            // Placeholder for global config
-            Spacer()
+                .background(masterMaintenance ? Color.red.opacity(0.08) : Color(.systemGray6))
+                .cornerRadius(12)
+                .padding(.horizontal)
+
+                // Feature Gating Block
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("CÔNG TẮC BẬT/TẮT TÍNH NĂNG (FEATURE GATING)")
+                        .font(.caption)
+                        .fontWeight(.black)
+                        .foregroundColor(.secondary)
+
+                    VStack(spacing: 10) {
+                        featureToggleRow(
+                            title: "Quản lý Thiết bị & Tài sản (Device & Asset)",
+                            desc: "Bật/Tắt module thiết bị, in tem QR/Barcode, nhật ký tài sản",
+                            tier: "Gói Chuẩn / Pro / Enterprise",
+                            isOn: $enableDeviceManagement
+                        )
+                        Divider()
+                        featureToggleRow(
+                            title: "Live GPS Hiện trường & Giám sát KTV",
+                            desc: "Theo dõi vị trí thực tế kỹ thuật viên và lộ trình điều phối",
+                            tier: "Gói Enterprise",
+                            isOn: $enableLiveGps
+                        )
+                        Divider()
+                        featureToggleRow(
+                            title: "Cuộc gọi đàm thoại WebRTC (In-App Call)",
+                            desc: "Hỗ trợ HelpDesk, KTV và Khách hàng gọi thoại nội bộ trực tiếp",
+                            tier: "Gói Enterprise",
+                            isOn: $enableInAppCall
+                        )
+                        Divider()
+                        featureToggleRow(
+                            title: "Quản trị Khu vực / Đa chi nhánh đa điểm",
+                            desc: "Phân quyền dữ liệu theo cấp Tỉnh / Vùng / Chi nhánh",
+                            tier: "Gói Enterprise",
+                            isOn: $enableRegionManagement
+                        )
+                        Divider()
+                        featureToggleRow(
+                            title: "Chấm công GPS & Quyết toán công tác phí",
+                            desc: "Chấm công bán kính trụ sở và tự động tính cước xăng xe",
+                            tier: "Gói Pro / Enterprise",
+                            isOn: $enableAttendanceMileage
+                        )
+                        Divider()
+                        featureToggleRow(
+                            title: "Phát loa thông báo AI Tiếng Việt (TTS Alert)",
+                            desc: "Phát âm thanh cảnh báo sự cố bằng giọng đọc AI Tiếng Việt",
+                            tier: "Gói Pro / Enterprise",
+                            isOn: $enableVoiceAlert
+                        )
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                }
+                .padding(.horizontal)
+
+                // Trial & Paywall Quotas
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("HẠN MỨC DÙNG THỬ MẶC ĐỊNH (TRIAL & PAYWALL)")
+                        .font(.caption)
+                        .fontWeight(.black)
+                        .foregroundColor(.secondary)
+
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Số ngày dùng thử:")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                            TextField("14", text: $defaultTrialDays)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .keyboardType(.numberPad)
+                        }
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Hạn mức thiết bị:")
+                                .font(.caption)
+                                .fontWeight(.bold)
+                            TextField("50", text: $defaultTrialMaxDevices)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .keyboardType(.numberPad)
+                        }
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 24)
+            }
+        }
+        .onAppear {
+            loadConfig()
+        }
+    }
+
+    private func featureToggleRow(title: String, desc: String, tier: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(title)
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                    Text(tier)
+                        .font(.system(size: 9, weight: .bold))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1.5)
+                        .background(Color.blue.opacity(0.12))
+                        .foregroundColor(.blue)
+                        .cornerRadius(4)
+                }
+                Text(desc)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private func loadConfig() {
+        guard !isLoading else { return }
+        isLoading = true
+        let url = "\(ServerConfig.documentsBaseUrl)/system_config/global_controls"
+        var request = URLRequest(url: URL(string: url)!)
+        request.httpMethod = "GET"
+        if !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            DispatchQueue.main.async {
+                self.isLoading = false
+                guard let data = data,
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                      let fields = json["fields"] as? [String: Any] else {
+                    return
+                }
+
+                self.masterMaintenance = DatabaseHelper.getBool(fields["masterMaintenance"] as? [String: Any])
+                let msg = DatabaseHelper.getString(fields["masterMaintenanceMsg"] as? [String: Any])
+                if !msg.isEmpty { self.masterMaintenanceMsg = msg }
+
+                self.enableDeviceManagement = DatabaseHelper.getBool(fields["enableDeviceManagement"] as? [String: Any], defaultValue: true)
+                self.enableLiveGps = DatabaseHelper.getBool(fields["enableLiveGps"] as? [String: Any], defaultValue: true)
+                self.enableInAppCall = DatabaseHelper.getBool(fields["enableInAppCall"] as? [String: Any], defaultValue: true)
+                self.enableRegionManagement = DatabaseHelper.getBool(fields["enableRegionManagement"] as? [String: Any], defaultValue: true)
+                self.enableAttendanceMileage = DatabaseHelper.getBool(fields["enableAttendanceMileage"] as? [String: Any], defaultValue: true)
+                self.enableVoiceAlert = DatabaseHelper.getBool(fields["enableVoiceAlert"] as? [String: Any], defaultValue: true)
+
+                let days = DatabaseHelper.getInt(fields["defaultTrialDays"] as? [String: Any])
+                if days > 0 { self.defaultTrialDays = "\(days)" }
+                let devs = DatabaseHelper.getInt(fields["defaultTrialMaxDevices"] as? [String: Any])
+                if devs > 0 { self.defaultTrialMaxDevices = "\(devs)" }
+            }
+        }.resume()
+    }
+
+    private func saveConfig() {
+        guard !isSaving else { return }
+        isSaving = true
+        statusMessage = nil
+
+        let trialDaysInt = Int(defaultTrialDays) ?? 14
+        let trialDevsInt = Int(defaultTrialMaxDevices) ?? 50
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+
+        let body: [String: Any] = [
+            "fields": [
+                "masterMaintenance": ["booleanValue": masterMaintenance],
+                "masterMaintenanceMsg": ["stringValue": masterMaintenanceMsg],
+                "enableDeviceManagement": ["booleanValue": enableDeviceManagement],
+                "enableLiveGps": ["booleanValue": enableLiveGps],
+                "enableInAppCall": ["booleanValue": enableInAppCall],
+                "enableRegionManagement": ["booleanValue": enableRegionManagement],
+                "enableAttendanceMileage": ["booleanValue": enableAttendanceMileage],
+                "enableVoiceAlert": ["booleanValue": enableVoiceAlert],
+                "defaultTrialDays": ["integerValue": "\(trialDaysInt)"],
+                "defaultTrialMaxDevices": ["integerValue": "\(trialDevsInt)"],
+                "updatedAt": ["integerValue": "\(now)"]
+            ]
+        ]
+
+        guard let postData = try? JSONSerialization.data(withJSONObject: body) else {
+            isSaving = false
+            return
+        }
+
+        let endpoints = ["global_controls", "global_settings", "global_system_config"]
+        let group = DispatchGroup()
+
+        for ep in endpoints {
+            group.enter()
+            let urlStr = "\(ServerConfig.documentsBaseUrl)/system_config/\(ep)"
+            var request = URLRequest(url: URL(string: urlStr)!)
+            request.httpMethod = "PATCH"
+            if !token.isEmpty {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = postData
+
+            URLSession.shared.dataTask(with: request) { _, _, _ in
+                group.leave()
+            }.resume()
+        }
+
+        group.notify(queue: .main) {
+            self.isSaving = false
+            self.statusMessage = "Đã lưu và đồng bộ Cấu hình Toàn cầu thành công!"
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                self.statusMessage = nil
+            }
         }
     }
 }
@@ -878,6 +1169,7 @@ struct SACompany: Identifiable {
     var maxDevices: Int
     var createdAt: Int64
     var pricePerUserMonthly: Int64 = 250000
+    var enableDeviceManagement: Bool = true
 }
 
 class SuperAdminViewModel: ObservableObject {
@@ -955,6 +1247,7 @@ class SuperAdminViewModel: ObservableObject {
                     let createdAt = DatabaseHelper.getInt64(fields["createdAt"] as? [String: Any])
                     let rawPrice = DatabaseHelper.getInt64(fields["pricePerUserMonthly"] as? [String: Any])
                     let pricePerUserMonthly: Int64 = rawPrice > 0 ? rawPrice : 250000
+                    let enableDeviceManagement = DatabaseHelper.getBool(fields["enableDeviceManagement"] as? [String: Any], defaultValue: true)
                     
                     return SACompany(
                         id: id,
@@ -963,7 +1256,8 @@ class SuperAdminViewModel: ObservableObject {
                         licenseTier: licenseTier.isEmpty ? "PRO" : licenseTier,
                         maxDevices: maxDevices == 0 ? 100 : maxDevices,
                         createdAt: createdAt,
-                        pricePerUserMonthly: pricePerUserMonthly
+                        pricePerUserMonthly: pricePerUserMonthly,
+                        enableDeviceManagement: enableDeviceManagement
                     )
                 }
                 
@@ -1170,6 +1464,32 @@ class SuperAdminViewModel: ObservableObject {
                     if let index = self.companies.firstIndex(where: { $0.id == companyId }) {
                         self.companies[index].licenseTier = tier
                         self.companies[index].maxDevices = maxDevices
+                    }
+                }
+            }
+        }.resume()
+    }
+
+    func toggleDeviceManagement(companyId: String, enableDeviceManagement: Bool, token: String) {
+        let url = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)?updateMask.fieldPaths=enableDeviceManagement"
+        var request = URLRequest(url: URL(string: url)!)
+        request.httpMethod = "PATCH"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "fields": [
+                "enableDeviceManagement": ["booleanValue": enableDeviceManagement]
+            ]
+        ]
+        
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
+        URLSession.shared.dataTask(with: request) { _, response, _ in
+            if let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode) {
+                DispatchQueue.main.async {
+                    if let index = self.companies.firstIndex(where: { $0.id == companyId }) {
+                        self.companies[index].enableDeviceManagement = enableDeviceManagement
                     }
                 }
             }
