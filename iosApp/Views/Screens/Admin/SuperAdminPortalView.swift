@@ -770,16 +770,18 @@ struct ConfigTab: View {
                     if isSaving {
                         ProgressView()
                     } else {
-                        Button("Lưu Cấu Hình") {
+                        Button(action: {
                             saveConfig()
+                        }) {
+                            Text("Lưu Cấu Hình")
+                                .font(.subheadline)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Color.blue)
+                                .cornerRadius(8)
                         }
-                        .font(.subheadline)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color.blue)
-                        .cornerRadius(8)
                     }
                 }
                 .padding(.horizontal)

@@ -2229,7 +2229,6 @@ public class SupportViewModel: ObservableObject {
             let existingCoTechEmails = existingCoTechs.map { $0.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
 
             var allAssignedEmails: [String] = []
-            let cleanTech = techEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             if !cleanTech.isEmpty {
                 allAssignedEmails.append(cleanTech)
             }
