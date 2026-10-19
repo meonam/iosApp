@@ -74,7 +74,7 @@ public struct LoginView: View {
                                         .font(.system(size: 13, weight: .medium))
                                         .foregroundColor(Color.appTextSecondary)
 
-                                    Text("Phiên bản v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.8") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "138"))")
+                                    Text("Phiên bản v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.4.7") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "147"))")
                                         .font(.system(size: 11, weight: .semibold))
                                         .foregroundColor(Color.appTextSecondary)
                                         .padding(.horizontal, 10)

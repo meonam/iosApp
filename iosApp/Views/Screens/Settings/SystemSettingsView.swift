@@ -120,20 +120,13 @@ public struct SystemSettingsView: View {
                                 .font(.system(size: 17, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()
-                            Button(action: saveSettings) {
-                                if isSaving {
-                                    ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                } else {
-                                    Text("Lưu")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 5)
-                                        .background(Color.appPrimary.opacity(0.8))
-                                        .cornerRadius(8)
-                                }
-                            }
-                            .disabled(isLoading || isSaving)
+                            Text("CHỈ XEM")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color.white.opacity(0.2))
+                                .cornerRadius(6)
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
@@ -149,12 +142,38 @@ public struct SystemSettingsView: View {
                             VStack(spacing: 16) {
                                 accordionMasterBar
 
-                                sectionCompanyInfo()
-                                sectionAttendance()
-                                sectionExpenses()
-                                sectionSLA()
-                                sectionDevices()
-                                sectionNotifications()
+                                // Banner Quản Trị Tập Trung (Phương Án A)
+                                HStack(spacing: 12) {
+                                    Image(systemName: "lock.shield.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(Color.appPrimary)
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("Quản Trị Tập Trung Từ Web Admin")
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundColor(Color(hex: "#1E3A8A"))
+                                        Text("🔒 Cấu hình & chính sách hệ thống được quản trị tập trung từ Trang Quản Trị Web (IT Service & Assets Admin Portal). Ứng dụng hiển thị ở chế độ Chỉ Xem để tra cứu trạng thái vận hành theo thời gian thực.")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(Color(hex: "#1E40AF"))
+                                            .lineSpacing(2)
+                                    }
+                                }
+                                .padding(12)
+                                .background(Color(hex: "#EFF6FF"))
+                                .cornerRadius(10)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(Color(hex: "#93C5FD"), lineWidth: 1)
+                                )
+
+                                Group {
+                                    sectionCompanyInfo()
+                                    sectionAttendance()
+                                    sectionExpenses()
+                                    sectionSLA()
+                                    sectionDevices()
+                                    sectionNotifications()
+                                }
+                                .disabled(true)
                             }
                             .padding(14)
                         }

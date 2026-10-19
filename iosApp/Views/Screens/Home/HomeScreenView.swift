@@ -300,7 +300,7 @@ public struct HomeScreenView: View {
         .alert("Thông tin ứng dụng", isPresented: $showAboutDialog) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("IT Service & Assets\nPhiên bản: v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.3.4") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "134"))\nSaigon Co.op - Bản quyền thuộc Trung tâm CNTT")
+            Text("IT Service & Assets\nPhiên bản: v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.4.7") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "147"))\nSaigon Co.op - Bản quyền thuộc Trung tâm CNTT")
         }
         // Alert Xác nhận đăng xuất
         .alert("Đăng xuất", isPresented: $showLogoutConfirmDialog) {

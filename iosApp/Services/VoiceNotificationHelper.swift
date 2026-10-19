@@ -137,17 +137,29 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
             request.timeoutInterval = 8.0
 
             do {
+                var targetData: Data? = nil
                 let (data, response) = try await URLSession.shared.data(for: request)
                 if let httpResp = response as? HTTPURLResponse, httpResp.statusCode == 200 {
-                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let fields = json["fields"] as? [String: Any] {
-                        let mode = DatabaseHelper.getString(fields, "voiceNotificationMode")
-                        let soundEnabled = DatabaseHelper.getBool(fields["enableNotificationSound"] as? [String: Any], defaultValue: true)
-
-                        let cleanMode = mode.isEmpty ? "REPEAT" : mode.uppercased()
-                        UserDefaults.standard.set(cleanMode, forKey: "key_dev_portal_voice_mode")
-                        UserDefaults.standard.set(soundEnabled, forKey: "key_dev_portal_voice_enabled")
+                    targetData = data
+                } else if let fallbackUrl = URL(string: "\(ServerConfig.documentsBaseUrl)/system_config/system_toggle_config") {
+                    var fbReq = URLRequest(url: fallbackUrl)
+                    if !idToken.isEmpty { fbReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                    fbReq.timeoutInterval = 8.0
+                    let (fbData, fbResp) = try await URLSession.shared.data(for: fbReq)
+                    if let fbHttp = fbResp as? HTTPURLResponse, fbHttp.statusCode == 200 {
+                        targetData = fbData
                     }
+                }
+
+                if let validData = targetData,
+                   let json = try? JSONSerialization.jsonObject(with: validData) as? [String: Any],
+                   let fields = json["fields"] as? [String: Any] {
+                    let mode = DatabaseHelper.getString(fields, "voiceNotificationMode")
+                    let soundEnabled = DatabaseHelper.getBool(fields["enableNotificationSound"] as? [String: Any], defaultValue: true)
+
+                    let cleanMode = mode.isEmpty ? "REPEAT" : mode.uppercased()
+                    UserDefaults.standard.set(cleanMode, forKey: "key_dev_portal_voice_mode")
+                    UserDefaults.standard.set(soundEnabled, forKey: "key_dev_portal_voice_enabled")
                 }
             } catch {
                 print("[VoiceNotificationHelper] Sync admin config error: \(error)")

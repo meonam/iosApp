@@ -140,9 +140,22 @@ public class SupportViewModel: ObservableObject {
             if !idToken.isEmpty {
                 req.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
             }
+            var fetchedFields: [String: Any]? = nil
             if let (data, httpResp) = await DatabaseHelper.executeSafeRequest(req), httpResp.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let fields = json["fields"] as? [String: Any] {
+                fetchedFields = fields
+            } else if let fallbackUrl = URL(string: "\(ServerConfig.documentsBaseUrl)/system_config/system_toggle_config") {
+                var fallbackReq = URLRequest(url: fallbackUrl)
+                if !idToken.isEmpty { fallbackReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                if let (data, httpResp) = await DatabaseHelper.executeSafeRequest(fallbackReq), httpResp.statusCode == 200,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let fields = json["fields"] as? [String: Any] {
+                    fetchedFields = fields
+                }
+            }
+
+            if let fields = fetchedFields {
                 let allowReopen = (fields["allowTicketReopen"] as? [String: Any])?["booleanValue"] as? Bool ?? false
                 let enableViolations = (fields["enableKtvViolationTracking"] as? [String: Any])?["booleanValue"] as? Bool ?? true
                 let offlineMinutes = Int((fields["ktvOfflineViolationMinutes"] as? [String: Any])?["integerValue"] as? String ?? "") ?? 15
