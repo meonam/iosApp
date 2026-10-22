@@ -731,7 +731,7 @@ public struct HomeScreenView: View {
                     accentColor: Color(hex: "#0D9488"),
                     bgColor: Color(hex: "#F0FDFA")
                 ) {
-                    onNavigate(.info)
+                    onNavigate(.appInfo)
                 }
             }
         }
