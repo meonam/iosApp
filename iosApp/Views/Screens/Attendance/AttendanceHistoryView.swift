@@ -300,50 +300,24 @@ public struct AttendanceHistoryView: View {
         }()
 
         return VStack(spacing: 10) {
-            // Hàng 1: Ngày, Nhãn Ca, Lịch, Trạng thái
-            HStack {
-                HStack(spacing: 6) {
-                    Text(record.date)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(Color.appTextPrimary)
+            // Hàng 1: Ngày, Nhãn Hôm nay, Trạng thái (không dồn 5 badge trên 1 hàng gây rớt chữ dọc)
+            HStack(spacing: 6) {
+                Text(record.date)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Color.appTextPrimary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
 
-                    // Ca ngày / đêm
-                    Text(record.isNightShift ? "🌙 Ca đêm" : "☀️ Ca ngày")
+                if isToday {
+                    Text("Hôm nay")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(record.isNightShift ? Color(hex: "#7C3AED") : Color(hex: "#2563EB"))
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1.5)
-                        .background(record.isNightShift ? Color(hex: "#EDE9FE") : Color(hex: "#EFF6FF"))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color(hex: "#16A34A"))
                         .cornerRadius(4)
-
-                    // Phân ca
-                    if !record.scheduledShiftCode.isEmpty {
-                        Text(record.isUnscheduled ? "Ngoài lịch (\(record.scheduledShiftCode))" : "Lịch: \(record.scheduledShiftCode)")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(record.isUnscheduled ? Color(hex: "#DC2626") : Color(hex: "#7E22CE"))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1.5)
-                            .background(record.isUnscheduled ? Color(hex: "#FEE2E2") : Color(hex: "#F3E8FF"))
-                            .cornerRadius(4)
-                    } else if record.isUnscheduled {
-                        Text("Ngoài lịch")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(Color(hex: "#B45309"))
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 1.5)
-                            .background(Color(hex: "#FEF3C7"))
-                            .cornerRadius(4)
-                    }
-
-                    if isToday {
-                        Text("Hôm nay")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color(hex: "#16A34A"))
-                            .cornerRadius(4)
-                    }
                 }
 
                 Spacer()
@@ -352,10 +326,49 @@ public struct AttendanceHistoryView: View {
                 Text(onTime ? "✅ Đúng giờ" : "⚠️ Đi muộn")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(onTime ? Color(hex: "#15803D") : Color(hex: "#B45309"))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(onTime ? Color.dynamic(light: "#DCFCE7", dark: "#064E3B").opacity(0.4) : Color.dynamic(light: "#FEF3C7", dark: "#78350F").opacity(0.4))
                     .cornerRadius(6)
+            }
+
+            // Hàng 1b: Nhãn Ca làm việc & Lịch trực
+            HStack(spacing: 6) {
+                Text(record.shiftDisplayName)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(record.isNightShift ? Color(hex: "#7C3AED") : Color(hex: "#2563EB"))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(record.isNightShift ? Color(hex: "#EDE9FE") : Color(hex: "#EFF6FF"))
+                    .cornerRadius(4)
+
+                if !record.scheduledShiftCode.isEmpty {
+                    Text(record.isUnscheduled ? "Ngoài lịch (\(record.scheduledShiftCode))" : "Lịch: \(record.scheduledShiftCode)")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(record.isUnscheduled ? Color(hex: "#DC2626") : Color(hex: "#7E22CE"))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(record.isUnscheduled ? Color(hex: "#FEE2E2") : Color(hex: "#F3E8FF"))
+                        .cornerRadius(4)
+                } else if record.isUnscheduled {
+                    Text("Ngoài lịch (Chưa xếp ca)")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(Color(hex: "#B45309"))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color(hex: "#FEF3C7"))
+                        .cornerRadius(4)
+                }
+
+                Spacer()
             }
 
             Divider().background(Color.appDivider)

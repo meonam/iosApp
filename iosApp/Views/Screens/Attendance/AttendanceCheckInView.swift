@@ -512,10 +512,14 @@ public struct AttendanceCheckInView: View {
                 Text(item.title)
                     .font(.system(size: 11.5, weight: .bold))
                     .foregroundColor(isSelected ? .white : Color.appTextPrimary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
 
                 Text(item.time)
                     .font(.system(size: 10))
                     .foregroundColor(isSelected ? Color.white.opacity(0.9) : Color.appTextSecondary)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
             }
             .frame(maxWidth: .infinity)
             .frame(height: 46)
@@ -681,15 +685,19 @@ public struct AttendanceCheckInView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 6) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("Trực ca / Nhận việc")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundColor(Color.appTextPrimary)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
 
                         if isCheckedIn {
                             Text("🔒 Đang khóa theo ca")
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundColor(Color(hex: "#15803D"))
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
                                 .background(Color(hex: "#DCFCE7"))
@@ -765,10 +773,13 @@ public struct AttendanceCheckInView: View {
                     Text(record.isNightShift ? "Hoàn tất ca đêm" : "Hoàn tất ca ngày")
                         .font(.system(size: 13.5, weight: .bold))
                         .foregroundColor(Color(hex: "#002A8F"))
+                        .lineLimit(1)
 
                     Text(record.isNightShift ? "🌙 Ca đêm" : "☀️ Ca ngày")
                         .font(.system(size: 10.5, weight: .bold))
                         .foregroundColor(record.isNightShift ? Color(hex: "#7C3AED") : Color(hex: "#2563EB"))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(record.isNightShift ? Color(hex: "#EDE9FE") : Color(hex: "#EFF6FF"))
@@ -788,6 +799,8 @@ public struct AttendanceCheckInView: View {
                 Text(tagText)
                     .font(.system(size: 11, weight: .bold))
                     .foregroundColor(tagColor)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(tagBg)

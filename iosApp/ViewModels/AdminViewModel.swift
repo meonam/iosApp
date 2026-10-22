@@ -173,7 +173,11 @@ public class AdminViewModel: ObservableObject {
                 lastActiveAt: DatabaseHelper.getInt64(fields["lastActiveAt"] as? [String: Any]),
                 isOnline: DatabaseHelper.getBool(fields["isOnline"] as? [String: Any]),
                 permissions: DatabaseHelper.getStringArray(fields["permissions"] as? [String: Any]),
-                disabledReason: DatabaseHelper.getString(fields["disabledReason"] as? [String: Any])
+                disabledReason: DatabaseHelper.getString(fields["disabledReason"] as? [String: Any]),
+                boundDeviceId: DatabaseHelper.getString(fields["boundDeviceId"] as? [String: Any]),
+                boundDeviceName: DatabaseHelper.getString(fields["boundDeviceName"] as? [String: Any]),
+                boundDevicePlatform: DatabaseHelper.getString(fields["boundDevicePlatform"] as? [String: Any]),
+                boundDeviceAt: DatabaseHelper.getInt64(fields["boundDeviceAt"] as? [String: Any])
             )
         }
 
@@ -303,6 +307,32 @@ public class AdminViewModel: ObservableObject {
         await patchUserDocument(email: email, fields: patchFields, updateMasks: ["password", "newPassword", "mustChangePassword", "updatedAt"])
         self.isLoading = false
         self.successMessage = "Mật khẩu mới của \(email) là: \(newPassword)"
+        return true
+    }
+
+    // MARK: - RESET USER DEVICE BINDING (HỦY LIÊN KẾT MÁY CHẤM CÔNG - CHỐNG CHẤM CÔNG HỘ)
+    @discardableResult
+    public func resetUserDeviceBinding(email: String) async -> Bool {
+        isLoading = true
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let patchFields: [String: Any] = [
+            "boundDeviceId": DatabaseHelper.valueToFirestore(""),
+            "boundDeviceName": DatabaseHelper.valueToFirestore(""),
+            "boundDevicePlatform": DatabaseHelper.valueToFirestore(""),
+            "boundDeviceAt": DatabaseHelper.valueToFirestore(Int64(0)),
+            "updatedAt": DatabaseHelper.valueToFirestore(nowMs)
+        ]
+        let updateMasks = ["boundDeviceId", "boundDeviceName", "boundDevicePlatform", "boundDeviceAt", "updatedAt"]
+        await patchUserDocument(email: email, fields: patchFields, updateMasks: updateMasks)
+
+        if let idx = allUsers.firstIndex(where: { $0.email.caseInsensitiveCompare(email) == .orderedSame }) {
+            allUsers[idx].boundDeviceId = ""
+            allUsers[idx].boundDeviceName = ""
+            allUsers[idx].boundDevicePlatform = ""
+            allUsers[idx].boundDeviceAt = 0
+        }
+        self.isLoading = false
+        self.successMessage = "✅ Đã hủy liên kết thiết bị chấm công của \(email). Nhân viên có thể chấm công trên điện thoại mới."
         return true
     }
 

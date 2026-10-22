@@ -1312,7 +1312,7 @@ public class SupportViewModel: ObservableObject {
             return nil
         }
 
-        // Nội dung ban đầu của sự cố được lưu tại ticket.initialMessage để hiển thị tại mục "📝 Vấn đề:", không gửi trùng vào messages subcollection
+        // Nội dung ban đầu của sự cố được lưu tại ticket.initialMessage để hiển thị tại mục "📝 Nội dung yêu cầu:", không gửi trùng vào messages subcollection
 
         // Ghi nhận log tin nhắn hệ thống nếu ticket được tự động điều phối ngoài giờ
         if let auto = autoDispatchedTech {

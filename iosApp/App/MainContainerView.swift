@@ -147,6 +147,34 @@ public struct MainContainerView: View {
                             )
                         }
                     }
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 15)
+                            .onEnded { value in
+                                guard isMainTab else { return }
+                                let startX = value.startLocation.x
+                                let dx = value.translation.width
+                                let dy = value.translation.height
+                                
+                                if isDrawerOpen {
+                                    // Đang mở Drawer: Vuốt ngược sang trái để đóng Drawer
+                                    if dx < -40 && abs(dx) > abs(dy) * 1.5 {
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            isDrawerOpen = false
+                                        }
+                                    }
+                                } else {
+                                    // Đang đóng Drawer:
+                                    // 1. Chỉ nhận cử chỉ bắt đầu từ mép trái màn hình (startX <= 120pt)
+                                    // 2. Phải là vuốt sang PHẢI (dx > 50pt)
+                                    // 3. TUYỆT ĐỐI NGĂN CHẶN cuộn dọc: abs(dx) phải lớn hơn 2 lần abs(dy)
+                                    if startX <= 120 && dx > 50 && abs(dx) > abs(dy) * 2.0 {
+                                        withAnimation(.easeInOut(duration: 0.25)) {
+                                            isDrawerOpen = true
+                                        }
+                                    }
+                                }
+                            }
+                    )
                     .fullScreenCover(isPresented: $incomingCallManager.isCallPresented) {
                         CallView()
                     }
@@ -441,54 +469,94 @@ public struct MainContainerView: View {
             )
 
         case .deviceList:
-            DeviceListView(
-                viewModel: deviceViewModel,
-                onBack: { currentDestination = .home },
-                onNavigateToAdd: { showAddDeviceSheet = true },
-                onNavigateToPrint: { currentDestination = .printBarcode }
-            )
-            .sheet(isPresented: $showAddDeviceSheet) {
+            if !homeViewModel.enableDeviceManagement {
+                AccessRestrictedView(
+                    title: "Phân Hệ Thiết Bị Đã Tắt",
+                    message: "Tính năng Quản lý Thiết bị & Tài sản đang tạm tắt theo cấu hình doanh nghiệp hoặc hệ thống.",
+                    onBack: { currentDestination = .home }
+                )
+            } else {
+                DeviceListView(
+                    viewModel: deviceViewModel,
+                    onBack: { currentDestination = .home },
+                    onNavigateToAdd: { showAddDeviceSheet = true },
+                    onNavigateToPrint: { currentDestination = .printBarcode }
+                )
+                .sheet(isPresented: $showAddDeviceSheet) {
+                    AddDeviceView(
+                        viewModel: deviceViewModel,
+                        onDismiss: {
+                            showAddDeviceSheet = false
+                            deviceViewModel.fetchDevices(isRefresh: true)
+                        },
+                        onSuccess: { _ in
+                            showAddDeviceSheet = false
+                            deviceViewModel.fetchDevices(isRefresh: true)
+                        }
+                    )
+                }
+            }
+
+        case .addDevice:
+            if !homeViewModel.enableDeviceManagement {
+                AccessRestrictedView(
+                    title: "Phân Hệ Thiết Bị Đã Tắt",
+                    message: "Tính năng Quản lý Thiết bị & Tài sản đang tạm tắt theo cấu hình doanh nghiệp hoặc hệ thống.",
+                    onBack: { currentDestination = .home }
+                )
+            } else {
                 AddDeviceView(
                     viewModel: deviceViewModel,
-                    onDismiss: {
-                        showAddDeviceSheet = false
-                        deviceViewModel.fetchDevices(isRefresh: true)
-                    },
+                    onDismiss: { currentDestination = .deviceList },
                     onSuccess: { _ in
-                        showAddDeviceSheet = false
+                        currentDestination = .deviceList
                         deviceViewModel.fetchDevices(isRefresh: true)
                     }
                 )
             }
 
-        case .addDevice:
-            AddDeviceView(
-                viewModel: deviceViewModel,
-                onDismiss: { currentDestination = .deviceList },
-                onSuccess: { _ in
-                    currentDestination = .deviceList
-                    deviceViewModel.fetchDevices(isRefresh: true)
-                }
-            )
-
         case .printBarcode:
-            PrintQrLabelView(
-                viewModel: deviceViewModel,
-                onBack: { currentDestination = .home }
-            )
+            if !homeViewModel.enableDeviceManagement {
+                AccessRestrictedView(
+                    title: "Phân Hệ Thiết Bị Đã Tắt",
+                    message: "Tính năng Quản lý Thiết bị & Tài sản đang tạm tắt theo cấu hình doanh nghiệp hoặc hệ thống.",
+                    onBack: { currentDestination = .home }
+                )
+            } else {
+                PrintQrLabelView(
+                    viewModel: deviceViewModel,
+                    onBack: { currentDestination = .home }
+                )
+            }
 
         case .deviceTypes:
-            DeviceTypeManagerView(
-                authViewModel: authViewModel,
-                onBack: { currentDestination = .home }
-            )
+            if !homeViewModel.enableDeviceManagement {
+                AccessRestrictedView(
+                    title: "Phân Hệ Thiết Bị Đã Tắt",
+                    message: "Tính năng Quản lý Thiết bị & Tài sản đang tạm tắt theo cấu hình doanh nghiệp hoặc hệ thống.",
+                    onBack: { currentDestination = .home }
+                )
+            } else {
+                DeviceTypeManagerView(
+                    authViewModel: authViewModel,
+                    onBack: { currentDestination = .home }
+                )
+            }
 
         case .statistics:
-            AssetStatisticsView(
-                viewModel: HomeViewModel(user: user, companyId: compId, idToken: token),
-                onBack: { currentDestination = .home },
-                onNavigateToPrint: { currentDestination = .printBarcode }
-            )
+            if !homeViewModel.enableDeviceManagement {
+                AccessRestrictedView(
+                    title: "Phân Hệ Thiết Bị Đã Tắt",
+                    message: "Tính năng Quản lý Thiết bị & Tài sản đang tạm tắt theo cấu hình doanh nghiệp hoặc hệ thống.",
+                    onBack: { currentDestination = .home }
+                )
+            } else {
+                AssetStatisticsView(
+                    viewModel: HomeViewModel(user: user, companyId: compId, idToken: token),
+                    onBack: { currentDestination = .home },
+                    onNavigateToPrint: { currentDestination = .printBarcode }
+                )
+            }
 
         case .staffSupport:
             StaffSupportView(
@@ -518,10 +586,18 @@ public struct MainContainerView: View {
             }
 
         case .supportRating:
-            SupportRatingReportView(
-                viewModel: supportViewModel,
-                onBack: { currentDestination = .supportHub }
-            )
+            if user.isStaff && !user.isTechnician && !user.isSpecialist && !user.isAdmin {
+                AccessRestrictedView(
+                    title: "Truy Cập Bị Giới Hạn",
+                    message: "Báo cáo đánh giá chất lượng hỗ trợ KTV/chuyên viên chỉ dành riêng cho Cấp Quản lý và Đội ngũ Kỹ thuật.",
+                    onBack: { currentDestination = .home }
+                )
+            } else {
+                SupportRatingReportView(
+                    viewModel: supportViewModel,
+                    onBack: { currentDestination = .supportHub }
+                )
+            }
 
         case .specialistTeams:
             SpecialistTeamManagerView(
@@ -530,39 +606,79 @@ public struct MainContainerView: View {
             )
 
         case .ktvMonitor:
-            OnlineKtvMonitorView(
-                supportVM: supportViewModel,
-                onBack: { currentDestination = .home }
-            )
+            if user.isStaff && !user.isTechnician && !user.isSpecialist && !user.isAdmin {
+                AccessRestrictedView(
+                    title: "Phân Hệ Chấm Công Đã Bị Khóa",
+                    message: "Tính năng giám sát KTV chỉ dành cho Cấp Quản lý và Bộ phận điều phối.",
+                    onBack: { currentDestination = .home }
+                )
+            } else {
+                OnlineKtvMonitorView(
+                    supportVM: supportViewModel,
+                    onBack: { currentDestination = .home }
+                )
+            }
 
         case .peripherals:
             PeripheralsView(onBack: { currentDestination = .home })
 
         case .attendanceHistory:
-            AttendanceHistoryView(authViewModel: authViewModel, onBack: { currentDestination = .home })
+            if user.isStaff && !user.isTechnician && !user.isSpecialist && !user.isAdmin {
+                AccessRestrictedView(
+                    title: "Phân Hệ Chấm Công Đã Bị Khóa",
+                    message: "Phân hệ Chấm công và Lịch trực đã được quản trị viên khóa đối với tài khoản Người dùng.",
+                    onBack: { currentDestination = .home }
+                )
+            } else {
+                AttendanceHistoryView(authViewModel: authViewModel, onBack: { currentDestination = .home })
+            }
 
         case .attendance:
-            AttendanceCheckInView(
-                user: user,
-                companyId: compId,
-                idToken: token,
-                onBack: { currentDestination = .home },
-                onNavigateToHistory: { currentDestination = .attendanceHistory },
-                onNavigateToReport: { currentDestination = .attendanceReport }
-            )
+            if user.isStaff && !user.isTechnician && !user.isSpecialist && !user.isAdmin {
+                AccessRestrictedView(
+                    title: "Phân Hệ Chấm Công Đã Bị Khóa",
+                    message: "Phân hệ Chấm công và Lịch trực đã được quản trị viên khóa đối với tài khoản Người dùng.",
+                    onBack: { currentDestination = .home }
+                )
+            } else {
+                AttendanceCheckInView(
+                    user: user,
+                    companyId: compId,
+                    idToken: token,
+                    onBack: { currentDestination = .home },
+                    onNavigateToHistory: { currentDestination = .attendanceHistory },
+                    onNavigateToReport: { currentDestination = .attendanceReport }
+                )
+            }
 
         case .attendanceReport:
-            AttendanceReportView(
-                authViewModel: authViewModel,
-                onBack: { currentDestination = .home },
-                onNavigateToSettings: { currentDestination = .systemSettings }
-            )
+            if user.isStaff && !user.isTechnician && !user.isSpecialist && !user.isAdmin {
+                AccessRestrictedView(
+                    title: "Phân Hệ Chấm Công Đã Bị Khóa",
+                    message: "Phân hệ Chấm công và Báo cáo công tác phí đã được quản trị viên khóa đối với tài khoản Người dùng.",
+                    onBack: { currentDestination = .home }
+                )
+            } else {
+                AttendanceReportView(
+                    authViewModel: authViewModel,
+                    onBack: { currentDestination = .home },
+                    onNavigateToSettings: { currentDestination = .systemSettings }
+                )
+            }
 
         case .shiftSchedule:
-            ShiftScheduleView(
-                viewModel: ShiftViewModel(user: user, companyId: compId, idToken: token),
-                onBack: { currentDestination = .home }
-            )
+            if user.isStaff && !user.isTechnician && !user.isSpecialist && !user.isAdmin {
+                AccessRestrictedView(
+                    title: "Lịch Trực Phân Ca Đã Bị Khóa",
+                    message: "Lịch trực phân ca chỉ dành cho Kỹ thuật viên và Cấp quản lý.",
+                    onBack: { currentDestination = .home }
+                )
+            } else {
+                ShiftScheduleView(
+                    viewModel: ShiftViewModel(user: user, companyId: compId, idToken: token),
+                    onBack: { currentDestination = .home }
+                )
+            }
 
         case .userManagement:
             UserManagementView(
@@ -630,11 +746,53 @@ public struct MainContainerView: View {
             HelpView(authViewModel: authViewModel, onBack: { currentDestination = .home })
 
         case .lichSu:
-            LichSuView(authViewModel: authViewModel, thietBiId: "", onBack: { currentDestination = .home })
+            if !homeViewModel.enableDeviceManagement {
+                AccessRestrictedView(
+                    title: "Phân Hệ Thiết Bị Đã Tắt",
+                    message: "Tính năng Quản lý Thiết bị & Tài sản đang tạm tắt theo cấu hình doanh nghiệp hoặc hệ thống.",
+                    onBack: { currentDestination = .home }
+                )
+            } else {
+                LichSuView(authViewModel: authViewModel, thietBiId: "", onBack: { currentDestination = .home })
+            }
 
         case .superAdmin:
             SuperAdminPortalView(authViewModel: authViewModel, onBack: { currentDestination = .home })
         }
+    }
+}
+
+// MARK: - ACCESS RESTRICTED VIEW
+private struct AccessRestrictedView: View {
+    let title: String
+    let message: String
+    let onBack: () -> Void
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 56))
+                .foregroundColor(Color(hex: "#EF4444"))
+            Text(title)
+                .font(.system(size: 18, weight: .bold))
+                .foregroundColor(Color.appTextPrimary)
+            Text(message)
+                .font(.system(size: 14))
+                .foregroundColor(Color.appTextSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button(action: onBack) {
+                Text("Quay Về Trang Chủ")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color(hex: "#002A8F"))
+                    .cornerRadius(12)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.appBackground)
     }
 }
 

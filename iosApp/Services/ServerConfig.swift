@@ -29,7 +29,7 @@ public struct ServerConfig {
     public static let turnServer = "turn:\(serverHost):3478"
     public static let turnUsername = "qltbuser"
     public static let turnPassword = "QltbTurn2026!"
-    public static let wsSignalingUrl = "ws://\(serverHost)/ws"
+    public static let wsSignalingUrl = "wss://\(serverHost).sslip.io/ws"
 
     // Định tuyến thông minh theo collection: dữ liệu bản quyền đi tới Master License Cloud
     public static func resolveFirestoreUrl(for path: String) -> String {

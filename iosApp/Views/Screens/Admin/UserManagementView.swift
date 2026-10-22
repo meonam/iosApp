@@ -46,6 +46,8 @@ public struct UserManagementView: View {
     @State private var permToNghiepVu: String = ""
     @State private var isSavingPerm: Bool = false
     @State private var permToastMessage: String? = nil
+    @State private var isResettingDeviceBind: Bool = false
+    @State private var showResetDeviceBindConfirm: Bool = false
 
     // Tab 3: Đặt lại mật khẩu
     @State private var resetSelectedUser: User? = nil
@@ -1336,6 +1338,97 @@ public struct UserManagementView: View {
                                 .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#CBD5E1"), lineWidth: 1))
                             }
                         }
+
+                        // 9. THIẾT BỊ CHẤM CÔNG CỐ ĐỊNH (CHỐNG CHẤM CÔNG HỘ) - ĐỒNG BỘ 1:1 ANDROID & WEB
+                        let liveSelectedUser = viewModel.allUsers.first(where: { $0.email.caseInsensitiveCompare(user.email) == .orderedSame }) ?? user
+                        let boundDevId = liveSelectedUser.boundDeviceId.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let boundDevName = liveSelectedUser.boundDeviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let boundDevPlatform = liveSelectedUser.boundDevicePlatform.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let boundDevAt = liveSelectedUser.boundDeviceAt
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "iphone.gen3.badge.play")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(!boundDevId.isEmpty ? Color(hex: "#0284C7") : .gray)
+                                Text("📱 THIẾT BỊ CHẤM CÔNG (CHỐNG CHẤM CÔNG HỘ)")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(!boundDevId.isEmpty ? Color(hex: "#0369A1") : Color.appSecondaryDarkBlue)
+                            }
+
+                            if !boundDevId.isEmpty {
+                                let dateStr: String = {
+                                    guard boundDevAt > 0 else { return "Chưa rõ" }
+                                    let d = Date(timeIntervalSince1970: TimeInterval(boundDevAt) / 1000.0)
+                                    let fmt = DateFormatter()
+                                    fmt.dateFormat = "dd/MM/yyyy HH:mm"
+                                    return fmt.string(from: d)
+                                }()
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("📱 Thiết bị đang khóa: \(boundDevName.isEmpty ? "Thiết bị di động" : boundDevName) \(boundDevPlatform.isEmpty ? "" : "(\(boundDevPlatform))")")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(Color.appSecondaryDarkBlue)
+                                    Text("🕒 Ngày liên kết: \(dateStr)  •  Mã định danh: \(String(boundDevId.prefix(12)))...")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.gray)
+                                }
+
+                                Button(action: {
+                                    showResetDeviceBindConfirm = true
+                                }) {
+                                    HStack(spacing: 6) {
+                                        if isResettingDeviceBind {
+                                            ProgressView().progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#D97706")))
+                                        } else {
+                                            Image(systemName: "lock.open.rotation")
+                                                .font(.system(size: 13, weight: .bold))
+                                        }
+                                        Text("🔓 Hủy liên kết máy (Cho phép đổi thiết bị)")
+                                            .font(.system(size: 12, weight: .bold))
+                                    }
+                                    .foregroundColor(Color(hex: "#D97706"))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 36)
+                                    .background(Color.white)
+                                    .cornerRadius(8)
+                                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(hex: "#F59E0B"), lineWidth: 1))
+                                }
+                                .disabled(isResettingDeviceBind)
+                                .alert("Hủy liên kết thiết bị chấm công?", isPresented: $showResetDeviceBindConfirm) {
+                                    Button("Hủy", role: .cancel) {}
+                                    Button("Xác nhận mở khóa", role: .destructive) {
+                                        isResettingDeviceBind = true
+                                        Task {
+                                            let ok = await viewModel.resetUserDeviceBinding(email: liveSelectedUser.email)
+                                            isResettingDeviceBind = false
+                                            if ok {
+                                                if var currentSel = permSelectedUser {
+                                                    currentSel.boundDeviceId = ""
+                                                    currentSel.boundDeviceName = ""
+                                                    currentSel.boundDevicePlatform = ""
+                                                    currentSel.boundDeviceAt = 0
+                                                    permSelectedUser = currentSel
+                                                }
+                                                permToastMessage = "✅ Đã hủy liên kết thiết bị chấm công cho \(liveSelectedUser.email)!"
+                                            }
+                                        }
+                                    }
+                                } message: {
+                                    Text("Sau khi hủy liên kết, nhân viên \(liveSelectedUser.fullName.isEmpty ? liveSelectedUser.email : liveSelectedUser.fullName) có thể đăng nhập trên điện thoại mới. Thiết bị đầu tiên nhân viên dùng để chấm công tiếp theo sẽ tự động được khóa làm thiết bị cố định mới.")
+                                }
+                            } else {
+                                Text("Chưa liên kết thiết bị cố định. Thiết bị đầu tiên nhân viên dùng để chấm công sẽ tự động được khóa với tài khoản này.")
+                                    .font(.system(size: 11.5))
+                                    .foregroundColor(.gray)
+                            }
+                        }
+                        .padding(12)
+                        .background(!boundDevId.isEmpty ? Color(hex: "#F0F9FF") : Color(hex: "#F8FAFC"))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(!boundDevId.isEmpty ? Color(hex: "#BAE6FD") : Color(hex: "#E2E8F0"), lineWidth: 1)
+                        )
 
                         // Toast thông báo
                         if let msg = permToastMessage {

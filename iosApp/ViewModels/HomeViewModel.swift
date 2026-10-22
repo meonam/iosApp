@@ -67,7 +67,10 @@ public class HomeViewModel: ObservableObject {
             await fetchUserProfileRealtime()
             await fetchCompanyBanner()
             await fetchSystemToggleConfig()
-            await fetchDevices()
+            await fetchGlobalControls()
+            if self.enableDeviceManagement {
+                await fetchDevices()
+            }
             await fetchOpenTickets()
             await fetchUnreadNotifications()
             self.isLoading = false
@@ -127,6 +130,31 @@ public class HomeViewModel: ObservableObject {
         if let devToggle = fields["enableDeviceManagement"] as? [String: Any] {
             let toggleVal = DatabaseHelper.getBool(devToggle, defaultValue: true)
             if !toggleVal {
+                self.enableDeviceManagement = false
+            }
+        }
+    }
+
+    // MARK: - TẢI CẤU HÌNH ĐIỀU KHIỂN TOÀN CẦU (GLOBAL_CONTROLS)
+    public func fetchGlobalControls() async {
+        let urlStr = "\(ServerConfig.documentsBaseUrl)/system_config/global_controls"
+        guard let url = URL(string: urlStr) else { return }
+
+        var request = URLRequest(url: url)
+        if !idToken.isEmpty {
+            request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+        }
+
+        guard let (data, httpResponse) = await DatabaseHelper.executeSafeRequest(request),
+              httpResponse.statusCode == 200,
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let fields = json["fields"] as? [String: Any] else {
+            return
+        }
+
+        if let devToggle = fields["enableDeviceManagement"] as? [String: Any] {
+            let globalDev = DatabaseHelper.getBool(devToggle, defaultValue: true)
+            if !globalDev {
                 self.enableDeviceManagement = false
             }
         }

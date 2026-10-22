@@ -1186,7 +1186,7 @@ public struct TicketChatDetailView: View {
             if !currentTicket.id.isEmpty && (msg.id == "msg_init_\(currentTicket.id)" || msg.id.hasPrefix("msg_init_")) {
                 return false
             }
-            // Ẩn nội dung yêu cầu ban đầu khỏi khung chat (vì đã đưa lên mục "Vấn đề:" tại thẻ thông tin sự cố)
+            // Ẩn nội dung yêu cầu ban đầu khỏi khung chat (vì đã đưa lên mục "Nội dung yêu cầu:" tại thẻ thông tin sự cố)
             let isCreator = !creatorEmail.isEmpty && msg.senderEmail.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == creatorEmail
             if isCreator {
                 if !initMsg.isEmpty && text.caseInsensitiveCompare(initMsg) == .orderedSame {
@@ -1212,7 +1212,7 @@ public struct TicketChatDetailView: View {
                     // Danh sách tin nhắn trao đổi (ẩn tin nhắn text tự động của đánh giá để không bị trùng lặp)
                     if displayMessages.isEmpty {
                         VStack(spacing: 6) {
-                            Text("Chưa có tin nhắn trao đổi mới. Vấn đề ban đầu được hiển thị tại thẻ thông tin phía trên.")
+                            Text("Chưa có tin nhắn trao đổi mới. Nội dung yêu cầu ban đầu được hiển thị tại thẻ thông tin phía trên.")
                                 .font(.system(size: 12))
                                 .foregroundColor(Color.appTextMuted)
                                 .multilineTextAlignment(.center)
@@ -1349,7 +1349,7 @@ public struct TicketChatDetailView: View {
                 }
                 if !effectiveInitialMsg.isEmpty {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("📝 Vấn đề:")
+                        Text("📝 Nội dung yêu cầu:")
                             .font(.system(size: 11.5, weight: .bold))
                             .foregroundColor(Color(hex: "#D97706"))
                         Text(effectiveInitialMsg)

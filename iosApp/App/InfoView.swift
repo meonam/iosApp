@@ -11,11 +11,11 @@ public struct InfoView: View {
     @State private var showShareSheet = false
     @State private var showLicenseSheet = false
     @State private var logShareItems: [Any] = []
-    @State private var companyLicense = LicenseInfo(tier: .ENTERPRISE, companyName: "Saigon Co.op", activationCode: "QLTB-ENT-F8CF2F", expiresAt: 0, maxDevices: 999999, maxAssets: 999999)
+    @State private var companyLicense = LicenseInfo(tier: .ENTERPRISE, companyName: "Saigon Co.op", activationCode: "ITSA-ENT-F8CF2F", expiresAt: 0, maxDevices: 999999, maxAssets: 999999)
 
     private var appVersion: String {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.4.7"
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "147"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.5.1"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "151"
         return "v\(version) (Build \(build))"
     }
     private var deviceId: String {
@@ -201,7 +201,7 @@ public struct InfoView: View {
                 let dispCompany = (companyLicense.companyName.isEmpty || companyLicense.companyName == "SGCOOP") ? (authViewModel.currentUser?.companyId ?? "Saigon Co.op") : companyLicense.companyName
                 licenseRow(title: "Doanh nghiệp", value: dispCompany)
                 Divider().background(Color.appCardBorder)
-                let dispCode = companyLicense.activationCode.isEmpty ? (companyLicense.tier == .ENTERPRISE ? "QLTB-ENT-F8CF2F" : "QLTB-TRIAL-ONLINE") : companyLicense.activationCode
+                let dispCode = companyLicense.activationCode.isEmpty ? (companyLicense.tier == .ENTERPRISE ? "ITSA-ENT-F8CF2F" : "ITSA-TRIAL-ONLINE") : companyLicense.activationCode
                 licenseRow(title: "Mã kích hoạt", value: dispCode)
                 Divider().background(Color.appCardBorder)
                 let expFormatted: String = {
@@ -482,7 +482,7 @@ public struct InfoView: View {
         =====================================================
         [INFO] App started successfully.
         [INFO] Auth session active. Token verified.
-        [INFO] Realtime listeners synced with Firebase Firestore.
+        [INFO] Realtime listeners synced with Database REST Server.
         [INFO] Network status: Connected.
         [INFO] No critical crashes recorded in rolling window.
         """
@@ -581,7 +581,7 @@ public struct InfoView: View {
                     self.companyLicense = LicenseInfo(
                         tier: tierEnum,
                         companyName: compName.isEmpty ? compId.uppercased() : compName,
-                        activationCode: rawCode.isEmpty ? (tierEnum == .ENTERPRISE ? "QLTB-ENT-F8CF2F" : "") : rawCode,
+                        activationCode: rawCode.isEmpty ? (tierEnum == .ENTERPRISE ? "ITSA-ENT-F8CF2F" : "") : rawCode,
                         activatedAt: DatabaseHelper.getInt64(fields["activatedAt"] as? [String: Any]),
                         expiresAt: effectiveExpiresAt,
                         maxDevices: tierEnum == .ENTERPRISE ? 999999 : (maxDev > 0 ? maxDev : 50),

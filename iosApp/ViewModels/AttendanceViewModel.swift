@@ -1127,6 +1127,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                 docIdsToTry.append("att_\(cleanDate)_\(cleanEmail)_DAY")
                 docIdsToTry.append("att_\(cleanDate)_\(cleanEmail)")
             }
+            for altShift in ["HC", "SHIFT_1", "SHIFT_2", "NIGHT"] where altShift != shift {
+                docIdsToTry.append("att_\(cleanDate)_\(cleanEmail)_\(altShift)")
+            }
 
             for docId in docIdsToTry {
                 let urlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(companyId)/attendances/\(docId)"
@@ -1171,6 +1174,9 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
 
                     await MainActor.run {
                         self.todayRecord = rec
+                        if !rec.shiftType.isEmpty && rec.shiftType != self.selectedShiftType {
+                            self.selectedShiftType = rec.shiftType
+                        }
                     }
                     return
                 }
