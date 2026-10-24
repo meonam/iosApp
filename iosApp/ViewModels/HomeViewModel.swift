@@ -1,4 +1,4 @@
-import SwiftUI
+﻿import SwiftUI
 import UIKit
 import UserNotifications
 
@@ -27,6 +27,15 @@ public class HomeViewModel: ObservableObject {
 
     // Cấu hình Bật/Tắt module Quản lý thiết bị (đồng bộ Web/Desktop/Android/iOS)
     @Published public var enableDeviceManagement: Bool = true
+    private var isCompanyDeviceEnabled: Bool = true
+    private var isGlobalDeviceEnabled: Bool = true
+
+    private func updateDeviceManagementState() {
+        let newState = isCompanyDeviceEnabled && isGlobalDeviceEnabled
+        if self.enableDeviceManagement != newState {
+            self.enableDeviceManagement = newState
+        }
+    }
 
     // Modal đổi mật khẩu
     @Published public var showChangePasswordModal: Bool = false
@@ -46,10 +55,12 @@ public class HomeViewModel: ObservableObject {
 
     public func startRealtimeSync() {
         stopRealtimeSync()
-        syncTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: true) { [weak self] _ in
+        syncTimer = Timer.scheduledTimer(withTimeInterval: 15.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self = self else { return }
                 await self.fetchUnreadNotifications()
+                await self.fetchCompanyBanner()
+                await self.fetchGlobalControls()
                 await self.fetchSystemToggleConfig()
             }
         }
@@ -104,7 +115,8 @@ public class HomeViewModel: ObservableObject {
         self.isCompanyBannerActive = active
         self.companyBannerText = text
         self.companyBannerType = type.isEmpty ? "INFO" : type
-        self.enableDeviceManagement = devMgmt
+        self.isCompanyDeviceEnabled = devMgmt
+        self.updateDeviceManagementState()
     }
 
     // MARK: - TẢI CẤU HÌNH PHÂN QUYỀN HELPDESK (SYSTEM_TOGGLE_CONFIG)
@@ -130,9 +142,10 @@ public class HomeViewModel: ObservableObject {
         if let devToggle = fields["enableDeviceManagement"] as? [String: Any] {
             let toggleVal = DatabaseHelper.getBool(devToggle, defaultValue: true)
             if !toggleVal {
-                self.enableDeviceManagement = false
+                self.isCompanyDeviceEnabled = false
             }
         }
+        self.updateDeviceManagementState()
     }
 
     // MARK: - TẢI CẤU HÌNH ĐIỀU KHIỂN TOÀN CẦU (GLOBAL_CONTROLS)
@@ -154,10 +167,11 @@ public class HomeViewModel: ObservableObject {
 
         if let devToggle = fields["enableDeviceManagement"] as? [String: Any] {
             let globalDev = DatabaseHelper.getBool(devToggle, defaultValue: true)
-            if !globalDev {
-                self.enableDeviceManagement = false
-            }
+            self.isGlobalDeviceEnabled = globalDev
+        } else {
+            self.isGlobalDeviceEnabled = true
         }
+        self.updateDeviceManagementState()
     }
 
     // MARK: - CẬP NHẬT BANNER DOANH NGHIỆP

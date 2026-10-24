@@ -189,10 +189,12 @@ public struct AssetStatisticsView: View {
 
                         HStack(spacing: 12) {
                             Button(action: onBack) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
 
                             Text("Thống kê & Báo cáo thiết bị")
                                 .font(.system(size: 17, weight: .bold))

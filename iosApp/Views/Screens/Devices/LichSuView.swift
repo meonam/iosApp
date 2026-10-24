@@ -52,10 +52,12 @@ public struct LichSuView: View {
                         Color.clear.frame(height: SafeAreaHelper.top(geometry))
                         HStack(spacing: 12) {
                             Button(action: onBack) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
                             Text("Nhật Ký Thiết Bị")
                                 .font(.system(size: 17, weight: .bold))
                                 .foregroundColor(.white)

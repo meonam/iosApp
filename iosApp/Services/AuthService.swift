@@ -307,7 +307,8 @@ public class AuthService {
             if let email = await resolveEmailFromIdentifier(input: cleanInput) {
                 resolvedEmail = email
             } else {
-                throw NSError(domain: "AuthService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Không tìm thấy tài khoản gắn với số điện thoại hoặc mã nhân viên '\(cleanInput)'."])
+                // Nếu tra cứu cục bộ/cache chưa ra, gửi trực tiếp định danh (Mã NV/SĐT) lên Máy chủ Backend REST Auth
+                resolvedEmail = cleanInput
             }
         } else {
             resolvedEmail = cleanInput.lowercased()

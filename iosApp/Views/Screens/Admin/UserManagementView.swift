@@ -140,10 +140,12 @@ public struct UserManagementView: View {
 
                         HStack(spacing: 6) {
                             Button(action: onBack) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 18, weight: .bold))
-                                    .foregroundColor(.white)
-                            }
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
 
                             Text(isHelpdeskReadOnly ? "Danh bạ nhân sự" : "Quản lý người dùng")
                                 .font(.system(size: 16, weight: .bold))

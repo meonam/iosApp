@@ -444,7 +444,8 @@ public struct PrintQrLabelView: View {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
 
                 // Title: In Ấn & Tem Nhãn

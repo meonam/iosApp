@@ -412,14 +412,16 @@ public struct TicketChatDetailView: View {
             Color.clear.frame(height: safeAreaTop)
 
             HStack(spacing: 6) {
-                // Nút quay lại
+                // Nút quay lại với Hit Target 48x48 và High Priority Gesture
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundColor(.white)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 48, height: 48)
                         .contentShape(Rectangle())
                 }
+                .highPriorityGesture(TapGesture().onEnded { onBack() })
+                .padding(.leading, 4)
 
                 // Tiêu đề TopBar đồng bộ 1:1 với Android: "Đang hỗ trợ #APP-..."
                 let displayCode = "#\(currentTicket.cleanDisplayCode)"
@@ -439,7 +441,7 @@ public struct TicketChatDetailView: View {
                         Image(systemName: "star.fill")
                             .font(.system(size: 14))
                             .foregroundColor(Color(hex: "#F59E0B"))
-                            .frame(width: 30, height: 30)
+                            .frame(width: 36, height: 36)
                             .background(Color.white.opacity(0.15))
                             .clipShape(Circle())
                             .contentShape(Rectangle())
@@ -479,7 +481,7 @@ public struct TicketChatDetailView: View {
                         Image(systemName: "phone.fill")
                             .font(.system(size: 12))
                             .foregroundColor(.white)
-                            .frame(width: 30, height: 30)
+                            .frame(width: 36, height: 36)
                             .background(Color(hex: "#38BDF8"))
                             .clipShape(Circle())
                             .contentShape(Rectangle())
@@ -503,7 +505,7 @@ public struct TicketChatDetailView: View {
                         Image(systemName: "headphones")
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(.white)
-                            .frame(width: 30, height: 30)
+                            .frame(width: 36, height: 36)
                             .background(Color(hex: "#FBBF24"))
                             .clipShape(Circle())
                             .contentShape(Rectangle())
@@ -519,7 +521,7 @@ public struct TicketChatDetailView: View {
                         Image(systemName: "arrow.left.arrow.right")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.white)
-                            .frame(width: 30, height: 30)
+                            .frame(width: 36, height: 36)
                             .background(Color(hex: "#6366F1"))
                             .clipShape(Circle())
                             .contentShape(Rectangle())
@@ -568,7 +570,7 @@ public struct TicketChatDetailView: View {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 16, weight: .bold))
                             .foregroundColor(Color(hex: "#FCA5A5"))
-                            .frame(width: 30, height: 30)
+                            .frame(width: 36, height: 36)
                             .background(Color.white.opacity(0.15))
                             .clipShape(Circle())
                             .contentShape(Rectangle())
@@ -580,7 +582,7 @@ public struct TicketChatDetailView: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(Color(hex: "#86EFAC"))
-                                .frame(width: 30, height: 30)
+                                .frame(width: 36, height: 36)
                                 .background(Color.white.opacity(0.15))
                                 .clipShape(Circle())
                                 .contentShape(Rectangle())
@@ -594,7 +596,7 @@ public struct TicketChatDetailView: View {
                         Image(systemName: "arrow.counterclockwise.circle.fill")
                             .font(.system(size: 16))
                             .foregroundColor(Color(hex: "#FBBF24"))
-                            .frame(width: 30, height: 30)
+                            .frame(width: 36, height: 36)
                             .contentShape(Rectangle())
                     }
                 }

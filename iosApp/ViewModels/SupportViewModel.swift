@@ -826,14 +826,29 @@ public class SupportViewModel: ObservableObject {
                 var attachmentsList: [AttachmentItem] = []
                 if let attArray = (fields["attachments"] as? [String: Any])?["arrayValue"] as? [String: Any],
                    let values = attArray["values"] as? [[String: Any]] {
-                    for v in values {
+                    for (i, v) in values.enumerated() {
                         if let mMap = v["mapValue"] as? [String: Any], let mFields = mMap["fields"] as? [String: Any] {
                             let aId = DatabaseHelper.getString(mFields["id"] as? [String: Any])
                             let aName = DatabaseHelper.getString(mFields["name"] as? [String: Any])
                             let aUrl = DatabaseHelper.getString(mFields["url"] as? [String: Any])
                             let aSize = DatabaseHelper.getInt64(mFields["size"] as? [String: Any])
                             let aType = DatabaseHelper.getString(mFields["type"] as? [String: Any])
-                            attachmentsList.append(AttachmentItem(id: aId, name: aName, url: aUrl, size: aSize, type: aType))
+                            if !aUrl.isEmpty {
+                                attachmentsList.append(AttachmentItem(id: aId.isEmpty ? "att_\(i)" : aId, name: aName.isEmpty ? "file" : aName, url: aUrl, size: aSize, type: aType.isEmpty ? "other" : aType))
+                            }
+                        } else {
+                            let s = DatabaseHelper.getString(v["stringValue"] as? [String: Any] ?? v)
+                            if !s.isEmpty {
+                                attachmentsList.append(AttachmentItem(id: "att_\(i)", name: "Tệp đính kèm", url: s, type: "image"))
+                            }
+                        }
+                    }
+                }
+                if attachmentsList.isEmpty {
+                    let imgList = DatabaseHelper.getStringArray(fields["images"] as? [String: Any])
+                    for (i, url) in imgList.enumerated() {
+                        if !url.isEmpty {
+                            attachmentsList.append(AttachmentItem(id: "img_\(i)", name: "Ảnh sự cố ban đầu", url: url, type: "image"))
                         }
                     }
                 }
