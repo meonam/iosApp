@@ -49,6 +49,8 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
     @Published public var distanceToWorkMeters: Double? = nil
     @Published public var isWithinGeofence: Bool = true
     @Published public var isLoadingConfig: Bool = false
+    @Published public var allowWeekendOvertimeCheckIn: Bool = true
+    @Published public var alertLateCheckIn: Bool = true
 
     // Geofence Blocking Alert (Đồng bộ Android lines 247-270 & 1956-2007)
     @Published public var showGeofenceAlert: Bool = false
@@ -932,6 +934,27 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     }
                 }
             }
+
+            let toggleUrlStr = "\(ServerConfig.documentsBaseUrl)/companies/\(cleanComp)/system_config/system_toggle_config"
+            if let toggleUrl = URL(string: toggleUrlStr) {
+                var tReq = URLRequest(url: toggleUrl)
+                if !idToken.isEmpty { tReq.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization") }
+                if let (tData, tHttp) = await DatabaseHelper.executeSafeRequest(tReq),
+                   tHttp.statusCode == 200,
+                   let tJson = try? JSONSerialization.jsonObject(with: tData) as? [String: Any],
+                   let tFields = tJson["fields"] as? [String: Any] {
+                    let strictGeo = (tFields["strictGeofenceBlocking"] as? [String: Any])?["booleanValue"] as? Bool
+                    let autoGps = (tFields["autoCaptureGpsOnOpen"] as? [String: Any])?["booleanValue"] as? Bool
+                    let allowWeekend = (tFields["allowWeekendOvertimeCheckIn"] as? [String: Any])?["booleanValue"] as? Bool ?? true
+                    let alertLate = (tFields["alertLateCheckIn"] as? [String: Any])?["booleanValue"] as? Bool ?? true
+                    await MainActor.run {
+                        if let sg = strictGeo { self.travelConfig.strictGeofenceBlocking = sg }
+                        if let ag = autoGps { self.travelConfig.autoCaptureGpsOnOpen = ag }
+                        self.allowWeekendOvertimeCheckIn = allowWeekend
+                        self.alertLateCheckIn = alertLate
+                    }
+                }
+            }
         }
     }
 
@@ -1320,6 +1343,14 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         if isSubmitting { return }
         if !validateLocationForAttendance() { return }
 
+        let cal = Calendar.current
+        let weekday = cal.component(.weekday, from: Date())
+        let isWeekend = (weekday == 1 || weekday == 7)
+        if isWeekend && !allowWeekendOvertimeCheckIn && scheduledShiftCode.isEmpty {
+            errorMessage = "⛔ Quản trị viên đã tắt tính năng vào ca Tăng ca/Ngoài giờ cuối tuần!"
+            return
+        }
+
         isSubmitting = true
         errorMessage = nil
         successMessage = nil
@@ -1445,7 +1476,11 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
                     self.isSubmitting = false
                     self.totalMonthDays += 1
                     let shiftName = ShiftCode.label(self.selectedShiftType)
-                    self.successMessage = "Điểm danh vào ca (\(shiftName)) thành công!"
+                    if isLate && self.alertLateCheckIn {
+                        self.successMessage = "⚠️ CẢNH BÁO: Bạn đã vào ca (\(shiftName)) trễ so với quy định!"
+                    } else {
+                        self.successMessage = "✅ Điểm danh vào ca (\(shiftName)) thành công!"
+                    }
                     self.fetchTodayAttendance()
                 }
             } else {

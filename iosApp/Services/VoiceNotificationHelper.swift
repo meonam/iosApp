@@ -156,10 +156,14 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
                    let fields = json["fields"] as? [String: Any] {
                     let mode = DatabaseHelper.getString(fields, "voiceNotificationMode")
                     let soundEnabled = DatabaseHelper.getBool(fields["enableNotificationSound"] as? [String: Any], defaultValue: true)
+                    let notifyNewTicket = DatabaseHelper.getBool(fields["notifyNewSupportTicket"] as? [String: Any], defaultValue: true)
+                    let confirmDelete = DatabaseHelper.getBool(fields["confirmBeforeDelete"] as? [String: Any], defaultValue: true)
 
                     let cleanMode = mode.isEmpty ? "REPEAT" : mode.uppercased()
                     UserDefaults.standard.set(cleanMode, forKey: "key_dev_portal_voice_mode")
                     UserDefaults.standard.set(soundEnabled, forKey: "key_dev_portal_voice_enabled")
+                    UserDefaults.standard.set(notifyNewTicket, forKey: "key_notify_new_support_ticket")
+                    UserDefaults.standard.set(confirmDelete, forKey: "key_confirm_before_delete")
                 }
             } catch {
                 print("[VoiceNotificationHelper] Sync admin config error: \(error)")
@@ -533,6 +537,8 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
     // MARK: - 1. SỰ CỐ MỚI (Cho Admin / HelpDesk - ĐỒNG BỘ 1:1 DESKTOP & WEB & ANDROID)
     public func notifyNewSupportRequest(ticketId: String, donViName: String, subject: String = "", source: String = "APP") {
+        let notifyEnabled = UserDefaults.standard.object(forKey: "key_notify_new_support_ticket") as? Bool ?? true
+        if !notifyEnabled { return }
         let dv = cleanDonViName(donViName)
         let cleanSource = source.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let isZalo = cleanSource == "ZALO"
@@ -870,7 +876,8 @@ public class VoiceNotificationHelper: NSObject, AVSpeechSynthesizerDelegate {
 
             if !seenTicketIds.contains(t.id) {
                 seenTicketIds.insert(t.id)
-                if !isDispatched && !t.isDispatchedOrHandled() && isCreatedAfterStart && isNotSelf && (currentUser.isHelpDesk || currentUser.isAdmin) && t.status.uppercased() == "OPEN" && !t.isClosed && !t.isResolved {
+                let notifyEnabled = UserDefaults.standard.object(forKey: "key_notify_new_support_ticket") as? Bool ?? true
+                if !isDispatched && !t.isDispatchedOrHandled() && isCreatedAfterStart && isNotSelf && (currentUser.isHelpDesk || currentUser.isAdmin) && t.status.uppercased() == "OPEN" && !t.isClosed && !t.isResolved && notifyEnabled {
                     notifyNewSupportRequest(ticketId: t.id, donViName: effectiveDonVi, subject: t.subject, source: t.source)
                 }
             }

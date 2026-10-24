@@ -25,6 +25,7 @@ public struct DeviceListView: View {
     // Delete Confirm Alert State
     @State private var showDeleteConfirmAlert: Bool = false
     @State private var deviceToDelete: ThietBi? = nil
+    @AppStorage("key_confirm_before_delete") private var confirmBeforeDelete: Bool = true
 
     // Toast message
     @State private var toastMessage: String? = nil
@@ -786,7 +787,11 @@ public struct DeviceListView: View {
                     if canDeleteThis {
                         Button(action: {
                             deviceToDelete = device
-                            showDeleteConfirmAlert = true
+                            if confirmBeforeDelete {
+                                showDeleteConfirmAlert = true
+                            } else {
+                                viewModel.deleteDevice(deviceId: device.id)
+                            }
                         }) {
                             Image(systemName: "trash")
                                 .font(.system(size: 16))
