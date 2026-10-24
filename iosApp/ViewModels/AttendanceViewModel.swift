@@ -1372,7 +1372,7 @@ public class AttendanceViewModel: NSObject, ObservableObject, CLLocationManagerD
         let cfgHour = Int(parts.first ?? "8") ?? 8
         let cfgMin = Int(parts.dropFirst().first ?? "0") ?? 0
 
-        let cal = Calendar.current
+        // cal already declared above at line 1346
         let curHour = cal.component(.hour, from: Date())
         let curMin = cal.component(.minute, from: Date())
 
