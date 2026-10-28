@@ -1,0 +1,304 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		BC0010012D12345600000001 /* BarcodeScannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000012D12345600000001 /* BarcodeScannerApp.swift */; };
+		BC0010022D12345600000001 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000022D12345600000001 /* MainTabView.swift */; };
+		BC0010032D12345600000001 /* ScanBarcodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000032D12345600000001 /* ScanBarcodeView.swift */; };
+		BC0010042D12345600000001 /* KiemKeListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000042D12345600000001 /* KiemKeListView.swift */; };
+		BC0010052D12345600000001 /* WifiSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000052D12345600000001 /* WifiSyncView.swift */; };
+		BC0010062D12345600000001 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000062D12345600000001 /* SettingsView.swift */; };
+		BC0010072D12345600000001 /* InfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000072D12345600000001 /* InfoView.swift */; };
+		BC0010082D12345600000001 /* InventoryItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000082D12345600000001 /* InventoryItem.swift */; };
+		BC0010092D12345600000001 /* DatabaseHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000092D12345600000001 /* DatabaseHelper.swift */; };
+		BC0010102D12345600000001 /* FirebaseSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000102D12345600000001 /* FirebaseSyncService.swift */; };
+		BC0010112D12345600000001 /* CameraScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC0000112D12345600000001 /* CameraScannerView.swift */; };
+		BC0010122D12345600000001 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = BC0000122D12345600000001 /* libsqlite3.tbd */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		BC0000012D12345600000001 /* BarcodeScannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerApp.swift; sourceTree = "<group>"; };
+		BC0000022D12345600000001 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		BC0000032D12345600000001 /* ScanBarcodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanBarcodeView.swift; sourceTree = "<group>"; };
+		BC0000042D12345600000001 /* KiemKeListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiemKeListView.swift; sourceTree = "<group>"; };
+		BC0000052D12345600000001 /* WifiSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WifiSyncView.swift; sourceTree = "<group>"; };
+		BC0000062D12345600000001 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		BC0000072D12345600000001 /* InfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoView.swift; sourceTree = "<group>"; };
+		BC0000082D12345600000001 /* InventoryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InventoryItem.swift; sourceTree = "<group>"; };
+		BC0000092D12345600000001 /* DatabaseHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseHelper.swift; sourceTree = "<group>"; };
+		BC0000102D12345600000001 /* FirebaseSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseSyncService.swift; sourceTree = "<group>"; };
+		BC0000112D12345600000001 /* CameraScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraScannerView.swift; sourceTree = "<group>"; };
+		BC0000122D12345600000001 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
+		BC0000132D12345600000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		BC0000202D12345600000001 /* BarcodeScanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BarcodeScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BC0000302D12345600000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BC0010122D12345600000001 /* libsqlite3.tbd in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		BC0000402D12345600000001 = {
+			isa = PBXGroup;
+			children = (
+				BC0000412D12345600000001 /* BarcodeScanner */,
+				BC0000422D12345600000001 /* Frameworks */,
+				BC0000432D12345600000001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		BC0000412D12345600000001 /* BarcodeScanner */ = {
+			isa = PBXGroup;
+			children = (
+				BC0000442D12345600000001 /* Sources */,
+				BC0000452D12345600000001 /* Resources */,
+			);
+			path = BarcodeScanner;
+			sourceTree = "<group>";
+		};
+		BC0000442D12345600000001 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				BC0000012D12345600000001 /* BarcodeScannerApp.swift */,
+				BC0000022D12345600000001 /* MainTabView.swift */,
+				BC0000032D12345600000001 /* ScanBarcodeView.swift */,
+				BC0000042D12345600000001 /* KiemKeListView.swift */,
+				BC0000052D12345600000001 /* WifiSyncView.swift */,
+				BC0000062D12345600000001 /* SettingsView.swift */,
+				BC0000072D12345600000001 /* InfoView.swift */,
+				BC0000082D12345600000001 /* InventoryItem.swift */,
+				BC0000092D12345600000001 /* DatabaseHelper.swift */,
+				BC0000102D12345600000001 /* FirebaseSyncService.swift */,
+				BC0000112D12345600000001 /* CameraScannerView.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		BC0000452D12345600000001 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				BC0000132D12345600000001 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		BC0000422D12345600000001 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BC0000122D12345600000001 /* libsqlite3.tbd */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		BC0000432D12345600000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BC0000202D12345600000001 /* BarcodeScanner.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		BC0000012D12345600000001 /* BarcodeScanner */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BC0000502D12345600000001 /* Build configuration list for PBXNativeTarget "BarcodeScanner" */;
+			buildPhases = (
+				BC0000602D12345600000001 /* Sources */,
+				BC0000302D12345600000001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BarcodeScanner;
+			productName = BarcodeScanner;
+			productReference = BC0000202D12345600000001 /* BarcodeScanner.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BC0000702D12345600000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					BC0000012D12345600000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = BC0000802D12345600000001 /* Build configuration list for PBXProject "BarcodeScanner" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = BC0000402D12345600000001;
+			productRefGroup = BC0000432D12345600000001 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BC0000012D12345600000001 /* BarcodeScanner */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BC0000602D12345600000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BC0010012D12345600000001 /* BarcodeScannerApp.swift in Sources */,
+				BC0010022D12345600000001 /* MainTabView.swift in Sources */,
+				BC0010032D12345600000001 /* ScanBarcodeView.swift in Sources */,
+				BC0010042D12345600000001 /* KiemKeListView.swift in Sources */,
+				BC0010052D12345600000001 /* WifiSyncView.swift in Sources */,
+				BC0010062D12345600000001 /* SettingsView.swift in Sources */,
+				BC0010072D12345600000001 /* InfoView.swift in Sources */,
+				BC0010082D12345600000001 /* InventoryItem.swift in Sources */,
+				BC0010092D12345600000001 /* DatabaseHelper.swift in Sources */,
+				BC0010102D12345600000001 /* FirebaseSyncService.swift in Sources */,
+				BC0010112D12345600000001 /* CameraScannerView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		BC0000912D12345600000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		BC0000922D12345600000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_OPTIMIZATION_LEVEL = s;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		BC0000932D12345600000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 14;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BarcodeScanner/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.4.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.huyenhan.barcodescanner;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		BC0000942D12345600000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 14;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = BarcodeScanner/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.4.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.huyenhan.barcodescanner;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		BC0000802D12345600000001 /* Build configuration list for PBXProject "BarcodeScanner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BC0000912D12345600000001 /* Debug */,
+				BC0000922D12345600000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BC0000502D12345600000001 /* Build configuration list for PBXNativeTarget "BarcodeScanner" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BC0000932D12345600000001 /* Debug */,
+				BC0000942D12345600000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = BC0000702D12345600000001 /* Project object */;
+}

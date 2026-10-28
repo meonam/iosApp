@@ -1,0 +1,73 @@
+name: Build BarcodeScanner iOS (.IPA) via GitHub Actions
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    paths:
+      - 'BarcodeScanner/**'
+      - 'BarcodeScanner.xcodeproj/**'
+      - '.github/workflows/barcodescanner-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-barcodescanner-ios:
+    name: Build BarcodeScanner iOS (.ipa)
+    runs-on: macos-14 # Máy ảo Apple Silicon M1/M2 của GitHub Actions
+
+    steps:
+      - name: 1. Tải mã nguồn dự án (Checkout Code)
+        uses: actions/checkout@v4
+
+      - name: 2. Kiểm tra phiên bản Xcode & macOS Runner
+        run: |
+          xcodebuild -version
+          echo "macOS Runner Architecture: $(uname -m)"
+
+      - name: 3. Biên dịch BarcodeScanner (xcodebuild Archive)
+        run: |
+          mkdir -p build
+          xcodebuild clean archive \
+            -project "BarcodeScanner.xcodeproj" \
+            -scheme "BarcodeScanner" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/BarcodeScanner.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: 4. Đóng gói ứng dụng thành file .IPA (Payload Packaging)
+        run: |
+          mkdir -p build/Payload
+          cp -r build/BarcodeScanner.xcarchive/Products/Applications/*.app build/Payload/
+          VERSION=$(sed -n '/MARKETING_VERSION/{s/.*= *//;s/;//;p;q;}' "BarcodeScanner.xcodeproj/project.pbxproj" | tr -d ' ')
+          BUILD_NUM=$(sed -n '/CURRENT_PROJECT_VERSION/{s/.*= *//;s/;//;p;q;}' "BarcodeScanner.xcodeproj/project.pbxproj" | tr -d ' ')
+          [ -z "$VERSION" ] && VERSION="1.4.0"
+          [ -z "$BUILD_NUM" ] && BUILD_NUM="14"
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "APP_BUILD=$BUILD_NUM" >> $GITHUB_ENV
+          IPA_NAME="BarcodeScanner_iOS_v${VERSION}-${BUILD_NUM}.ipa"
+          echo "IPA_NAME=$IPA_NAME" >> $GITHUB_ENV
+          cd build
+          zip -r "$IPA_NAME" Payload
+          ls -lh *.ipa
+
+      - name: 5. Tải file IPA lên GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: BarcodeScanner-iOS-IPA
+          path: build/*.ipa
+          retention-days: 30
+
+      - name: 6. Tạo GitHub Release đính kèm file IPA
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          files: build/*.ipa
+          name: BarcodeScanner iOS v${{ env.APP_VERSION }} (Build ${{ env.APP_BUILD }})
+          tag_name: barcodescanner-v${{ env.APP_VERSION }}
+          draft: false
+          prerelease: false
