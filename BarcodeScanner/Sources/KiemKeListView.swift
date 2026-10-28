@@ -56,7 +56,7 @@ public struct KiemKeListView: View {
                 }
             } else {
                 List {
-                    ForEach(items.reversed()) { item in
+                    ForEach(Array(items.reversed()), id: \.stt) { item in
                         HStack(spacing: 8) {
                             Text("\(item.stt)")
                                 .font(.system(size: 13, weight: .bold))
