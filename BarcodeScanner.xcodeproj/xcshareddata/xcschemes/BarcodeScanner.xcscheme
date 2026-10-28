@@ -14,7 +14,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "BC0000012D12345600000001"
+               BlueprintIdentifier = "B00000022D12345600000002"
                BuildableName = "BarcodeScanner.app"
                BlueprintName = "BarcodeScanner"
                ReferencedContainer = "container:BarcodeScanner.xcodeproj">
