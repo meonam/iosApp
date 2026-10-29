@@ -1,4 +1,4 @@
-name: Build BarcodeScanner iOS (.IPA) via GitHub Actions
+name: Build BarcodeScanner iOS (.IPA & Simulator) via GitHub Actions
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   build-barcodescanner-ios:
-    name: Build BarcodeScanner iOS (.ipa)
+    name: Build BarcodeScanner iOS (.ipa & Simulator)
     runs-on: macos-14 # Máy ảo Apple Silicon M1/M2 của GitHub Actions
 
     steps:
@@ -26,7 +26,7 @@ jobs:
           xcodebuild -version
           echo "macOS Runner Architecture: $(uname -m)"
 
-      - name: 3. Biên dịch BarcodeScanner (xcodebuild Archive)
+      - name: 3. Biên dịch BarcodeScanner cho Thiết bị thật (xcodebuild Archive)
         run: |
           mkdir -p build
           xcodebuild clean archive \
@@ -39,7 +39,7 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
 
-      - name: 4. Đóng gói ứng dụng thành file .IPA (Payload Packaging)
+      - name: 4. Đóng gói ứng dụng thiết bị thật thành file .IPA
         run: |
           mkdir -p build/Payload
           cp -r build/BarcodeScanner.xcarchive/Products/Applications/*.app build/Payload/
@@ -55,18 +55,39 @@ jobs:
           zip -r "$IPA_NAME" Payload
           ls -lh *.ipa
 
-      - name: 5. Tải file IPA lên GitHub Artifacts
+      - name: 5. Biên dịch phiên bản Giả lập iOS Simulator (Appetize.io / Mac Simulator)
+        run: |
+          xcodebuild clean build \
+            -project "BarcodeScanner.xcodeproj" \
+            -scheme "BarcodeScanner" \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/derivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+          
+          cd build/derivedData/Build/Products/Release-iphonesimulator
+          zip -r ../../../BarcodeScanner-Simulator.zip BarcodeScanner.app
+          cd ../../../..
+          ls -lh build/BarcodeScanner-Simulator.zip
+
+      - name: 6. Tải các file Artifacts lên GitHub
         uses: actions/upload-artifact@v4
         with:
-          name: BarcodeScanner-iOS-IPA
-          path: build/*.ipa
+          name: BarcodeScanner-iOS-Builds
+          path: |
+            build/*.ipa
+            build/BarcodeScanner-Simulator.zip
           retention-days: 30
 
-      - name: 6. Tạo GitHub Release đính kèm file IPA
+      - name: 7. Tạo / Cập nhật GitHub Release
         uses: softprops/action-gh-release@v2
         continue-on-error: true
         with:
-          files: build/*.ipa
+          files: |
+            build/*.ipa
+            build/BarcodeScanner-Simulator.zip
           name: BarcodeScanner iOS v${{ env.APP_VERSION }} (Build ${{ env.APP_BUILD }})
           tag_name: barcodescanner-v${{ env.APP_VERSION }}
           draft: false

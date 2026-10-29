@@ -7,6 +7,8 @@ public struct ScanBarcodeView: View {
     @State private var showSuccessBanner = false
     @State private var bannerMessage = ""
     @State private var totalScannedCount = 0
+    @State private var showManualInputSheet = false
+    @State private var manualBarcodeText = ""
     
     private let db = DatabaseHelper.shared
     
@@ -34,6 +36,16 @@ public struct ScanBarcodeView: View {
                                 .foregroundColor(.yellow)
                         }
                         Spacer()
+                        
+                        Button(action: { showManualInputSheet = true }) {
+                            Image(systemName: "keyboard")
+                                .font(.title3)
+                                .foregroundColor(.white)
+                                .padding(10)
+                                .background(Color.blue.opacity(0.8))
+                                .clipShape(Circle())
+                        }
+                        
                         Button(action: { isTorchOn.toggle() }) {
                             Image(systemName: isTorchOn ? "flashlight.on.fill" : "flashlight.off.fill")
                                 .font(.title2)
@@ -97,6 +109,48 @@ public struct ScanBarcodeView: View {
                 }
             }
             .navigationBarHidden(true)
+            .sheet(isPresented: $showManualInputSheet) {
+                NavigationView {
+                    Form {
+                        Section(header: Text("Mã vạch / QR Code")) {
+                            TextField("Nhập hoặc dán mã vạch vào đây", text: $manualBarcodeText)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                        }
+                        
+                        Section {
+                            Button(action: {
+                                let code = manualBarcodeText.trimmingCharacters(in: .whitespacesAndNewlines)
+                                if !code.isEmpty {
+                                    handleBarcodeScanned(code: code)
+                                    manualBarcodeText = ""
+                                    showManualInputSheet = false
+                                }
+                            }) {
+                                HStack {
+                                    Spacer()
+                                    Label("Xác nhận quét mã", systemImage: "barcode.viewfinder")
+                                        .font(.headline)
+                                        .foregroundColor(.white)
+                                    Spacer()
+                                }
+                                .padding()
+                                .background(manualBarcodeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray : Color.blue)
+                                .cornerRadius(10)
+                            }
+                            .disabled(manualBarcodeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
+                    .navigationTitle("Nhập mã vạch")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Đóng") {
+                                showManualInputSheet = false
+                            }
+                        }
+                    }
+                }
+            }
             .onAppear {
                 totalScannedCount = db.getCount()
             }
