@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		B00001012D12345600000101 /* BarcodeScannerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000012D12345600000001 /* BarcodeScannerApp.swift */; };
 		B00001022D12345600000102 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000022D12345600000002 /* MainTabView.swift */; };
+		B00001112D12345600000111 /* HomeContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000112D12345600000011 /* HomeContentView.swift */; };
 		B00001032D12345600000103 /* ScanBarcodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000032D12345600000003 /* ScanBarcodeView.swift */; };
 		B00001042D12345600000104 /* KiemKeListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000042D12345600000004 /* KiemKeListView.swift */; };
 		B00001052D12345600000105 /* WifiSyncView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000052D12345600000005 /* WifiSyncView.swift */; };
@@ -24,6 +25,7 @@
 /* Begin PBXFileReference section */
 		F00000012D12345600000001 /* BarcodeScannerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerApp.swift; sourceTree = "<group>"; };
 		F00000022D12345600000002 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		F00000112D12345600000011 /* HomeContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeContentView.swift; sourceTree = "<group>"; };
 		F00000032D12345600000003 /* ScanBarcodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanBarcodeView.swift; sourceTree = "<group>"; };
 		F00000042D12345600000004 /* KiemKeListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KiemKeListView.swift; sourceTree = "<group>"; };
 		F00000052D12345600000005 /* WifiSyncView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WifiSyncView.swift; sourceTree = "<group>"; };
@@ -73,6 +75,7 @@
 			children = (
 				F00000012D12345600000001 /* BarcodeScannerApp.swift */,
 				F00000022D12345600000002 /* MainTabView.swift */,
+				F00000112D12345600000011 /* HomeContentView.swift */,
 				F00000032D12345600000003 /* ScanBarcodeView.swift */,
 				F00000042D12345600000004 /* KiemKeListView.swift */,
 				F00000052D12345600000005 /* WifiSyncView.swift */,
@@ -168,6 +171,7 @@
 			files = (
 				B00001012D12345600000101 /* BarcodeScannerApp.swift in Sources */,
 				B00001022D12345600000102 /* MainTabView.swift in Sources */,
+				B00001112D12345600000111 /* HomeContentView.swift in Sources */,
 				B00001032D12345600000103 /* ScanBarcodeView.swift in Sources */,
 				B00001042D12345600000104 /* KiemKeListView.swift in Sources */,
 				B00001052D12345600000105 /* WifiSyncView.swift in Sources */,

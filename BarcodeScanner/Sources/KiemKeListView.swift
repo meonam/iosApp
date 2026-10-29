@@ -1,10 +1,19 @@
 import SwiftUI
+import AudioToolbox
 
 public struct KiemKeListView: View {
     @State private var items: [InventoryItem] = []
     @State private var totalCount: Int = 0
     @State private var barcodeText: String = ""
     @State private var quantityText: String = "1"
+    
+    // Camera Scanning State
+    @State private var isCameraActive: Bool = false
+    @State private var isTorchOn: Bool = false
+    @State private var bannerMessage: String = ""
+    @State private var showBanner: Bool = false
+    @State private var lastScannedCode: String = ""
+    @State private var lastScannedTime: Date = Date.distantPast
     
     // Checkboxes
     @State private var isNoProductsChecked: Bool = false
@@ -33,11 +42,32 @@ public struct KiemKeListView: View {
             // Header Top
             headerSection
             
+            // Camera Preview Section (Chỉ hiện khi bấm nút "Quét mã")
+            if isCameraActive {
+                cameraPreviewSection
+            }
+            
+            // Floating Success Banner
+            if showBanner {
+                Text(bannerMessage)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                    .background(Color.green)
+                    .cornerRadius(8)
+                    .padding(.top, 4)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+            
             // Input Card
             inputCardSection
             
             // Checkboxes & Actions Row
             optionsRowSection
+            
+            // Scan Button (Quét mã / Dừng) tương tự như Android
+            scanControlButton
             
             // Table Header
             tableHeaderView
@@ -145,6 +175,46 @@ public struct KiemKeListView: View {
         .padding(.bottom, 6)
     }
     
+    private var cameraPreviewSection: some View {
+        ZStack {
+            CameraScannerView(isTorchOn: isTorchOn) { code in
+                handleCameraScanned(code: code)
+            }
+            .frame(height: 140)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.green, lineWidth: 2)
+            )
+            .overlay(
+                // Laser đỏ quét mã
+                Rectangle()
+                    .fill(Color.red.opacity(0.85))
+                    .frame(height: 2)
+            )
+            
+            // Nút bật/tắt đèn Flash ở góc
+            VStack {
+                HStack {
+                    Spacer()
+                    Button(action: { isTorchOn.toggle() }) {
+                        Image(systemName: isTorchOn ? "flashlight.on.fill" : "flashlight.off.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(isTorchOn ? .yellow : .white)
+                            .padding(8)
+                            .background(Color.black.opacity(0.6))
+                            .clipShape(Circle())
+                    }
+                    .padding(8)
+                }
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+    
     private var inputCardSection: some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
@@ -166,6 +236,7 @@ public struct KiemKeListView: View {
                     .keyboardType(.decimalPad)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .font(.system(size: 14))
+                    .disabled(isQty1Checked)
                 
                 Button(action: addBarcodeManually) {
                     HStack(spacing: 4) {
@@ -207,7 +278,7 @@ public struct KiemKeListView: View {
     
     private var optionsRowSection: some View {
         HStack(spacing: 14) {
-            // Nút Chia sẻ file
+            // Nút Xuất file WINCE.txt
             Button(action: prepareShareFile) {
                 HStack(spacing: 4) {
                     Image(systemName: "square.and.arrow.up")
@@ -226,9 +297,37 @@ public struct KiemKeListView: View {
             ToggleCheck(title: "Không SP", isChecked: $isNoProductsChecked)
             ToggleCheck(title: "PLU", isChecked: $isPLUChecked)
             ToggleCheck(title: "SL = 1", isChecked: $isQty1Checked)
+                .onChange(of: isQty1Checked) { newValue in
+                    if newValue {
+                        quantityText = "1"
+                    }
+                }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
+    }
+    
+    // Nút Quét mã tương tự Android (nằm ngay trên tiêu đề bảng)
+    private var scanControlButton: some View {
+        Button(action: {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                isCameraActive.toggle()
+            }
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: isCameraActive ? "xmark.circle.fill" : "camera.fill")
+                    .font(.system(size: 16))
+                Text(isCameraActive ? "Dừng" : "Quét mã")
+                    .font(.system(size: 15, weight: .bold))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 40)
+            .background(isCameraActive ? Color.orange : Color(red: 0.12, green: 0.58, blue: 0.28))
+            .cornerRadius(8)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 4)
     }
     
     private var tableHeaderView: some View {
@@ -317,6 +416,36 @@ public struct KiemKeListView: View {
         }
     }
     
+    private func handleCameraScanned(code: String) {
+        let now = Date()
+        if code == lastScannedCode && now.timeIntervalSince(lastScannedTime) < 1.2 {
+            return
+        }
+        lastScannedCode = code
+        lastScannedTime = now
+        
+        let qty: Double
+        if isQty1Checked {
+            qty = 1.0
+        } else {
+            qty = Double(quantityText.replacingOccurrences(of: ",", with: ".")) ?? 1.0
+        }
+        
+        if db.insertItem(barcode: code, quantity: qty) {
+            bannerMessage = "Đã lưu: \(code) (SL: \(qty))"
+            withAnimation {
+                showBanner = true
+            }
+            loadData()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.8) {
+                withAnimation {
+                    showBanner = false
+                }
+            }
+        }
+    }
+    
     private func startEditing(item: InventoryItem) {
         editingItem = item
         editBarcode = item.barcode
@@ -346,7 +475,6 @@ public struct KiemKeListView: View {
     }
     
     private func prepareShareFile() {
-        // Tạo file text WINCE.txt tạm trong Documents để chia sẻ
         let content = db.exportToTextContent()
         let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let fileURL = documents.appendingPathComponent("WINCE.txt")
