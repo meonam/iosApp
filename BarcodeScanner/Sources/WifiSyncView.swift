@@ -523,11 +523,11 @@ public struct WifiSyncView: View {
         lastSentFileName = fileName
         
         // Tạo nội dung file chuẩn Android: NAME:<fileName>\n<barcode>,<qty>\n...
-        var content = "NAME:\(fileName)\n"
+        var rawContent = "NAME:\(fileName)\n"
         for item in allItems {
-            content += "\(item.barcode),\(item.formattedQuantity)\n"
+            rawContent += "\(item.barcode),\(item.formattedQuantity)\n"
         }
-        content = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let contentToSend = rawContent.trimmingCharacters(in: .whitespacesAndNewlines)
         
         Task {
             do {
@@ -547,7 +547,7 @@ public struct WifiSyncView: View {
                 let sendSuccess = try await syncService.sendInventoryData(
                     pcUid: cleanUid,
                     fileName: fileName,
-                    content: content
+                    content: contentToSend
                 )
                 
                 await MainActor.run {
