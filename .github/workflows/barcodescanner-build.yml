@@ -68,8 +68,8 @@ jobs:
             CODE_SIGN_IDENTITY=""
           
           cd build/derivedData/Build/Products/Release-iphonesimulator
-          zip -r ../../../BarcodeScanner-Simulator.zip BarcodeScanner.app
-          cd ../../../..
+          zip -r "$GITHUB_WORKSPACE/build/BarcodeScanner-Simulator.zip" BarcodeScanner.app
+          cd "$GITHUB_WORKSPACE"
           ls -lh build/BarcodeScanner-Simulator.zip
 
       - name: 6. Tải các file Artifacts lên GitHub
