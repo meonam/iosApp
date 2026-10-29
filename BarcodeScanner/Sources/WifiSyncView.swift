@@ -1,378 +1,585 @@
 import SwiftUI
+import AudioToolbox
 
 public struct WifiSyncView: View {
-    @State private var pcUid: String = ""
+    // region UI State
+    @AppStorage("uid_number") private var uidNumber: String = ""
+    @AppStorage("selected_mode") private var selectedMode: Int = 0 // 0: KHO (k), 1: QUẦY (q), 2: TUỲ CHỌN (c)
+    @AppStorage("id_scan") private var idScan: String = "001"
+    @AppStorage("id_dem") private var idDem: String = "001"
+    @AppStorage("id_so_phieu") private var idSoPhieu: String = "001"
+    @AppStorage("custom_file_name") private var customFileName: String = ""
+    
+    // Thống kê & Trạng thái
+    @State private var inventoryCount: Int = 0
+    @State private var redScanCount: Int = 0
+    @State private var isResetSessionChecked: Bool = false
+    @State private var showResetConfirmAlert: Bool = false
     @State private var isScanningUid: Bool = false
-    
-    // File Options
-    @State private var selectedMode: Int = 0 // 0: Auto (WINCE.txt), 1: Tuỳ chỉnh
-    @State private var idScan: String = ""
-    @State private var idDem: String = ""
-    @State private var idSoPhieu: String = ""
-    @State private var customFileName: String = ""
-    
-    // Checkbox Xoá dữ liệu sau khi gửi thành công
-    @State private var autoClearAfterSend: Bool = true
-    
-    // Trạng thái gửi
     @State private var isSending: Bool = false
-    @State private var statusMessage: String = "Sẵn sàng kết nối"
-    @State private var statusColor: Color = .gray
-    @State private var showAlert: Bool = false
+    @State private var showResultAlert: Bool = false
     @State private var alertTitle: String = ""
     @State private var alertMessage: String = ""
-    
-    // Thống kê
-    @State private var totalRecords: Int = 0
+    @State private var showClearPromptDialog: Bool = false
+    @State private var lastSentFileName: String = ""
     
     private let db = DatabaseHelper.shared
     private let syncService = FirebaseSyncService.shared
     
     public init() {}
     
+    // MARK: - Computed Properties
+    
+    private var filePrefix: String {
+        switch selectedMode {
+        case 0: return "k"
+        case 1: return "q"
+        default: return "c"
+        }
+    }
+    
+    private var formattedScanId: String {
+        let clean = idScan.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.isEmpty { return "001" }
+        if let num = Int(clean) { return String(format: "%03d", num) }
+        return clean
+    }
+    
+    private var formattedSoPhieu: String {
+        let clean = idSoPhieu.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.isEmpty { return "001" }
+        if let num = Int(clean) { return String(format: "%03d", num) }
+        return clean
+    }
+    
+    private var computedFileName: String {
+        if selectedMode == 2 {
+            let custom = customFileName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if custom.isEmpty {
+                return "\(formattedScanId)c\(formattedSoPhieu).txt"
+            } else {
+                return "\(custom).txt"
+            }
+        } else {
+            return "\(formattedScanId)\(filePrefix)\(formattedSoPhieu).txt"
+        }
+    }
+    
+    // MARK: - Body
+    
     public var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                // Header
-                HStack {
-                    Image(systemName: "wifi")
-                        .font(.title2)
-                        .foregroundColor(.blue)
-                    Text("GỬI DỮ LIỆU QUA WI-FI / INTERNET")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.primary)
-                    Spacer()
-                }
-                .padding(.horizontal)
-                .padding(.top, 12)
-                
-                // Card 1: Nhập UID máy tính PC
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("1. KẾT NỐI MÁY TÍNH (PC)")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.blue)
+            VStack(spacing: 12) {
+                // === MAIN CARD (Tương tự Android WifiScreen) ===
+                VStack(spacing: 10) {
+                    // Row 1: DEVICE UID & NÚT QUÉT UID
+                    deviceUidRow
                     
-                    HStack {
-                        TextField("Nhập mã UID máy tính (Ví dụ: 123456)", text: $pcUid)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .font(.system(size: 15, weight: .medium, design: .monospaced))
-                            .autocapitalization(.none)
-                            .disableAutocorrection(true)
-                        
-                        Button(action: {
-                            isScanningUid = true
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "qrcode.viewfinder")
-                                Text("Quét QR")
-                            }
-                            .font(.system(size: 13, weight: .semibold))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                        }
+                    // Row 2: CHỌN CHẾ ĐỘ (KHO, QUẦY, TUỲ CHỌN)
+                    modeSelectionRow
+                    
+                    // Row 3: SCAN ID + COUNT ID
+                    scanAndCountIdRow
+                    
+                    // Row 4: TÊN FILE + PHIẾU
+                    fileNameAndPhieuRow
+                    
+                    // Row 5: TÊN FILE TUỲ CHỈNH (khi chọn TUỲ CHỌN)
+                    if selectedMode == 2 {
+                        customFileNameRow
                     }
                     
-                    Text("Mở phần mềm DATALOGIC MEMOR hoặc ASSET INVENTORY trên PC để lấy mã UID hoặc quét mã QR hiển thị trên màn hình máy tính.")
-                        .font(.system(size: 11))
-                        .foregroundColor(.gray)
+                    Spacer().frame(height: 4)
+                    
+                    // Row 6: NÚT GỬI QUA NET
+                    sendButton
+                    
+                    // Row 7: THỐNG KÊ (BẢN GHI | ĐÃ SCAN)
+                    statisticsCard
+                    
+                    // Row 8: RESET TRƯỚC KHI KIỂM KÊ
+                    resetToggleSection
                 }
                 .padding(14)
                 .background(Color(UIColor.secondarySystemGroupedBackground))
-                .cornerRadius(12)
-                .padding(.horizontal)
-                .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1)
-                
-                // Card 2: Thông tin file & Ca làm việc
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("2. CẤU HÌNH TÊN FILE XUẤT")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.blue)
-                    
-                    Picker("Chế độ", selection: $selectedMode) {
-                        Text("Mặc định (WINCE.txt)").tag(0)
-                        Text("Tên tùy chỉnh").tag(1)
-                    }
-                    .pickerStyle(SegmentedPickerStyle())
-                    
-                    if selectedMode == 1 {
-                        HStack {
-                            Text("Tên file:")
-                                .font(.system(size: 13, weight: .semibold))
-                                .frame(width: 70, alignment: .leading)
-                            TextField("Ví dụ: 001.txt", text: $customFileName)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .font(.system(size: 13))
-                        }
-                    }
-                    
-                    HStack(spacing: 8) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("ID Quét")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.gray)
-                            TextField("01", text: $idScan)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .font(.system(size: 13))
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("ID Đếm")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.gray)
-                            TextField("01", text: $idDem)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .font(.system(size: 13))
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Số phiếu")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.gray)
-                            TextField("001", text: $idSoPhieu)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .font(.system(size: 13))
-                        }
-                    }
-                }
-                .padding(14)
-                .background(Color(UIColor.secondarySystemGroupedBackground))
-                .cornerRadius(12)
-                .padding(.horizontal)
-                .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1)
-                
-                // Card 3: Thống kê & Gửi dữ liệu
-                VStack(spacing: 12) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Tổng số dòng kiểm kê hiện có:")
-                                .font(.system(size: 13))
-                                .foregroundColor(.gray)
-                            Text("\(totalRecords) dòng")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundColor(.primary)
-                        }
-                        Spacer()
-                    }
-                    
-                    Divider()
-                    
-                    Toggle(isOn: $autoClearAfterSend) {
-                        Text("Xoá dữ liệu trên điện thoại sau khi PC nhận thành công")
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                    .toggleStyle(SwitchToggleStyle(tint: .blue))
-                    
-                    // Trạng thái hiện tại
-                    HStack {
-                        Circle()
-                            .fill(statusColor)
-                            .frame(width: 10, height: 10)
-                        Text(statusMessage)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(statusColor)
-                        Spacer()
-                    }
-                    .padding(.vertical, 4)
-                    
-                    // Nút Gửi dữ liệu lớn
-                    Button(action: sendDataToPC) {
-                        HStack(spacing: 8) {
-                            if isSending {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Image(systemName: "paperplane.fill")
-                            }
-                            Text(isSending ? "ĐANG GỬI DỮ LIỆU..." : "GỬI DỮ LIỆU ĐẾN MÁY TÍNH")
-                                .font(.system(size: 15, weight: .bold))
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(isSending || totalRecords == 0 ? Color.gray : Color.blue)
-                        .cornerRadius(10)
-                    }
-                    .disabled(isSending || totalRecords == 0)
-                }
-                .padding(14)
-                .background(Color(UIColor.secondarySystemGroupedBackground))
-                .cornerRadius(12)
-                .padding(.horizontal)
-                .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1)
-                
-                Spacer(minLength: 20)
+                .cornerRadius(16)
+                .shadow(color: Color.black.opacity(0.06), radius: 5, x: 0, y: 2)
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
+                .padding(.bottom, 16)
             }
         }
         .background(Color(UIColor.systemGroupedBackground))
+        .navigationBarHidden(true)
         .onAppear {
-            refreshData()
-            loadSavedSettings()
+            refreshCounts()
         }
         .sheet(isPresented: $isScanningUid) {
-            QRScannerSheet { scannedUid in
-                self.pcUid = scannedUid
-                self.isScanningUid = false
-                saveSettings()
-            }
+            uidScannerSheet
         }
-        .alert(isPresented: $showAlert) {
+        .alert(isPresented: $showResetConfirmAlert) {
             Alert(
-                title: Text(alertTitle),
-                message: Text(alertMessage),
-                dismissButton: .default(Text("Đồng ý"))
+                title: Text("Xác nhận Reset"),
+                message: Text("Bạn có chắc chắn muốn reset số phiếu và lượt quét về mặc định ban đầu không?"),
+                primaryButton: .destructive(Text("Reset")) {
+                    performReset()
+                },
+                secondaryButton: .cancel(Text("Huỷ"))
+            )
+        }
+        .alert(isPresented: $showClearPromptDialog) {
+            Alert(
+                title: Text("Gửi thành công!"),
+                message: Text("Máy tính đã nhận file: \(lastSentFileName)\n\nBạn có muốn xoá toàn bộ dữ liệu vừa gửi trong máy để bắt đầu đợt quét mới không?"),
+                primaryButton: .destructive(Text("Xoá dữ liệu")) {
+                    _ = db.clearAll()
+                    refreshCounts()
+                },
+                secondaryButton: .default(Text("Giữ lại"))
             )
         }
     }
     
-    // MARK: - Functions
+    // MARK: - Subviews
     
-    private func refreshData() {
-        totalRecords = db.getCount()
-    }
-    
-    private func loadSavedSettings() {
-        if let savedUid = UserDefaults.standard.string(forKey: "SAVED_PC_UID") {
-            pcUid = savedUid
-        }
-        idScan = UserDefaults.standard.string(forKey: "SAVED_ID_SCAN") ?? ""
-        idDem = UserDefaults.standard.string(forKey: "SAVED_ID_DEM") ?? ""
-        idSoPhieu = UserDefaults.standard.string(forKey: "SAVED_ID_SO_PHIEU") ?? ""
-        customFileName = UserDefaults.standard.string(forKey: "SAVED_CUSTOM_FILENAME") ?? ""
-        selectedMode = UserDefaults.standard.integer(forKey: "SAVED_MODE")
-    }
-    
-    private func saveSettings() {
-        UserDefaults.standard.set(pcUid, forKey: "SAVED_PC_UID")
-        UserDefaults.standard.set(idScan, forKey: "SAVED_ID_SCAN")
-        UserDefaults.standard.set(idDem, forKey: "SAVED_ID_DEM")
-        UserDefaults.standard.set(idSoPhieu, forKey: "SAVED_ID_SO_PHIEU")
-        UserDefaults.standard.set(customFileName, forKey: "SAVED_CUSTOM_FILENAME")
-        UserDefaults.standard.set(selectedMode, forKey: "SAVED_MODE")
-    }
-    
-    private func sendDataToPC() {
-        let cleanUid = pcUid.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleanUid.isEmpty else {
-            alertTitle = "Chưa nhập UID"
-            alertMessage = "Vui lòng nhập hoặc quét mã UID máy tính trước khi gửi."
-            showAlert = true
-            return
-        }
-        
-        saveSettings()
-        
-        // Chuẩn bị nội dung gửi
-        let content = db.exportToTextContent()
-        guard !content.isEmpty else {
-            alertTitle = "Dữ liệu trống"
-            alertMessage = "Không có mặt hàng nào trong cơ sở dữ liệu kiểm kê để gửi."
-            showAlert = true
-            return
-        }
-        
-        // Xác định tên file
-        let finalFileName: String
-        if selectedMode == 1 && !customFileName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            var name = customFileName.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !name.lowercased().hasSuffix(".txt") {
-                name += ".txt"
+    // Row 1: DEVICE UID + Nút QUÉT UID
+    private var deviceUidRow: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("DEVICE UID")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.blue)
+                
+                TextField("Nhập UID máy tính", text: $uidNumber)
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(Color(UIColor.tertiarySystemGroupedBackground))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
             }
-            finalFileName = name
-        } else {
-            finalFileName = "WINCE.txt"
+            
+            Button(action: {
+                isScanningUid = true
+            }) {
+                VStack(spacing: 2) {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 16))
+                    Text("QUÉT UID")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .foregroundColor(.white)
+                .frame(width: 95, height: 50)
+                .background(Color.blue)
+                .cornerRadius(10)
+            }
+            .padding(.top, 16)
+        }
+    }
+    
+    // Row 2: 3 Radio Buttons chọn chế độ (KHO, QUẦY, TUỲ CHỌN)
+    private var modeSelectionRow: some View {
+        HStack(spacing: 6) {
+            modeButton(title: "KHO", modeIndex: 0)
+            modeButton(title: "QUẦY", modeIndex: 1)
+            modeButton(title: "TUỲ CHỌN", modeIndex: 2)
+        }
+        .padding(.vertical, 2)
+    }
+    
+    private func modeButton(title: String, modeIndex: Int) -> some View {
+        Button(action: {
+            selectedMode = modeIndex
+            updateRedScanCount()
+        }) {
+            HStack(spacing: 6) {
+                Image(systemName: selectedMode == modeIndex ? "largecircle.fill.circle" : "circle")
+                    .font(.system(size: 14))
+                    .foregroundColor(selectedMode == modeIndex ? .blue : .gray)
+                
+                Text(title)
+                    .font(.system(size: 12, weight: selectedMode == modeIndex ? .bold : .medium))
+                    .foregroundColor(selectedMode == modeIndex ? .blue : .primary)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 38)
+            .background(selectedMode == modeIndex ? Color.blue.opacity(0.1) : Color(UIColor.tertiarySystemGroupedBackground))
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(selectedMode == modeIndex ? Color.blue : Color.clear, lineWidth: 1.5)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    // Row 3: SCAN ID + COUNT ID
+    private var scanAndCountIdRow: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("SCAN ID")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.blue)
+                
+                TextField("001", text: $idScan)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .keyboardType(.numberPad)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(Color(UIColor.tertiarySystemGroupedBackground))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
+                    .disabled(selectedMode == 2)
+                    .onChange(of: idScan) { _ in updateRedScanCount() }
+            }
+            
+            VStack(alignment: .leading, spacing: 3) {
+                Text("COUNT ID")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.blue)
+                
+                TextField("001", text: $idDem)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .keyboardType(.numberPad)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(Color(UIColor.tertiarySystemGroupedBackground))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
+                    .disabled(selectedMode == 2)
+            }
+        }
+    }
+    
+    // Row 4: TÊN FILE + PHIẾU
+    private var fileNameAndPhieuRow: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("TÊN FILE")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.blue)
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "pencil")
+                        .foregroundColor(.blue)
+                        .font(.system(size: 12))
+                    
+                    Text(computedFileName)
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 9)
+                .background(Color(UIColor.tertiarySystemGroupedBackground))
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                )
+            }
+            
+            VStack(alignment: .leading, spacing: 3) {
+                Text("PHIẾU")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.blue)
+                
+                TextField("001", text: $idSoPhieu)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .keyboardType(.numberPad)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(Color(UIColor.tertiarySystemGroupedBackground))
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
+                    .disabled(selectedMode == 2)
+            }
+        }
+    }
+    
+    // Row 5: TÊN FILE TUỲ CHỈNH
+    private var customFileNameRow: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("TÊN FILE TUỲ CHỈNH")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.blue)
+            
+            TextField("Nhập tên file tuỳ chỉnh (không cần đuôi .txt)", text: $customFileName)
+                .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(Color(UIColor.tertiarySystemGroupedBackground))
+                .cornerRadius(10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.blue.opacity(0.6), lineWidth: 1)
+                )
+        }
+    }
+    
+    // Row 6: NÚT GỬI QUA NET
+    private var sendButton: some View {
+        Button(action: handleSendViaNet) {
+            HStack(spacing: 10) {
+                if isSending {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                } else {
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 16))
+                }
+                
+                Text("SEND VIA NET (KHÔNG GIỚI HẠN)")
+                    .font(.system(size: 13, weight: .heavy))
+                    .tracking(0.5)
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .frame(height: 48)
+            .background(Color.blue)
+            .cornerRadius(12)
+            .shadow(color: Color.blue.opacity(0.35), radius: 4, x: 0, y: 2)
+        }
+        .disabled(isSending || isResetSessionChecked)
+    }
+    
+    // Row 7: THỐNG KÊ (BẢN GHI | ĐÃ SCAN)
+    private var statisticsCard: some View {
+        HStack {
+            Spacer()
+            
+            VStack(spacing: 2) {
+                Text("\(inventoryCount)")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.blue)
+                Text("BẢN GHI")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.blue.opacity(0.8))
+            }
+            
+            Spacer()
+            
+            Rectangle()
+                .fill(Color.gray.opacity(0.25))
+                .frame(width: 1, height: 32)
+            
+            Spacer()
+            
+            VStack(spacing: 2) {
+                Text("\(redScanCount)")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.red)
+                Text("ĐÃ SCAN")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.red.opacity(0.8))
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 8)
+        .background(Color(UIColor.tertiarySystemGroupedBackground).opacity(0.7))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        )
+    }
+    
+    // Row 8: RESET TRƯỚC KHI KIỂM KÊ
+    private var resetToggleSection: some View {
+        VStack(spacing: 8) {
+            Button(action: {
+                isResetSessionChecked.toggle()
+            }) {
+                HStack(spacing: 8) {
+                    Image(systemName: isResetSessionChecked ? "largecircle.fill.circle" : "circle")
+                        .font(.system(size: 16))
+                        .foregroundColor(isResetSessionChecked ? .blue : .gray)
+                    
+                    Text("Reset trước khi kiểm kê")
+                        .font(.system(size: 12, weight: isResetSessionChecked ? .bold : .medium))
+                        .foregroundColor(isResetSessionChecked ? .blue : .secondary)
+                }
+            }
+            .buttonStyle(PlainButtonStyle())
+            
+            if isResetSessionChecked {
+                Button(action: {
+                    showResetConfirmAlert = true
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 13, weight: .bold))
+                        Text("XÁC NHẬN RESET")
+                            .font(.system(size: 12, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 38)
+                    .background(Color.orange)
+                    .cornerRadius(10)
+                }
+            }
+        }
+        .padding(.top, 2)
+    }
+    
+    // Sheet quét QR UID máy tính
+    private var uidScannerSheet: some View {
+        NavigationView {
+            ZStack {
+                CameraScannerView { code in
+                    let clean = code.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !clean.isEmpty {
+                        uidNumber = clean
+                        AudioServicesPlaySystemSound(1057)
+                        isScanningUid = false
+                    }
+                }
+                .edgesIgnoringSafeArea(.all)
+                
+                VStack {
+                    Text("Hướng camera vào mã QR UID hiển thị trên màn hình máy tính PC")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .background(Color.black.opacity(0.7))
+                        .cornerRadius(8)
+                        .padding(.top, 20)
+                    
+                    Spacer()
+                }
+            }
+            .navigationBarTitle("Quét mã QR UID", displayMode: .inline)
+            .navigationBarItems(trailing: Button("Đóng") {
+                isScanningUid = false
+            })
+        }
+    }
+    
+    // MARK: - Logic & Actions
+    
+    private func refreshCounts() {
+        inventoryCount = db.getCount()
+        updateRedScanCount()
+    }
+    
+    private func updateRedScanCount() {
+        let prefix = filePrefix
+        let scan = formattedScanId
+        let key = "red_scan_count_\(scan)_\(prefix)"
+        let count = UserDefaults.standard.integer(forKey: key)
+        let actualCount = count == 0 ? 1 : count
+        redScanCount = actualCount - 1
+        idSoPhieu = String(format: "%03d", actualCount)
+    }
+    
+    private func performReset() {
+        let prefix = filePrefix
+        let scan = formattedScanId
+        let key = "red_scan_count_\(scan)_\(prefix)"
+        UserDefaults.standard.removeObject(forKey: key)
+        
+        idScan = "001"
+        idSoPhieu = "001"
+        redScanCount = 0
+        isResetSessionChecked = false
+        refreshCounts()
+    }
+    
+    private func handleSendViaNet() {
+        let cleanUid = uidNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanUid.isEmpty else {
+            alertTitle = "Thiếu UID máy tính"
+            alertMessage = "Vui lòng nhập hoặc bấm nút 'QUÉT UID' để kết nối với máy tính PC trước khi gửi."
+            showResultAlert = true
+            return
+        }
+        
+        let allItems = db.getAllItems()
+        guard !allItems.isEmpty else {
+            alertTitle = "Chưa có dữ liệu"
+            alertMessage = "Không có bản ghi kiểm kê nào trong máy để gửi. Vui lòng quét mã kiểm kê trước."
+            showResultAlert = true
+            return
         }
         
         isSending = true
-        statusMessage = "Đang kết nối đến Firebase & gửi dữ liệu..."
-        statusColor = .orange
+        let fileName = computedFileName
+        lastSentFileName = fileName
+        
+        // Tạo nội dung file chuẩn Android: NAME:<fileName>\n<barcode>,<qty>\n...
+        var content = "NAME:\(fileName)\n"
+        for item in allItems {
+            content += "\(item.barcode),\(item.formattedQuantity)\n"
+        }
+        content = content.trimmingCharacters(in: .whitespacesAndNewlines)
         
         Task {
             do {
-                let success = try await syncService.sendInventoryData(
+                // Kiểm tra kết nối PC trên Firebase
+                let pcConnected = try await syncService.checkPcConnection(pcUid: cleanUid)
+                if !pcConnected {
+                    await MainActor.run {
+                        isSending = false
+                        alertTitle = "PC chưa sẵn sàng"
+                        alertMessage = "Máy tính có mã UID '\(cleanUid)' hiện chưa mở hoặc chưa tích chọn 'Nhận qua Internet' trên phần mềm PC."
+                        showResultAlert = true
+                    }
+                    return
+                }
+                
+                // Gửi dữ liệu kiểm kê lên Firebase RTDB
+                let sendSuccess = try await syncService.sendInventoryData(
                     pcUid: cleanUid,
-                    fileName: finalFileName,
+                    fileName: fileName,
                     content: content
                 )
                 
                 await MainActor.run {
                     isSending = false
-                    if success {
-                        statusMessage = "PC đã nhận thành công lúc \(formattedTime())"
-                        statusColor = .green
+                    if sendSuccess {
+                        // Tăng biến đếm RedScan
+                        let prefix = filePrefix
+                        let scan = formattedScanId
+                        let key = "red_scan_count_\(scan)_\(prefix)"
+                        let current = UserDefaults.standard.integer(forKey: key)
+                        let nextCount = (current == 0 ? 1 : current) + 1
+                        UserDefaults.standard.set(nextCount, forKey: key)
                         
-                        if autoClearAfterSend {
-                            _ = db.clearAll()
-                            refreshData()
-                        }
+                        AudioServicesPlaySystemSound(1057) // Beep
+                        updateRedScanCount()
                         
-                        alertTitle = "Gửi thành công!"
-                        alertMessage = "Dữ liệu \(finalFileName) (\(totalRecords) dòng) đã được truyền đến máy tính PC an toàn qua mạng Internet/Wi-Fi."
-                        showAlert = true
+                        // Hiển thị dialog hỏi xoá dữ liệu tương tự Android
+                        showClearPromptDialog = true
                     } else {
-                        statusMessage = "Gửi thất bại hoặc máy tính PC không phản hồi"
-                        statusColor = .red
-                        alertTitle = "Không phản hồi"
-                        alertMessage = "Không thể nhận xác nhận (ACK) từ PC. Vui lòng kiểm tra ứng dụng trên PC đã bật nhận Internet chưa."
-                        showAlert = true
+                        alertTitle = "Gửi thất bại"
+                        alertMessage = "Không thể gửi dữ liệu tới máy tính. Vui lòng kiểm tra lại mạng Wi-Fi/Internet và thử lại."
+                        showResultAlert = true
                     }
                 }
             } catch {
                 await MainActor.run {
                     isSending = false
-                    statusMessage = "Lỗi kết nối mạng: \(error.localizedDescription)"
-                    statusColor = .red
-                    alertTitle = "Lỗi gửi dữ liệu"
-                    alertMessage = error.localizedDescription
-                    showAlert = true
+                    alertTitle = "Lỗi kết nối"
+                    alertMessage = "Lỗi: \(error.localizedDescription)"
+                    showResultAlert = true
                 }
             }
-        }
-    }
-    
-    private func formattedTime() -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter.string(from: Date())
-    }
-}
-
-// Sheet quét QR UID
-struct QRScannerSheet: View {
-    let onScanned: (String) -> Void
-    @Environment(\.presentationMode) var presentationMode
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                CameraScannerView(isTorchOn: false) { code in
-                    onScanned(code)
-                }
-                .edgesIgnoringSafeArea(.all)
-                
-                VStack {
-                    Text("Quét mã QR hiển thị trên phần mềm PC")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding()
-                        .background(Color.black.opacity(0.6))
-                        .cornerRadius(8)
-                        .padding(.top, 20)
-                    
-                    Spacer()
-                    
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.green, lineWidth: 3)
-                        .frame(width: 240, height: 240)
-                    
-                    Spacer()
-                }
-            }
-            .navigationBarItems(trailing: Button("Đóng") {
-                presentationMode.wrappedValue.dismiss()
-            })
         }
     }
 }
