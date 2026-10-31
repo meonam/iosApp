@@ -170,18 +170,50 @@ public final class FirebaseSyncService {
             let command = (json["command"] as? String) ?? ""
             
             if action == "CLEAR_DATA" || command == "CLEAR" {
-                // 1. Xoá node trên Firebase
-                var delReq = URLRequest(url: url)
-                delReq.httpMethod = "DELETE"
-                _ = try? await URLSession.shared.data(for: delReq)
+                let targetEmpId = ((json["targetEmployeeId"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let targetFileName = ((json["targetFileName"] as? String) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                 
-                // 2. Xoá CSDL cục bộ và thông báo cho UI
-                await MainActor.run {
-                    _ = DatabaseHelper.shared.clearAll()
-                    AudioServicesPlaySystemSound(1057) // Beep
-                    NotificationCenter.default.post(name: .inventoryDidClearRemotely, object: nil)
+                let rawIdScan = (UserDefaults.standard.string(forKey: "id_scan") ?? "001").trimmingCharacters(in: .whitespacesAndNewlines)
+                let myScanId: String
+                if let intVal = Int(rawIdScan) {
+                    myScanId = String(format: "%03d", intVal)
+                } else {
+                    myScanId = rawIdScan.isEmpty ? "001" : rawIdScan
                 }
-                break
+                
+                let formattedTargetEmpId: String
+                if let intVal = Int(targetEmpId) {
+                    formattedTargetEmpId = String(format: "%03d", intVal)
+                } else {
+                    formattedTargetEmpId = targetEmpId
+                }
+                
+                let isForMe: Bool
+                if !targetEmpId.isEmpty {
+                    isForMe = (formattedTargetEmpId == myScanId) || targetFileName.hasPrefix(myScanId)
+                } else if !targetFileName.isEmpty {
+                    isForMe = targetFileName.hasPrefix(myScanId)
+                } else {
+                    isForMe = true
+                }
+                
+                if isForMe {
+                    // 1. Xoá node trên Firebase
+                    var delReq = URLRequest(url: url)
+                    delReq.httpMethod = "DELETE"
+                    _ = try? await URLSession.shared.data(for: delReq)
+                    
+                    // 2. Xoá CSDL cục bộ và thông báo cho UI
+                    await MainActor.run {
+                        _ = DatabaseHelper.shared.clearAll()
+                        AudioServicesPlaySystemSound(1057) // Beep
+                        NotificationCenter.default.post(name: .inventoryDidClearRemotely, object: nil)
+                    }
+                    break
+                } else {
+                    // Lệnh xóa nhắm tới máy khác, bỏ qua
+                    continue
+                }
             }
         }
     }
