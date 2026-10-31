@@ -1,6 +1,20 @@
 import SwiftUI
 import AudioToolbox
 
+private enum ActiveWifiAlert: Identifiable {
+    case resetConfirm
+    case clearPrompt(fileName: String)
+    case message(title: String, message: String)
+    
+    var id: String {
+        switch self {
+        case .resetConfirm: return "resetConfirm"
+        case .clearPrompt(let fn): return "clearPrompt_\(fn)"
+        case .message(let title, _): return "msg_\(title)"
+        }
+    }
+}
+
 public struct WifiSyncView: View {
     // region UI State
     @AppStorage("uid_number") private var uidNumber: String = ""
@@ -14,13 +28,9 @@ public struct WifiSyncView: View {
     @State private var inventoryCount: Int = 0
     @State private var redScanCount: Int = 0
     @State private var isResetSessionChecked: Bool = false
-    @State private var showResetConfirmAlert: Bool = false
     @State private var isScanningUid: Bool = false
     @State private var isSending: Bool = false
-    @State private var showResultAlert: Bool = false
-    @State private var alertTitle: String = ""
-    @State private var alertMessage: String = ""
-    @State private var showClearPromptDialog: Bool = false
+    @State private var activeAlert: ActiveWifiAlert? = nil
     @State private var lastSentFileName: String = ""
     
     private let db = DatabaseHelper.shared
@@ -113,30 +123,44 @@ public struct WifiSyncView: View {
         .navigationBarHidden(true)
         .onAppear {
             refreshCounts()
+            if !uidNumber.isEmpty {
+                syncService.startRemoteClearMonitoring(pcUid: uidNumber)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .inventoryDidClearRemotely)) { _ in
+            refreshCounts()
         }
         .sheet(isPresented: $isScanningUid) {
             uidScannerSheet
         }
-        .alert(isPresented: $showResetConfirmAlert) {
-            Alert(
-                title: Text("Xác nhận Reset"),
-                message: Text("Bạn có chắc chắn muốn reset số phiếu và lượt quét về mặc định ban đầu không?"),
-                primaryButton: .destructive(Text("Reset")) {
-                    performReset()
-                },
-                secondaryButton: .cancel(Text("Huỷ"))
-            )
-        }
-        .alert(isPresented: $showClearPromptDialog) {
-            Alert(
-                title: Text("Gửi thành công!"),
-                message: Text("Máy tính đã nhận file: \(lastSentFileName)\n\nBạn có muốn xoá toàn bộ dữ liệu vừa gửi trong máy để bắt đầu đợt quét mới không?"),
-                primaryButton: .destructive(Text("Xoá dữ liệu")) {
-                    _ = db.clearAll()
-                    refreshCounts()
-                },
-                secondaryButton: .default(Text("Giữ lại"))
-            )
+        .alert(item: $activeAlert) { alert in
+            switch alert {
+            case .resetConfirm:
+                return Alert(
+                    title: Text("Xác nhận Reset"),
+                    message: Text("Bạn có chắc chắn muốn reset số phiếu và lượt quét về mặc định ban đầu không?"),
+                    primaryButton: .destructive(Text("Reset")) {
+                        performReset()
+                    },
+                    secondaryButton: .cancel(Text("Huỷ"))
+                )
+            case .clearPrompt(let fileName):
+                return Alert(
+                    title: Text("Gửi thành công!"),
+                    message: Text("Máy tính đã nhận file: \(fileName)\n\nBạn có muốn xoá toàn bộ dữ liệu vừa gửi trong máy để bắt đầu đợt quét mới không?"),
+                    primaryButton: .destructive(Text("Xoá dữ liệu")) {
+                        _ = db.clearAll()
+                        refreshCounts()
+                    },
+                    secondaryButton: .default(Text("Giữ lại"))
+                )
+            case .message(let title, let message):
+                return Alert(
+                    title: Text(title),
+                    message: Text(message),
+                    dismissButton: .default(Text("Đóng"))
+                )
+            }
         }
     }
     
@@ -160,6 +184,11 @@ public struct WifiSyncView: View {
                         RoundedRectangle(cornerRadius: 10)
                             .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                     )
+                    .onChange(of: uidNumber) { newUid in
+                        if !newUid.isEmpty {
+                            syncService.startRemoteClearMonitoring(pcUid: newUid)
+                        }
+                    }
             }
             
             Button(action: {
@@ -417,7 +446,7 @@ public struct WifiSyncView: View {
             
             if isResetSessionChecked {
                 Button(action: {
-                    showResetConfirmAlert = true
+                    activeAlert = .resetConfirm
                 }) {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.counterclockwise")
@@ -445,6 +474,7 @@ public struct WifiSyncView: View {
                     if !clean.isEmpty {
                         uidNumber = clean
                         AudioServicesPlaySystemSound(1057)
+                        syncService.startRemoteClearMonitoring(pcUid: clean)
                         isScanningUid = false
                     }
                 }
@@ -504,17 +534,19 @@ public struct WifiSyncView: View {
     private func handleSendViaNet() {
         let cleanUid = uidNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanUid.isEmpty else {
-            alertTitle = "Thiếu UID máy tính"
-            alertMessage = "Vui lòng nhập hoặc bấm nút 'QUÉT UID' để kết nối với máy tính PC trước khi gửi."
-            showResultAlert = true
+            activeAlert = .message(
+                title: "Thiếu UID máy tính",
+                message: "Vui lòng nhập hoặc bấm nút 'QUÉT UID' để kết nối với máy tính PC trước khi gửi."
+            )
             return
         }
         
         let allItems = db.getAllItems()
         guard !allItems.isEmpty else {
-            alertTitle = "Chưa có dữ liệu"
-            alertMessage = "Không có bản ghi kiểm kê nào trong máy để gửi. Vui lòng quét mã kiểm kê trước."
-            showResultAlert = true
+            activeAlert = .message(
+                title: "Chưa có dữ liệu",
+                message: "Không có bản ghi kiểm kê nào trong máy để gửi. Vui lòng quét mã kiểm kê trước."
+            )
             return
         }
         
@@ -536,9 +568,10 @@ public struct WifiSyncView: View {
                 if !pcConnected {
                     await MainActor.run {
                         isSending = false
-                        alertTitle = "PC chưa sẵn sàng"
-                        alertMessage = "Máy tính có mã UID '\(cleanUid)' hiện chưa mở hoặc chưa tích chọn 'Nhận qua Internet' trên phần mềm PC."
-                        showResultAlert = true
+                        activeAlert = .message(
+                            title: "PC chưa sẵn sàng",
+                            message: "Máy tính có mã UID '\(cleanUid)' hiện chưa mở hoặc chưa tích chọn 'Nhận qua Internet' trên phần mềm PC."
+                        )
                     }
                     return
                 }
@@ -547,7 +580,8 @@ public struct WifiSyncView: View {
                 let sendSuccess = try await syncService.sendInventoryData(
                     pcUid: cleanUid,
                     fileName: fileName,
-                    content: contentToSend
+                    content: contentToSend,
+                    employeeId: formattedScanId
                 )
                 
                 await MainActor.run {
@@ -565,19 +599,21 @@ public struct WifiSyncView: View {
                         updateRedScanCount()
                         
                         // Hiển thị dialog hỏi xoá dữ liệu tương tự Android
-                        showClearPromptDialog = true
+                        activeAlert = .clearPrompt(fileName: fileName)
                     } else {
-                        alertTitle = "Gửi thất bại"
-                        alertMessage = "Không thể gửi dữ liệu tới máy tính. Vui lòng kiểm tra lại mạng Wi-Fi/Internet và thử lại."
-                        showResultAlert = true
+                        activeAlert = .message(
+                            title: "Gửi thất bại",
+                            message: "Không thể gửi dữ liệu tới máy tính. Vui lòng kiểm tra lại mạng Wi-Fi/Internet và thử lại."
+                        )
                     }
                 }
             } catch {
                 await MainActor.run {
                     isSending = false
-                    alertTitle = "Lỗi kết nối"
-                    alertMessage = "Lỗi: \(error.localizedDescription)"
-                    showResultAlert = true
+                    activeAlert = .message(
+                        title: "Lỗi kết nối",
+                        message: "Lỗi: \(error.localizedDescription)"
+                    )
                 }
             }
         }

@@ -1,5 +1,37 @@
 import SwiftUI
 import AudioToolbox
+import UIKit
+
+// MARK: - Trình hiển thị chia sẻ chuẩn iOS (UIActivityViewController)
+public struct ShareSheetPresenter {
+    public static func share(items: [Any]) {
+        DispatchQueue.main.async {
+            guard let windowScene = UIApplication.shared.connectedScenes
+                .filter({ $0.activationState == .foregroundActive })
+                .compactMap({ $0 as? UIWindowScene })
+                .first,
+                  let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
+                return
+            }
+            
+            var topController = rootVC
+            while let presented = topController.presentedViewController {
+                topController = presented
+            }
+            
+            let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
+            
+            // Cấu hình Popover cho iPad để không bao giờ bị crash hoặc mất dialog
+            if let popover = activityVC.popoverPresentationController {
+                popover.sourceView = topController.view
+                popover.sourceRect = CGRect(x: topController.view.bounds.midX, y: topController.view.bounds.midY, width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
+            
+            topController.present(activityVC, animated: true, completion: nil)
+        }
+    }
+}
 
 public struct KiemKeListView: View {
     @State private var items: [InventoryItem] = []
@@ -29,9 +61,8 @@ public struct KiemKeListView: View {
     // Delete All Confirmation
     @State private var showDeleteAllAlert: Bool = false
     
-    // Share Sheet
-    @State private var showShareSheet: Bool = false
-    @State private var shareURL: URL? = nil
+    // Alert khi không có dữ liệu để xuất file
+    @State private var showNoDataAlert: Bool = false
     
     private let db = DatabaseHelper.shared
     
@@ -63,7 +94,7 @@ public struct KiemKeListView: View {
             // Input Card
             inputCardSection
             
-            // Checkboxes & Actions Row
+            // Checkboxes & Actions Row (Nút Xuất file chia sẻ + Checkboxes)
             optionsRowSection
             
             // Scan Button (Quét mã / Dừng) tương tự như Android
@@ -134,13 +165,16 @@ public struct KiemKeListView: View {
         .onAppear {
             loadData()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .inventoryDidClearRemotely)) { _ in
+            loadData()
+            bannerMessage = "Máy tính đã xoá sạch dữ liệu kiểm kê!"
+            withAnimation { showBanner = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                withAnimation { showBanner = false }
+            }
+        }
         .sheet(isPresented: $showEditDialog) {
             editItemSheet
-        }
-        .sheet(isPresented: $showShareSheet) {
-            if let url = shareURL {
-                ShareActivityView(activityItems: [url])
-            }
         }
         .alert(isPresented: $showDeleteAllAlert) {
             Alert(
@@ -150,6 +184,13 @@ public struct KiemKeListView: View {
                     deleteAllData()
                 },
                 secondaryButton: .cancel(Text("Huỷ"))
+            )
+        }
+        .alert(isPresented: $showNoDataAlert) {
+            Alert(
+                title: Text("Chưa có dữ liệu"),
+                message: Text("Không có bản ghi kiểm kê nào trong máy để xuất file. Vui lòng quét mã kiểm kê trước."),
+                dismissButton: .default(Text("Đóng"))
             )
         }
     }
@@ -187,13 +228,12 @@ public struct KiemKeListView: View {
                     .stroke(Color.green, lineWidth: 2)
             )
             .overlay(
-                // Laser đỏ quét mã
                 Rectangle()
                     .fill(Color.red.opacity(0.85))
                     .frame(height: 2)
             )
             
-            // Nút bật/tắt đèn Flash ở góc
+            // Nút bật/tắt đèn Flash
             VStack {
                 HStack {
                     Spacer()
@@ -284,18 +324,19 @@ public struct KiemKeListView: View {
     }
     
     private var optionsRowSection: some View {
-        HStack(spacing: 14) {
-            // Nút Xuất file WINCE.txt
-            Button(action: prepareShareFile) {
+        HStack(spacing: 12) {
+            // Nút Xuất file / Chia sẻ (Zalo, Mail, Tệp, Tin nhắn...) chuẩn như Android
+            Button(action: handleShareData) {
                 HStack(spacing: 4) {
-                    Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 15, weight: .bold))
+                    Image(systemName: "square.and.arrow.up.fill")
+                        .font(.system(size: 13, weight: .bold))
                     Text("Xuất file")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 12, weight: .bold))
                 }
+                .foregroundColor(.white)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(Color(UIColor.tertiarySystemGroupedBackground))
+                .background(Color.blue)
                 .cornerRadius(8)
             }
             
@@ -481,17 +522,37 @@ public struct KiemKeListView: View {
         loadData()
     }
     
-    private func prepareShareFile() {
-        let content = db.exportToTextContent()
-        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let fileURL = documents.appendingPathComponent("WINCE.txt")
+    /// Xuất file dữ liệu kiểm kê và mở hộp thoại chia sẻ hệ thống iOS (Zalo, Mail, Tệp, Tin nhắn...)
+    private func handleShareData() {
+        guard !items.isEmpty else {
+            showNoDataAlert = true
+            return
+        }
         
+        let content = db.exportToTextContent()
+        guard !content.isEmpty else {
+            showNoDataAlert = true
+            return
+        }
+        
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let fileName = "KiemKe_\(timestamp).txt"
+        
+        // 1. Lưu file vào Documents để đồng bộ qua cáp/Files app (UIFileSharingEnabled)
+        if let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            let docFile = documents.appendingPathComponent("WINCE.txt")
+            let docFileDated = documents.appendingPathComponent(fileName)
+            try? content.write(to: docFile, atomically: true, encoding: .utf8)
+            try? content.write(to: docFileDated, atomically: true, encoding: .utf8)
+        }
+        
+        // 2. Lưu file vào Temporary để chia sẻ qua Zalo, Messenger, Mail, AirDrop, v.v.
+        let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         do {
-            try content.write(to: fileURL, atomically: true, encoding: .utf8)
-            shareURL = fileURL
-            showShareSheet = true
+            try content.write(to: tempURL, atomically: true, encoding: .utf8)
+            ShareSheetPresenter.share(items: [tempURL])
         } catch {
-            print("Lỗi tạo file WINCE.txt: \(error)")
+            print("Lỗi tạo file chia sẻ: \(error)")
         }
     }
 }
@@ -516,16 +577,4 @@ struct ToggleCheck: View {
         }
         .buttonStyle(PlainButtonStyle())
     }
-}
-
-// Activity View for UIActivityViewController
-struct ShareActivityView: UIViewControllerRepresentable {
-    let activityItems: [Any]
-    let applicationActivities: [UIActivity]? = nil
-    
-    func makeUIViewController(context: Context) -> UIActivityViewController {
-        return UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
-    }
-    
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
