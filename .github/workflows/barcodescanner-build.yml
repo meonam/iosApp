@@ -15,7 +15,7 @@ permissions:
 jobs:
   build-barcodescanner-ios:
     name: Build BarcodeScanner iOS (.ipa & Simulator)
-    runs-on: macos-14 # Máy ảo Apple Silicon M1/M2 của GitHub Actions
+    runs-on: macos-latest
 
     steps:
       - name: 1. Tải mã nguồn dự án (Checkout Code)

@@ -4,6 +4,10 @@ on:
   push:
     branches: [ "main", "master" ]
     tags: [ "v*" ]
+    paths:
+      - 'iosApp/**'
+      - 'iosApp.xcodeproj/**'
+      - '.github/workflows/ios-build.yml'
   workflow_dispatch:
 
 permissions:
@@ -12,7 +16,7 @@ permissions:
 jobs:
   build-ios:
     name: Build iOS Application (.ipa)
-    runs-on: macos-14 # Máy ảo macOS Apple Silicon M1/M2 của GitHub
+    runs-on: macos-latest
     
     steps:
       - name: 1. Tải mã nguồn dự án (Checkout Code)
@@ -83,5 +87,3 @@ jobs:
           tag_name: v${{ env.APP_VERSION }}
           draft: false
           prerelease: false
-
-    
