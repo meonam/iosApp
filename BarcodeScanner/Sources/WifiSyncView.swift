@@ -29,6 +29,7 @@ public struct WifiSyncView: View {
     @State private var redScanCount: Int = 0
     @State private var isResetSessionChecked: Bool = false
     @State private var isScanningUid: Bool = false
+    @State private var isUidTorchOn: Bool = false
     @State private var isSending: Bool = false
     @State private var activeAlert: ActiveWifiAlert? = nil
     @State private var lastSentFileName: String = ""
@@ -469,7 +470,7 @@ public struct WifiSyncView: View {
     private var uidScannerSheet: some View {
         NavigationView {
             ZStack {
-                CameraScannerView { code in
+                CameraScannerView(isTorchOn: isUidTorchOn) { code in
                     let clean = code.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !clean.isEmpty {
                         uidNumber = clean
@@ -482,22 +483,46 @@ public struct WifiSyncView: View {
                 
                 VStack {
                     Text("Hướng camera vào mã QR UID hiển thị trên màn hình máy tính PC")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(Color.black.opacity(0.7))
+                        .background(Color.black.opacity(0.75))
                         .cornerRadius(8)
-                        .padding(.top, 20)
+                        .padding(.top, 16)
                     
                     Spacer()
+                    
+                    // Khung quét QR trung tâm
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.green, lineWidth: 3)
+                            .frame(width: 250, height: 250)
+                        
+                        Rectangle()
+                            .fill(Color.red.opacity(0.85))
+                            .frame(width: 240, height: 2)
+                    }
+                    
+                    Spacer()
+                    
+                    Text("Hoặc nhập trực tiếp mã UID vào ô trên màn hình")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white.opacity(0.8))
+                        .padding(.bottom, 24)
                 }
             }
             .navigationBarTitle("Quét mã QR UID", displayMode: .inline)
-            .navigationBarItems(trailing: Button("Đóng") {
-                isScanningUid = false
-            })
+            .navigationBarItems(
+                leading: Button(action: { isUidTorchOn.toggle() }) {
+                    Image(systemName: isUidTorchOn ? "flashlight.on.fill" : "flashlight.off.fill")
+                        .foregroundColor(isUidTorchOn ? .yellow : .primary)
+                },
+                trailing: Button("Đóng") {
+                    isScanningUid = false
+                }
+            )
         }
     }
     
