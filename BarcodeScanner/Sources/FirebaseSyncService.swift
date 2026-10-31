@@ -194,7 +194,7 @@ public final class FirebaseSyncService {
                 } else if !targetFileName.isEmpty {
                     isForMe = targetFileName.hasPrefix(myScanId)
                 } else {
-                    isForMe = true
+                    isForMe = false
                 }
                 
                 if isForMe {
