@@ -48,5 +48,11 @@ public struct MainTabView: View {
                 .tag(4)
         }
         .accentColor(.blue)
+        .onAppear {
+            let savedUid = (UserDefaults.standard.string(forKey: "uid_number") ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !savedUid.isEmpty {
+                FirebaseSyncService.shared.startRemoteClearMonitoring(pcUid: savedUid)
+            }
+        }
     }
 }

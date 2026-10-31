@@ -141,7 +141,7 @@ public final class FirebaseSyncService {
             guard let self = self else { return }
             while !Task.isCancelled {
                 await self.checkAndPerformRemoteClear(pcUid: clean)
-                try? await Task.sleep(nanoseconds: 3_000_000_000) // Kiểm tra mỗi 3 giây
+                try? await Task.sleep(nanoseconds: 1_200_000_000) // Kiểm tra mỗi 1.2 giây
             }
         }
     }
@@ -160,7 +160,11 @@ public final class FirebaseSyncService {
         
         for ep in endpoints {
             guard let url = URL(string: ep) else { continue }
-            guard let (data, response) = try? await URLSession.shared.data(from: url),
+            var req = URLRequest(url: url)
+            req.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+            req.timeoutInterval = 4.0
+            
+            guard let (data, response) = try? await URLSession.shared.data(for: req),
                   let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 continue
@@ -196,6 +200,8 @@ public final class FirebaseSyncService {
                 } else {
                     isForMe = false
                 }
+                
+                print("[FirebaseSyncService] Remote Clear check: ep=\(ep), targetEmpId=\(targetEmpId), targetFileName=\(targetFileName), myScanId=\(myScanId) => isForMe=\(isForMe)")
                 
                 if isForMe {
                     // 1. Xoá node trên Firebase
