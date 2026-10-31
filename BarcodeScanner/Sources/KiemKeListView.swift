@@ -217,6 +217,7 @@ public struct KiemKeListView: View {
     
     private var inputCardSection: some View {
         VStack(spacing: 8) {
+            // Barcode Row
             HStack(spacing: 8) {
                 Text("Mã hàng:")
                     .font(.system(size: 14, weight: .semibold))
@@ -225,8 +226,12 @@ public struct KiemKeListView: View {
                 TextField("Nhập hoặc quét mã...", text: $barcodeText)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .font(.system(size: 14))
+                    .onSubmit {
+                        addBarcodeManually()
+                    }
             }
             
+            // Quantity Row (Không cần nút Thêm ngay số lượng, nhấn Return để thêm)
             HStack(spacing: 8) {
                 Text("Số lượng:")
                     .font(.system(size: 14, weight: .semibold))
@@ -237,37 +242,39 @@ public struct KiemKeListView: View {
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .font(.system(size: 14))
                     .disabled(isQty1Checked)
-                
-                Button(action: addBarcodeManually) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus.circle.fill")
-                        Text("Thêm")
+                    .onSubmit {
+                        addBarcodeManually()
                     }
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(Color.blue)
-                    .cornerRadius(8)
-                }
             }
             
-            HStack(spacing: 12) {
-                Button(action: {
-                    showDeleteAllAlert = true
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "trash")
-                        Text("Xoá tất cả")
-                    }
-                    .font(.system(size: 13, weight: .semibold))
+            // Ghi chú phía trên nút Delete giống Android
+            Text("Nhớ xóa dữ liệu sau khi đổ xong")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(Color.red)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 4)
+                .padding(.bottom, 2)
+            
+            // Nút Delete nhỏ gọn giống Android
+            Button(action: {
+                showDeleteAllAlert = true
+            }) {
+                Text("Delete")
+                    .font(.system(size: 13, weight: .bold))
                     .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 28)
                     .padding(.vertical, 7)
                     .background(Color.red)
-                    .cornerRadius(8)
-                }
+                    .cornerRadius(6)
             }
+            .frame(maxWidth: .infinity, alignment: .center)
+            
+            // Tổng bản ghi
+            Text("Tổng bản ghi: \(totalCount)")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.blue)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 2)
         }
         .padding(12)
         .background(Color(UIColor.secondarySystemGroupedBackground))
