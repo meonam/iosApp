@@ -2,7 +2,18 @@ name: Test Runner
 on:
   workflow_dispatch:
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  test-macos-latest:
+    runs-on: macos-latest
+    continue-on-error: true
     steps:
-      - run: echo "Hello World"
+      - run: echo "macos-latest works!"
+  test-macos-13:
+    runs-on: macos-13
+    continue-on-error: true
+    steps:
+      - run: echo "macos-13 works!"
+  test-macos-15:
+    runs-on: macos-15
+    continue-on-error: true
+    steps:
+      - run: echo "macos-15 works!"
