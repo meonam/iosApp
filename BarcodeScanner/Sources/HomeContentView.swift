@@ -199,7 +199,7 @@ public struct GuideSheetView: View {
                                 title: "3. Xuất file & Chia sẻ",
                                 items: [
                                     "Tại tab 'Quét mã', bấm nút [Xuất file] ở góc trên bảng kiểm kê.",
-                                    "Tệp định dạng WINCE.txt chuẩn sẽ được tự động tạo.",
+                                    "Tệp dữ liệu KiemKe_<thời_gian>.txt sẽ được tự động tạo.",
                                     "Bạn có thể gửi tệp qua AirDrop, Zalo, Email hoặc lưu vào ứng dụng Tệp (Files)."
                                 ]
                             )

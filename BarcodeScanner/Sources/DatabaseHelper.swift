@@ -183,7 +183,7 @@ public final class DatabaseHelper {
         return count
     }
     
-    /// Xuất chuỗi định dạng văn bản (barcode,quantity) tương thích file WinCE.txt và Android
+    /// Xuất chuỗi định dạng văn bản (barcode,quantity) tương thích Android
     public func exportToTextContent() -> String {
         let items = getAllItems()
         var result = ""

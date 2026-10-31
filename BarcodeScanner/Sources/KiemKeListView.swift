@@ -538,11 +538,9 @@ public struct KiemKeListView: View {
         let timestamp = Int(Date().timeIntervalSince1970)
         let fileName = "KiemKe_\(timestamp).txt"
         
-        // 1. Lưu file vào Documents để đồng bộ qua cáp/Files app (UIFileSharingEnabled)
+        // 1. Lưu file vào Documents để có thể xem trong ứng dụng Tệp (Files app)
         if let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-            let docFile = documents.appendingPathComponent("WINCE.txt")
             let docFileDated = documents.appendingPathComponent(fileName)
-            try? content.write(to: docFile, atomically: true, encoding: .utf8)
             try? content.write(to: docFileDated, atomically: true, encoding: .utf8)
         }
         
