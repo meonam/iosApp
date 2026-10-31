@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct HomeContentView: View {
     @Binding var selectedTab: Int
-    @State private var versionInfo: String = "Phiên bản: 1.4.7"
+    @State private var versionInfo: String = "Phiên bản: 1.4.8"
     @State private var loadingStatus: String = "Hệ thống & CSDL sẵn sàng"
     @State private var showGuideSheet: Bool = false
     @State private var progress: Int = 100
