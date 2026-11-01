@@ -826,7 +826,9 @@ public struct HomeScreenView: View {
 
     // MARK: - 3. TRUY CẬP NHANH CHỨC NĂNG (8 LỐI TẮT CHÍNH)
     private var quickAccessSection: some View {
-        VStack(spacing: 12) {
+        let hasCustomPersonnelPerm = viewModel.user.hasPermission("ACCESS_PERSONNEL")
+        let hasCustomReportsPerm = viewModel.user.hasPermission("ACCESS_REPORTS")
+        return VStack(spacing: 12) {
             // Header
             HStack {
                 Text("Truy cập nhanh chức năng")
