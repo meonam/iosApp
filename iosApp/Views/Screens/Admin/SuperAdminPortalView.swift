@@ -832,13 +832,6 @@ struct ConfigTab: View {
 
                     VStack(spacing: 10) {
                         featureToggleRow(
-                            title: "Quản lý Thiết bị & Tài sản (Device & Asset)",
-                            desc: "Bật/Tắt module thiết bị, in tem QR/Barcode, nhật ký tài sản",
-                            tier: "Gói Chuẩn / Pro / Enterprise",
-                            isOn: $enableDeviceManagement
-                        )
-                        Divider()
-                        featureToggleRow(
                             title: "Live GPS Hiện trường & Giám sát KTV",
                             desc: "Theo dõi vị trí thực tế kỹ thuật viên và lộ trình điều phối",
                             tier: "Gói Enterprise",
@@ -1168,6 +1161,7 @@ struct SACompany: Identifiable {
     var companyName: String
     var isMaintenance: Bool
     var licenseTier: String
+    var licenseCode: String = ""
     var maxDevices: Int
     var createdAt: Int64
     var pricePerUserMonthly: Int64 = 250000
@@ -1245,6 +1239,7 @@ class SuperAdminViewModel: ObservableObject {
                     let companyName = DatabaseHelper.getString(fields["companyName"] as? [String: Any])
                     let isMaintenance = DatabaseHelper.getBool(fields["isMaintenance"] as? [String: Any])
                     let licenseTier = DatabaseHelper.getString(fields["licenseTier"] as? [String: Any])
+                    let licenseCode = DatabaseHelper.getString(fields["licenseCode"] as? [String: Any])
                     let maxDevices = DatabaseHelper.getInt(fields["maxDevices"] as? [String: Any])
                     let createdAt = DatabaseHelper.getInt64(fields["createdAt"] as? [String: Any])
                     let rawPrice = DatabaseHelper.getInt64(fields["pricePerUserMonthly"] as? [String: Any])
@@ -1256,6 +1251,7 @@ class SuperAdminViewModel: ObservableObject {
                         companyName: companyName.isEmpty ? "No Name" : companyName,
                         isMaintenance: isMaintenance,
                         licenseTier: licenseTier.isEmpty ? "PRO" : licenseTier,
+                        licenseCode: licenseCode,
                         maxDevices: maxDevices == 0 ? 100 : maxDevices,
                         createdAt: createdAt,
                         pricePerUserMonthly: pricePerUserMonthly,
@@ -1484,8 +1480,19 @@ class SuperAdminViewModel: ObservableObject {
                 "enableDeviceManagement": ["booleanValue": enableDeviceManagement]
             ]
         ]
+        let postData = try? JSONSerialization.data(withJSONObject: body)
+        request.httpBody = postData
         
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if let licCode = companies.first(where: { $0.id == companyId })?.licenseCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased(),
+           !licCode.isEmpty,
+           let licUrl = URL(string: "\(ServerConfig.documentsBaseUrl)/license_codes/\(licCode)?updateMask.fieldPaths=enableDeviceManagement") {
+            var licReq = URLRequest(url: licUrl)
+            licReq.httpMethod = "PATCH"
+            licReq.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            licReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            licReq.httpBody = postData
+            URLSession.shared.dataTask(with: licReq).resume()
+        }
         
         URLSession.shared.dataTask(with: request) { _, response, _ in
             if let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode) {

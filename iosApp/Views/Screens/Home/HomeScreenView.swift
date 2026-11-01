@@ -710,8 +710,10 @@ public struct HomeScreenView: View {
                 onNavigate(.supportHub)
             }
 
-            // Thẻ 3: Điểm danh GPS (Khóa với User thường)
-            if !viewModel.user.isStaff || viewModel.user.isTechnician || viewModel.user.isSpecialist {
+            // Thẻ 3: Điểm danh GPS (Khóa với User thường trừ khi có quyền ACCESS_PERSONNEL)
+            let hasCustomPersonnelPerm = viewModel.user.hasPermission("ACCESS_PERSONNEL")
+            let hasCustomReportsPerm = viewModel.user.hasPermission("ACCESS_REPORTS")
+            if viewModel.enableAttendance && (!viewModel.user.isStaff || viewModel.user.isTechnician || viewModel.user.isSpecialist || hasCustomPersonnelPerm) {
                 statsCardItem(
                     title: "Điểm danh",
                     count: "GPS",
@@ -877,7 +879,9 @@ public struct HomeScreenView: View {
                         iconColor: Color(hex: "#059669"),
                         bgColor: Color(hex: "#D1FAE5")
                     ) {
-                        if viewModel.user.isStaff && !viewModel.user.isTechnician && !viewModel.user.isSpecialist {
+                        if !viewModel.enableAttendance {
+                            accessRestrictedMessage = "Phân hệ Chấm công & Nhân sự đang tạm khóa cho toàn bộ doanh nghiệp."
+                        } else if viewModel.user.isStaff && !viewModel.user.isTechnician && !viewModel.user.isSpecialist && !hasCustomPersonnelPerm {
                             accessRestrictedMessage = "Báo cáo Chấm công & Công tác phí chỉ dành cho Kỹ thuật viên, Chuyên viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
                         } else {
                             onNavigate(.attendanceReport)
@@ -891,7 +895,9 @@ public struct HomeScreenView: View {
                         iconColor: Color(hex: "#7C3AED"),
                         bgColor: Color(hex: "#EDE9FE")
                     ) {
-                        if viewModel.user.isStaff && !viewModel.user.isTechnician && !viewModel.user.isSpecialist {
+                        if !viewModel.enableAttendance {
+                            accessRestrictedMessage = "Phân hệ Chấm công & Lịch trực đang tạm khóa cho toàn bộ doanh nghiệp."
+                        } else if viewModel.user.isStaff && !viewModel.user.isTechnician && !viewModel.user.isSpecialist && !hasCustomPersonnelPerm {
                             accessRestrictedMessage = "Lịch trực và Phân ca kỹ thuật chỉ dành cho Kỹ thuật viên, Chuyên viên và Cấp quản lý.\nBạn không có quyền truy cập trang này."
                         } else {
                             onNavigate(.shiftSchedule)
@@ -905,7 +911,11 @@ public struct HomeScreenView: View {
                         iconColor: Color(hex: "#D97706"),
                         bgColor: Color(hex: "#FEF3C7")
                     ) {
-                        activeSheet = .statistics
+                        if viewModel.user.isStaff && !hasCustomReportsPerm {
+                            accessRestrictedMessage = "Phân hệ Báo cáo & Thống kê đã được quản trị viên khóa đối với tài khoản Người dùng."
+                        } else {
+                            activeSheet = .statistics
+                        }
                     }
                 }
             } else {

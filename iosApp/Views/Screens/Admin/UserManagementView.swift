@@ -44,6 +44,7 @@ public struct UserManagementView: View {
     @State private var permDeptName: String = ""
     @State private var permKhuVuc: String = ""
     @State private var permToNghiepVu: String = ""
+    @State private var permCustomPermissions: Set<String> = []
     @State private var isSavingPerm: Bool = false
     @State private var permToastMessage: String? = nil
     @State private var isResettingDeviceBind: Bool = false
@@ -1341,6 +1342,80 @@ public struct UserManagementView: View {
                             }
                         }
 
+                        // 8.5. PHÂN QUYỀN MENU MỞ RỘNG CHO NHÂN VIÊN ĐƠN VỊ
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "shield.lefthalf.filled")
+                                    .font(.system(size: 15, weight: .bold))
+                                    .foregroundColor(Color.appPrimaryPink)
+                                Text("🛡️ PHÂN QUYỀN MENU MỞ RỘNG CHO NHÂN VIÊN")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(Color.appSecondaryDarkBlue)
+                            }
+
+                            Text("Tùy chọn mở riêng các menu Nhân sự, Báo cáo hoặc Thiết bị cho tài khoản này:")
+                                .font(.system(size: 11))
+                                .foregroundColor(.gray)
+
+                            VStack(spacing: 8) {
+                                let pPersonnel = "ACCESS_PERSONNEL"
+                                Toggle(isOn: Binding(
+                                    get: { permCustomPermissions.contains(pPersonnel) },
+                                    set: { if $0 { permCustomPermissions.insert(pPersonnel) } else { permCustomPermissions.remove(pPersonnel) } }
+                                )) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Mở menu Chấm công & Lịch trực")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundColor(Color.appSecondaryDarkBlue)
+                                        Text("Cho phép nhân viên sử dụng điểm danh GPS và xem lịch trực")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                                .toggleStyle(SwitchToggleStyle(tint: Color.appPrimaryPink))
+
+                                Divider()
+
+                                let pReports = "ACCESS_REPORTS"
+                                Toggle(isOn: Binding(
+                                    get: { permCustomPermissions.contains(pReports) },
+                                    set: { if $0 { permCustomPermissions.insert(pReports) } else { permCustomPermissions.remove(pReports) } }
+                                )) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Mở menu Báo cáo & Thống kê")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundColor(Color.appSecondaryDarkBlue)
+                                        Text("Cho phép nhân viên xem các báo cáo tổng hợp và biểu mẫu")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                                .toggleStyle(SwitchToggleStyle(tint: Color.appPrimaryPink))
+
+                                Divider()
+
+                                let pDevices = "ACCESS_DEVICES"
+                                Toggle(isOn: Binding(
+                                    get: { permCustomPermissions.contains(pDevices) },
+                                    set: { if $0 { permCustomPermissions.insert(pDevices) } else { permCustomPermissions.remove(pDevices) } }
+                                )) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Mở menu Quản lý thiết bị")
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundColor(Color.appSecondaryDarkBlue)
+                                        Text("Cho phép nhân viên xem danh sách thiết bị thuộc đơn vị")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                                .toggleStyle(SwitchToggleStyle(tint: Color.appPrimaryPink))
+                            }
+                        }
+                        .padding(12)
+                        .background(Color(hex: "#F8FAFC"))
+                        .cornerRadius(10)
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#E2E8F0"), lineWidth: 1))
+
                         // 9. THIẾT BỊ CHẤM CÔNG CỐ ĐỊNH (CHỐNG CHẤM CÔNG HỘ) - ĐỒNG BỘ 1:1 ANDROID & WEB
                         let liveSelectedUser = viewModel.allUsers.first(where: { $0.email.caseInsensitiveCompare(user.email) == .orderedSame }) ?? user
                         let boundDevId = liveSelectedUser.boundDeviceId.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1514,6 +1589,7 @@ public struct UserManagementView: View {
         permDeptName = u.departmentId
         permKhuVuc = u.maKhuVuc
         permToNghiepVu = u.toNghiepVu
+        permCustomPermissions = Set(u.permissions)
         permToastMessage = nil
     }
 
@@ -1531,7 +1607,7 @@ public struct UserManagementView: View {
                 phone: permPhone,
                 maKhuVuc: permKhuVuc,
                 maNhanVien: permMnv,
-                permissions: u.permissions,
+                permissions: Array(permCustomPermissions),
                 toNghiepVu: permToNghiepVu
             )
             isSavingPerm = false

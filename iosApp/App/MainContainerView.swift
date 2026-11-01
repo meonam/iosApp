@@ -108,6 +108,7 @@ public struct MainContainerView: View {
                                 user: homeViewModel.user.email.isEmpty ? user : homeViewModel.user,
                                 allowHelpdeskUserManagement: homeViewModel.allowHelpdeskUserManagement,
                                 enableDeviceManagement: homeViewModel.enableDeviceManagement,
+                                enableAttendance: homeViewModel.enableAttendance,
                                 pendingStaffCount: homeViewModel.pendingStaffCount,
                                 openTicketsCount: homeViewModel.openTicketsCount,
                                 currentDestination: currentDestination,
@@ -283,6 +284,16 @@ public struct MainContainerView: View {
                            let found = newTickets.first(where: { $0.id == tid }) {
                             pendingNavTicketId = nil
                             selectedTicketForChat = found
+                        }
+                    }
+                    .onChange(of: homeViewModel.enableDeviceManagement) { enabled in
+                        if !enabled {
+                            switch currentDestination {
+                            case .deviceList, .addDevice, .deviceTypes, .printBarcode, .statistics, .lichSu:
+                                currentDestination = .home
+                            default:
+                                break
+                            }
                         }
                     }
                     }

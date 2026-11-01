@@ -267,7 +267,7 @@ public struct HelpView: View {
                                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.appCardBorder, lineWidth: 1))
                                     }
 
-                                    Text("Phiên bản ứng dụng v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.5.1") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "151"))")
+                                    Text("Phiên bản ứng dụng v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.5.6") (Build \(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "156"))")
                                         .font(.system(size: 11.5))
                                         .foregroundColor(Color.appTextSecondary)
                                         .padding(.top, 4)
@@ -298,7 +298,7 @@ public struct HelpView: View {
                 Section(header: Text("Nội dung phản hồi")) {
                     TextField("Tiêu đề", text: $feedbackTitle)
                     TextEditor(text: $feedbackContent)
-                        .frame(height: 150)
+                        .frame(height: 154)
                 }
 
                 if let msg = feedbackMessage {

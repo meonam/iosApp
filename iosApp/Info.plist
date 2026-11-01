@@ -17,9 +17,9 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.5.2</string>
+    <string>1.5.6</string>
     <key>CFBundleVersion</key>
-    <string>152</string>
+    <string>156</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>UIApplicationSceneManifest</key>
@@ -43,8 +43,7 @@
     <array>
         <string>audio</string>
         <string>fetch</string>
-        <string>remote-notification</string>
-    </array>
+            </array>
 
     <!-- QUYỀN CAMERA ĐỂ QUÉT MÃ VẠCH & MÃ QR -->
     <key>NSCameraUsageDescription</key>

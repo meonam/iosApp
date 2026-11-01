@@ -25,15 +25,17 @@ public class HomeViewModel: ObservableObject {
     // Cấu hình tính năng phân quyền Helpdesk
     @Published public var allowHelpdeskUserManagement: Bool = false
 
-    // Cấu hình Bật/Tắt module Quản lý thiết bị (đồng bộ Web/Desktop/Android/iOS)
-    @Published public var enableDeviceManagement: Bool = true
-    private var isCompanyDeviceEnabled: Bool = true
+    // Cấu hình Bật/Tắt module Quản lý thiết bị & Chấm công (đồng bộ Web/Desktop/Android/iOS)
+    @Published public var enableDeviceManagement: Bool = UserDefaults.standard.object(forKey: "enableDeviceManagement") as? Bool ?? false
+    @Published public var enableAttendance: Bool = true
+    private var isCompanyDeviceEnabled: Bool = UserDefaults.standard.object(forKey: "enableDeviceManagement") as? Bool ?? false
     private var isGlobalDeviceEnabled: Bool = true
 
     private func updateDeviceManagementState() {
-        let newState = isCompanyDeviceEnabled && isGlobalDeviceEnabled
+        let newState = isCompanyDeviceEnabled
         if self.enableDeviceManagement != newState {
             self.enableDeviceManagement = newState
+            UserDefaults.standard.set(newState, forKey: "enableDeviceManagement")
         }
     }
 
@@ -111,11 +113,13 @@ public class HomeViewModel: ObservableObject {
         let text = DatabaseHelper.getString(fields["bannerText"] as? [String: Any])
         let type = DatabaseHelper.getString(fields["bannerType"] as? [String: Any])
         let devMgmt = DatabaseHelper.getBool(fields["enableDeviceManagement"] as? [String: Any], defaultValue: true)
+        let attMgmt = DatabaseHelper.getBool(fields["enableAttendance"] as? [String: Any], defaultValue: true)
 
         self.isCompanyBannerActive = active
         self.companyBannerText = text
         self.companyBannerType = type.isEmpty ? "INFO" : type
         self.isCompanyDeviceEnabled = devMgmt
+        self.enableAttendance = attMgmt
         self.updateDeviceManagementState()
     }
 
@@ -139,13 +143,6 @@ public class HomeViewModel: ObservableObject {
         }
 
         self.allowHelpdeskUserManagement = DatabaseHelper.getBool(fields["allowHelpdeskUserManagement"] as? [String: Any])
-        if let devToggle = fields["enableDeviceManagement"] as? [String: Any] {
-            let toggleVal = DatabaseHelper.getBool(devToggle, defaultValue: true)
-            if !toggleVal {
-                self.isCompanyDeviceEnabled = false
-            }
-        }
-        self.updateDeviceManagementState()
     }
 
     // MARK: - TẢI CẤU HÌNH ĐIỀU KHIỂN TOÀN CẦU (GLOBAL_CONTROLS)

@@ -67,7 +67,8 @@ public enum DrawerDestination: Identifiable {
 public struct AppSidebarDrawer: View {
     var user: User
     var allowHelpdeskUserManagement: Bool = false
-    var enableDeviceManagement: Bool = true
+    var enableDeviceManagement: Bool = false
+    var enableAttendance: Bool = true
     var pendingStaffCount: Int
     var openTicketsCount: Int = 0
     var currentDestination: DrawerDestination = .home
@@ -85,7 +86,8 @@ public struct AppSidebarDrawer: View {
     public init(
         user: User,
         allowHelpdeskUserManagement: Bool = false,
-        enableDeviceManagement: Bool = true,
+        enableDeviceManagement: Bool = false,
+        enableAttendance: Bool = true,
         pendingStaffCount: Int = 0,
         openTicketsCount: Int = 0,
         currentDestination: DrawerDestination = .home,
@@ -96,6 +98,7 @@ public struct AppSidebarDrawer: View {
         self.user = user
         self.allowHelpdeskUserManagement = allowHelpdeskUserManagement
         self.enableDeviceManagement = enableDeviceManagement
+        self.enableAttendance = enableAttendance
         self.pendingStaffCount = pendingStaffCount
         self.openTicketsCount = openTicketsCount
         self.currentDestination = currentDestination
@@ -293,11 +296,23 @@ public struct AppSidebarDrawer: View {
                             onSelect(.supportHub)
                         }
 
+                        // Quyền truy cập chi tiết tránh chồng chéo
+                        let isStaffUser = user.isStaff
+                        let hasCustomPersonnelPerm = user.hasPermission("ACCESS_PERSONNEL")
+                        let hasCustomReportsPerm = user.hasPermission("ACCESS_REPORTS")
+                        let hasCustomDevicePerm = user.hasPermission("ACCESS_DEVICES")
+
+                        let isDeviceLocked = !enableDeviceManagement
+                        let canViewDeviceSection = enableDeviceManagement && (!isStaffUser || hasCustomDevicePerm)
+                        let canViewPersonnelSection = isManagerOrAdmin || (isStaffUser && hasCustomPersonnelPerm)
+                        let canViewAttendanceSection = enableAttendance && (isManagerOrAdmin || isIncidentHandler || isSpecialist || hasCustomPersonnelPerm)
+                        let canViewReportSection = !isStaffUser || hasCustomReportsPerm
+
                         // --- NHÓM 1: QUẢN LÝ THIẾT BỊ ---
-                        if enableDeviceManagement {
+                        if canViewDeviceSection {
                             DrawerSectionHeader(
-                                title: "QUẢN LÝ THIẾT BỊ",
-                                headerColor: Color(hex: "#059669"),
+                                title: isDeviceLocked ? "QUẢN LÝ THIẾT BỊ 🔒" : "QUẢN LÝ THIẾT BỊ",
+                                headerColor: isDeviceLocked ? Color(hex: "#94A3B8") : Color(hex: "#059669"),
                                 isExpanded: $isDeviceExpanded
                             )
                             if isDeviceExpanded {
@@ -305,7 +320,8 @@ public struct AppSidebarDrawer: View {
                                     drawerItemRow(
                                         title: "Danh sách thiết bị",
                                         icon: "laptopcomputer.and.iphone",
-                                        color: Color(hex: "#10B981"),
+                                        color: isDeviceLocked ? Color(hex: "#94A3B8") : Color(hex: "#10B981"),
+                                        isLocked: isDeviceLocked,
                                         isSelected: currentDestination == .deviceList
                                     ) {
                                         onSelect(.deviceList)
@@ -313,7 +329,8 @@ public struct AppSidebarDrawer: View {
                                     drawerItemRow(
                                         title: "Thêm thiết bị mới",
                                         icon: "plus.circle.fill",
-                                        color: Color(hex: "#8B5CF6"),
+                                        color: isDeviceLocked ? Color(hex: "#94A3B8") : Color(hex: "#8B5CF6"),
+                                        isLocked: isDeviceLocked,
                                         isSelected: currentDestination == .addDevice
                                     ) {
                                         onSelect(.addDevice)
@@ -321,7 +338,8 @@ public struct AppSidebarDrawer: View {
                                     drawerItemRow(
                                         title: "Danh mục loại thiết bị",
                                         icon: "tag.fill",
-                                        color: Color(hex: "#0EA5E9"),
+                                        color: isDeviceLocked ? Color(hex: "#94A3B8") : Color(hex: "#0EA5E9"),
+                                        isLocked: isDeviceLocked,
                                         isSelected: currentDestination == .deviceTypes
                                     ) {
                                         onSelect(.deviceTypes)
@@ -329,7 +347,8 @@ public struct AppSidebarDrawer: View {
                                     drawerItemRow(
                                         title: "Nhật ký thiết bị",
                                         icon: "clock.arrow.circlepath",
-                                        color: Color(hex: "#8B5CF6"),
+                                        color: isDeviceLocked ? Color(hex: "#94A3B8") : Color(hex: "#8B5CF6"),
+                                        isLocked: isDeviceLocked,
                                         isSelected: currentDestination == .lichSu
                                     ) {
                                         onSelect(.lichSu)
@@ -340,7 +359,7 @@ public struct AppSidebarDrawer: View {
                         }
 
                         // --- NHÓM 2: QUẢN LÝ NHÂN SỰ & TỔ CHỨC / DANH BẠ NHÂN SỰ ---
-                        if isManagerOrAdmin {
+                        if canViewPersonnelSection {
                             DrawerSectionHeader(
                                 title: isHelpdeskReadOnly ? "DANH BẠ NHÂN SỰ" : "QUẢN LÝ NHÂN SỰ & TỔ CHỨC",
                                 headerColor: isHelpdeskReadOnly ? Color(hex: "#0284C7") : Color(hex: "#6366F1"),
@@ -398,7 +417,7 @@ public struct AppSidebarDrawer: View {
                         }
 
                         // --- NHÓM 3: CHẤM CÔNG & ĐIỀU PHỐI (KTV, SỰ CỐ, CHUYÊN VIÊN, QUẢN LÝ) ---
-                        if isManagerOrAdmin || isIncidentHandler || isSpecialist {
+                        if canViewAttendanceSection {
                             DrawerSectionHeader(
                                 title: "CHẤM CÔNG & ĐIỀU PHỐI",
                                 headerColor: Color(hex: "#F97316"),
@@ -446,12 +465,13 @@ public struct AppSidebarDrawer: View {
                         }
 
                         // --- NHÓM 4: BÁO CÁO & IN ẤN (TẬP TRUNG TOÀN BỘ BÁO CÁO VÀ IN ẤN) ---
-                        DrawerSectionHeader(
-                            title: "BÁO CÁO & IN ẤN",
-                            headerColor: Color(hex: "#FB7185"),
-                            isExpanded: $isReportExpanded
-                        )
-                        if isReportExpanded {
+                        if canViewReportSection {
+                            DrawerSectionHeader(
+                                title: "BÁO CÁO & IN ẤN",
+                                headerColor: Color(hex: "#FB7185"),
+                                isExpanded: $isReportExpanded
+                            )
+                            if isReportExpanded {
                             VStack(spacing: 2) {
                                 if enableDeviceManagement {
                                     drawerItemRow(
@@ -473,7 +493,7 @@ public struct AppSidebarDrawer: View {
                                         onSelect(.supportRating)
                                     }
                                 }
-                                if isManagerOrAdmin || isIncidentHandler || isSpecialist {
+                                if enableAttendance && (isManagerOrAdmin || isIncidentHandler || isSpecialist) {
                                     let reportTitle = ((isIncidentHandler || isSpecialist) && !isManagerOrAdmin) ? "Báo cáo chấm công của tôi" : "Báo cáo công & OSRM"
                                     drawerItemRow(
                                         title: reportTitle,
@@ -496,6 +516,7 @@ public struct AppSidebarDrawer: View {
                                 }
                             }
                             .padding(.leading, 6)
+                        }
                         }
 
                         // --- NHÓM 5: HỆ THỐNG & BẢN QUYỀN ---
@@ -642,6 +663,7 @@ public struct AppSidebarDrawer: View {
         icon: String,
         color: Color,
         badge: String? = nil,
+        isLocked: Bool = false,
         isSelected: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
@@ -659,7 +681,16 @@ public struct AppSidebarDrawer: View {
 
                 Spacer()
 
-                if let b = badge {
+                if isLocked {
+                    Text("🔒 Khóa")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(Color(hex: "#DC2626"))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color(hex: "#FEF2F2"))
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(hex: "#FCA5A5"), lineWidth: 0.5))
+                        .cornerRadius(4)
+                } else if let b = badge {
                     Text(b)
                         .font(.system(size: 9.5, weight: .bold))
                         .foregroundColor(.white)
