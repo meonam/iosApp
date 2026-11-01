@@ -223,4 +223,111 @@ public final class FirebaseSyncService {
             }
         }
     }
+    
+    // MARK: - Quản lý chiếm dụng ScanID (Conflict Detection)
+    
+    public struct ScanIdCheckResult {
+        public let isSuccess: Bool
+        public let conflictDevice: String?
+        public let conflictPlatform: String?
+    }
+    
+    public static func formatScanId(_ scanId: String) -> String {
+        let clean = scanId.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let intVal = Int(clean) {
+            return String(format: "%03d", intVal)
+        } else {
+            return clean.isEmpty ? "001" : clean
+        }
+    }
+    
+    public func checkAndRegisterScanId(pcUid: String, scanId: String) async -> ScanIdCheckResult {
+        let cleanUid = pcUid.trimmingCharacters(in: .whitespacesAndNewlines)
+        let formattedId = Self.formatScanId(scanId)
+        guard !cleanUid.isEmpty && !formattedId.isEmpty else {
+            return ScanIdCheckResult(isSuccess: true, conflictDevice: nil, conflictPlatform: nil)
+        }
+        
+        let nodeUrlString = "\(firebaseBaseURL)/active_scan_ids/\(cleanUid)/\(formattedId).json"
+        guard let url = URL(string: nodeUrlString) else {
+            return ScanIdCheckResult(isSuccess: true, conflictDevice: nil, conflictPlatform: nil)
+        }
+        
+        let myDeviceId = UIDevice.current.identifierForVendor?.uuidString ?? "iOSDevice"
+        let myDeviceName = UIDevice.current.name
+        let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let expirationMs: Int64 = 12 * 60 * 60 * 1000
+        
+        // 1. Kiểm tra node hiện tại
+        var getReq = URLRequest(url: url)
+        getReq.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        getReq.timeoutInterval = 5.0
+        
+        if let (data, response) = try? await URLSession.shared.data(for: getReq),
+           let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            
+            let existingDeviceId = (json["deviceId"] as? String) ?? ""
+            let existingDeviceName = (json["deviceName"] as? String) ?? "Thiết bị khác"
+            let existingPlatform = (json["platform"] as? String) ?? "Khác"
+            let updatedAt = (json["updatedAt"] as? NSNumber)?.int64Value ?? 0
+            
+            if !existingDeviceId.isEmpty && existingDeviceId != myDeviceId {
+                let isExpired = (nowMs - updatedAt) > expirationMs
+                if !isExpired {
+                    print("[FirebaseSyncService] Xung đột ScanID: \(formattedId) trên \(cleanUid) bởi \(existingDeviceName) (\(existingPlatform))")
+                    return ScanIdCheckResult(
+                        isSuccess: false,
+                        conflictDevice: existingDeviceName,
+                        conflictPlatform: existingPlatform
+                    )
+                }
+            }
+        }
+        
+        // 2. Đăng ký / gia hạn chiếm dụng mã ScanID
+        var putReq = URLRequest(url: url)
+        putReq.httpMethod = "PUT"
+        putReq.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let payload: [String: Any] = [
+            "deviceId": myDeviceId,
+            "deviceName": myDeviceName,
+            "platform": "iOS",
+            "updatedAt": nowMs
+        ]
+        if let body = try? JSONSerialization.data(withJSONObject: payload) {
+            putReq.httpBody = body
+            _ = try? await URLSession.shared.data(for: putReq)
+            print("[FirebaseSyncService] Đã đăng ký ScanID \(formattedId) trên UID \(cleanUid)")
+        }
+        
+        return ScanIdCheckResult(isSuccess: true, conflictDevice: nil, conflictPlatform: nil)
+    }
+    
+    public func releaseScanId(pcUid: String, scanId: String) async {
+        let cleanUid = pcUid.trimmingCharacters(in: .whitespacesAndNewlines)
+        let formattedId = Self.formatScanId(scanId)
+        guard !cleanUid.isEmpty && !formattedId.isEmpty else { return }
+        
+        let nodeUrlString = "\(firebaseBaseURL)/active_scan_ids/\(cleanUid)/\(formattedId).json"
+        guard let url = URL(string: nodeUrlString) else { return }
+        
+        let myDeviceId = UIDevice.current.identifierForVendor?.uuidString ?? "iOSDevice"
+        
+        var getReq = URLRequest(url: url)
+        getReq.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        getReq.timeoutInterval = 4.0
+        
+        if let (data, response) = try? await URLSession.shared.data(for: getReq),
+           let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200,
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let existingDeviceId = (json["deviceId"] as? String) ?? ""
+            if existingDeviceId == myDeviceId {
+                var delReq = URLRequest(url: url)
+                delReq.httpMethod = "DELETE"
+                _ = try? await URLSession.shared.data(for: delReq)
+                print("[FirebaseSyncService] Đã giải phóng ScanID \(formattedId) trên UID \(cleanUid)")
+            }
+        }
+    }
 }

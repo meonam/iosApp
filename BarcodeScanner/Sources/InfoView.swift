@@ -1,7 +1,7 @@
 import SwiftUI
 
 public struct InfoView: View {
-    let versionName: String = "1.4.8"
+    let versionName: String = "1.4.9"
     let deviceId: String = UIDevice.current.identifierForVendor?.uuidString ?? "N/A"
     let systemVersion: String = UIDevice.current.systemVersion
     let modelName: String = UIDevice.current.model

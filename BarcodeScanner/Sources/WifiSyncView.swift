@@ -266,7 +266,27 @@ public struct WifiSyncView: View {
                             .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                     )
                     .disabled(selectedMode == 2)
-                    .onChange(of: idScan) { _ in updateRedScanCount() }
+                    .onChange(of: idScan) { newScan in
+                        updateRedScanCount()
+                        let cleanUid = uidNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let cleanScan = newScan.trimmingCharacters(in: .whitespacesAndNewlines)
+                        if !cleanUid.isEmpty && cleanScan.count >= 3 {
+                            Task {
+                                let res = await syncService.checkAndRegisterScanId(pcUid: cleanUid, scanId: cleanScan)
+                                if !res.isSuccess {
+                                    await MainActor.run {
+                                        let devName = res.conflictDevice ?? "Thiết bị khác"
+                                        let plat = res.conflictPlatform ?? "Android/iOS"
+                                        let fScan = FirebaseSyncService.formatScanId(cleanScan)
+                                        activeAlert = .message(
+                                            title: "⚠️ Trùng mã ScanID!",
+                                            message: "Mã ScanID '\(fScan)' đang được sử dụng bởi: \(devName) (\(plat)).\n\nVui lòng chọn số khác!"
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
             }
             
             VStack(alignment: .leading, spacing: 3) {
@@ -473,10 +493,29 @@ public struct WifiSyncView: View {
                 CameraScannerView(isTorchOn: isUidTorchOn) { code in
                     let clean = code.trimmingCharacters(in: .whitespacesAndNewlines)
                     if !clean.isEmpty {
+                        let oldUid = uidNumber
                         uidNumber = clean
                         AudioServicesPlaySystemSound(1057)
                         syncService.startRemoteClearMonitoring(pcUid: clean)
                         isScanningUid = false
+                        
+                        // Kiểm tra xung đột ScanID trên UID vừa quét
+                        Task {
+                            let res = await syncService.checkAndRegisterScanId(pcUid: clean, scanId: idScan)
+                            if !res.isSuccess {
+                                await MainActor.run {
+                                    let devName = res.conflictDevice ?? "Thiết bị khác"
+                                    let plat = res.conflictPlatform ?? "Android/iOS"
+                                    let fScan = FirebaseSyncService.formatScanId(idScan)
+                                    activeAlert = .message(
+                                        title: "⚠️ Trùng mã ScanID!",
+                                        message: "Mã ScanID '\(fScan)' trên máy tính '\(clean)' đang được sử dụng bởi thiết bị khác: \(devName) (\(plat)).\n\nVui lòng đổi mã ScanID khác để tránh ghi đè dữ liệu!"
+                                    )
+                                }
+                            } else if !oldUid.isEmpty && oldUid != clean {
+                                await syncService.releaseScanId(pcUid: oldUid, scanId: idScan)
+                            }
+                        }
                     }
                 }
                 .edgesIgnoringSafeArea(.all)
@@ -588,6 +627,21 @@ public struct WifiSyncView: View {
         
         Task {
             do {
+                // Kiểm tra xung đột ScanID trước khi gửi dữ liệu
+                let checkRes = await syncService.checkAndRegisterScanId(pcUid: cleanUid, scanId: formattedScanId)
+                if !checkRes.isSuccess {
+                    await MainActor.run {
+                        isSending = false
+                        let devName = checkRes.conflictDevice ?? "Thiết bị khác"
+                        let plat = checkRes.conflictPlatform ?? "Android/iOS"
+                        activeAlert = .message(
+                            title: "⚠️ Không thể gửi dữ liệu!",
+                            message: "Mã ScanID '\(formattedScanId)' đang bị trùng với thiết bị khác (\(devName) - \(plat)) trên máy tính này. Vui lòng đổi mã ScanID trước khi gửi dữ liệu!"
+                        )
+                    }
+                    return
+                }
+
                 // Kiểm tra kết nối PC trên Firebase
                 let pcConnected = try await syncService.checkPcConnection(pcUid: cleanUid)
                 if !pcConnected {
