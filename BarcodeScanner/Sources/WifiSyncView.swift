@@ -718,7 +718,7 @@ public struct WifiSyncView: View {
                     fileName: fileName,
                     content: contentToSend,
                     employeeId: formattedScanId,
-                    totalRecords: items.count
+                    totalRecords: allItems.count
                 )
                 
                 await MainActor.run {

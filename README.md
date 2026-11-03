@@ -1,57 +1,86 @@
-# Hướng Dẫn Triển Khai Ứng Dụng iOS Với GitHub Actions
+# HƯỚNG DẪN DỰ ÁN BARCODE SCANNER CHO iOS
 
-Thư mục này chứa toàn bộ khung dự án **iOS (iPhone/iPad)** và kịch bản CI/CD tự động build bằng **GitHub Actions** mà không cần máy tính Mac.
-
----
-
-## 1. Cấu Trúc Thư Mục
-* `iosApp/iosApp/iOSApp.swift`: Điểm khởi chạy ứng dụng iOS.
-* `iosApp/iosApp/ContentView.swift`: Giao diện ứng dụng iOS (kết nối Compose Multiplatform).
-* `iosApp/iosApp/Info.plist`: Cấu hình xin quyền Camera (quét mã QR/Barcode), Quyền vị trí (GPS), Quyền Bluetooth (in nhiệt).
-* `iosApp/iosApp.xcodeproj/`: File dự án Xcode tiêu chuẩn của Apple.
-* `.github/workflows/ios-build.yml`: Kịch bản GitHub Actions tự động build file `.ipa` trên máy chủ đám mây macOS Apple Silicon.
+Ứng dụng **BarcodeScanner** dành cho hệ điều hành Apple iOS (iPhone / iPad), được thiết kế tương thích **100%** cả về giao diện, tính năng, định dạng cơ sở dữ liệu và giao thức truyền dữ liệu với ứng dụng Android hiện tại cùng 2 phần mềm trên máy tính: **ASSET INVENTORY** và **DATALOGIC MEMOR**.
 
 ---
 
-## 2. Các Bước Để Kích Hoạt Build Tự Động Trên GitHub
+## 1. Cấu Trúc Dự Án (`E:\CODE\iOS\BarcodeScanner`)
 
-### Bước 1: Khởi tạo Git và Đẩy Code Lên GitHub
-Mở PowerShell tại thư mục dự án và chạy:
-```powershell
-# 1. Khởi tạo kho lưu trữ Git
-git init
-
-# 2. Thêm toàn bộ mã nguồn
-git add .
-
-# 3. Tạo commit đầu tiên
-git commit -m "feat: setup iOS project and GitHub Actions CI/CD workflows"
-
-# 4. Đổi tên nhánh sang main
-git branch -M main
-
-# 5. Liên kết với kho GitHub của bạn (thay bằng URL GitHub thật của bạn)
-git remote add origin https://github.com/<tai-khoan-cua-ban>/QLTB.git
-
-# 6. Đẩy mã nguồn lên GitHub
-git push -u origin main
+```
+E:\CODE\iOS\BarcodeScanner\
+├── Package.swift                             # Cấu hình Swift Package Manager (SPM)
+└── BarcodeScanner\
+    ├── Resources\
+    │   └── Info.plist                        # Quyền Camera, UIFileSharingEnabled (USB Cable)
+    └── Sources\
+        ├── BarcodeScannerApp.swift           # Điểm khởi chạy chính (@main SwiftUI)
+        ├── MainTabView.swift                 # Điều hướng 5 Tab giống hệt Android
+        ├── ScanBarcodeView.swift             # Màn hình Quét mã vạch (Camera Viewfinder + Laser line)
+        ├── KiemKeListView.swift              # Bảng kiểm kê kho (STT, Mã, SL, Sửa, Xoá, Xuất file)
+        ├── WifiSyncView.swift                # Màn hình truyền Wi-Fi/Internet (Nhập/Quét UID máy tính)
+        ├── SettingsView.swift                # Cài đặt loại mã vạch (EAN-13, EAN-8, UPC-A, Code128,...)
+        ├── InfoView.swift                    # Thông tin máy, phiên bản 1.4.0, bản quyền Co.opmart
+        ├── InventoryItem.swift               # Model dữ liệu dòng kiểm kê
+        ├── DatabaseHelper.swift              # Quản lý SQLite C-API (KIEMKHO.sqlite trong Documents)
+        ├── CameraScannerView.swift           # Trình quét camera tốc độ cao AVFoundation + Rung/Bíp
+        └── FirebaseSyncService.swift         # Kết nối Firebase RTDB truyền không dây tới PC
 ```
 
-### Bước 2: Xem Quá Trình Build Trên GitHub
-1. Truy cập vào trang GitHub repository của bạn.
-2. Bấm vào tab **Actions** ở menu phía trên.
-3. Bạn sẽ thấy quy trình **"Build iOS App (.IPA) via GitHub Actions"** đang tự động chạy trên máy ảo **macOS**.
-4. Khi quá trình build báo màu xanh (Success), bấm vào tên bản build:
-   * Kéo xuống mục **Artifacts** ở dưới cùng.
-   * Bấm vào **`QLTB-iOS-App-IPA`** để tải file `.ipa` về máy!
+---
+
+## 2. Tính Tương Thích Tuyệt Đối Với PC (ASSET INVENTORY & DATALOGIC MEMOR)
+
+### A. Cấu trúc Cơ Sở Dữ Liệu `KIEMKHO.sqlite`
+- Tệp database được lưu trực tiếp tại thư mục `Documents` của ứng dụng trên iOS.
+- **Bảng `INVENTORY`**:
+  ```sql
+  CREATE TABLE IF NOT EXISTS INVENTORY (
+      STT INTEGER PRIMARY KEY AUTOINCREMENT,
+      Barcode TEXT NOT NULL,
+      Quantity REAL NOT NULL
+  );
+  ```
+- **Bảng `Products`**: Danh mục tên sản phẩm.
+- **Bảng chữ ký bảo mật `_BARCODE_SCANNER_SIGNATURE`**:
+  ```sql
+  INSERT OR REPLACE INTO _BARCODE_SCANNER_SIGNATURE VALUES (
+      'SIGNATURE',
+      'HUYENHAN_BARCODESCANNER_SECURE_TOKEN_2026',
+      datetime('now')
+  );
+  ```
+  *(Chữ ký này bắt buộc để ASSET INVENTORY và DATALOGIC MEMOR xác thực file hợp lệ và mở khoá tính năng sửa/xoá trên PC).*
 
 ---
 
-## 3. Cách Cài Đặt File `.ipa` Lên iPhone
+### B. Phương Án Lấy Dữ Liệu Qua Cáp USB (Tối Ưu & Thuận Tiện Nhất)
+Apple áp dụng cơ chế bảo mật Sandbox nghiêm ngặt. Để máy tính PC có thể lấy dữ liệu qua cáp USB giống Android:
+1. Trong file [Info.plist](file:///E:/CODE/iOS/BarcodeScanner/BarcodeScanner/Resources/Info.plist), hai cờ chia sẻ tệp của Apple đã được bật sẵn:
+   - `UIFileSharingEnabled = true` (Bật tính năng iTunes File Sharing)
+   - `LSSupportsOpeningDocumentsInPlace = true`
+2. **Cách PC lấy dữ liệu qua cáp:**
+   - Khi cắm iPhone vào máy tính PC bằng cáp Lightning / Type-C:
+     - Thư mục `Documents` của app `BarcodeScanner` sẽ xuất hiện ngay trên máy tính (qua Apple Devices / iTunes / 3uTools / iMazing / libimobiledevice).
+     - File `KIEMKHO.sqlite` và `WINCE.txt` nằm ngay tại đây.
+     - Người dùng hoặc phần mềm PC có thể sao chép / kéo file trực tiếp vào máy tính trong 1 giây mà không cần bẻ khoá (jailbreak) thiết bị.
 
-* **Cách 1 (Miễn phí qua Sideloadly / AltStore):**
-  * Tải công cụ **Sideloadly** (trên máy tính Windows).
-  * Cắm iPhone vào máy tính qua cáp sạc USB.
-  * Kéo file `QLTB_iOS_v1.0.0.ipa` vào Sideloadly, nhập Apple ID của bạn để cài trực tiếp vào iPhone.
-* **Cách 2 (Qua Apple TestFlight):**
-  * Nếu có tài khoản Apple Developer 99$/năm, thêm App Store Connect API Key vào GitHub Secrets để GitHub Actions đẩy thẳng app lên TestFlight.
+---
+
+### C. Phương Án Truyền Không Dây Qua Wi-Fi / Internet
+- Hoạt động tương thích 100% với hệ thống Firebase Realtime Database hiện hành của ứng dụng Android:
+  - **Firebase URL**: `https://barcodescanner-cc3ab-default-rtdb.asia-southeast1.firebasedatabase.app`
+  - **Kênh đẩy dữ liệu**: `inventory_data/{pcUid}/{pushKey}.json`
+  - **Kênh xác nhận ACK**: `inventory_acks/{pcUid}/{pushKey}.json` (`status: "CONFIRMED"`)
+- Người dùng chỉ cần nhập mã UID hoặc bấm **"Quét QR"** để quét mã QR hiển thị trên màn hình PC, sau đó bấm **"GỬI DỮ LIỆU ĐẾN MÁY TÍNH"**. Cả hai phần mềm **ASSET INVENTORY** và **DATALOGIC MEMOR** đều sẽ tự động nhận dữ liệu ngay lập tức.
+
+---
+
+## 3. Cách Biên Dịch & Cài Đặt Lên iPhone
+
+Có thể cài đặt ứng dụng lên iPhone theo các cách sau:
+1. **Dùng Xcode (macOS hoặc máy Mac / Hackintosh / Mac ảo)**:
+   - Mở thư mục `E:\CODE\iOS\BarcodeScanner` trong Xcode.
+   - Chọn Team Developer cá nhân (miễn phí) và cắm iPhone vào nhấn **Run (Build & Install)**.
+2. **Dùng AltServer / Sideloadly (Trực tiếp từ Windows)**:
+   - Máy tính hiện đã cài đặt sẵn **AltServer** (`C:\Program Files (x86)\AltServer`).
+   - Có thể xuất file `.ipa` hoặc dùng Sideloadly/AltServer để nạp trực tiếp file cài đặt lên iPhone bằng cáp USB với Apple ID cá nhân.

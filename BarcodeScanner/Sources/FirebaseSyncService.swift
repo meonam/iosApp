@@ -80,8 +80,11 @@ public final class FirebaseSyncService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
-        let iosId = UIDevice.current.identifierForVendor?.uuidString ?? "iOSDevice"
-        let deviceModel = "\(UIDevice.current.model) (iOS \(UIDevice.current.systemVersion))"
+        let (iosId, deviceModel) = await MainActor.run {
+            let id = UIDevice.current.identifierForVendor?.uuidString ?? "iOSDevice"
+            let model = "\(UIDevice.current.model) (iOS \(UIDevice.current.systemVersion))"
+            return (id, model)
+        }
         
         // Đầy đủ các trường tương tự Android WifiFragment.kt và model InventoryData trên PC GETDATA.cs
         let payload: [String: Any] = [
@@ -280,8 +283,11 @@ public final class FirebaseSyncService {
             return ScanIdCheckResult(isSuccess: true, conflictDevice: nil, conflictPlatform: nil)
         }
         
-        let myDeviceId = UIDevice.current.identifierForVendor?.uuidString ?? "iOSDevice"
-        let myDeviceName = UIDevice.current.name
+        let (myDeviceId, myDeviceName) = await MainActor.run {
+            let id = UIDevice.current.identifierForVendor?.uuidString ?? "iOSDevice"
+            let name = UIDevice.current.name
+            return (id, name)
+        }
         let nowMs = Int64(Date().timeIntervalSince1970 * 1000)
         let expirationMs: Int64 = 12 * 60 * 60 * 1000
         
@@ -339,7 +345,7 @@ public final class FirebaseSyncService {
         let nodeUrlString = "\(firebaseBaseURL)/devices/active_scan_ids/\(cleanUid)/\(formattedId).json"
         guard let url = URL(string: nodeUrlString) else { return }
         
-        let myDeviceId = UIDevice.current.identifierForVendor?.uuidString ?? "iOSDevice"
+        let myDeviceId = await MainActor.run { UIDevice.current.identifierForVendor?.uuidString ?? "iOSDevice" }
         
         var getReq = URLRequest(url: url)
         getReq.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
