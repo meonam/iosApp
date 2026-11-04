@@ -243,7 +243,8 @@ public final class FirebaseSyncService {
                     await MainActor.run {
                         _ = DatabaseHelper.shared.clearAll()
                         AudioServicesPlaySystemSound(1057) // Beep
-                        NotificationCenter.default.post(name: .inventoryDidClearRemotely, object: nil)
+                        let info: [String: Any] = targetFileName.isEmpty ? [:] : ["fileName": targetFileName]
+                        NotificationCenter.default.post(name: .inventoryDidClearRemotely, object: nil, userInfo: info)
                     }
                     break
                 } else {

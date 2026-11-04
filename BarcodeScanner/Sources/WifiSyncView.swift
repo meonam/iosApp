@@ -3,13 +3,13 @@ import AudioToolbox
 
 private enum ActiveWifiAlert: Identifiable {
     case resetConfirm
-    case clearPrompt(fileName: String)
+    case completionPrompt(fileName: String)
     case message(title: String, message: String)
     
     var id: String {
         switch self {
         case .resetConfirm: return "resetConfirm"
-        case .clearPrompt(let fn): return "clearPrompt_\(fn)"
+        case .completionPrompt(let fn): return "completionPrompt_\(fn)"
         case .message(let title, _): return "msg_\(title)"
         }
     }
@@ -31,6 +31,9 @@ public struct WifiSyncView: View {
     @State private var isScanningUid: Bool = false
     @State private var isUidTorchOn: Bool = false
     @State private var isSending: Bool = false
+    @State private var isWaitingForApproval: Bool = false
+    @State private var waitingMessage: String = ""
+    @State private var waitingFileName: String = ""
     @State private var activeAlert: ActiveWifiAlert? = nil
     @State private var lastSentFileName: String = ""
     @State private var lastRegisteredScanId: String = "001"
@@ -151,11 +154,57 @@ public struct WifiSyncView: View {
                 }
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .inventoryDidClearRemotely)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: .inventoryDidClearRemotely)) { notif in
+            let targetFile = (notif.userInfo?["fileName"] as? String)?.isEmpty == false
+                ? (notif.userInfo!["fileName"] as! String)
+                : (lastSentFileName.isEmpty ? computedFileName : lastSentFileName)
+            
+            _ = db.clearAll()
             refreshCounts()
+            
+            if isWaitingForApproval {
+                isWaitingForApproval = false
+                AudioServicesPlaySystemSound(1057)
+                AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
+                activeAlert = .completionPrompt(fileName: targetFile)
+            }
         }
         .sheet(isPresented: $isScanningUid) {
             uidScannerSheet
+        }
+        .overlay {
+            if isWaitingForApproval {
+                ZStack {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                    
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .scaleEffect(1.3)
+                            .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                        
+                        Text("Đang chờ tiếp nhận...")
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(.primary)
+                        
+                        Text(waitingMessage)
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(4)
+                            .padding(.horizontal)
+                    }
+                    .padding(24)
+                    .frame(maxWidth: 320)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(UIColor.systemBackground))
+                            .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 4)
+                    )
+                    .padding(.horizontal, 24)
+                }
+                .transition(.opacity)
+            }
         }
         .alert(item: $activeAlert) { alert in
             switch alert {
@@ -168,15 +217,13 @@ public struct WifiSyncView: View {
                     },
                     secondaryButton: .cancel(Text("Huỷ"))
                 )
-            case .clearPrompt(let fileName):
+            case .completionPrompt(let fileName):
                 return Alert(
-                    title: Text("🎉 ĐÃ HOÀN TẤT GỬI FILE!"),
-                    message: Text("Đã gửi tệp \(fileName) sang máy tính thành công.\n\n👉 Mời bạn đến bàn IT để nhận biên bản kiểm kê.\n\nBạn có muốn xoá danh sách hiện tại để bắt đầu quét kệ mới không?"),
-                    primaryButton: .destructive(Text("Xoá danh sách")) {
-                        _ = db.clearAll()
-                        refreshCounts()
-                    },
-                    secondaryButton: .default(Text("Giữ lại"))
+                    title: Text("🎉 HOÀN TẤT BIÊN BẢN!"),
+                    message: Text("IT đã tiếp nhận và xóa dữ liệu đã đổ xong \(fileName)\n\n👉 Mời bạn đến bàn IT nhận biên bản kiểm kê và đi quét quầy tiếp theo"),
+                    dismissButton: .default(Text("Bắt đầu quầy tiếp theo")) {
+                        advanceToNextCount()
+                    }
                 )
             case .message(let title, let message):
                 return Alert(
@@ -652,6 +699,17 @@ public struct WifiSyncView: View {
         refreshCounts()
     }
     
+    private func advanceToNextCount() {
+        let prefix = filePrefix
+        let scan = formattedScanId
+        let key = "red_scan_count_\(scan)_\(prefix)"
+        let current = UserDefaults.standard.integer(forKey: key)
+        let nextCount = (current == 0 ? 1 : current) + 1
+        UserDefaults.standard.set(nextCount, forKey: key)
+        updateRedScanCount()
+        refreshCounts()
+    }
+    
     private func handleSendViaNet() {
         let cleanUid = uidNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanUid.isEmpty else {
@@ -674,6 +732,7 @@ public struct WifiSyncView: View {
         isSending = true
         let fileName = computedFileName
         lastSentFileName = fileName
+        waitingFileName = fileName
         
         // Tạo nội dung file chuẩn Android: NAME:<fileName>\n<barcode>,<qty>\n...
         var rawContent = "NAME:\(fileName)\n"
@@ -712,41 +771,54 @@ public struct WifiSyncView: View {
                     return
                 }
                 
-                // Gửi dữ liệu kiểm kê lên Firebase RTDB
+                // Mở khoá chờ tiếp nhận (không cho đóng giữa chừng)
+                await MainActor.run {
+                    isSending = false
+                    isWaitingForApproval = true
+                    waitingMessage = "Tệp: \(fileName) (\(allItems.count) mã)\nĐã gửi dữ liệu sang PC, đang chờ IT xếp vào hàng đợi & xử lý..."
+                }
+                
+                // Gửi dữ liệu kiểm kê lên Firebase RTDB & chờ tiếp nhận
                 let sendSuccess = try await syncService.sendInventoryData(
                     pcUid: cleanUid,
                     fileName: fileName,
                     content: contentToSend,
                     employeeId: formattedScanId,
-                    totalRecords: allItems.count
+                    totalRecords: allItems.count,
+                    onStatusChange: { status, queuePos in
+                        Task { @MainActor in
+                            if status == "QUEUED" {
+                                waitingMessage = "Tệp: \(fileName) (\(allItems.count) mã)\n\nHàng đợi: Vị trí #\(queuePos) - Đang chờ IT bấm tiếp nhận..."
+                            } else if status == "PROCESSING" {
+                                waitingMessage = "Tệp: \(fileName) (\(allItems.count) mã)\n\nĐang tiếp nhận và xử lý...\nIT đang in biên bản và kiểm tra dữ liệu..."
+                            }
+                        }
+                    }
                 )
                 
                 await MainActor.run {
-                    isSending = false
+                    isWaitingForApproval = false
                     if sendSuccess {
-                        // Tăng biến đếm RedScan
-                        let prefix = filePrefix
-                        let scan = formattedScanId
-                        let key = "red_scan_count_\(scan)_\(prefix)"
-                        let current = UserDefaults.standard.integer(forKey: key)
-                        let nextCount = (current == 0 ? 1 : current) + 1
-                        UserDefaults.standard.set(nextCount, forKey: key)
+                        // Tự động xoá dữ liệu trên máy điện thoại khi IT đã nhận và xác nhận
+                        _ = db.clearAll()
+                        refreshCounts()
                         
                         AudioServicesPlaySystemSound(1057) // Beep
-                        updateRedScanCount()
+                        AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
                         
-                        // Hiển thị dialog hỏi xoá dữ liệu tương tự Android
-                        activeAlert = .clearPrompt(fileName: fileName)
+                        // Hiển thị dialog hoàn tất biên bản đúng chuẩn 1.5.2
+                        activeAlert = .completionPrompt(fileName: fileName)
                     } else {
                         activeAlert = .message(
-                            title: "Gửi thất bại",
-                            message: "Không thể gửi dữ liệu tới máy tính. Vui lòng kiểm tra lại mạng Wi-Fi/Internet và thử lại."
+                            title: "Hết thời gian chờ",
+                            message: "Hết thời gian chờ phản hồi từ IT (Dữ liệu được giữ nguyên)"
                         )
                     }
                 }
             } catch {
                 await MainActor.run {
                     isSending = false
+                    isWaitingForApproval = false
                     activeAlert = .message(
                         title: "Lỗi kết nối",
                         message: "Lỗi: \(error.localizedDescription)"
