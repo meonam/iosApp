@@ -127,7 +127,7 @@ class ViewController: UIViewController, WKNavigationDelegate, WKUIDelegate, CLLo
 
     private func loadWebApp() {
         guard let url = URL(string: "https://stb.103.179.172.229.sslip.io/app") else { return }
-        let request = URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 30.0)
+        let request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: 30.0)
         webView.load(request)
     }
 
