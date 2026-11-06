@@ -1,0 +1,94 @@
+name: Build ShipTocBien iOS (.IPA & Simulator) via GitHub Actions
+
+on:
+  push:
+    branches: [ "main", "master" ]
+    paths:
+      - 'ShipTocBien/**'
+      - 'ShipTocBien.xcodeproj/**'
+      - '.github/workflows/shiptocbien-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-shiptocbien-ios:
+    name: Build ShipTocBien iOS (.ipa & Simulator)
+    runs-on: macos-15 # Máy ảo Apple Silicon macOS 15 của GitHub Actions
+
+    steps:
+      - name: 1. Tải mã nguồn dự án (Checkout Code)
+        uses: actions/checkout@v4
+
+      - name: 2. Kiểm tra phiên bản Xcode & macOS Runner
+        run: |
+          xcodebuild -version
+          echo "macOS Runner Architecture: $(uname -m)"
+
+      - name: 3. Biên dịch ShipTocBien cho Thiết bị thật (xcodebuild Archive)
+        run: |
+          mkdir -p build
+          xcodebuild clean archive \
+            -project "ShipTocBien.xcodeproj" \
+            -scheme "ShipTocBien" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath build/ShipTocBien.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: 4. Đóng gói ứng dụng thiết bị thật thành file .IPA
+        run: |
+          mkdir -p build/Payload
+          cp -r build/ShipTocBien.xcarchive/Products/Applications/*.app build/Payload/
+          VERSION=$(sed -n '/MARKETING_VERSION/{s/.*= *//;s/;//;p;q;}' "ShipTocBien.xcodeproj/project.pbxproj" | tr -d ' ')
+          BUILD_NUM=$(sed -n '/CURRENT_PROJECT_VERSION/{s/.*= *//;s/;//;p;q;}' "ShipTocBien.xcodeproj/project.pbxproj" | tr -d ' ')
+          [ -z "$VERSION" ] && VERSION="1.0.0"
+          [ -z "$BUILD_NUM" ] && BUILD_NUM="1"
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "APP_BUILD=$BUILD_NUM" >> $GITHUB_ENV
+          IPA_NAME="ShipTocBien_iOS_v${VERSION}-${BUILD_NUM}.ipa"
+          echo "IPA_NAME=$IPA_NAME" >> $GITHUB_ENV
+          cd build
+          zip -r "$IPA_NAME" Payload
+          ls -lh *.ipa
+
+      - name: 5. Biên dịch phiên bản Giả lập iOS Simulator (Appetize.io / Mac Simulator)
+        run: |
+          xcodebuild clean build \
+            -project "ShipTocBien.xcodeproj" \
+            -scheme "ShipTocBien" \
+            -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/derivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+          
+          cd build/derivedData/Build/Products/Release-iphonesimulator
+          zip -r "$GITHUB_WORKSPACE/build/ShipTocBien-Simulator.zip" ShipTocBien.app
+          cd "$GITHUB_WORKSPACE"
+          ls -lh build/ShipTocBien-Simulator.zip
+
+      - name: 6. Tải các file Artifacts lên GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShipTocBien-iOS-Builds
+          path: |
+            build/*.ipa
+            build/ShipTocBien-Simulator.zip
+          retention-days: 30
+
+      - name: 7. Tạo / Cập nhật GitHub Release
+        uses: softprops/action-gh-release@v2
+        continue-on-error: true
+        with:
+          files: |
+            build/*.ipa
+            build/ShipTocBien-Simulator.zip
+          name: Ship Tốc Biến iOS v${{ env.APP_VERSION }} (Build ${{ env.APP_BUILD }})
+          tag_name: shiptocbien-v${{ env.APP_VERSION }}
+          draft: false
+          prerelease: false
