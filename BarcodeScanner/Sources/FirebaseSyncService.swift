@@ -18,19 +18,19 @@ public final class FirebaseSyncService {
     
     // MARK: - Kiểm tra kết nối PC
     
-    /// Kiểm tra trạng thái máy tính (PC) đã sẵn sàng nhận qua Internet chưa
-    public func checkPcConnection(pcUid: String) async throws -> Bool {
+    /// Lấy cấu hình trạng thái của PC (online, internet, syncMode, autoAccept)
+    public func getPcConfig(pcUid: String) async throws -> (isOnline: Bool, isInternetEnabled: Bool, syncMode: String, autoAccept: Bool) {
         guard let url = URL(string: "\(firebaseBaseURL)/devices/pc/\(pcUid).json") else {
             throw URLError(.badURL)
         }
         
         let (data, response) = try await URLSession.shared.data(from: url)
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            return false
+            return (false, false, "QUEUE", false)
         }
         
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            return false
+            return (false, false, "QUEUE", false)
         }
         
         // 1. Kiểm tra trạng thái status ("online", true, "1", "active")
@@ -55,7 +55,22 @@ public final class FirebaseSyncService {
             isInternetEnabled = n.intValue == 1
         }
         
-        return isOnline && isInternetEnabled
+        // 3. Kiểm tra chế độ syncMode & autoAccept
+        let syncMode = (json["syncMode"] as? String) ?? "QUEUE"
+        var autoAccept = false
+        if let b = json["autoAccept"] as? Bool {
+            autoAccept = b
+        } else if let s = json["autoAccept"] as? String {
+            autoAccept = s.lowercased() == "true" || s == "1"
+        }
+        
+        return (isOnline, isInternetEnabled, syncMode, autoAccept)
+    }
+    
+    /// Kiểm tra trạng thái máy tính (PC) đã sẵn sàng nhận qua Internet chưa
+    public func checkPcConnection(pcUid: String) async throws -> Bool {
+        let config = try await getPcConfig(pcUid: pcUid)
+        return config.isOnline && config.isInternetEnabled
     }
     
     // MARK: - Gửi dữ liệu kiểm kê lên Firebase RTDB
@@ -67,6 +82,7 @@ public final class FirebaseSyncService {
         content: String,
         employeeId: String = "001",
         totalRecords: Int = 0,
+        isDirectMode: Bool = false,
         onStatusChange: ((String, Int) -> Void)? = nil
     ) async throws -> Bool {
         let pushKey = UUID().uuidString.replacingOccurrences(of: "-", with: "")
@@ -100,7 +116,7 @@ public final class FirebaseSyncService {
             "senderDeviceId": iosId,
             "senderDeviceName": deviceModel,
             "totalRecords": totalRecords,
-            "status": "PENDING"
+            "status": isDirectMode ? "DIRECT" : "PENDING"
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         
@@ -112,8 +128,13 @@ public final class FirebaseSyncService {
         // Khởi động lắng nghe lệnh xoá từ PC ngay sau khi gửi thành công
         startRemoteClearMonitoring(pcUid: pcUid)
         
-        // Chờ máy tính PC tiếp nhận và xác nhận (hỗ trợ hàng đợi kiểm kê tối đa 15 phút)
-        return await waitForPcAck(pcUid: pcUid, pushKey: pushKey, onStatusChange: onStatusChange)
+        // Chờ máy tính PC tiếp nhận và xác nhận
+        // Chế độ Direct: chờ tối đa 10s để nhận ACK CONFIRMED, nếu không kịp ACK thì dữ liệu vẫn đã ghi nhận thành công
+        let ackReceived = await waitForPcAck(pcUid: pcUid, pushKey: pushKey, isDirectMode: isDirectMode, onStatusChange: onStatusChange)
+        if isDirectMode {
+            return true // Ở Direct mode, chỉ cần PUT lên RTDB thành công là đã hoàn tất
+        }
+        return ackReceived
     }
     
     // MARK: - Chờ ACK từ máy tính PC
@@ -121,6 +142,7 @@ public final class FirebaseSyncService {
     private func waitForPcAck(
         pcUid: String,
         pushKey: String,
+        isDirectMode: Bool = false,
         onStatusChange: ((String, Int) -> Void)? = nil
     ) async -> Bool {
         guard let ackURL = URL(string: "\(firebaseBaseURL)/inventory_acks/\(pcUid)/\(pushKey).json") else {
@@ -128,7 +150,7 @@ public final class FirebaseSyncService {
         }
         
         let startTime = Date()
-        let maxWaitSeconds: TimeInterval = 15 * 60 // 15 phút
+        let maxWaitSeconds: TimeInterval = isDirectMode ? 10 : (15 * 60) // Direct: 10s, Queue: 15 phút
         
         while Date().timeIntervalSince(startTime) < maxWaitSeconds {
             try? await Task.sleep(nanoseconds: 800_000_000) // 800ms

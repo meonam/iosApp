@@ -4,12 +4,14 @@ import AudioToolbox
 private enum ActiveWifiAlert: Identifiable {
     case resetConfirm
     case completionPrompt(fileName: String)
+    case directCompleted(fileName: String, count: Int)
     case message(title: String, message: String)
     
     var id: String {
         switch self {
         case .resetConfirm: return "resetConfirm"
         case .completionPrompt(let fn): return "completionPrompt_\(fn)"
+        case .directCompleted(let fn, let cnt): return "directCompleted_\(fn)_\(cnt)"
         case .message(let title, _): return "msg_\(title)"
         }
     }
@@ -23,6 +25,7 @@ public struct WifiSyncView: View {
     @AppStorage("id_dem") private var idDem: String = "001"
     @AppStorage("id_so_phieu") private var idSoPhieu: String = "001"
     @AppStorage("custom_file_name") private var customFileName: String = ""
+    @AppStorage("pref_wifi_sync_mode") private var wifiSyncMode: Int = 0 // 0: Auto theo IT PC, 1: Always Direct, 2: Always Queue
     
     // Thống kê & Trạng thái
     @State private var inventoryCount: Int = 0
@@ -221,6 +224,14 @@ public struct WifiSyncView: View {
                 return Alert(
                     title: Text("🎉 HOÀN TẤT BIÊN BẢN!"),
                     message: Text("IT đã tiếp nhận và xóa dữ liệu đã đổ xong \(fileName)\n\n👉 Mời bạn đến bàn IT nhận biên bản kiểm kê và đi quét quầy tiếp theo"),
+                    dismissButton: .default(Text("Bắt đầu quầy tiếp theo")) {
+                        advanceToNextCount()
+                    }
+                )
+            case .directCompleted(let fileName, let count):
+                return Alert(
+                    title: Text("🎉 TRUYỀN DỮ LIỆU THÀNH CÔNG!"),
+                    message: Text("Đã truyền trực tiếp sang máy tính IT (Chế độ Direct - Không chờ duyệt).\n\n• Tệp: \(fileName)\n• Số lượng: \(count) mã\n\n👉 Dữ liệu trên máy đã được dọn sạch an toàn. Bạn có thể bắt đầu quầy tiếp theo!"),
                     dismissButton: .default(Text("Bắt đầu quầy tiếp theo")) {
                         advanceToNextCount()
                     }
@@ -758,9 +769,9 @@ public struct WifiSyncView: View {
                     return
                 }
 
-                // Kiểm tra kết nối PC trên Firebase
-                let pcConnected = try await syncService.checkPcConnection(pcUid: cleanUid)
-                if !pcConnected {
+                // Kiểm tra kết nối PC trên Firebase & lấy thông tin cấu hình SyncMode
+                let pcConfig = try await syncService.getPcConfig(pcUid: cleanUid)
+                if !pcConfig.isOnline || !pcConfig.isInternetEnabled {
                     await MainActor.run {
                         isSending = false
                         activeAlert = .message(
@@ -771,11 +782,25 @@ public struct WifiSyncView: View {
                     return
                 }
                 
+                // Xác định chế độ Direct hay Queue
+                let isDirectMode: Bool
+                if wifiSyncMode == 1 {
+                    isDirectMode = true
+                } else if wifiSyncMode == 2 {
+                    isDirectMode = false
+                } else {
+                    isDirectMode = (pcConfig.syncMode.uppercased() == "DIRECT" || pcConfig.autoAccept)
+                }
+                
                 // Mở khoá chờ tiếp nhận (không cho đóng giữa chừng)
                 await MainActor.run {
                     isSending = false
                     isWaitingForApproval = true
-                    waitingMessage = "Tệp: \(fileName) (\(allItems.count) mã)\nĐã gửi dữ liệu sang PC, đang chờ IT xếp vào hàng đợi & xử lý..."
+                    if isDirectMode {
+                        waitingMessage = "Tệp: \(fileName) (\(allItems.count) mã)\nChế độ TRỰC TIẾP (Direct) - Đang nạp vào máy tính PC..."
+                    } else {
+                        waitingMessage = "Tệp: \(fileName) (\(allItems.count) mã)\nĐã gửi dữ liệu sang PC, đang chờ IT xếp vào hàng đợi & xử lý..."
+                    }
                 }
                 
                 // Gửi dữ liệu kiểm kê lên Firebase RTDB & chờ tiếp nhận
@@ -785,6 +810,7 @@ public struct WifiSyncView: View {
                     content: contentToSend,
                     employeeId: formattedScanId,
                     totalRecords: allItems.count,
+                    isDirectMode: isDirectMode,
                     onStatusChange: { status, queuePos in
                         Task { @MainActor in
                             if status == "QUEUED" {
@@ -799,15 +825,19 @@ public struct WifiSyncView: View {
                 await MainActor.run {
                     isWaitingForApproval = false
                     if sendSuccess {
-                        // Tự động xoá dữ liệu trên máy điện thoại khi IT đã nhận và xác nhận
+                        // Tự động xoá dữ liệu trên máy điện thoại khi dữ liệu đã được nạp/xác nhận
                         _ = db.clearAll()
                         refreshCounts()
                         
                         AudioServicesPlaySystemSound(1057) // Beep
                         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
                         
-                        // Hiển thị dialog hoàn tất biên bản đúng chuẩn 1.5.2
-                        activeAlert = .completionPrompt(fileName: fileName)
+                        // Hiển thị dialog thông báo phù hợp chế độ
+                        if isDirectMode {
+                            activeAlert = .directCompleted(fileName: fileName, count: allItems.count)
+                        } else {
+                            activeAlert = .completionPrompt(fileName: fileName)
+                        }
                     } else {
                         activeAlert = .message(
                             title: "Hết thời gian chờ",

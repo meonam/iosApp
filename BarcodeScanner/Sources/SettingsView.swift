@@ -13,6 +13,9 @@ public struct SettingsView: View {
     @AppStorage("pref_beep") private var enableBeep: Bool = true
     @AppStorage("pref_vibrate") private var enableVibrate: Bool = true
     
+    // Wi-Fi Sync Mode: 0: Auto (theo IT PC), 1: Always Direct, 2: Always Queue
+    @AppStorage("pref_wifi_sync_mode") private var wifiSyncMode: Int = 0
+    
     @State private var showSavedAlert: Bool = false
     
     public init() {}
@@ -74,6 +77,89 @@ public struct SettingsView: View {
                     }
                     .font(.system(size: 14, weight: .medium))
                     .toggleStyle(SwitchToggleStyle(tint: .blue))
+                }
+                .padding(14)
+                .background(Color(UIColor.secondarySystemGroupedBackground))
+                .cornerRadius(12)
+                .padding(.horizontal)
+                .shadow(color: Color.black.opacity(0.04), radius: 3, x: 0, y: 1)
+                
+                // Card 3: Chế độ truyền Wi-Fi / Internet
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "antenna.radiowaves.left.and.right")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.blue)
+                        Text("CHẾ ĐỘ TRUYỀN DỮ LIỆU WI-FI")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.blue)
+                    }
+                    
+                    VStack(spacing: 10) {
+                        // Option 0: Auto
+                        Button(action: { wifiSyncMode = 0 }) {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: wifiSyncMode == 0 ? "largecircle.fill.circle" : "circle")
+                                    .foregroundColor(wifiSyncMode == 0 ? .blue : .gray)
+                                    .font(.system(size: 18))
+                                    .padding(.top, 2)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Tự động (Khuyên dùng)")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.primary)
+                                    Text("Theo thiết lập máy tính IT (Queue hoặc Direct)")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        Divider()
+                        
+                        // Option 1: Direct
+                        Button(action: { wifiSyncMode = 1 }) {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: wifiSyncMode == 1 ? "largecircle.fill.circle" : "circle")
+                                    .foregroundColor(wifiSyncMode == 1 ? .green : .gray)
+                                    .font(.system(size: 18))
+                                    .padding(.top, 2)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Luôn truyền trực tiếp (Direct)")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.primary)
+                                    Text("Không vào hàng đợi, PC tự lưu & máy tự hoàn tất ngay (Dùng khi IT đi vắng / ngủ đêm)")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        Divider()
+                        
+                        // Option 2: Queue
+                        Button(action: { wifiSyncMode = 2 }) {
+                            HStack(alignment: .top, spacing: 10) {
+                                Image(systemName: wifiSyncMode == 2 ? "largecircle.fill.circle" : "circle")
+                                    .foregroundColor(wifiSyncMode == 2 ? .blue : .gray)
+                                    .font(.system(size: 18))
+                                    .padding(.top, 2)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Luôn hàng đợi (Queue)")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.primary)
+                                    Text("Xếp hàng chờ IT tiếp nhận và in biên bản tại chỗ")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
                 }
                 .padding(14)
                 .background(Color(UIColor.secondarySystemGroupedBackground))
