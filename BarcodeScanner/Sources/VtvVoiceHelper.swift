@@ -2,7 +2,7 @@ import Foundation
 import AVFoundation
 
 /// Trợ lý phát thông báo giọng đọc Nữ BTV VTV (vi-VN-HoaiMyNeural / en-US-JennyNeural)
-/// khi truyền file kiểm kê qua NET hoàn tất trên iOS.
+/// khi truyền file kiểm kê qua NET hoàn tất trên iOS (đã khuếch đại +10.5dB).
 final class VtvVoiceHelper: NSObject {
     static let shared = VtvVoiceHelper()
     
