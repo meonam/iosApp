@@ -19,6 +19,9 @@
 		B00001092D12345600000109 /* DatabaseHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000092D12345600000009 /* DatabaseHelper.swift */; };
 		B00001102D12345600000110 /* FirebaseSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000102D12345600000010 /* FirebaseSyncService.swift */; };
 		B00001112D12345600000111 /* CameraScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000112D12345600000011 /* CameraScannerView.swift */; };
+		B00001122D12345600000112 /* VtvVoiceHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = F00000122D12345600000012 /* VtvVoiceHelper.swift */; };
+		B00001312D12345600000131 /* voice_scan_sent_vi.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F00000312D12345600000031 /* voice_scan_sent_vi.mp3 */; };
+		B00001322D12345600000132 /* voice_scan_sent_en.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F00000322D12345600000032 /* voice_scan_sent_en.mp3 */; };
 		B00001202D12345600000120 /* libsqlite3.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = F00000202D12345600000020 /* libsqlite3.tbd */; };
 /* End PBXBuildFile section */
 
@@ -35,8 +38,11 @@
 		F00000092D12345600000009 /* DatabaseHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseHelper.swift; sourceTree = "<group>"; };
 		F00000102D12345600000010 /* FirebaseSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseSyncService.swift; sourceTree = "<group>"; };
 		F00000112D12345600000011 /* CameraScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraScannerView.swift; sourceTree = "<group>"; };
+		F00000122D12345600000012 /* VtvVoiceHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VtvVoiceHelper.swift; sourceTree = "<group>"; };
 		F00000202D12345600000020 /* libsqlite3.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT; };
 		F00000302D12345600000030 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F00000312D12345600000031 /* voice_scan_sent_vi.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = voice_scan_sent_vi.mp3; sourceTree = "<group>"; };
+		F00000322D12345600000032 /* voice_scan_sent_en.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = voice_scan_sent_en.mp3; sourceTree = "<group>"; };
 		F00000402D12345600000040 /* BarcodeScanner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BarcodeScanner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -85,6 +91,7 @@
 				F00000092D12345600000009 /* DatabaseHelper.swift */,
 				F00000102D12345600000010 /* FirebaseSyncService.swift */,
 				F00000112D12345600000011 /* CameraScannerView.swift */,
+				F00000122D12345600000012 /* VtvVoiceHelper.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -93,6 +100,8 @@
 			isa = PBXGroup;
 			children = (
 				F00000302D12345600000030 /* Info.plist */,
+				F00000312D12345600000031 /* voice_scan_sent_vi.mp3 */,
+				F00000322D12345600000032 /* voice_scan_sent_en.mp3 */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -122,6 +131,7 @@
 			buildPhases = (
 				B00000102D12345600000010 /* Sources */,
 				B00000202D12345600000020 /* Frameworks */,
+				B00000302D12345600000030 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -181,10 +191,23 @@
 				B00001092D12345600000109 /* DatabaseHelper.swift in Sources */,
 				B00001102D12345600000110 /* FirebaseSyncService.swift in Sources */,
 				B00001112D12345600000111 /* CameraScannerView.swift in Sources */,
+				B00001122D12345600000112 /* VtvVoiceHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXResourcesBuildPhase section */
+		B00000302D12345600000030 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B00001312D12345600000131 /* voice_scan_sent_vi.mp3 in Resources */,
+				B00001322D12345600000132 /* voice_scan_sent_en.mp3 in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
 		C00000012D12345600000001 /* Debug */ = {
@@ -239,7 +262,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 154;
+				CURRENT_PROJECT_VERSION = 155;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = BarcodeScanner/Resources/Info.plist;
@@ -248,7 +271,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5.4;
+				MARKETING_VERSION = 1.5.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.saigoncoop.barcodescanner;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -262,7 +285,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 154;
+				CURRENT_PROJECT_VERSION = 155;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = BarcodeScanner/Resources/Info.plist;
@@ -271,7 +294,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.5.4;
+				MARKETING_VERSION = 1.5.5;
 				PRODUCT_BUNDLE_IDENTIFIER = com.saigoncoop.barcodescanner;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

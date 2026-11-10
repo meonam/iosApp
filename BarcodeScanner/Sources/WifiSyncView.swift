@@ -167,9 +167,12 @@ public struct WifiSyncView: View {
             
             if isWaitingForApproval {
                 isWaitingForApproval = false
-                AudioServicesPlaySystemSound(1057)
+                VtvVoiceHelper.shared.playScanTransferSuccess()
                 AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
                 activeAlert = .completionPrompt(fileName: targetFile)
+            } else {
+                VtvVoiceHelper.shared.playScanTransferSuccess()
+                AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
             }
         }
         .sheet(isPresented: $isScanningUid) {
@@ -829,7 +832,7 @@ public struct WifiSyncView: View {
                         _ = db.clearAll()
                         refreshCounts()
                         
-                        AudioServicesPlaySystemSound(1057) // Beep
+                        VtvVoiceHelper.shared.playScanTransferSuccess()
                         AudioServicesPlaySystemSound(kSystemSoundID_Vibrate)
                         
                         // Hiển thị dialog thông báo phù hợp chế độ
