@@ -5,7 +5,7 @@ public final class DatabaseHelper {
     public static let shared = DatabaseHelper()
     
     private var db: OpaquePointer?
-    private let dbFileName = "KIEMKHO.sqlite"
+    private let dbFileName = "HH.db"
     private let lock = NSLock()
     
     public var dbURL: URL {
